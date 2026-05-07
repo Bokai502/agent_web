@@ -7,7 +7,10 @@ import { WorkspaceAppleContent } from "./WorkspaceAppleSample"
 
 const DEFAULT_HOME_PATH = "/home"
 const LEGACY_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v3:"
-const SAMPLE_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v5:sample:"
+const LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v5:sample:"
+const SAMPLE_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v6:sample:"
+const SAMPLE_THUMBNAIL_PIXEL_RATIO = 1.5
+const SAMPLE_THUMBNAIL_QUALITY = 0.92
 type SampleThumbnailVariant = "featured" | "card"
 
 const SAMPLE_STYLE = `
@@ -442,8 +445,17 @@ function getVariantSize(variant: SampleThumbnailVariant) {
     : { height: 150, width: 360 }
 }
 
+function getVariantCacheSize(variant: SampleThumbnailVariant) {
+  const size = getVariantSize(variant)
+  return {
+    height: Math.round(size.height * SAMPLE_THUMBNAIL_PIXEL_RATIO),
+    width: Math.round(size.width * SAMPLE_THUMBNAIL_PIXEL_RATIO),
+  }
+}
+
 function createSampleThumbnailVariant(sourceDataUrl: string, variant: SampleThumbnailVariant) {
-  const { width, height } = getVariantSize(variant)
+  const displaySize = getVariantSize(variant)
+  const { width, height } = getVariantCacheSize(variant)
   return new Promise<string | null>((resolve) => {
     const image = new Image()
     image.onload = () => {
@@ -459,8 +471,9 @@ function createSampleThumbnailVariant(sourceDataUrl: string, variant: SampleThum
       ctx.fillStyle = "#050914"
       ctx.fillRect(0, 0, width, height)
 
-      const innerWidth = width * 0.98
-      const innerHeight = height * (variant === "featured" ? 0.9 : 0.88)
+      const scaleRatio = width / displaySize.width
+      const innerWidth = displaySize.width * 0.98 * scaleRatio
+      const innerHeight = displaySize.height * (variant === "featured" ? 0.9 : 0.88) * scaleRatio
       const scale = Math.min(
         innerWidth / image.naturalWidth,
         innerHeight / image.naturalHeight,
@@ -472,7 +485,7 @@ function createSampleThumbnailVariant(sourceDataUrl: string, variant: SampleThum
       ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight)
 
       try {
-        resolve(canvas.toDataURL("image/png", 0.9))
+        resolve(canvas.toDataURL("image/png", SAMPLE_THUMBNAIL_QUALITY))
       } catch {
         resolve(null)
       }
@@ -487,11 +500,13 @@ async function readOrCreateSampleThumbnail(sessionId: string, variant: SampleThu
   const variantCache = findLatestCacheValue(variantPrefix)
   if (variantCache) return variantCache
 
+  const legacyVariantCache = findLatestCacheValue(`${LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:`)
   const legacyCache = findLatestCacheValue(`${LEGACY_THUMBNAIL_CACHE_PREFIX}${sessionId}:`)
-  if (!legacyCache) return null
+  const sourceCache = legacyCache ?? legacyVariantCache
+  if (!sourceCache) return null
 
-  const generated = await createSampleThumbnailVariant(legacyCache, variant)
-  if (!generated) return legacyCache
+  const generated = await createSampleThumbnailVariant(sourceCache, variant)
+  if (!generated) return sourceCache
 
   try {
     const key = `${variantPrefix}${Date.now()}`
@@ -522,6 +537,7 @@ function CachedSessionPreview({
     const handleStorage = (event: StorageEvent) => {
       if (
         event.key?.startsWith(`${SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:`) ||
+        event.key?.startsWith(`${LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:`) ||
         event.key?.startsWith(`${LEGACY_THUMBNAIL_CACHE_PREFIX}${sessionId}:`)
       ) {
         readOrCreateSampleThumbnail(sessionId, variant).then(dataUrl => {

@@ -487,7 +487,6 @@ export default function Viewer3D() {
 
       const scene = new THREE.Scene()
       scene.background = new THREE.Color(0x050914)
-
       const pmrem = new THREE.PMREMGenerator(nextRenderer as unknown as THREE.WebGLRenderer)
       pmrem.compileEquirectangularShader()
       const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture

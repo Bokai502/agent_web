@@ -40,7 +40,12 @@ type RunManifest = {
   }
   operation?: {
     tool?: string
+    type?: string
     status?: string
+  }
+  inputs?: {
+    doc_name?: string
+    input_format?: string
   }
   artifacts?: RunArtifact[]
 }
@@ -79,6 +84,8 @@ const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("01_layout", "geom_c
 const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const DEFAULT_PROGRESS_PERCENTAGES_RELATIVE_PATH = path.join("logs", "progress_percentages.json")
+const COMPONENT_INFO_ASSEMBLY_STEM = "component_info_assembly"
+const LAYOUT_ASSEMBLY_STEM = "geometry_after"
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== ""
@@ -211,6 +218,43 @@ function isGlbPath(filePath: string) {
   return path.extname(filePath).toLowerCase() === ".glb"
 }
 
+function safeAssemblyDocName(docName: string) {
+  return docName
+    .split("")
+    .map(char => /[A-Za-z0-9_-]/u.test(char) ? char : "_")
+    .join("")
+    .replace(/^_+|_+$/gu, "") || "assembly"
+}
+
+function getAssemblyOutputStem(manifest: RunManifest) {
+  const inputFormat = manifest.inputs?.input_format
+  const operationType = manifest.operation?.type
+  if (
+    inputFormat === "component_info_assembly" ||
+    operationType === "create_component_info_assembly" ||
+    manifest.operation?.tool === "freecad-create-assembly-from-component-info"
+  ) {
+    return COMPONENT_INFO_ASSEMBLY_STEM
+  }
+  return LAYOUT_ASSEMBLY_STEM
+}
+
+function resolveAssemblyBuildOutputPath(
+  manifest: RunManifest,
+  extension: ".glb" | ".step",
+  assemblyBuildsDir: string,
+) {
+  const docName = manifest.inputs?.doc_name
+  if (!isNonEmptyString(docName)) return null
+
+  return path.join(
+    assemblyBuildsDir,
+    safeAssemblyDocName(docName),
+    "outputs",
+    `${getAssemblyOutputStem(manifest)}${extension}`,
+  )
+}
+
 async function resolveModelFromGlbPath(glbPath: string | undefined) {
   if (!isNonEmptyString(glbPath)) return null
 
@@ -241,7 +285,10 @@ function resolveGlbPath(
   manifest: RunManifest,
   variant: ModelVariant,
   workspaceDir: string,
+  assemblyBuildsDir: string,
 ) {
+  const buildFinished = manifest.result?.success === true || manifest.operation?.status === "success"
+
   if (variant === "replaced") {
     const replacedOutputPath = resolveScopedWorkspaceFilePath(
       manifest.outputs?.replaced_glb_path,
@@ -278,7 +325,16 @@ function resolveGlbPath(
     artifact.kind === "glb" &&
     resolveScopedWorkspaceFilePath(artifact.path, workspaceDir),
   )
-  return resolveScopedWorkspaceFilePath(glbArtifact?.path, workspaceDir)
+  const artifactPath = resolveScopedWorkspaceFilePath(glbArtifact?.path, workspaceDir)
+  if (artifactPath) return artifactPath
+
+  if (!buildFinished) return null
+
+  return resolveScopedAssemblyArtifactPath(
+    resolveAssemblyBuildOutputPath(manifest, ".glb", assemblyBuildsDir),
+    workspaceDir,
+    assemblyBuildsDir,
+  )
 }
 
 async function resolveRenderableModelFromManifest(
@@ -295,7 +351,7 @@ async function resolveRenderableModelFromManifest(
   if (isNonEmptyString(runId) && resolvedRunId !== runId) return null
   if (isNonEmptyString(sessionId) && resolvedSessionId !== sessionId) return null
 
-  const glbPath = resolveGlbPath(manifest, variant, workspaceDir)
+  const glbPath = resolveGlbPath(manifest, variant, workspaceDir, assemblyBuildsDir)
   if (!glbPath) return null
 
   const fileVersion = await getFileVersion(glbPath).catch(() => null)
@@ -306,7 +362,7 @@ async function resolveRenderableModelFromManifest(
     runId: resolvedRunId,
     createdAt: manifest.created_at ?? null,
     updatedAt: manifest.updated_at ?? null,
-    documentName: manifest.result?.document ?? null,
+    documentName: manifest.result?.document ?? manifest.inputs?.doc_name ?? null,
     glbPath,
     version: [
       resolvedRunId ?? "unknown-run",
@@ -405,37 +461,84 @@ async function resolveModel(
   return (await resolveModelFromGlbPath(glbPath)) ?? resolveModelFromRegistry(sessionId, runId, variant)
 }
 
-function buildOutputFilesFromManifest(manifest: RunManifest) {
-  const outputFiles: Record<string, { path: string | null; exists: boolean }> = {}
+async function pathExists(filePath: string | null) {
+  if (!filePath) return false
+  return fs.access(filePath).then(() => true).catch(() => false)
+}
 
-  const addOutputFile = (key: string, filePath: string | undefined) => {
+async function buildOutputFilesFromManifest(
+  manifest: RunManifest,
+  workspaceDir: string,
+  assemblyBuildsDir: string,
+) {
+  const outputFiles: Record<string, { path: string | null; exists: boolean }> = {}
+  const buildFinished = manifest.result?.success === true || manifest.operation?.status === "success"
+
+  const addOutputFile = async (key: string, filePath: string | undefined | null) => {
     if (!isNonEmptyString(filePath)) return
     const artifact = manifest.artifacts?.find(item => item.path === filePath)
+    const exists = artifact?.exists ?? (buildFinished ? await pathExists(filePath) : false)
     outputFiles[key] = {
       path: filePath,
-      exists: artifact?.exists ?? true,
+      exists,
     }
   }
 
-  addOutputFile("step", manifest.outputs?.step_path ?? manifest.result?.step_path ?? manifest.result?.save_path)
-  addOutputFile("glb", manifest.outputs?.glb_path ?? manifest.result?.glb_path)
-  addOutputFile("replaced_step", manifest.outputs?.replaced_step_path)
-  addOutputFile("replaced_glb", manifest.outputs?.replaced_glb_path ?? manifest.result?.replaced_glb_path)
+  await addOutputFile("step", manifest.outputs?.step_path ?? manifest.result?.step_path ?? manifest.result?.save_path)
+  await addOutputFile("glb", manifest.outputs?.glb_path ?? manifest.result?.glb_path)
+  await addOutputFile("replaced_step", manifest.outputs?.replaced_step_path)
+  await addOutputFile("replaced_glb", manifest.outputs?.replaced_glb_path ?? manifest.result?.replaced_glb_path)
+
+  if (!outputFiles.step) {
+    await addOutputFile(
+      "step",
+      resolveScopedAssemblyArtifactPath(
+        resolveAssemblyBuildOutputPath(manifest, ".step", assemblyBuildsDir),
+        workspaceDir,
+        assemblyBuildsDir,
+      ),
+    )
+  }
+  if (!outputFiles.glb) {
+    await addOutputFile(
+      "glb",
+      resolveScopedAssemblyArtifactPath(
+        resolveAssemblyBuildOutputPath(manifest, ".glb", assemblyBuildsDir),
+        workspaceDir,
+        assemblyBuildsDir,
+      ),
+    )
+  }
 
   for (const artifact of manifest.artifacts ?? []) {
     if (!isNonEmptyString(artifact.kind) || !isNonEmptyString(artifact.path)) continue
     if (outputFiles[artifact.kind]) continue
     outputFiles[artifact.kind] = {
       path: artifact.path,
-      exists: artifact.exists ?? true,
+      exists: artifact.exists ?? (buildFinished ? await pathExists(artifact.path) : false),
     }
   }
 
   return outputFiles
 }
 
-function buildProgressDataFromManifest(manifest: RunManifest) {
-  const progress = manifest.result?.progress_percentages ?? null
+async function buildProgressDataFromManifest(
+  manifest: RunManifest,
+  workspaceDir: string,
+  assemblyBuildsDir: string,
+) {
+  const outputFiles = await buildOutputFilesFromManifest(manifest, workspaceDir, assemblyBuildsDir)
+  const hasStep = outputFiles.step?.exists === true
+  const hasGlb = outputFiles.glb?.exists === true
+  const progress = manifest.result?.progress_percentages ?? (
+    hasStep || hasGlb
+      ? {
+        layout_completion_percent: 100,
+        modeling_percent: 100,
+        export_file_percent: hasStep && hasGlb ? 100 : 50,
+      }
+      : null
+  )
   if (!progress) return null
 
   return {
@@ -445,15 +548,15 @@ function buildProgressDataFromManifest(manifest: RunManifest) {
     turn_id: manifest.turn_id ?? null,
     tool: manifest.operation?.tool ?? null,
     updated_at: manifest.updated_at ?? null,
-    success: manifest.result?.success ?? manifest.operation?.status === "success",
+    success: manifest.result?.success ?? (manifest.operation?.status === "success" || (hasStep && hasGlb)),
     progress_percentages: progress,
-    output_files: buildOutputFilesFromManifest(manifest),
+    output_files: outputFiles,
     ...progress,
   }
 }
 
 async function resolveProgressFromLatestSessionRun(sessionId: string) {
-  const { locations } = await resolveRegistryLocations()
+  const { locations, workspaceDir, assemblyBuildsDir } = await resolveRegistryLocations()
 
   for (const location of locations) {
     const index = await readRegistryIndex(location).catch(() => null)
@@ -463,7 +566,11 @@ async function resolveProgressFromLatestSessionRun(sessionId: string) {
       const manifestRecord = await readRunManifest(location, manifestRef).catch(() => null)
       if (!manifestRecord) continue
 
-      const data = buildProgressDataFromManifest(manifestRecord.manifest)
+      const data = await buildProgressDataFromManifest(
+        manifestRecord.manifest,
+        workspaceDir,
+        assemblyBuildsDir,
+      )
       if (!data) continue
 
       const fileVersion = await getFileVersion(manifestRecord.manifestPath).catch(() => null)
@@ -580,19 +687,6 @@ export async function freecadRoutes(fastify: FastifyInstance) {
           exists: false,
           data: null,
           error: "progress json is not valid yet",
-          source_path: progressPath,
-          source_version: [progressPath, stat.mtimeMs, stat.size].join(":"),
-          updated_at: stat.mtime.toISOString(),
-        })
-      }
-
-      if (
-        isNonEmptyString(sessionId) &&
-        (!data || typeof data !== "object" || (data as { session_id?: unknown }).session_id !== sessionId)
-      ) {
-        return reply.send({
-          exists: false,
-          data: null,
           source_path: progressPath,
           source_version: [progressPath, stat.mtimeMs, stat.size].join(":"),
           updated_at: stat.mtime.toISOString(),

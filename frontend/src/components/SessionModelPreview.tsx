@@ -13,7 +13,9 @@ import type { Disposable, ResolvedModel, WebGPURendererRuntime } from "../pages/
 const MAX_DEVICE_PIXEL_RATIO = 1.5
 const MAX_COMPONENT_LABELS = 4
 const CACHE_PREFIX = "codex:model-preview-image:v3:"
-const SAMPLE_CACHE_PREFIX = "codex:model-preview-image:v5:sample:"
+const SAMPLE_CACHE_PREFIX = "codex:model-preview-image:v6:sample:"
+const SAMPLE_THUMBNAIL_PIXEL_RATIO = 1.5
+const SAMPLE_THUMBNAIL_QUALITY = 0.92
 
 interface SessionModelPreviewProps {
   sessionId: string
@@ -50,9 +52,13 @@ function writeSampleThumbnailVariant(
   sourceCanvas: HTMLCanvasElement,
   variant: "featured" | "card",
 ) {
-  const target = variant === "featured"
+  const displayTarget = variant === "featured"
     ? { height: 340, width: 560 }
     : { height: 150, width: 360 }
+  const target = {
+    height: Math.round(displayTarget.height * SAMPLE_THUMBNAIL_PIXEL_RATIO),
+    width: Math.round(displayTarget.width * SAMPLE_THUMBNAIL_PIXEL_RATIO),
+  }
   const canvas = document.createElement("canvas")
   canvas.width = target.width
   canvas.height = target.height
@@ -62,8 +68,9 @@ function writeSampleThumbnailVariant(
   ctx.fillStyle = "#050914"
   ctx.fillRect(0, 0, target.width, target.height)
 
-  const innerWidth = target.width * 0.98
-  const innerHeight = target.height * (variant === "featured" ? 0.9 : 0.88)
+  const scaleRatio = target.width / displayTarget.width
+  const innerWidth = displayTarget.width * 0.98 * scaleRatio
+  const innerHeight = displayTarget.height * (variant === "featured" ? 0.9 : 0.88) * scaleRatio
   const scale = Math.min(
     innerWidth / sourceCanvas.width,
     innerHeight / sourceCanvas.height,
@@ -75,7 +82,7 @@ function writeSampleThumbnailVariant(
   ctx.drawImage(sourceCanvas, drawX, drawY, drawWidth, drawHeight)
 
   try {
-    const dataUrl = canvas.toDataURL("image/png", 0.9)
+    const dataUrl = canvas.toDataURL("image/png", SAMPLE_THUMBNAIL_QUALITY)
     localStorage.setItem(cacheKey, dataUrl)
     return dataUrl
   } catch {

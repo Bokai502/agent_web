@@ -168,6 +168,12 @@ const STYLE = `
   font-size: 12px;
   font-weight: 650;
 }
+button.wa-status-pill {
+  font-family: inherit;
+}
+button.wa-status-pill:not(:disabled) { cursor: pointer; }
+button.wa-status-pill:not(:disabled):hover { background: rgba(255, 255, 255, 0.92); }
+button.wa-status-pill:disabled { cursor: default; opacity: 0.72; }
 .wa-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #0f7f56; }
 .wa-workspace {
   display: grid;
@@ -577,12 +583,15 @@ function getProgressEntries(data: unknown): ProgressEntry[] {
 function getProgressOutputFilesByKey(data: unknown) {
   const files = new Map<string, string[]>()
   if (!isRecord(data) || !isRecord(data.output_files)) return files
+  const showFinalOutputs = data.success === true
 
   for (const [key, value] of Object.entries(data.output_files)) {
+    if (!showFinalOutputs && ["step", "glb", "replaced_step", "replaced_glb"].includes(key)) continue
     const names: string[] = []
     if (typeof value === "string") {
       names.push(getDisplayFileName(value))
     } else if (isRecord(value)) {
+      if (value.exists !== true) continue
       const pathValue = value.path ?? value.file ?? value.name
       if (typeof pathValue === "string") names.push(getDisplayFileName(pathValue))
     }
@@ -602,20 +611,24 @@ function getProgressFiles(data: unknown) {
   if (!isRecord(data)) return []
   const candidates = [data.files, data.key_files, data.artifacts, data.outputs, data.output_files]
   const paths = new Set<string>()
+  const showFinalOutputs = data.success === true
 
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
       for (const item of candidate) {
         if (typeof item === "string") paths.add(item)
         if (isRecord(item)) {
+          if (item.exists === false) continue
           const pathValue = item.path ?? item.file ?? item.name
           if (typeof pathValue === "string") paths.add(pathValue)
         }
       }
     } else if (isRecord(candidate)) {
-      for (const value of Object.values(candidate)) {
+      for (const [key, value] of Object.entries(candidate)) {
+        if (!showFinalOutputs && ["step", "glb", "replaced_step", "replaced_glb"].includes(key)) continue
         if (typeof value === "string") paths.add(value)
         if (isRecord(value)) {
+          if (value.exists !== true) continue
           const pathValue = value.path ?? value.file ?? value.name
           if (typeof pathValue === "string") paths.add(pathValue)
         }
@@ -683,6 +696,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
   }, [activeSessionId, previewGlbPath])
+  const freecadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const orderedBomComponents = useMemo(() => {
     if (!selectedBomId) return bomInfo.components
     return [...bomInfo.components].sort((left, right) => {
@@ -698,6 +712,10 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     handleSubmit(prompt, enabledSkills)
     window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
   }, [handleSubmit])
+
+  const openExternalWindow = useCallback((url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer")
+  }, [])
 
   useEffect(() => {
     const handleViewerMessage = (event: MessageEvent<ViewerComponentMessage>) => {
@@ -784,7 +802,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
             <div className="wa-tool-menu">
               <button type="button">工具 ▾</button>
               <div className="wa-tool-panel" role="menu" aria-label="工具列表">
-                <button type="button" onClick={() => setActivePanel("freecad")}>FreeCAD <span>CAD</span></button>
+                <button
+                  type="button"
+                  onClick={() => setActivePanel("freecad")}
+                >
+                  FreeCAD <span>CAD</span>
+                </button>
               </div>
             </div>
           </div>
@@ -838,7 +861,17 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
           </div>
           <div className="wa-stage-body">
             <div className="wa-stage-toolbar">
-              <div className="wa-status-pill">{activePanel === "model" ? "Viewer3D" : activePanel === "bom" ? "BOM" : "FreeCAD"}</div>
+              <button
+                type="button"
+                className="wa-status-pill"
+                onClick={() => {
+                  if (activePanel === "model") openExternalWindow(viewerHref)
+                  if (activePanel === "freecad") openExternalWindow(freecadHref)
+                }}
+                disabled={activePanel === "bom"}
+              >
+                {activePanel === "model" ? "Viewer3D" : activePanel === "bom" ? "BOM" : "FreeCAD"}
+              </button>
             </div>
             {activePanel === "model" ? (
               <iframe className="wa-viewer" title="3D 模型预览" src={viewerHref} />
@@ -911,7 +944,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
               <iframe
                 className="wa-viewer"
                 title="FreeCAD"
-                src="http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
+                src={freecadHref}
               />
             )}
           </div>
@@ -966,17 +999,6 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                   <span>等待进度更新</span>
                 </div>
               )}
-            </section>
-
-            <section className="wa-info-card">
-              <h3>关键文件</h3>
-              <div className="wa-files">
-                {(displayedFileNames.length > 0 ? displayedFileNames : ["暂无文件更新"]).map(name => (
-                  <div className="wa-file" key={name} title={name}>
-                    <span>{getDisplayFileName(name)}</span>
-                  </div>
-                ))}
-              </div>
             </section>
 
             <section className="wa-info-card">
