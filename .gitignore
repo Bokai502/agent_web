@@ -5,8 +5,13 @@ dist/
 backend/sessions.json
 backend/config.json
 backend/logs/
+backend/dist/
+backend/node_modules/
 backend/skills.json
 backend/config.json
+
+frontend/dist/
+frontend/node_modules/
 
 .git.broken/
 .claude/settings.local.json

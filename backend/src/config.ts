@@ -38,10 +38,10 @@ const ROOT_CONFIG_FILE = path.resolve(process.cwd(), "..", "..", "config.json")
 const LOCAL_CONFIG_FILE = path.resolve(process.cwd(), "config.json")
 const CONFIG_FILE = fs.existsSync(ROOT_CONFIG_FILE) ? ROOT_CONFIG_FILE : LOCAL_CONFIG_FILE
 const DEFAULT_CORS_ORIGINS = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "https://localhost:5174",
-  "https://127.0.0.1:5174",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+  "https://localhost:5175",
+  "https://127.0.0.1:5175",
 ]
 
 function die(msg: string): never {
