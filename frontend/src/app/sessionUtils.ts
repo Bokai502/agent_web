@@ -60,27 +60,24 @@ export function formatSessionTime(createdAt: number) {
 }
 
 export function getSessionIdFromPath(pathname: string, homePath = HOME_PATH): string | null {
-  if (pathname === "/" || pathname === HOME_PATH || pathname === homePath) return null
+  if (pathname === HOME_PATH || pathname === homePath) return null
   if (pathname.startsWith(`${homePath}/`)) {
     const nested = pathname.slice(homePath.length + 1).trim()
     return nested.length > 0 ? decodeURIComponent(nested) : null
   }
-  const trimmed = pathname.replace(/^\/+/, "").trim()
-  return trimmed.length > 0 ? decodeURIComponent(trimmed) : null
+  return null
 }
 
 export function updateBrowserPath(sessionId: string | null, replace = false, homePath = HOME_PATH) {
   const nextPath = sessionId
-    ? homePath === HOME_PATH
-      ? `/${encodeURIComponent(sessionId)}`
-      : `${homePath}/${encodeURIComponent(sessionId)}`
+    ? `${homePath}/${encodeURIComponent(sessionId)}`
     : homePath
   const currentPath = window.location.pathname
   if (currentPath === nextPath) return
 
   const method = replace ? "replaceState" : "pushState"
   window.history[method](null, "", nextPath)
-  if (nextPath === homePath || nextPath === HOME_PATH || nextPath === "/") {
+  if (nextPath === homePath || nextPath === HOME_PATH) {
     window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
   }
 }

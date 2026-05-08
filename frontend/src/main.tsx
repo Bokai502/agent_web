@@ -6,6 +6,7 @@ import './styles/app.css'
 
 const Viewer3D = lazy(() => import('./pages/Viewer3D.tsx'))
 const Earth = lazy(() => import('./pages/Earth.tsx'))
+const SplineShowcase = lazy(() => import('./pages/SplineShowcase.tsx'))
 const WorkspaceAppleSample = lazy(() => import('./pages/WorkspaceAppleSample.tsx'))
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
   const isViewer = pathname === '/viewer'
   const isEarth = pathname === '/earth'
   const isHome = pathname === '/' || pathname === '/home'
+  const isWorkspace = pathname === '/workspace' || pathname.startsWith('/workspace/')
 
   if (isViewer) {
     return (
@@ -41,11 +43,19 @@ function Router() {
     )
   }
 
-  if (isHome) return <App />
+  if (isHome) {
+    return (
+      <Suspense fallback={<div style={{ background: '#eef3f8', width: '100vw', height: '100vh' }} />}>
+        <SplineShowcase />
+      </Suspense>
+    )
+  }
+
+  if (isWorkspace) return <App />
 
   return (
     <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
-      <WorkspaceAppleSample homePath="/home" />
+      <WorkspaceAppleSample homePath="/workspace" />
     </Suspense>
   )
 }

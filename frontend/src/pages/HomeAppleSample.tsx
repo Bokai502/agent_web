@@ -5,7 +5,7 @@ import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
 import type { Session } from "../types"
 import { WorkspaceAppleContent } from "./WorkspaceAppleSample"
 
-const DEFAULT_HOME_PATH = "/home"
+const DEFAULT_HOME_PATH = "/workspace"
 const LEGACY_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v3:"
 const LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v5:sample:"
 const SAMPLE_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v6:sample:"

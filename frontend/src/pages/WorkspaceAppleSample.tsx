@@ -5,7 +5,7 @@ import { createImageUrl } from "../components/bomData"
 import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
 
-const WORKSPACE_HOME_PATH = "/home"
+const WORKSPACE_HOME_PATH = "/workspace"
 
 type ViewerComponentMessage = {
   componentId?: unknown

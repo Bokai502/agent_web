@@ -1,1 +1,1 @@
-export const HOME_PATH = "/home"
+export const HOME_PATH = "/workspace"
