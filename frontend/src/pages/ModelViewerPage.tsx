@@ -75,7 +75,7 @@ function parseComponentDetails(data: RawComponentInfo) {
   return detailsById
 }
 
-export default function Viewer3D() {
+export default function ModelViewerPage() {
   const mountRef = useRef<HTMLDivElement>(null)
   const annotationSvgRef = useRef<SVGSVGElement>(null)
   const annotationLabelsRef = useRef<HTMLDivElement>(null)

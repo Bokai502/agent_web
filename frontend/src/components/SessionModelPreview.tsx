@@ -9,45 +9,33 @@ import {
 import { fetchResolvedModel, getModelVersion } from "../pages/viewer3d/modelSource"
 import { applyTransparency, disposeModelResources, loadGltf } from "../pages/viewer3d/modelUtils"
 import type { Disposable, ResolvedModel, WebGPURendererRuntime } from "../pages/viewer3d/types"
+import {
+  cacheCanvasThumbnail,
+  createObjectUrl,
+  CURRENT_THUMBNAIL_CACHE_PREFIX,
+  readCachedThumbnailBlob,
+  SAMPLE_THUMBNAIL_CACHE_PREFIX,
+} from "./thumbnailCache"
 
 const MAX_DEVICE_PIXEL_RATIO = 1.5
+const THUMBNAIL_RENDER_SCALE = 1.45
 const MAX_COMPONENT_LABELS = 4
-const CACHE_PREFIX = "codex:model-preview-image:v3:"
-const SAMPLE_CACHE_PREFIX = "codex:model-preview-image:v6:sample:"
-const SAMPLE_THUMBNAIL_PIXEL_RATIO = 1.5
-const SAMPLE_THUMBNAIL_QUALITY = 0.92
+const SAMPLE_THUMBNAIL_PIXEL_RATIO = 2
+const SAMPLE_THUMBNAIL_QUALITY = 0.94
 
 interface SessionModelPreviewProps {
   sessionId: string
 }
 
 function getThumbnailCacheKey(sessionId: string, model: ResolvedModel) {
-  return `${CACHE_PREFIX}${sessionId}:${getModelVersion(model)}`
+  return `${CURRENT_THUMBNAIL_CACHE_PREFIX}${sessionId}:${getModelVersion(model)}`
 }
 
 function getSampleThumbnailCacheKey(sessionId: string, model: ResolvedModel, variant: "featured" | "card") {
-  return `${SAMPLE_CACHE_PREFIX}${sessionId}:${variant}:${getModelVersion(model)}`
+  return `${SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:${getModelVersion(model)}`
 }
 
-function readCachedThumbnail(cacheKey: string) {
-  try {
-    return localStorage.getItem(cacheKey)
-  } catch {
-    return null
-  }
-}
-
-function writeCachedThumbnail(cacheKey: string, canvas: HTMLCanvasElement) {
-  try {
-    const dataUrl = canvas.toDataURL("image/png", 0.86)
-    localStorage.setItem(cacheKey, dataUrl)
-    return dataUrl
-  } catch {
-    return null
-  }
-}
-
-function writeSampleThumbnailVariant(
+async function writeSampleThumbnailVariant(
   cacheKey: string,
   sourceCanvas: HTMLCanvasElement,
   variant: "featured" | "card",
@@ -65,7 +53,23 @@ function writeSampleThumbnailVariant(
   const ctx = canvas.getContext("2d")
   if (!ctx) return null
 
-  ctx.fillStyle = "#050914"
+  const bg = ctx.createLinearGradient(0, 0, target.width, target.height)
+  bg.addColorStop(0, "#070b16")
+  bg.addColorStop(0.58, "#101a2b")
+  bg.addColorStop(1, "#070915")
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, target.width, target.height)
+  const glow = ctx.createRadialGradient(
+    target.width * 0.58,
+    target.height * 0.34,
+    0,
+    target.width * 0.58,
+    target.height * 0.34,
+    target.width * 0.56,
+  )
+  glow.addColorStop(0, "rgba(119, 170, 255, 0.28)")
+  glow.addColorStop(1, "rgba(119, 170, 255, 0)")
+  ctx.fillStyle = glow
   ctx.fillRect(0, 0, target.width, target.height)
 
   const scaleRatio = target.width / displayTarget.width
@@ -79,15 +83,13 @@ function writeSampleThumbnailVariant(
   const drawHeight = sourceCanvas.height * scale
   const drawX = (target.width - drawWidth) / 2
   const drawY = (target.height - drawHeight) / 2
+  ctx.shadowColor = "rgba(80, 120, 190, 0.34)"
+  ctx.shadowBlur = 28 * scaleRatio
+  ctx.shadowOffsetY = 8 * scaleRatio
   ctx.drawImage(sourceCanvas, drawX, drawY, drawWidth, drawHeight)
+  ctx.shadowColor = "transparent"
 
-  try {
-    const dataUrl = canvas.toDataURL("image/png", SAMPLE_THUMBNAIL_QUALITY)
-    localStorage.setItem(cacheKey, dataUrl)
-    return dataUrl
-  } catch {
-    return null
-  }
+  return cacheCanvasThumbnail(cacheKey, canvas, SAMPLE_THUMBNAIL_QUALITY)
 }
 
 function drawRoundRect(
@@ -196,33 +198,35 @@ function createLabeledThumbnail(
   const ctx = canvas.getContext("2d")
   if (!ctx) return sourceCanvas
 
-  const scaleX = sourceCanvas.width / (sourceCanvas.clientWidth || sourceCanvas.width)
-  const scaleY = sourceCanvas.height / (sourceCanvas.clientHeight || sourceCanvas.height)
   ctx.drawImage(sourceCanvas, 0, 0)
 
-  ctx.font = `700 ${Math.round(11 * scaleY)}px IBM Plex Mono, SFMono-Regular, Consolas, monospace`
-  ctx.lineWidth = Math.max(1.5, 1.6 * scaleX)
+  const uiScale = Math.max(
+    1,
+    Math.min(sourceCanvas.width / 280, sourceCanvas.height / 156),
+  )
+  ctx.font = `700 ${Math.round(11 * uiScale)}px IBM Plex Mono, SFMono-Regular, Consolas, monospace`
+  ctx.lineWidth = Math.max(1.5, 1.6 * uiScale)
   labels.forEach((item, index) => {
-    const anchorX = item.screenX * scaleX
-    const anchorY = item.screenY * scaleY
+    const anchorX = item.screenX
+    const anchorY = item.screenY
     const side = index % 2 === 0 ? "left" : "right"
     const labelWidth = Math.min(
-      Math.max(ctx.measureText(item.label).width + 20 * scaleX, 58 * scaleX),
-      126 * scaleX,
+      Math.max(ctx.measureText(item.label).width + 20 * uiScale, 58 * uiScale),
+      126 * uiScale,
     )
-    const labelHeight = 24 * scaleY
+    const labelHeight = 24 * uiScale
     const labelX = side === "left"
-      ? 10 * scaleX
-      : sourceCanvas.width - labelWidth - 10 * scaleX
+      ? 10 * uiScale
+      : sourceCanvas.width - labelWidth - 10 * uiScale
     const labelY = Math.min(
-      Math.max(12 * scaleY + index * 30 * scaleY, 10 * scaleY),
-      sourceCanvas.height - labelHeight - 10 * scaleY,
+      Math.max(12 * uiScale + index * 30 * uiScale, 10 * uiScale),
+      sourceCanvas.height - labelHeight - 10 * uiScale,
     )
     const labelCenterY = labelY + labelHeight * 0.5
     const labelEdgeX = side === "left" ? labelX + labelWidth : labelX
     const elbowX = side === "left"
-      ? Math.max(labelEdgeX + 8 * scaleX, anchorX - 18 * scaleX)
-      : Math.min(labelEdgeX - 8 * scaleX, anchorX + 18 * scaleX)
+      ? Math.max(labelEdgeX + 8 * uiScale, anchorX - 18 * uiScale)
+      : Math.min(labelEdgeX - 8 * uiScale, anchorX + 18 * uiScale)
 
     ctx.strokeStyle = "rgba(139, 164, 255, 0.88)"
     ctx.fillStyle = "rgba(139, 164, 255, 1)"
@@ -234,12 +238,12 @@ function createLabeledThumbnail(
     ctx.stroke()
 
     ctx.beginPath()
-    ctx.arc(anchorX, anchorY, 3.2 * scaleX, 0, Math.PI * 2)
+    ctx.arc(anchorX, anchorY, 3.2 * uiScale, 0, Math.PI * 2)
     ctx.fill()
     ctx.strokeStyle = "rgba(255,255,255,0.88)"
     ctx.stroke()
 
-    drawRoundRect(ctx, labelX, labelY, labelWidth, labelHeight, 4 * scaleX)
+    drawRoundRect(ctx, labelX, labelY, labelWidth, labelHeight, 4 * uiScale)
     ctx.fillStyle = "rgba(5, 10, 24, 0.92)"
     ctx.fill()
     ctx.strokeStyle = "rgba(160, 181, 255, 0.72)"
@@ -247,7 +251,7 @@ function createLabeledThumbnail(
 
     ctx.fillStyle = "#e3e9ff"
     const text = item.label.length > 14 ? `${item.label.slice(0, 13)}...` : item.label
-    ctx.fillText(text.toUpperCase(), labelX + 10 * scaleX, labelY + 16 * scaleY)
+    ctx.fillText(text.toUpperCase(), labelX + 10 * uiScale, labelY + 16 * uiScale)
   })
 
   return canvas
@@ -262,9 +266,23 @@ function nextFrame() {
 export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const mountRef = useRef<HTMLDivElement>(null)
+  const objectUrlRef = useRef<string | null>(null)
   const [shouldLoad, setShouldLoad] = useState(false)
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty">("idle")
+
+  const setThumbnailBlob = (blob: Blob) => {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+    const url = createObjectUrl(blob)
+    objectUrlRef.current = url
+    setThumbnailUrl(url)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") return
@@ -312,8 +330,10 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
     }
 
     const renderThumbnail = async (resolvedModel: ResolvedModel, cacheKey: string) => {
-      const width = mount.clientWidth || 280
-      const height = mount.clientHeight || 156
+      const width = Math.round((mount.clientWidth || 280) * THUMBNAIL_RENDER_SCALE)
+      const height = Math.round((mount.clientHeight || 156) * THUMBNAIL_RENDER_SCALE)
+      const displayWidth = mount.clientWidth || 280
+      const displayHeight = mount.clientHeight || 156
       const nextRenderer = new THREE.WebGPURenderer({
         alpha: false,
         antialias: true,
@@ -327,7 +347,7 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       }
 
       nextRenderer.setPixelRatio(
-        Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO),
+        Math.min((window.devicePixelRatio || 1) * 1.25, MAX_DEVICE_PIXEL_RATIO * 1.5),
       )
       nextRenderer.setSize(width, height)
       nextRenderer.shadowMap.enabled = true
@@ -338,13 +358,13 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
 
       domElement = nextRenderer.domElement
       domElement.style.display = "block"
-      domElement.style.height = "100%"
-      domElement.style.width = "100%"
+      domElement.style.height = `${displayHeight}px`
+      domElement.style.width = `${displayWidth}px`
       mount.appendChild(domElement)
 
       const scene = new THREE.Scene()
-      scene.background = new THREE.Color(0x050914)
-      scene.fog = new THREE.FogExp2(0x050914, 0.028)
+      scene.background = new THREE.Color(0x070b16)
+      scene.fog = new THREE.FogExp2(0x070b16, 0.02)
 
       const pmrem = new THREE.PMREMGenerator(nextRenderer as unknown as THREE.WebGLRenderer)
       const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
@@ -352,19 +372,19 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       disposableResources.push(pmrem, envTex)
 
       const camera = new THREE.PerspectiveCamera(40, width / height, 0.01, 1000)
-      const keyLight = new THREE.DirectionalLight(0x9fc3ff, 0.95)
-      keyLight.position.set(6, 10, 8)
+      const keyLight = new THREE.DirectionalLight(0xb7d1ff, 1.18)
+      keyLight.position.set(7, 11, 8)
       keyLight.castShadow = true
       scene.add(keyLight)
 
-      const fillLight = new THREE.DirectionalLight(0x3d75c5, 0.35)
+      const fillLight = new THREE.DirectionalLight(0x4f8be0, 0.46)
       fillLight.position.set(-7, 4, -6)
       scene.add(fillLight)
 
-      const rimLight = new THREE.DirectionalLight(0x8aa7ff, 0.34)
+      const rimLight = new THREE.DirectionalLight(0xa7c2ff, 0.56)
       rimLight.position.set(0, 3, -8)
       scene.add(rimLight)
-      scene.add(new THREE.AmbientLight(0x7890b8, 0.18))
+      scene.add(new THREE.AmbientLight(0x8ba4c8, 0.22))
 
       const loader = new GLTFLoader()
       const gltf = await loadGltf(loader, resolvedModel.modelUrl)
@@ -415,13 +435,18 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       await nextFrame()
 
       if (disposed || !domElement) return
-      const labels = collectPreviewLabels(model, camera, width, height)
+      const bufferWidth = domElement.width || width
+      const bufferHeight = domElement.height || height
+      const labels = collectPreviewLabels(model, camera, bufferWidth, bufferHeight)
       const labeledCanvas = createLabeledThumbnail(domElement, labels)
-      const dataUrl = writeCachedThumbnail(cacheKey, labeledCanvas)
-      writeSampleThumbnailVariant(getSampleThumbnailCacheKey(sessionId, resolvedModel, "featured"), labeledCanvas, "featured")
-      writeSampleThumbnailVariant(getSampleThumbnailCacheKey(sessionId, resolvedModel, "card"), labeledCanvas, "card")
-      if (dataUrl) {
-        setThumbnailUrl(dataUrl)
+      const blob = await cacheCanvasThumbnail(cacheKey, labeledCanvas, 0.9)
+      await Promise.all([
+        writeSampleThumbnailVariant(getSampleThumbnailCacheKey(sessionId, resolvedModel, "featured"), labeledCanvas, "featured"),
+        writeSampleThumbnailVariant(getSampleThumbnailCacheKey(sessionId, resolvedModel, "card"), labeledCanvas, "card"),
+      ])
+      if (disposed) return
+      if (blob) {
+        setThumbnailBlob(blob)
         setStatus("ready")
       } else {
         setStatus("empty")
@@ -447,9 +472,10 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       }
 
       const cacheKey = getThumbnailCacheKey(sessionId, resolvedModel)
-      const cachedThumbnail = readCachedThumbnail(cacheKey)
+      const cachedThumbnail = await readCachedThumbnailBlob(cacheKey)
+      if (disposed) return
       if (cachedThumbnail) {
-        setThumbnailUrl(cachedThumbnail)
+        setThumbnailBlob(cachedThumbnail)
         setStatus("ready")
         return
       }

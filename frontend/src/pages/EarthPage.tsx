@@ -160,7 +160,7 @@ function updateSatellitePose(satellite: SatelliteMotion) {
   satellite.mesh.rotation.x = Math.sin(satellite.angle * 2) * 0.08
 }
 
-export default function Earth() {
+export default function EarthPage() {
   const mountRef = useRef<HTMLDivElement>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 

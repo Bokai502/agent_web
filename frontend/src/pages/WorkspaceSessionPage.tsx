@@ -4,6 +4,7 @@ import { OutputLog } from "../components/OutputLog"
 import { createImageUrl } from "../components/bomData"
 import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
+import type { CodexInputItem } from "../types"
 
 const WORKSPACE_HOME_PATH = "/workspace"
 
@@ -26,6 +27,8 @@ type ProgressEntry = {
   label: string
   percent: number
 }
+
+type ActivePanel = "bom" | "model" | "freecad" | "paraview" | "comsol"
 
 const STYLE = `
 .workspace-apple {
@@ -50,20 +53,11 @@ const STYLE = `
 .wa-topbar-inner {
   position: relative;
   display: flex;
-  width: min(1440px, calc(100vw - 32px));
+  width: 100%;
   height: 100%;
-  margin: 0 auto;
   align-items: center;
   justify-content: space-between;
 }
-.wa-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 650;
-}
-.wa-brand img { width: 22px; height: 22px; object-fit: contain; }
 .wa-nav-left {
   display: inline-flex;
   align-items: center;
@@ -651,7 +645,7 @@ function formatProgressUpdatedAt(progressData: FreecadProgressResponse | null) {
   return parsed.toLocaleString()
 }
 
-interface WorkspaceAppleSampleProps {
+interface WorkspaceSessionPageProps {
   homePath?: string
 }
 
@@ -677,7 +671,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   } = state
   const { bomInfo, loading: bomLoading } = useBomInfo()
   const [selectedBomId, setSelectedBomId] = useState("")
-  const [activePanel, setActivePanel] = useState<"bom" | "model" | "freecad">("model")
+  const [activePanel, setActivePanel] = useState<ActivePanel>("model")
   const [progressData, setProgressData] = useState<FreecadProgressResponse | null>(null)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
 
@@ -697,6 +691,15 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     return query ? `/viewer?${query}` : "/viewer"
   }, [activeSessionId, previewGlbPath])
   const freecadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
+  const paraviewHref = "http://10.110.10.11:6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
+  const comsolHref = "http://10.110.10.11:6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
+  const activeTool = activePanel === "freecad"
+    ? { label: "FreeCAD", subtitle: "远程 FreeCAD 会话", title: "FreeCAD 工作台", url: freecadHref }
+    : activePanel === "paraview"
+      ? { label: "ParaView", subtitle: "远程 ParaView 会话", title: "ParaView 工作台", url: paraviewHref }
+      : activePanel === "comsol"
+        ? { label: "COMSOL", subtitle: "远程 COMSOL 会话", title: "COMSOL 工作台", url: comsolHref }
+        : null
   const orderedBomComponents = useMemo(() => {
     if (!selectedBomId) return bomInfo.components
     return [...bomInfo.components].sort((left, right) => {
@@ -706,10 +709,10 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     })
   }, [bomInfo.components, selectedBomId])
 
-  const submitAndRefreshProgress = useCallback((prompt: string, enabledSkills?: string[]) => {
+  const submitAndRefreshProgress = useCallback((input: string | CodexInputItem[], enabledSkills?: string[]) => {
     setProgressData(null)
     setProgressRefreshNonce(value => value + 1)
-    handleSubmit(prompt, enabledSkills)
+    handleSubmit(input, enabledSkills)
     window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
   }, [handleSubmit])
 
@@ -762,12 +765,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     ? "3D 模型预览"
     : activePanel === "bom"
       ? "BOM 清单"
-      : "FreeCAD 工作台"
+      : activeTool?.title ?? "工具工作台"
   const stageSubtitle = activePanel === "model"
     ? activeSessionId ? "当前会话模型" : "等待会话模型"
     : activePanel === "bom"
       ? bomLoading ? "正在加载 BOM 数据" : `${bomInfo.totalRecords} 个组件`
-      : "远程 FreeCAD 会话"
+      : activeTool?.subtitle ?? "远程工具会话"
 
   return (
     <div className="workspace-apple">
@@ -777,12 +780,8 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
           <div className="wa-nav-left">
             <button type="button" className="wa-back-button" aria-label="返回主页" onClick={handleNew}>
               <span>‹</span>
-              <span>主页</span>
+              <span>工作台首页</span>
             </button>
-            <div className="wa-brand">
-              <img src="/logo_1.png" alt="" />
-              <span>AI 设计工作台</span>
-            </div>
           </div>
           <div className="wa-tabs" aria-label="工作区标签">
             <button
@@ -807,6 +806,18 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                   onClick={() => setActivePanel("freecad")}
                 >
                   FreeCAD <span>CAD</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePanel("paraview")}
+                >
+                  ParaView <span>VNC</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePanel("comsol")}
+                >
+                  COMSOL <span>VNC</span>
                 </button>
               </div>
             </div>
@@ -866,11 +877,11 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                 className="wa-status-pill"
                 onClick={() => {
                   if (activePanel === "model") openExternalWindow(viewerHref)
-                  if (activePanel === "freecad") openExternalWindow(freecadHref)
+                  if (activeTool) openExternalWindow(activeTool.url)
                 }}
                 disabled={activePanel === "bom"}
               >
-                {activePanel === "model" ? "Viewer3D" : activePanel === "bom" ? "BOM" : "FreeCAD"}
+                {activePanel === "model" ? "3D Viewer" : activePanel === "bom" ? "BOM" : activeTool?.label}
               </button>
             </div>
             {activePanel === "model" ? (
@@ -943,8 +954,8 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
             ) : (
               <iframe
                 className="wa-viewer"
-                title="FreeCAD"
-                src={freecadHref}
+                title={activeTool?.label ?? "远程工具"}
+                src={activeTool?.url ?? freecadHref}
               />
             )}
           </div>
@@ -1038,7 +1049,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   )
 }
 
-export default function WorkspaceAppleSample({ homePath = WORKSPACE_HOME_PATH }: WorkspaceAppleSampleProps) {
+export default function WorkspaceSessionPage({ homePath = WORKSPACE_HOME_PATH }: WorkspaceSessionPageProps) {
   const state = useWorkspaceAppState({ homePath })
   return <WorkspaceAppleContent state={state} />
 }

@@ -1,5 +1,5 @@
-import HomeAppleSample from "./pages/HomeAppleSample"
+import WorkspaceHomePage from "./pages/WorkspaceHomePage"
 
 export default function App() {
-  return <HomeAppleSample homePath="/workspace" />
+  return <WorkspaceHomePage homePath="/workspace" />
 }

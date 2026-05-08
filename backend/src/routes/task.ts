@@ -1,5 +1,10 @@
 import { FastifyInstance } from "fastify"
 import { Codex } from "@openai/codex-sdk"
+import type { UserInput } from "@openai/codex-sdk"
+import fs from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
+import { randomBytes } from "node:crypto"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { initializeFreecadProgressForSession } from "../freecadProgress.js"
@@ -38,7 +43,78 @@ interface RunContext {
   turnId: string
 }
 
-function buildPrompt(prompt: string, skillNames: string[], context: RunContext) {
+type RunInputItem = UserInput
+
+interface RunRequestBody {
+  prompt?: string | null
+  input?: unknown
+  sessionId?: string | null
+  threadId?: string | null
+  turnId?: string | null
+  enabledSkills?: string[]
+}
+
+const UPLOADABLE_IMAGE_MIME_TYPES = new Map([
+  ["image/png", ".png"],
+  ["image/jpeg", ".jpg"],
+  ["image/webp", ".webp"],
+  ["image/gif", ".gif"],
+])
+
+function sanitizeUploadName(name: string) {
+  const base = path.basename(name).replace(/[^a-zA-Z0-9._-]/g, "_")
+  return base || "image"
+}
+
+function elapsedMs(startedAt: bigint) {
+  return Number(process.hrtime.bigint() - startedAt) / 1_000_000
+}
+
+function summarizeCodexEvent(event: unknown): Record<string, unknown> {
+  if (!event || typeof event !== "object") return { eventType: typeof event }
+
+  const record = event as {
+    type?: unknown
+    item?: {
+      id?: unknown
+      type?: unknown
+      status?: unknown
+      command?: unknown
+      exit_code?: unknown
+      text?: unknown
+    }
+    thread_id?: unknown
+  }
+
+  const summary: Record<string, unknown> = {
+    eventType: record.type,
+  }
+
+  if (typeof record.thread_id === "string") {
+    summary.threadId = record.thread_id
+  }
+
+  if (record.item && typeof record.item === "object") {
+    summary.itemId = record.item.id
+    summary.itemType = record.item.type
+    summary.itemStatus = record.item.status
+    summary.exitCode = record.item.exit_code
+
+    if (typeof record.item.command === "string") {
+      summary.command = record.item.command.length > 180
+        ? `${record.item.command.slice(0, 177)}...`
+        : record.item.command
+    }
+
+    if (typeof record.item.text === "string") {
+      summary.textLength = record.item.text.length
+    }
+  }
+
+  return summary
+}
+
+function buildPromptPrefix(skillNames: string[], context: RunContext) {
   const skillPrefix = skillNames.length > 0
     ? `Please use the following skills if applicable: ${skillNames.join(", ")}.\n\n`
     : ""
@@ -55,7 +131,63 @@ function buildPrompt(prompt: string, skillNames: string[], context: RunContext) 
     "- FREECAD_CALLER=open_codex_web",
     "- FREECAD_AGENT_NAME=codex",
   ].join("\n")
-  return `${ASK_USER_PROTOCOL}\n\n${skillPrefix}${executionContext}\n\n${prompt.trim()}`
+  return `${ASK_USER_PROTOCOL}\n\n${skillPrefix}${executionContext}`
+}
+
+function buildPrompt(prompt: string, skillNames: string[], context: RunContext) {
+  return `${buildPromptPrefix(skillNames, context)}\n\n${prompt.trim()}`
+}
+
+function isRunInputItem(item: unknown): item is RunInputItem {
+  if (!item || typeof item !== "object") return false
+  const record = item as { type?: unknown; text?: unknown; path?: unknown }
+  if (record.type === "text") return typeof record.text === "string" && record.text.trim() !== ""
+  if (record.type === "local_image") return typeof record.path === "string" && record.path.trim() !== ""
+  return false
+}
+
+function normalizeRunInput(input: unknown, prompt: unknown): RunInputItem[] | null {
+  if (Array.isArray(input)) {
+    const items = input
+      .filter(isRunInputItem)
+      .map(item => item.type === "text"
+        ? { type: "text" as const, text: item.text.trim() }
+        : { type: "local_image" as const, path: item.path.trim() })
+    return items.length > 0 ? items : null
+  }
+
+  if (typeof prompt === "string" && prompt.trim() !== "") {
+    return [{ type: "text", text: prompt.trim() }]
+  }
+
+  return null
+}
+
+function buildSdkInput(input: RunInputItem[], skillNames: string[], context: RunContext): string | RunInputItem[] {
+  const prefix = buildPromptPrefix(skillNames, context)
+  const firstTextIndex = input.findIndex(item => item.type === "text")
+
+  if (firstTextIndex === -1) {
+    return [{ type: "text", text: prefix }, ...input]
+  }
+
+  return input.map((item, index) => {
+    if (index !== firstTextIndex || item.type !== "text") return item
+    return { type: "text", text: `${prefix}\n\n${item.text.trim()}` }
+  })
+}
+
+function getInputTextLength(input: RunInputItem[]) {
+  return input.reduce((total, item) => total + (item.type === "text" ? item.text.length : 0), 0)
+}
+
+function summarizeInput(input: RunInputItem[]) {
+  return {
+    itemCount: input.length,
+    textItemCount: input.filter(item => item.type === "text").length,
+    localImageItemCount: input.filter(item => item.type === "local_image").length,
+    textChars: getInputTextLength(input),
+  }
 }
 
 function normalizeXmlText(text: string): string {
@@ -86,12 +218,38 @@ export async function taskRoutes(
   fastify: FastifyInstance,
   { config, logger }: { config: AppConfig; logger: Logger }
 ) {
-  fastify.post<{ Body: { prompt: string; sessionId?: string | null; threadId?: string | null; turnId?: string | null; enabledSkills?: string[] } }>(
+  fastify.post("/api/run/input-files", async (req, reply) => {
+    const body = req.body as { name?: unknown; mimeType?: unknown; dataBase64?: unknown } | null
+    const name = typeof body?.name === "string" ? body.name : "image"
+    const mimeType = typeof body?.mimeType === "string" ? body.mimeType : ""
+    const dataBase64 = typeof body?.dataBase64 === "string" ? body.dataBase64 : ""
+    const ext = UPLOADABLE_IMAGE_MIME_TYPES.get(mimeType)
+
+    if (!ext || !dataBase64) {
+      return reply.status(400).send({ error: "supported image data is required" })
+    }
+
+    const buffer = Buffer.from(dataBase64, "base64")
+    if (buffer.length === 0 || buffer.length > 20 * 1024 * 1024) {
+      return reply.status(400).send({ error: "image must be between 1 byte and 20 MB" })
+    }
+
+    const uploadDir = path.join(os.tmpdir(), "open-codex-web-inputs")
+    await fs.mkdir(uploadDir, { recursive: true })
+    const uploadPath = path.join(uploadDir, `${Date.now()}-${randomBytes(6).toString("hex")}-${sanitizeUploadName(name)}${ext}`)
+    await fs.writeFile(uploadPath, buffer)
+
+    logger.info("codex input image uploaded", { name, mimeType, bytes: buffer.length, path: uploadPath })
+    return reply.send({ type: "local_image", path: uploadPath })
+  })
+
+  fastify.post<{ Body: RunRequestBody }>(
     "/api/run",
     async (req, reply) => {
-      const { prompt, sessionId, threadId, turnId, enabledSkills } = req.body
-      if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
-        return reply.status(400).send({ error: "prompt is required" })
+      const { prompt, input, sessionId, threadId, turnId, enabledSkills } = req.body
+      const sdkInputBase = normalizeRunInput(input, prompt)
+      if (!sdkInputBase) {
+        return reply.status(400).send({ error: "prompt or input is required" })
       }
       if (!sessionId || typeof sessionId !== "string" || sessionId.trim() === "") {
         return reply.status(400).send({ error: "sessionId is required" })
@@ -102,18 +260,50 @@ export async function taskRoutes(
 
       const trimmedSessionId = sessionId.trim()
       const trimmedTurnId = turnId.trim()
+      const requestStartedAt = process.hrtime.bigint()
+      let lastEventAt = requestStartedAt
+      let eventCount = 0
 
       // 如果指定了 skills，把提示注入到 prompt 前面
       const skillNames = (enabledSkills ?? [])
         .filter(s => typeof s === "string" && s.trim() !== "")
         .map(s => s.trim())
-      const finalPrompt = buildPrompt(prompt, skillNames, {
+      const runContext = {
         sessionId: trimmedSessionId,
         threadId: typeof threadId === "string" && threadId.trim() !== "" ? threadId.trim() : null,
         turnId: trimmedTurnId,
+      }
+      const finalPrompt = typeof prompt === "string" && prompt.trim() !== ""
+        ? buildPrompt(prompt, skillNames, runContext)
+        : null
+      const sdkInput = buildSdkInput(sdkInputBase, skillNames, runContext)
+
+      logger.info("codex run accepted", {
+        requestId: req.id,
+        sessionId: trimmedSessionId,
+        threadId: typeof threadId === "string" && threadId.trim() !== "" ? threadId.trim() : null,
+        turnId: trimmedTurnId,
+        baseUrl: config.openai.baseUrl,
+        model: config.openai.model,
+        modelReasoningEffort: config.codex.modelReasoningEffort,
+        workingDirectory: config.codex.workingDirectory,
+        approvalPolicy: config.codex.approvalPolicy,
+        sandboxMode: config.codex.sandboxMode,
+        promptChars: typeof prompt === "string" ? prompt.length : 0,
+        finalPromptChars: finalPrompt?.length ?? getInputTextLength(Array.isArray(sdkInput) ? sdkInput : sdkInputBase),
+        input: summarizeInput(sdkInputBase),
+        enabledSkills: skillNames,
       })
 
+      const progressStartedAt = process.hrtime.bigint()
       await initializeFreecadProgressForSession(trimmedSessionId)
+      logger.info("codex run progress initialized", {
+        requestId: req.id,
+        sessionId: trimmedSessionId,
+        turnId: trimmedTurnId,
+        elapsedMs: elapsedMs(progressStartedAt),
+        totalElapsedMs: elapsedMs(requestStartedAt),
+      })
 
       reply.raw.writeHead(200, {
         "Content-Type": "text/event-stream",
@@ -131,6 +321,9 @@ export async function taskRoutes(
         const codex = new Codex({
           apiKey: config.openai.apiKey,
           baseUrl: config.openai.baseUrl,
+          config: {
+            show_raw_agent_reasoning: true,
+          },
         })
 
         const threadOptions = {
@@ -146,15 +339,35 @@ export async function taskRoutes(
           ? codex.resumeThread(threadId, threadOptions)
           : codex.startThread(threadOptions)
 
+        const runStreamedStartedAt = process.hrtime.bigint()
         const streamed = await thread.runStreamed(
-          finalPrompt,
+          sdkInput,
           { signal: abort.signal }
         )
+        logger.info("codex run stream opened", {
+          requestId: req.id,
+          sessionId: trimmedSessionId,
+          turnId: trimmedTurnId,
+          elapsedMs: elapsedMs(runStreamedStartedAt),
+          totalElapsedMs: elapsedMs(requestStartedAt),
+        })
 
         const suppressedAgentMessageIds = new Set<string>()
 
         for await (const event of streamed.events) {
           if (abort.signal.aborted) break
+          const now = process.hrtime.bigint()
+          eventCount += 1
+          logger.info("codex run event", {
+            requestId: req.id,
+            sessionId: trimmedSessionId,
+            turnId: trimmedTurnId,
+            eventIndex: eventCount,
+            sincePreviousEventMs: Number(now - lastEventAt) / 1_000_000,
+            totalElapsedMs: Number(now - requestStartedAt) / 1_000_000,
+            ...summarizeCodexEvent(event),
+          })
+          lastEventAt = now
 
           if (
             (event.type === "item.started" || event.type === "item.updated" || event.type === "item.completed") &&
@@ -203,7 +416,8 @@ export async function taskRoutes(
           logger.error("codex run failed", {
             err,
             requestBody: {
-              prompt,
+              prompt: prompt ?? null,
+              input: summarizeInput(sdkInputBase),
               sessionId: sessionId ?? null,
               threadId: threadId ?? null,
               turnId: turnId ?? null,
@@ -218,6 +432,14 @@ export async function taskRoutes(
           )
         }
       } finally {
+        logger.info("codex run finished", {
+          requestId: req.id,
+          sessionId: trimmedSessionId,
+          turnId: trimmedTurnId,
+          aborted: abort.signal.aborted,
+          eventCount,
+          totalElapsedMs: elapsedMs(requestStartedAt),
+        })
         clearInterval(ping)
         reply.raw.end()
       }

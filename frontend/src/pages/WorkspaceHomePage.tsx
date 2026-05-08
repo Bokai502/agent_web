@@ -1,16 +1,24 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { APP_NAVIGATION_EVENT } from "../app/sessionUtils"
 import { AppleTaskComposer } from "../components/AppleTaskComposer"
 import { SessionModelPreview } from "../components/SessionModelPreview"
+import {
+  cacheCanvasThumbnail,
+  createObjectUrl,
+  LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX,
+  LEGACY_THUMBNAIL_CACHE_PREFIX,
+  readLatestCachedThumbnailBlob,
+  readLatestLegacyThumbnail,
+  SAMPLE_THUMBNAIL_CACHE_PREFIX,
+  THUMBNAIL_CACHE_UPDATED_EVENT,
+} from "../components/thumbnailCache"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
 import type { Session } from "../types"
-import { WorkspaceAppleContent } from "./WorkspaceAppleSample"
+import { WorkspaceAppleContent } from "./WorkspaceSessionPage"
 
 const DEFAULT_HOME_PATH = "/workspace"
-const LEGACY_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v3:"
-const LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v5:sample:"
-const SAMPLE_THUMBNAIL_CACHE_PREFIX = "codex:model-preview-image:v6:sample:"
-const SAMPLE_THUMBNAIL_PIXEL_RATIO = 1.5
-const SAMPLE_THUMBNAIL_QUALITY = 0.92
+const SAMPLE_THUMBNAIL_PIXEL_RATIO = 2
+const SAMPLE_THUMBNAIL_QUALITY = 0.94
 type SampleThumbnailVariant = "featured" | "card"
 
 const SAMPLE_STYLE = `
@@ -45,19 +53,39 @@ const SAMPLE_STYLE = `
   justify-content: space-between;
   height: 100%;
 }
-.apple-sample-brand {
+.apple-sample-left {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  color: #2b2b2d;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0;
+  gap: 14px;
 }
-.apple-sample-brand img {
+.apple-sample-home-button {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #3f3f44;
+  cursor: pointer;
+  padding: 0 12px 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.apple-sample-home-button:hover {
+  background: rgba(255, 255, 255, 0.94);
+  color: #1d1d1f;
+}
+.apple-sample-home-button span:first-child {
+  display: grid;
   width: 22px;
   height: 22px;
-  object-fit: contain;
+  place-items: center;
+  border-radius: 50%;
+  background: #1d1d1f;
+  color: white;
+  font-size: 14px;
+  line-height: 1;
 }
 .apple-sample-nav {
   display: flex;
@@ -165,6 +193,33 @@ const SAMPLE_STYLE = `
   font-weight: 600;
   white-space: nowrap;
 }
+.apple-sample-history-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.apple-sample-history-nav {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  color: #2b2b2d;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1;
+}
+.apple-sample-history-nav:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(0, 113, 227, 0.2);
+}
+.apple-sample-history-nav:disabled {
+  cursor: default;
+  opacity: 0.34;
+}
 .apple-sample-history-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr 0.85fr;
@@ -179,6 +234,17 @@ const SAMPLE_STYLE = `
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.07);
+  transform: translateY(0);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+  will-change: transform;
+}
+.apple-sample-session:hover {
+  border-color: rgba(0, 113, 227, 0.18);
+  box-shadow: 0 26px 70px rgba(25, 44, 82, 0.14);
+  transform: translateY(-3px);
 }
 .apple-sample-session.featured {
   min-height: 540px;
@@ -207,6 +273,22 @@ const SAMPLE_STYLE = `
     radial-gradient(circle at 66% 42%, rgba(44, 205, 121, 0.28), transparent 21%),
     linear-gradient(145deg, #dce5ef, #f8f8fb);
 }
+.apple-sample-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 0 34%, rgba(255, 255, 255, 0.32) 43%, transparent 52%),
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.42), transparent 36%);
+  opacity: 0;
+  transform: translateX(-22%);
+  transition: opacity 180ms ease, transform 420ms ease;
+}
+.apple-sample-session:hover .apple-sample-preview::after {
+  opacity: 1;
+  transform: translateX(20%);
+}
 .featured .apple-sample-preview {
   aspect-ratio: 560 / 340;
   height: auto;
@@ -227,6 +309,13 @@ const SAMPLE_STYLE = `
   object-fit: contain;
   background: transparent;
   box-shadow: 0 12px 28px rgba(28, 44, 78, 0.12);
+  filter: saturate(1.08) contrast(1.04);
+  transition: filter 180ms ease, transform 220ms ease;
+  will-change: transform;
+}
+.apple-sample-session:hover .apple-sample-preview img {
+  filter: saturate(1.16) contrast(1.07);
+  transform: translate(-50%, -50%) scale(1.025);
 }
 .featured .apple-sample-preview img {
   width: calc(100% - 42px);
@@ -265,13 +354,6 @@ const SAMPLE_STYLE = `
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-.apple-sample-session p {
-  margin: 10px 0 0;
-  color: #6e6e73;
-  font-size: 14px;
-  line-height: 1.48;
   overflow-wrap: anywhere;
 }
 .apple-sample-meta {
@@ -365,6 +447,10 @@ const SAMPLE_STYLE = `
     align-items: flex-start;
     flex-direction: column;
   }
+  .apple-sample-history-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
   .apple-sample-session.featured {
     min-height: 430px;
     grid-row: auto;
@@ -412,33 +498,6 @@ function getSessionStage(session: Session) {
   return { label: "已保存", dotClass: "bg-[#0071e3]" }
 }
 
-function getSessionSummary(session: Session) {
-  const latestTurn = session.turns.at(-1)
-  if (!latestTurn) return "打开会话，继续完善设计目标、约束条件和输出结果。"
-
-  const finalResponse = latestTurn.events.findLast(event => event.type === "turn.completed")
-  if (finalResponse?.type === "turn.completed" && finalResponse.turn?.finalResponse?.trim()) {
-    return finalResponse.turn.finalResponse.trim()
-  }
-
-  return latestTurn.userPrompt.trim() || "打开会话，继续完善设计目标、约束条件和输出结果。"
-}
-
-function findLatestCacheValue(prefix: string) {
-  try {
-    const keys: string[] = []
-    for (let index = 0; index < localStorage.length; index += 1) {
-      const key = localStorage.key(index)
-      if (key?.startsWith(prefix)) keys.push(key)
-    }
-
-    const cacheKey = keys.sort().at(-1)
-    return cacheKey ? localStorage.getItem(cacheKey) : null
-  } catch {
-    return null
-  }
-}
-
 function getVariantSize(variant: SampleThumbnailVariant) {
   return variant === "featured"
     ? { height: 340, width: 560 }
@@ -468,7 +527,23 @@ function createSampleThumbnailVariant(sourceDataUrl: string, variant: SampleThum
         return
       }
 
-      ctx.fillStyle = "#050914"
+      const bg = ctx.createLinearGradient(0, 0, width, height)
+      bg.addColorStop(0, "#070b16")
+      bg.addColorStop(0.58, "#101a2b")
+      bg.addColorStop(1, "#070915")
+      ctx.fillStyle = bg
+      ctx.fillRect(0, 0, width, height)
+      const glow = ctx.createRadialGradient(
+        width * 0.58,
+        height * 0.34,
+        0,
+        width * 0.58,
+        height * 0.34,
+        width * 0.56,
+      )
+      glow.addColorStop(0, "rgba(119, 170, 255, 0.28)")
+      glow.addColorStop(1, "rgba(119, 170, 255, 0)")
+      ctx.fillStyle = glow
       ctx.fillRect(0, 0, width, height)
 
       const scaleRatio = width / displaySize.width
@@ -482,6 +557,9 @@ function createSampleThumbnailVariant(sourceDataUrl: string, variant: SampleThum
       const drawHeight = image.naturalHeight * scale
       const drawX = (width - drawWidth) / 2
       const drawY = (height - drawHeight) / 2
+      ctx.shadowColor = "rgba(80, 120, 190, 0.34)"
+      ctx.shadowBlur = 28 * scaleRatio
+      ctx.shadowOffsetY = 8 * scaleRatio
       ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight)
 
       try {
@@ -497,24 +575,37 @@ function createSampleThumbnailVariant(sourceDataUrl: string, variant: SampleThum
 
 async function readOrCreateSampleThumbnail(sessionId: string, variant: SampleThumbnailVariant) {
   const variantPrefix = `${SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:`
-  const variantCache = findLatestCacheValue(variantPrefix)
-  if (variantCache) return variantCache
+  const variantCache = await readLatestCachedThumbnailBlob(variantPrefix)
+  if (variantCache) return { blob: variantCache, legacyUrl: null }
 
-  const legacyVariantCache = findLatestCacheValue(`${LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:`)
-  const legacyCache = findLatestCacheValue(`${LEGACY_THUMBNAIL_CACHE_PREFIX}${sessionId}:`)
-  const sourceCache = legacyCache ?? legacyVariantCache
-  if (!sourceCache) return null
+  const sourceCache = readLatestLegacyThumbnail([
+    `${LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:`,
+    `${LEGACY_THUMBNAIL_CACHE_PREFIX}${sessionId}:`,
+  ])
+  if (!sourceCache) return { blob: null, legacyUrl: null }
 
   const generated = await createSampleThumbnailVariant(sourceCache, variant)
-  if (!generated) return sourceCache
+  if (!generated) return { blob: null, legacyUrl: sourceCache }
 
-  try {
-    const key = `${variantPrefix}${Date.now()}`
-    localStorage.setItem(key, generated)
-  } catch {
-    // Ignore storage quota errors.
-  }
-  return generated
+  const image = new Image()
+  const migrated = await new Promise<Blob | null>((resolve) => {
+    image.onload = async () => {
+      const canvas = document.createElement("canvas")
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        resolve(null)
+        return
+      }
+      ctx.drawImage(image, 0, 0)
+      resolve(cacheCanvasThumbnail(`${variantPrefix}${Date.now()}`, canvas, SAMPLE_THUMBNAIL_QUALITY))
+    }
+    image.onerror = () => resolve(null)
+    image.src = generated
+  })
+
+  return migrated ? { blob: migrated, legacyUrl: null } : { blob: null, legacyUrl: generated }
 }
 
 function CachedSessionPreview({
@@ -527,12 +618,29 @@ function CachedSessionPreview({
   variant: SampleThumbnailVariant
 }) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    readOrCreateSampleThumbnail(sessionId, variant).then(dataUrl => {
-      if (!cancelled) setThumbnailUrl(dataUrl)
-    })
+    const setBlobUrl = (blob: Blob) => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+      const url = createObjectUrl(blob)
+      objectUrlRef.current = url
+      setThumbnailUrl(url)
+    }
+
+    const refresh = () => {
+      readOrCreateSampleThumbnail(sessionId, variant).then(result => {
+        if (cancelled) return
+        if (result.blob) {
+          setBlobUrl(result.blob)
+          return
+        }
+        setThumbnailUrl(result.legacyUrl)
+      })
+    }
+
+    refresh()
 
     const handleStorage = (event: StorageEvent) => {
       if (
@@ -540,16 +648,23 @@ function CachedSessionPreview({
         event.key?.startsWith(`${LEGACY_SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:`) ||
         event.key?.startsWith(`${LEGACY_THUMBNAIL_CACHE_PREFIX}${sessionId}:`)
       ) {
-        readOrCreateSampleThumbnail(sessionId, variant).then(dataUrl => {
-          if (!cancelled) setThumbnailUrl(dataUrl)
-        })
+        refresh()
+      }
+    }
+    const handleThumbnailCacheUpdate = (event: Event) => {
+      const key = (event as CustomEvent<{ key?: string }>).detail?.key
+      if (key?.startsWith(`${SAMPLE_THUMBNAIL_CACHE_PREFIX}${sessionId}:${variant}:`)) {
+        refresh()
       }
     }
 
     window.addEventListener("storage", handleStorage)
+    window.addEventListener(THUMBNAIL_CACHE_UPDATED_EVENT, handleThumbnailCacheUpdate)
     return () => {
       cancelled = true
       window.removeEventListener("storage", handleStorage)
+      window.removeEventListener(THUMBNAIL_CACHE_UPDATED_EVENT, handleThumbnailCacheUpdate)
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
     }
   }, [sessionId, variant])
 
@@ -579,7 +694,6 @@ function SampleSessionCard({
 }: SampleSessionCardProps) {
   const title = session.title.trim() || "未命名项目"
   const stage = getSessionStage(session)
-  const summary = getSessionSummary(session)
   const producedCount = session.turns.reduce((total, turn) => {
     return total + turn.events.filter(event => (
       event.type === "item.completed" &&
@@ -618,8 +732,6 @@ function SampleSessionCard({
 
           <h3>{title}</h3>
 
-          <p>{summary}</p>
-
           {featured && (
             <div className="apple-sample-timeline">
               {["布局", "建模", "仿真", "分析"].map(label => (
@@ -638,12 +750,13 @@ function SampleSessionCard({
   )
 }
 
-interface HomeAppleSampleProps {
+interface WorkspaceHomePageProps {
   homePath?: string
 }
 
-export default function HomeAppleSample({ homePath = DEFAULT_HOME_PATH }: HomeAppleSampleProps) {
+export default function WorkspaceHomePage({ homePath = DEFAULT_HOME_PATH }: WorkspaceHomePageProps) {
   const workspaceState = useWorkspaceAppState({ homePath })
+  const [historyPage, setHistoryPage] = useState(0)
   const {
     activeSessionId,
     handleDelete,
@@ -659,7 +772,18 @@ export default function HomeAppleSample({ homePath = DEFAULT_HOME_PATH }: HomeAp
     return <WorkspaceAppleContent state={workspaceState} />
   }
 
-  const visibleSessions = sortedSessions.slice(0, isMobile ? 4 : 5)
+  const historyPageSize = isMobile ? 4 : 5
+  const historyPageCount = Math.max(1, Math.ceil(sortedSessions.length / historyPageSize))
+  const safeHistoryPage = Math.min(historyPage, historyPageCount - 1)
+  const historyStart = safeHistoryPage * historyPageSize
+  const visibleSessions = sortedSessions.slice(historyStart, historyStart + historyPageSize)
+  const canGoPrevious = safeHistoryPage > 0
+  const canGoNext = safeHistoryPage < historyPageCount - 1
+
+  const handleReturnHome = () => {
+    window.history.pushState(null, "", "/home")
+    window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
+  }
 
   return (
     <div className="apple-sample">
@@ -667,9 +791,11 @@ export default function HomeAppleSample({ homePath = DEFAULT_HOME_PATH }: HomeAp
 
       <header className="apple-sample-topbar">
         <div className="apple-sample-topbar-inner">
-          <div className="apple-sample-brand">
-            <img src="/logo_1.png" alt="" />
-            <span>AI 设计工作台</span>
+          <div className="apple-sample-left">
+            <button type="button" className="apple-sample-home-button" aria-label="返回 Home 页面" onClick={handleReturnHome}>
+              <span>‹</span>
+              <span>首页</span>
+            </button>
           </div>
           <nav aria-label="样例导航" className="apple-sample-nav">
             <span>结构方案</span>
@@ -718,7 +844,29 @@ export default function HomeAppleSample({ homePath = DEFAULT_HOME_PATH }: HomeAp
               <h2 id="apple-sample-history-title">最近的历史对话</h2>
               <p>用更高的信息密度展示会话状态、阶段进度和关键产物，便于快速回到上一次工作。</p>
             </div>
-            <span className="apple-sample-count">已保存 {sortedSessions.length} 条</span>
+            <div className="apple-sample-history-actions">
+              <button
+                type="button"
+                className="apple-sample-history-nav"
+                aria-label="查看上一页历史对话"
+                disabled={!canGoPrevious}
+                onClick={() => setHistoryPage(page => Math.max(0, page - 1))}
+              >
+                ‹
+              </button>
+              <span className="apple-sample-count">
+                已保存 {sortedSessions.length} 条 · {safeHistoryPage + 1}/{historyPageCount}
+              </span>
+              <button
+                type="button"
+                className="apple-sample-history-nav"
+                aria-label="查看更多历史对话"
+                disabled={!canGoNext}
+                onClick={() => setHistoryPage(page => Math.min(historyPageCount - 1, page + 1))}
+              >
+                ›
+              </button>
+            </div>
           </div>
 
           {visibleSessions.length === 0 ? (

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useCodexStream } from "./useTaskStream"
-import type { Session, ThreadEvent, Turn } from "../types"
+import type { CodexInputItem, Session, ThreadEvent, Turn } from "../types"
 import { shouldSuppressEvent } from "../utils/codexEventFilter"
 import {
   apiLoad,
@@ -9,8 +9,6 @@ import {
   getPendingAskUser,
   getSessionIdFromPath,
   getTurns,
-  lsLoad,
-  lsSave,
   updateBrowserPath,
 } from "../app/sessionUtils"
 
@@ -18,8 +16,19 @@ interface WorkspaceAppStateOptions {
   homePath?: string
 }
 
+function getInputPromptText(input: string | CodexInputItem[]) {
+  if (typeof input === "string") return input
+  const text = input
+    .filter((item): item is Extract<CodexInputItem, { type: "text" }> => item.type === "text")
+    .map(item => item.text)
+    .join("\n\n")
+    .trim()
+  if (text) return text
+  return input.map(item => item.type === "local_image" ? "[image]" : "").filter(Boolean).join(" ")
+}
+
 export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}) {
-  const [sessions, setSessions] = useState<Session[]>(() => lsLoad())
+  const [sessions, setSessions] = useState<Session[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => getSessionIdFromPath(window.location.pathname, homePath))
   const [currentPrompt, setCurrentPrompt] = useState("")
   const [currentEvents, setCurrentEvents] = useState<ThreadEvent[]>([])
@@ -31,9 +40,9 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
   const activeSessionIdRef = useRef<string | null>(null)
   const sessionsRef = useRef<Session[]>(sessions)
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const batchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isFirstLoadRef = useRef(true)
+  const hasLoadedSessionsRef = useRef(false)
+  const sessionSaveTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   const { run, abort } = useCodexStream()
 
@@ -77,57 +86,62 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
 
   useEffect(() => {
     apiLoad().then(serverSessions => {
-      if (serverSessions.length === 0) return
-      const lsSessions = lsLoad()
-      const merged = serverSessions.map(serverSession => {
-        const localSession = lsSessions.find(ls => ls.id === serverSession.id)
-        return {
-          ...serverSession,
-          turns: localSession?.turns ?? serverSession.turns ?? [],
-        }
-      })
-      const lsOnly = lsSessions.filter(ls => !serverSessions.find(s => s.id === ls.id))
-      const all = [...merged, ...lsOnly]
-      isFirstLoadRef.current = true
-      setSessions(all)
-      lsSave(all)
+      hasLoadedSessionsRef.current = true
+      setSessions(serverSessions)
     })
   }, [])
 
-  const apiSave = useCallback((nextSessions: Session[]) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => {
-      fetch("/api/sessions", {
-        method: "POST",
+  const saveSession = useCallback((session: Session, immediate = false) => {
+    if (!hasLoadedSessionsRef.current) return
+    const timers = sessionSaveTimersRef.current
+    const existingTimer = timers.get(session.id)
+    if (existingTimer) clearTimeout(existingTimer)
+
+    const write = () => {
+      timers.delete(session.id)
+      fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(nextSessions),
+        body: JSON.stringify(session),
       }).catch(() => {
         // ignore network errors
       })
-    }, 300)
+    }
+
+    if (immediate) {
+      write()
+      return
+    }
+
+    timers.set(session.id, setTimeout(write, 300))
+  }, [])
+
+  const deleteSession = useCallback((sessionId: string) => {
+    const existingTimer = sessionSaveTimersRef.current.get(sessionId)
+    if (existingTimer) {
+      clearTimeout(existingTimer)
+      sessionSaveTimersRef.current.delete(sessionId)
+    }
+    fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE",
+    }).catch(() => {
+      // ignore network errors
+    })
   }, [])
 
   useEffect(() => {
-    if (isFirstLoadRef.current) {
-      isFirstLoadRef.current = false
-      return
-    }
-    lsSave(sessions)
-    apiSave(sessions)
-  }, [sessions, apiSave])
-
-  useEffect(() => {
     const flush = () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current)
-        saveTimerRef.current = null
+      if (!hasLoadedSessionsRef.current) return
+      for (const timer of sessionSaveTimersRef.current.values()) {
+        clearTimeout(timer)
       }
-      const current = sessionsRef.current
-      lsSave(current)
-      navigator.sendBeacon(
-        "/api/sessions",
-        new Blob([JSON.stringify(current)], { type: "application/json" })
-      )
+      sessionSaveTimersRef.current.clear()
+      for (const session of sessionsRef.current) {
+        navigator.sendBeacon(
+          `/api/sessions/${encodeURIComponent(session.id)}`,
+          new Blob([JSON.stringify(session)], { type: "application/json" })
+        )
+      }
     }
 
     window.addEventListener("beforeunload", flush)
@@ -174,6 +188,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     }
 
     setSessions(prev => prev.filter(session => session.id !== id))
+    deleteSession(id)
 
     if (activeSessionIdRef.current === id) {
       if (batchTimerRef.current) {
@@ -185,21 +200,23 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
       updateBrowserPath(null, false, homePath)
       resetLiveTurn()
     }
-  }, [abort, homePath, resetLiveTurn, running])
+  }, [abort, deleteSession, homePath, resetLiveTurn, running])
 
   const handleStopAskUser = useCallback(() => {
     const sid = activeSessionIdRef.current
     if (!sid || !pendingAskUser) return
     setSessions(prev =>
-      prev.map(session =>
-        session.id === sid
-          ? { ...session, dismissedAskUserId: pendingAskUser.id }
-          : session
-      )
+      prev.map(session => {
+        if (session.id !== sid) return session
+        const nextSession = { ...session, dismissedAskUserId: pendingAskUser.id }
+        saveSession(nextSession)
+        return nextSession
+      })
     )
-  }, [pendingAskUser])
+  }, [pendingAskUser, saveSession])
 
-  const handleSubmit = useCallback((prompt: string, enabledSkills: string[] = []) => {
+  const handleSubmit = useCallback((input: string | CodexInputItem[], enabledSkills: string[] = []) => {
+    const prompt = getInputPromptText(input)
     let sid = activeSessionIdRef.current
     let threadIdForRun: string | null = null
     const turnIdForRun = generateId()
@@ -214,6 +231,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
         dismissedAskUserId: null,
       }
       setSessions(prev => [...prev, newSession])
+      saveSession(newSession, true)
       setActiveSessionId(newSession.id)
       activeSessionIdRef.current = newSession.id
       updateBrowserPath(newSession.id, false, homePath)
@@ -223,9 +241,12 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
       updateBrowserPath(sid, true, homePath)
     }
 
-    setSessions(prev => prev.map(session =>
-      session.id === sid ? { ...session, dismissedAskUserId: null } : session
-    ))
+    setSessions(prev => prev.map(session => {
+      if (session.id !== sid) return session
+      const nextSession = { ...session, dismissedAskUserId: null }
+      saveSession(nextSession)
+      return nextSession
+    }))
     setCurrentPrompt(prompt)
     setCurrentEvents([])
     currentEventsRef.current = []
@@ -234,7 +255,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     setRunning(true)
 
     run(
-      prompt,
+      input,
       sid,
       threadIdForRun,
       turnIdForRun,
@@ -246,11 +267,12 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
           const tid = event.thread_id ?? null
           if (tid) {
             setSessions(prev =>
-              prev.map(session =>
-                session.id === activeSessionIdRef.current
-                  ? { ...session, threadId: tid }
-                  : session
-              )
+              prev.map(session => {
+                if (session.id !== activeSessionIdRef.current) return session
+                const nextSession = { ...session, threadId: tid }
+                saveSession(nextSession)
+                return nextSession
+              })
             )
           }
         }
@@ -287,18 +309,19 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
         }
 
         setSessions(prev =>
-          prev.map(session =>
-            session.id === activeSessionIdRef.current
-              ? { ...session, turns: [...session.turns, completedTurn] }
-              : session
-          )
+          prev.map(session => {
+            if (session.id !== activeSessionIdRef.current) return session
+            const nextSession = { ...session, turns: [...session.turns, completedTurn] }
+            saveSession(nextSession, true)
+            return nextSession
+          })
         )
 
         resetLiveTurn()
         setRunning(false)
       }
     )
-  }, [homePath, resetLiveTurn, run, sessions])
+  }, [homePath, resetLiveTurn, run, saveSession, sessions])
 
   const sortedSessions = [...sessions].sort((a, b) => b.createdAt - a.createdAt)
   return {

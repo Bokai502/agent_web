@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react"
+import type { CodexInputItem } from "../types"
 
 interface AttachedFile {
   name: string
-  content: string
-  ext: string
+  inputItem: CodexInputItem
 }
 
 interface Skill {
@@ -19,9 +19,39 @@ interface AtMenuState {
 interface AppleTaskComposerProps {
   compact?: boolean
   onAbort: () => void
-  onSubmit: (prompt: string, enabledSkills?: string[]) => void
+  onSubmit: (input: string | CodexInputItem[], enabledSkills?: string[]) => void
   placeholder?: string
   running: boolean
+}
+
+function isImageFile(file: File) {
+  return ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)
+}
+
+function readFileAsBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result ?? "")
+      resolve(result.includes(",") ? result.slice(result.indexOf(",") + 1) : result)
+    }
+    reader.onerror = () => reject(reader.error ?? new Error("failed to read file"))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function uploadImageInput(file: File): Promise<CodexInputItem> {
+  const response = await fetch("/api/run/input-files", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: file.name,
+      mimeType: file.type,
+      dataBase64: await readFileAsBase64(file),
+    }),
+  })
+  if (!response.ok) throw new Error("failed to upload image")
+  return response.json() as Promise<CodexInputItem>
 }
 
 const STYLE = `
@@ -270,8 +300,8 @@ export function AppleTaskComposer({
       | { kind: "skill"; label: string; hint: string; name: string }
 
     const items: MenuItem[] = []
-    if (!query || "add file".includes(query) || "file".includes(query) || "添加文件".includes(query)) {
-      items.push({ kind: "file", label: "添加文件", hint: "@file" })
+    if (!query || "add image".includes(query) || "image".includes(query) || "图片".includes(query)) {
+      items.push({ kind: "file", label: "添加图片", hint: "@image" })
     }
     for (const skill of skills) {
       if (selectedSkills.includes(skill.name)) continue
@@ -314,14 +344,14 @@ export function AppleTaskComposer({
       onAbort()
       return
     }
-    const parts = attachedFiles.map(file => (
-      `\`\`\`${file.ext || "text"} title="${file.name}"\n${file.content}\n\`\`\``
-    ))
-    if (value.trim()) parts.push(value.trim())
+    const inputItems: CodexInputItem[] = []
+    if (value.trim()) inputItems.push({ type: "text", text: value.trim() })
+    for (const file of attachedFiles) {
+      inputItems.push(file.inputItem)
+    }
 
-    const prompt = parts.join("\n\n")
-    if (!prompt.trim() && selectedSkills.length === 0) return
-    onSubmit(prompt, selectedSkills)
+    if (inputItems.length === 0 && selectedSkills.length === 0) return
+    onSubmit(inputItems.length === 1 && inputItems[0].type === "text" ? inputItems[0].text : inputItems, selectedSkills)
     setValue("")
     setAttachedFiles([])
     setSelectedSkills([])
@@ -406,7 +436,7 @@ export function AppleTaskComposer({
                 className="apple-task-composer-pill apple-task-composer-tool-button"
                 onClick={() => setAtMenu({ atIndex: value.length, query: "" })}
               >
-                @ Skill 或文件
+                @ Skill 或图片
               </button>
             </>
           ) : (
@@ -445,6 +475,7 @@ export function AppleTaskComposer({
       <input
         ref={fileInputRef}
         type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
         multiple
         style={{ display: "none" }}
         onChange={async event => {
@@ -453,9 +484,9 @@ export function AppleTaskComposer({
           const nextFiles: AttachedFile[] = []
           for (const file of Array.from(files)) {
             try {
-              const content = await file.text()
-              const ext = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() ?? "" : ""
-              nextFiles.push({ name: file.name, content, ext })
+              if (isImageFile(file)) {
+                nextFiles.push({ name: file.name, inputItem: await uploadImageInput(file) })
+              }
             } catch {
               // Skip unreadable files.
             }

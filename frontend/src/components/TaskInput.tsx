@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react"
+import type { CodexInputItem } from "../types"
 
 interface AttachedFile {
   name: string
-  content: string
-  ext: string
+  inputItem: CodexInputItem
 }
 
 interface AtMenuState {
@@ -17,10 +17,40 @@ interface Skill {
 }
 
 interface Props {
-  onSubmit: (prompt: string, enabledSkills: string[]) => void
+  onSubmit: (input: string | CodexInputItem[], enabledSkills: string[]) => void
   onAbort: () => void
   disabled: boolean
   tone?: "default" | "hero" | "landing"
+}
+
+function isImageFile(file: File) {
+  return ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)
+}
+
+function readFileAsBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result ?? "")
+      resolve(result.includes(",") ? result.slice(result.indexOf(",") + 1) : result)
+    }
+    reader.onerror = () => reject(reader.error ?? new Error("failed to read file"))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function uploadImageInput(file: File): Promise<CodexInputItem> {
+  const response = await fetch("/api/run/input-files", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: file.name,
+      mimeType: file.type,
+      dataBase64: await readFileAsBase64(file),
+    }),
+  })
+  if (!response.ok) throw new Error("failed to upload image")
+  return response.json() as Promise<CodexInputItem>
 }
 
 export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Props) {
@@ -42,7 +72,7 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  // 保存触发 @ 菜单时的光标位置，供文件选中后替换
+  // 保存触发 @ 菜单时的光标位置，供图片选中后替换
   const pendingAtIndexRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -108,8 +138,8 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
       | { kind: "file"; label: string; hint: string }
       | { kind: "skill"; label: string; hint: string; name: string }
     const items: Item[] = []
-    if (!q || "add file".includes(q) || "file".includes(q)) {
-      items.push({ kind: "file", label: "添加文件", hint: "@file" })
+    if (!q || "add image".includes(q) || "image".includes(q) || "图片".includes(q)) {
+      items.push({ kind: "file", label: "添加图片", hint: "@image" })
     }
     for (const s of skills) {
       if (selectedSkills.includes(s.name)) continue
@@ -201,13 +231,11 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
     const newAttachments: AttachedFile[] = []
     for (const file of Array.from(files)) {
       try {
-        const content = await file.text()
-        const ext = file.name.includes(".")
-          ? file.name.split(".").pop()!.toLowerCase()
-          : ""
-        newAttachments.push({ name: file.name, content, ext })
+        if (isImageFile(file)) {
+          newAttachments.push({ name: file.name, inputItem: await uploadImageInput(file) })
+        }
       } catch {
-        // 跳过无法读取的文件（如二进制）
+        // 跳过无法读取的图片
       }
     }
     setAttachedFiles(prev => [...prev, ...newAttachments])
@@ -220,7 +248,7 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
       pendingAtIndexRef.current = null
     }
 
-    // 重置 file input，允许重复选择同一文件
+    // 重置 file input，允许重复选择同一图片
     e.target.value = ""
     textareaRef.current?.focus()
   }
@@ -232,18 +260,15 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
   // ── submit ─────────────────────────────────────────────────────────
 
   const doSubmit = () => {
-    const parts: string[] = []
-
-    // 将附件内容以 markdown 代码块方式注入 prompt
+    const inputItems: CodexInputItem[] = []
+    if (value.trim()) inputItems.push({ type: "text", text: value.trim() })
     for (const f of attachedFiles) {
-      parts.push(`\`\`\`${f.ext || "text"} title="${f.name}"\n${f.content}\n\`\`\``)
+      inputItems.push(f.inputItem)
     }
-    if (value.trim()) parts.push(value.trim())
 
-    const finalPrompt = parts.join("\n\n")
-    if (!finalPrompt.trim() && selectedSkills.length === 0) return
+    if (inputItems.length === 0 && selectedSkills.length === 0) return
 
-    onSubmit(finalPrompt, selectedSkills)
+    onSubmit(inputItems.length === 1 && inputItems[0].type === "text" ? inputItems[0].text : inputItems, selectedSkills)
     setValue("")
     setAttachedFiles([])
     setSelectedSkills([])
@@ -309,7 +334,7 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
           </div>
         )}
 
-        {/* ── 已附加的文件 chips ── */}
+        {/* ── 已附加的图片 chips ── */}
         {!isLanding && attachedFiles.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {attachedFiles.map(f => (
@@ -336,7 +361,7 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
                 <button
                   onClick={() => removeFile(f.name)}
                   className="flex flex-shrink-0 items-center bg-none p-0 text-[var(--text-3)]"
-                  title="移除文件"
+                  title="移除图片"
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                     <path d="M2 2l6 6M8 2l-6 6"
@@ -462,7 +487,7 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
                         <button
                           onClick={() => removeFile(f.name)}
                           className="flex flex-shrink-0 items-center bg-none p-0 text-[#9aa0aa]"
-                          title="移除文件"
+                          title="移除图片"
                         >
                           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                             <path d="M2 2l6 6M8 2l-6 6"
@@ -477,7 +502,7 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
                     <span className="grid h-[34px] w-[34px] flex-shrink-0 place-items-center rounded-full border border-black/[0.08] bg-white/85 text-[15px] leading-none">
                       @
                     </span>
-                    <span className="truncate">Skill 或文件</span>
+                    <span className="truncate">Skill 或图片</span>
                   </>
                 )}
               </div>
@@ -519,7 +544,7 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
               onChange={handleChange}
               onKeyDown={handleKeyDown}
               disabled={disabled}
-              placeholder={isHero ? "描述你的下一个工作区任务..." : "发送给 AI...（输入 @ 可添加 Skill 或文件）"}
+              placeholder={isHero ? "描述你的下一个工作区任务..." : "发送给 AI...（输入 @ 可添加 Skill 或图片）"}
               rows={1}
               style={{
                 flex: 1,
@@ -567,15 +592,16 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
           <p className={`mt-2 text-center text-[12px] ${isHero ? "text-[var(--text-3)]" : "text-[var(--text-3)]"}`}>
             {disabled
               ? "AI 正在处理，点击方块可停止"
-              : "Enter 发送 · Shift+Enter 换行 · @ Skill 或文件"}
+              : "Enter 发送 · Shift+Enter 换行 · @ Skill 或图片"}
           </p>
         )}
       </div>
 
-      {/* 隐藏的 file input，支持多文件选择 */}
+      {/* 隐藏的 file input，支持多图片选择 */}
       <input
         ref={fileInputRef}
         type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
         multiple
         style={{ display: "none" }}
         onChange={handleFileSelected}

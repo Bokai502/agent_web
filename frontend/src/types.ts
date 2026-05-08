@@ -39,6 +39,31 @@ export interface WebSearchItem {
   query: string
 }
 
+export interface McpToolCallItem {
+  id: string
+  type: "mcp_tool_call"
+  server: string
+  tool: string
+  arguments: unknown
+  result?: {
+    content: unknown[]
+    structured_content: unknown
+  }
+  error?: { message: string }
+  status: "in_progress" | "completed" | "failed"
+}
+
+export interface TodoItem {
+  text: string
+  completed: boolean
+}
+
+export interface TodoListItem {
+  id: string
+  type: "todo_list"
+  items: TodoItem[]
+}
+
 export interface ErrorItem {
   id: string
   type: "error"
@@ -57,9 +82,22 @@ export type ThreadItem =
   | ReasoningItem
   | CommandExecutionItem
   | FileChangeItem
+  | McpToolCallItem
   | WebSearchItem
+  | TodoListItem
   | ErrorItem
   | AskUserItem
+
+export interface Usage {
+  input_tokens: number
+  cached_input_tokens: number
+  output_tokens: number
+  reasoning_output_tokens: number
+}
+
+export type CodexInputItem =
+  | { type: "text"; text: string }
+  | { type: "local_image"; path: string }
 
 // 一轮完整对话
 export interface Turn {
@@ -82,7 +120,7 @@ export interface Session {
 export type ThreadEvent =
   | { type: "thread.started"; thread_id: string }
   | { type: "turn.started" }
-  | { type: "turn.completed"; turn: { finalResponse: string } }
+  | { type: "turn.completed"; usage: Usage }
   | { type: "turn.failed"; error: { message: string } }
   | { type: "item.started"; item: ThreadItem }
   | { type: "item.updated"; item: ThreadItem }

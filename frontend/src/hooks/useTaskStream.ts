@@ -1,11 +1,11 @@
 import { useRef, useCallback } from "react"
-import type { ThreadEvent } from "../types"
+import type { CodexInputItem, ThreadEvent } from "../types"
 
 export function useCodexStream() {
   const abortRef = useRef<AbortController | null>(null)
 
   const run = useCallback(async (
-    prompt: string,
+    promptOrInput: string | CodexInputItem[],
     sessionId: string,
     threadId: string | null,
     turnId: string,
@@ -30,7 +30,13 @@ export function useCodexStream() {
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, sessionId, threadId, turnId, enabledSkills }),
+        body: JSON.stringify({
+          ...(typeof promptOrInput === "string" ? { prompt: promptOrInput } : { input: promptOrInput }),
+          sessionId,
+          threadId,
+          turnId,
+          enabledSkills,
+        }),
         signal: controller.signal,
       })
 

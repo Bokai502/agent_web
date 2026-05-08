@@ -1,7 +1,6 @@
 import type { AskUserItem, Session, Turn } from "../types"
 import { HOME_PATH } from "./workspaceConfig"
 
-const STORAGE_KEY = "codex_sessions"
 export const APP_NAVIGATION_EVENT = "codex:navigation"
 
 export function generateId() {
@@ -20,23 +19,6 @@ export function getPendingAskUser(session: Session | null): AskUserItem | null {
   }
 
   return null
-}
-
-export function lsLoad(): Session[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as Session[]) : []
-  } catch {
-    return []
-  }
-}
-
-export function lsSave(sessions: Session[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions))
-  } catch {
-    // ignore quota errors
-  }
 }
 
 export async function apiLoad(): Promise<Session[]> {

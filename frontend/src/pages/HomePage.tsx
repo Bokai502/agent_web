@@ -244,7 +244,7 @@ const STYLE = `
 }
 `
 
-export default function SplineShowcase() {
+export default function HomePage() {
   return (
     <main className="spline-page">
       <style>{STYLE}</style>
@@ -260,8 +260,8 @@ export default function SplineShowcase() {
           </a>
           <nav className="spline-nav" aria-label="页面导航">
             <a href="/">首页</a>
-            <a href="/workspace">工作台网页</a>
-            <a href="/viewer">3D 查看器</a>
+            <a href="/workspace">AI设计工作台</a>
+            <a href="/viewer">三维模型</a>
             <a href="/earth">地球视图</a>
           </nav>
         </header>
@@ -290,7 +290,7 @@ export default function SplineShowcase() {
             </div>
           </div>
           <div className="spline-actions">
-            <a className="spline-button primary" href="/workspace">进入工作台网页</a>
+            <a className="spline-button primary" href="/workspace">进入AI设计工作台</a>
           </div>
         </aside>
       </section>
