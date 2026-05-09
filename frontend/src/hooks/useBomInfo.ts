@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { EMPTY_BOM_INFO, parseBomInfo, type BomInfo } from "../components/bomData"
 
-export function useBomInfo() {
+export function useBomInfo(refreshKey = 0) {
   const [bomInfo, setBomInfo] = useState<BomInfo>(EMPTY_BOM_INFO)
   const [loading, setLoading] = useState(true)
 
@@ -30,7 +30,7 @@ export function useBomInfo() {
       })
 
     return () => controller.abort()
-  }, [])
+  }, [refreshKey])
 
   return { bomInfo, loading }
 }

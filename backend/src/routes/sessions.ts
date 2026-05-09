@@ -9,10 +9,76 @@ const SESSIONS_FILE = path.resolve(process.cwd(), "sessions.json")
 
 type SessionLike = {
   id?: unknown
+  threadId?: unknown
+  turns?: unknown
+  workspaceDir?: unknown
+  workspaceName?: unknown
 }
 
 function getSessionId(value: unknown) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null
+}
+
+function getTurnId(value: unknown) {
+  if (!value || typeof value !== "object") return null
+  const id = (value as { id?: unknown }).id
+  return typeof id === "string" && id.trim() !== "" ? id.trim() : null
+}
+
+function mergeTurns(existing: unknown, incoming: unknown) {
+  const result: unknown[] = []
+  const indexById = new Map<string, number>()
+
+  const appendOrReplace = (turn: unknown) => {
+    const turnId = getTurnId(turn)
+    if (!turnId) {
+      result.push(turn)
+      return
+    }
+
+    const existingIndex = indexById.get(turnId)
+    if (existingIndex === undefined) {
+      indexById.set(turnId, result.length)
+      result.push(turn)
+      return
+    }
+
+    result[existingIndex] = turn
+  }
+
+  if (Array.isArray(existing)) {
+    existing.forEach(appendOrReplace)
+  }
+  if (Array.isArray(incoming)) {
+    incoming.forEach(appendOrReplace)
+  }
+
+  return result
+}
+
+function mergeSession(existing: unknown, incoming: unknown) {
+  if (!existing || typeof existing !== "object") return incoming
+  if (!incoming || typeof incoming !== "object") return existing
+
+  const existingSession = existing as SessionLike
+  const incomingSession = incoming as SessionLike
+  const merged: Record<string, unknown> = {
+    ...(existing as Record<string, unknown>),
+    ...(incoming as Record<string, unknown>),
+    turns: mergeTurns(existingSession.turns, incomingSession.turns),
+  }
+
+  if (incomingSession.threadId == null && existingSession.threadId != null) {
+    merged.threadId = existingSession.threadId
+  }
+  if (incomingSession.workspaceDir == null && existingSession.workspaceDir != null) {
+    merged.workspaceDir = existingSession.workspaceDir
+  }
+  if (incomingSession.workspaceName == null && existingSession.workspaceName != null) {
+    merged.workspaceName = existingSession.workspaceName
+  }
+
+  return merged
 }
 
 // 先写临时文件再 rename，避免并发写入导致文件截断
@@ -62,7 +128,7 @@ async function writeMergedSession(session: unknown, expectedId: string) {
   const existing = await readExistingSessions()
   const index = existing.findIndex((item: SessionLike) => item?.id === sessionId)
   const nextSessions = index >= 0
-    ? existing.map((item: SessionLike, itemIndex: number) => itemIndex === index ? session : item)
+    ? existing.map((item: SessionLike, itemIndex: number) => itemIndex === index ? mergeSession(item, session) : item)
     : [...existing, session]
 
   if (index < 0) {

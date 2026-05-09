@@ -18,6 +18,7 @@ interface AtMenuState {
 
 interface AppleTaskComposerProps {
   compact?: boolean
+  enableTools?: boolean
   onAbort: () => void
   onSubmit: (input: string | CodexInputItem[], enabledSkills?: string[]) => void
   placeholder?: string
@@ -70,11 +71,9 @@ const STYLE = `
   text-align: left;
 }
 .apple-task-composer.compact {
-  border-radius: 20px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.82);
-  box-shadow:
-    0 14px 34px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .apple-task-composer textarea {
   display: block;
@@ -91,11 +90,11 @@ const STYLE = `
   line-height: 1.55;
 }
 .apple-task-composer.compact textarea {
-  min-height: 58px;
-  max-height: 132px;
-  padding: 14px 16px 8px;
-  font-size: 14px;
-  line-height: 1.48;
+  min-height: 42px;
+  max-height: 92px;
+  padding: 10px 12px 6px;
+  font-size: 13px;
+  line-height: 1.42;
 }
 .apple-task-composer textarea::placeholder { color: #8d8d92; }
 .apple-task-composer-footer {
@@ -107,8 +106,8 @@ const STYLE = `
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 .apple-task-composer.compact .apple-task-composer-footer {
-  gap: 10px;
-  padding: 9px 10px 10px 12px;
+  gap: 6px;
+  padding: 6px 8px 8px;
 }
 .apple-task-composer-tools {
   display: flex;
@@ -131,9 +130,9 @@ const STYLE = `
   white-space: nowrap;
 }
 .apple-task-composer.compact .apple-task-composer-pill {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
 }
 .apple-task-composer-pill button {
   margin-left: 2px;
@@ -158,8 +157,8 @@ const STYLE = `
   cursor: pointer;
 }
 .apple-task-composer.compact .apple-task-composer-send {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
 }
 .apple-task-composer-send:disabled {
   cursor: default;
@@ -245,6 +244,7 @@ const STYLE = `
 
 export function AppleTaskComposer({
   compact = false,
+  enableTools = true,
   onAbort,
   onSubmit,
   placeholder = "例如：设计一个遥感小卫星内部布局，约束热源远离载荷舱，并生成可查看模型...",
@@ -294,6 +294,7 @@ export function AppleTaskComposer({
   }
 
   const menuItems = (() => {
+    if (!enableTools) return []
     const query = (atMenu?.query ?? "").toLowerCase()
     type MenuItem =
       | { kind: "file"; label: string; hint: string }
@@ -350,8 +351,9 @@ export function AppleTaskComposer({
       inputItems.push(file.inputItem)
     }
 
-    if (inputItems.length === 0 && selectedSkills.length === 0) return
-    onSubmit(inputItems.length === 1 && inputItems[0].type === "text" ? inputItems[0].text : inputItems, selectedSkills)
+    const enabledSkills = enableTools ? selectedSkills : []
+    if (inputItems.length === 0 && enabledSkills.length === 0) return
+    onSubmit(inputItems.length === 1 && inputItems[0].type === "text" ? inputItems[0].text : inputItems, enabledSkills)
     setValue("")
     setAttachedFiles([])
     setSelectedSkills([])
@@ -361,7 +363,7 @@ export function AppleTaskComposer({
   return (
     <div className={`apple-task-composer${compact ? " compact" : ""}`} aria-label="任务输入">
       <style>{STYLE}</style>
-      {atMenu && menuItems.length > 0 && (
+      {enableTools && atMenu && menuItems.length > 0 && (
         <div className="apple-task-composer-menu">
           {menuItems.map((item, index) => (
             <button
@@ -389,11 +391,11 @@ export function AppleTaskComposer({
           const nextValue = event.target.value
           setValue(nextValue)
           const cursor = event.target.selectionStart ?? nextValue.length
-          setAtMenu(findAtTrigger(nextValue, cursor))
+          setAtMenu(enableTools ? findAtTrigger(nextValue, cursor) : null)
           setMenuHover(0)
         }}
         onKeyDown={event => {
-          if (atMenu && menuItems.length > 0) {
+          if (enableTools && atMenu && menuItems.length > 0) {
             if (event.key === "ArrowDown") {
               event.preventDefault()
               setMenuHover(index => (index + 1) % menuItems.length)
@@ -410,14 +412,14 @@ export function AppleTaskComposer({
               return
             }
           }
-          if (event.key === "Escape" && atMenu) {
+          if (enableTools && event.key === "Escape" && atMenu) {
             event.preventDefault()
             setAtMenu(null)
             return
           }
           if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault()
-            if (atMenu && menuItems.length > 0) {
+            if (enableTools && atMenu && menuItems.length > 0) {
               selectMenuItem(menuHover)
               return
             }
@@ -428,18 +430,21 @@ export function AppleTaskComposer({
         placeholder={placeholder}
       />
       <div className="apple-task-composer-footer">
-        <div className="apple-task-composer-tools">
-          {selectedSkills.length === 0 && attachedFiles.length === 0 ? (
+        {enableTools && (
+          <div className="apple-task-composer-tools">
+            {selectedSkills.length === 0 && attachedFiles.length === 0 ? (
             <>
               <button
                 type="button"
                 className="apple-task-composer-pill apple-task-composer-tool-button"
+                aria-label="添加 Skill 或图片"
+                title="添加 Skill 或图片"
                 onClick={() => setAtMenu({ atIndex: value.length, query: "" })}
               >
-                @ Skill 或图片
+                {compact ? "@" : "@ Skill 或图片"}
               </button>
             </>
-          ) : (
+            ) : (
             <>
               {selectedSkills.map(skill => (
                 <span key={`skill:${skill}`} className="apple-task-composer-pill">
@@ -454,8 +459,9 @@ export function AppleTaskComposer({
                 </span>
               ))}
             </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
         <button
           type="button"
           className="apple-task-composer-send"

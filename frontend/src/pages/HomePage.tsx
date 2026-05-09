@@ -262,7 +262,7 @@ export default function HomePage() {
             <a href="/">首页</a>
             <a href="/workspace">AI设计工作台</a>
             <a href="/viewer">三维模型</a>
-            <a href="/earth">地球视图</a>
+            <a href="http://10.110.34.116:5173/" target="_blank" rel="noreferrer">数字地球</a>
           </nav>
         </header>
 
@@ -291,6 +291,7 @@ export default function HomePage() {
           </div>
           <div className="spline-actions">
             <a className="spline-button primary" href="/workspace">进入AI设计工作台</a>
+            <a className="spline-button primary" href="http://10.110.34.116:5173/" target="_blank" rel="noreferrer">进入AI GNC工作台</a>
           </div>
         </aside>
       </section>

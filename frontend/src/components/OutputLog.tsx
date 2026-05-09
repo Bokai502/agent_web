@@ -113,20 +113,8 @@ function StaticAgentMessage({ text }: { text: string }) {
   )
 }
 
-// ── Reasoning（直接显示流式文本）──────────────────────────────
-function LiveReasoningBlock({ text, done }: { text: string; done: boolean }) {
-  const [open, setOpen] = useState(true)
-  return <ReasoningCard text={text} done={done} open={open} onToggle={() => setOpen(o => !o)} />
-}
-
-// ── Reasoning（静态，默认折叠）────────────────────────────────
-function StaticReasoningBlock({ text }: { text: string }) {
-  const [open, setOpen] = useState(false)
-  return <ReasoningCard text={text} done open={open} onToggle={() => setOpen(o => !o)} />
-}
-
-function ReasoningCard({ text, done, open, onToggle }: {
-  text: string; done: boolean; open: boolean; onToggle: () => void
+function ReasoningCard({ text, done }: {
+  text: string; done: boolean
 }) {
   return (
     <div style={{ paddingBottom: 16, paddingLeft: 42 }}>
@@ -134,32 +122,28 @@ function ReasoningCard({ text, done, open, onToggle }: {
         border: "1px solid var(--border)", borderRadius: 8,
         overflow: "hidden", background: "var(--bg-2)",
       }}>
-        <button onClick={onToggle} style={{
+        <div style={{
           width: "100%", display: "flex", alignItems: "center", gap: 8,
           padding: "9px 14px", background: "transparent", border: "none",
-          cursor: "pointer",
-          borderBottom: open ? "1px solid var(--border)" : "none", textAlign: "left",
+          borderBottom: "1px solid var(--border)", textAlign: "left",
         }}>
-          <span style={{ fontSize: 13, color: "var(--text-2)" }}>{open ? "▾" : "▸"}</span>
           <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)" }}>Thinking</span>
           {!done && (
             <span style={{ fontSize: 12, color: "var(--text-3)", animation: "blink 1.2s step-end infinite" }}>
               •••
             </span>
           )}
-        </button>
-        {open && (
-          <div style={{
-            padding: "10px 14px",
-            fontSize: 13,
-            lineHeight: "1.7",
-            color: "var(--text-2)",
-            fontStyle: "italic",
-          }}>
-            <MarkdownText text={text} tone="muted" />
-            {!done && <Cursor />}
-          </div>
-        )}
+        </div>
+        <div style={{
+          padding: "10px 14px",
+          fontSize: 13,
+          lineHeight: "1.7",
+          color: "var(--text-2)",
+          fontStyle: "italic",
+        }}>
+          <MarkdownText text={text} tone="muted" />
+          {!done && <Cursor />}
+        </div>
       </div>
     </div>
   )
@@ -517,7 +501,9 @@ function AskUserAnswerCard({
 function LiveItemView({ state }: { state: ItemState }) {
   const { item, done } = state
   if (item.type === "agent_message")     return <LiveAgentMessage text={item.text} done={done} />
-  if (item.type === "reasoning")         return <LiveReasoningBlock text={item.text} done={done} />
+  if (item.type === "reasoning") {
+    return <ReasoningCard text={item.text} done={done} />
+  }
   if (item.type === "command_execution") return <CommandBlock item={item} done={done} />
   if (item.type === "file_change")       return <FileChanges item={item} />
   if (item.type === "web_search")        return <WebSearch query={item.query} />
@@ -527,7 +513,9 @@ function LiveItemView({ state }: { state: ItemState }) {
 // ── 历史轮 item（静态）────────────────────────────────────────
 function StaticItemView({ item }: { item: ThreadItem }) {
   if (item.type === "agent_message")     return <StaticAgentMessage text={item.text} />
-  if (item.type === "reasoning")         return <StaticReasoningBlock text={item.text} />
+  if (item.type === "reasoning") {
+    return <ReasoningCard text={item.text} done />
+  }
   if (item.type === "command_execution") return <CommandBlock item={item} done />
   if (item.type === "file_change")       return <FileChanges item={item} />
   if (item.type === "web_search")        return <WebSearch query={item.query} />

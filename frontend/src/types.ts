@@ -114,6 +114,8 @@ export interface Session {
   turns: Turn[]
   createdAt: number     // 时间戳
   dismissedAskUserId?: string | null
+  workspaceDir?: string | null
+  workspaceName?: string | null
 }
 
 // 注意：SDK 使用点号命名，如 "item.started" 而非 "item_started"

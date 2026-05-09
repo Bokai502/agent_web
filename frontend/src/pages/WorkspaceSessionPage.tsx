@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { AppleTaskComposer } from "../components/AppleTaskComposer"
-import { OutputLog } from "../components/OutputLog"
+import { APP_NAVIGATION_EVENT, formatSessionTime } from "../app/sessionUtils"
 import { createImageUrl } from "../components/bomData"
+import { MarkdownText } from "../components/outputMarkdown"
 import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
-import type { CodexInputItem } from "../types"
+import type { CodexInputItem, Session, ThreadEvent, Turn } from "../types"
 
 const WORKSPACE_HOME_PATH = "/workspace"
 
@@ -21,6 +22,28 @@ type FreecadProgressResponse = {
   updated_at?: string | null
 }
 
+type FreecadWorkspaceItem = {
+  missing?: string[]
+  name: string
+  path: string
+  valid: boolean
+}
+
+type FreecadWorkspacesResponse = {
+  current?: string | null
+  currentName?: string | null
+  effective?: string | null
+  envOverride?: boolean
+  items?: FreecadWorkspaceItem[]
+  root?: string
+}
+
+type WorkspaceSessionGroup = FreecadWorkspaceItem & {
+  sessions: Session[]
+}
+
+const UNASSIGNED_WORKSPACE_NAME = "__unassigned__"
+
 type ProgressEntry = {
   fileNames: string[]
   key: string
@@ -28,7 +51,18 @@ type ProgressEntry = {
   percent: number
 }
 
-type ActivePanel = "bom" | "model" | "freecad" | "paraview" | "comsol"
+const WORKFLOW_PROGRESS_STAGES: ProgressEntry[] = [
+  { fileNames: [], key: "layout", label: "布局生成", percent: 0 },
+  { fileNames: [], key: "modeling", label: "几何建模", percent: 0 },
+  { fileNames: [], key: "export_file_percent", label: "文件导出", percent: 0 },
+  { fileNames: [], key: "case_build", label: "算例构建", percent: 0 },
+  { fileNames: [], key: "simulation_run", label: "仿真运行", percent: 0 },
+  { fileNames: [], key: "field_export", label: "场数据导出", percent: 0 },
+  { fileNames: [], key: "analysis", label: "结果分析", percent: 0 },
+  { fileNames: [], key: "suggestion", label: "优化建议", percent: 0 },
+]
+
+type ActivePanel = "bom" | "log" | "model" | "freecad" | "paraview" | "comsol"
 
 const STYLE = `
 .workspace-apple {
@@ -89,6 +123,196 @@ const STYLE = `
   color: white;
   font-size: 15px;
   line-height: 1;
+}
+.wa-history-menu {
+  position: relative;
+}
+.wa-history-button {
+  display: inline-flex;
+  height: 36px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 8px 20px rgba(0, 0, 0, 0.06);
+  color: #3f3f44;
+  cursor: pointer;
+  padding: 0 13px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.wa-history-button:hover { background: rgba(255, 255, 255, 0.9); color: #1d1d1f; }
+.wa-history-dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 240;
+  width: min(360px, calc(100vw - 28px));
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(24px) saturate(180%);
+  padding: 8px;
+}
+.wa-history-item {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.wa-history-item:hover,
+.wa-history-item.active { background: rgba(0, 0, 0, 0.05); }
+.wa-history-item strong {
+  display: block;
+  overflow: hidden;
+  color: #1d1d1f;
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-history-item span {
+  display: block;
+  margin-top: 4px;
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 650;
+}
+.wa-history-more {
+  width: 100%;
+  height: 32px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.045);
+  color: #55555a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+.wa-workspace-menu {
+  position: relative;
+}
+.wa-workspace-button {
+  display: inline-flex;
+  height: 36px;
+  max-width: 220px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 8px 20px rgba(0, 0, 0, 0.06);
+  color: #3f3f44;
+  cursor: pointer;
+  padding: 0 13px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.wa-workspace-button:hover { background: rgba(255, 255, 255, 0.9); color: #1d1d1f; }
+.wa-workspace-button span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-workspace-dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 240;
+  display: grid;
+  grid-template-columns: 240px minmax(260px, 360px);
+  gap: 8px;
+  width: min(620px, calc(100vw - 28px));
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(24px) saturate(180%);
+  padding: 8px;
+}
+.wa-workspace-list,
+.wa-workspace-history {
+  min-width: 0;
+}
+.wa-workspace-history {
+  border-left: 1px solid rgba(0, 0, 0, 0.07);
+  padding-left: 8px;
+}
+.wa-workspace-item {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.wa-workspace-item:hover,
+.wa-workspace-item.active { background: rgba(0, 0, 0, 0.05); }
+.wa-workspace-item:disabled { cursor: not-allowed; opacity: 0.48; }
+.wa-workspace-item strong {
+  display: block;
+  color: #1d1d1f;
+  font-size: 12.5px;
+  line-height: 1.25;
+}
+.wa-workspace-item span {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-workspace-history-title {
+  height: 28px;
+  padding: 4px 10px 0;
+  color: #55555a;
+  font-size: 11px;
+  font-weight: 800;
+}
+.wa-workspace-session {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.wa-workspace-session:hover,
+.wa-workspace-session.active { background: rgba(0, 0, 0, 0.05); }
+.wa-workspace-session strong {
+  display: block;
+  overflow: hidden;
+  color: #1d1d1f;
+  font-size: 12.5px;
+  line-height: 1.32;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-workspace-session span {
+  display: block;
+  margin-top: 4px;
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 650;
 }
 .wa-tabs {
   position: absolute;
@@ -229,6 +453,222 @@ button.wa-status-pill:disabled { cursor: default; opacity: 0.72; }
   --content-width: 100%;
   --content-px: 18px;
 }
+.wa-left-stack {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) minmax(170px, 0.58fr);
+  gap: 12px;
+  padding: 12px;
+}
+.wa-left-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.085);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76));
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.075),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+.wa-left-section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 4px;
+  border-radius: 0 999px 999px 0;
+  background: #1d1d1f;
+  opacity: 0.9;
+}
+.wa-left-section:nth-child(2)::before { background: #0071e3; }
+.wa-left-section:nth-child(3)::before { background: #0f7f56; }
+.wa-left-section:nth-child(2) {
+  border-color: rgba(0, 113, 227, 0.16);
+  box-shadow:
+    0 18px 46px rgba(0, 113, 227, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+.wa-left-section:nth-child(3) {
+  border-color: rgba(15, 127, 86, 0.15);
+  box-shadow:
+    0 18px 46px rgba(15, 127, 86, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+.wa-left-section-header {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  background: rgba(255, 255, 255, 0.62);
+  padding: 0 16px 0 18px;
+}
+.wa-left-section-header strong {
+  color: #1d1d1f;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.wa-left-section-header span {
+  display: block;
+  margin-top: 3px;
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 700;
+}
+.wa-left-section-header button {
+  height: 28px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #55555a;
+  cursor: pointer;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.wa-left-input {
+  overflow: visible;
+}
+.wa-left-input-body {
+  padding: 12px;
+}
+.wa-left-pending {
+  color: #b85f00;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+  padding: 10px 12px;
+}
+.wa-agent-feed,
+.wa-run-feed {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+.wa-agent-card,
+.wa-run-card {
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.045);
+  padding: 13px;
+}
+.wa-agent-card + .wa-agent-card,
+.wa-run-card + .wa-run-card {
+  margin-top: 9px;
+}
+.wa-agent-prompt {
+  color: #55555a;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+.wa-agent-answer {
+  margin-top: 9px;
+  color: #1d1d1f;
+  font-size: 13px;
+  line-height: 1.62;
+}
+.wa-agent-thinking {
+  margin-top: 9px;
+  border-top: 1px solid rgba(0, 0, 0, 0.055);
+  color: #6e6e73;
+  font-size: 12px;
+  line-height: 1.55;
+  padding-top: 9px;
+}
+.wa-ask-user {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+.wa-ask-user button {
+  min-height: 32px;
+  border: 1px solid rgba(184, 95, 0, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 247, 237, 0.82);
+  color: #7c3f00;
+  cursor: pointer;
+  padding: 7px 9px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 650;
+}
+.wa-run-card {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  width: 100%;
+  text-align: left;
+}
+button.wa-run-card {
+  cursor: pointer;
+}
+button.wa-run-card.selected {
+  border-color: rgba(0, 113, 227, 0.28);
+  background: rgba(237, 246, 255, 0.92);
+  box-shadow: 0 12px 28px rgba(0, 113, 227, 0.12);
+}
+.wa-run-status-icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: #55555a;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+.wa-run-status-icon.success,
+.wa-run-status-icon.completed,
+.wa-run-status-icon.done { background: rgba(15, 127, 86, 0.12); color: #0f7f56; }
+.wa-run-status-icon.failed,
+.wa-run-status-icon.error { background: rgba(217, 75, 61, 0.12); color: #d94b3d; }
+.wa-run-status-icon.running,
+.wa-run-status-icon.in_progress,
+.wa-run-status-icon.pending { background: rgba(184, 95, 0, 0.12); color: #b85f00; }
+.wa-run-main {
+  min-width: 0;
+}
+.wa-run-title {
+  overflow: hidden;
+  color: #1d1d1f;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-run-detail {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #6e6e73;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-left-empty {
+  border: 1px dashed rgba(0, 0, 0, 0.11);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.54);
+  color: #737378;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  padding: 16px;
+}
 .wa-log {
   display: flex;
   min-height: 0;
@@ -259,6 +699,30 @@ button.wa-status-pill:disabled { cursor: default; opacity: 0.72; }
   height: 100%;
   border: 0;
   background: transparent;
+}
+.wa-stage-empty {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+.wa-stage-empty-inner {
+  max-width: 340px;
+}
+.wa-stage-empty-inner strong {
+  display: block;
+  color: #1d1d1f;
+  font-size: 20px;
+  line-height: 1.2;
+}
+.wa-stage-empty-inner span {
+  display: block;
+  margin-top: 10px;
+  color: #6e6e73;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
 }
 .wa-bom-stage {
   width: 100%;
@@ -359,6 +823,78 @@ button.wa-status-pill:disabled { cursor: default; opacity: 0.72; }
   margin-top: 5px;
   color: #86868b;
   font-size: 12px;
+}
+.wa-log-stage {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 72px 24px 24px;
+}
+.wa-log-stage-inner {
+  max-width: 940px;
+  margin: 0 auto;
+}
+.wa-log-stage h2 {
+  margin: 0;
+  font-size: 42px;
+  line-height: 1.05;
+}
+.wa-log-stage p {
+  margin: 10px 0 0;
+  color: #6e6e73;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wa-log-detail-card {
+  margin-top: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 18px;
+}
+.wa-log-detail-card h3 {
+  margin: 0;
+  color: #1d1d1f;
+  font-size: 24px;
+  line-height: 1.2;
+}
+.wa-log-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.wa-log-detail-field {
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.035);
+  padding: 11px 12px;
+}
+.wa-log-detail-field span {
+  display: block;
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 650;
+}
+.wa-log-detail-field strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: #1d1d1f;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.wa-log-raw {
+  max-height: 320px;
+  overflow: auto;
+  margin: 16px 0 0;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.055);
+  padding: 14px;
+  color: #1d1d1f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 .wa-stage-toolbar {
   position: absolute;
@@ -508,6 +1044,40 @@ function progressLabel(key: string) {
   return labels[normalized] ?? key
 }
 
+function normalizeProgressKey(key: string) {
+  const normalized = key.toLowerCase().replace(/[\s_-]+/gu, "")
+  const aliases: Record<string, string> = {
+    layoutcompletionpercent: "layout",
+    layoutpercent: "layout",
+    layoutgenerate: "layout",
+    layoutgeneratebom: "layout",
+    modeling: "modeling",
+    modelingpercent: "modeling",
+    model: "modeling",
+    geometry: "modeling",
+    geometryedit: "modeling",
+    geometryvalidate: "modeling",
+    export: "export_file_percent",
+    exportfilepercent: "export_file_percent",
+    exportpercent: "export_file_percent",
+    casebuild: "case_build",
+    simulation: "simulation_run",
+    simulationrun: "simulation_run",
+    fieldexport: "field_export",
+    analysis: "analysis",
+    suggestion: "suggestion",
+  }
+  return aliases[normalized] ?? key
+}
+
+function getWorkflowProgressEntries(progressEntries: ProgressEntry[]) {
+  const progressByKey = new Map(progressEntries.map(entry => [normalizeProgressKey(entry.key), entry]))
+  return WORKFLOW_PROGRESS_STAGES.map(stage => {
+    const progress = progressByKey.get(stage.key)
+    return progress ? { ...stage, fileNames: progress.fileNames, percent: progress.percent } : stage
+  })
+}
+
 function getDisplayFileName(pathValue: string) {
   const normalized = pathValue.replace(/\\/gu, "/")
   return normalized.split("/").pop() || pathValue
@@ -645,6 +1215,305 @@ function formatProgressUpdatedAt(progressData: FreecadProgressResponse | null) {
   return parsed.toLocaleString()
 }
 
+type AgentSummary = {
+  answer: string
+  id: string
+  prompt: string
+  reasoning: string
+}
+
+type RunLogEntry = {
+  detail: string
+  fields?: Record<string, string>
+  id: string
+  raw?: unknown
+  source?: string
+  status: string
+  title: string
+  type: string
+  time?: string
+}
+
+type StageLogEntry = {
+  detail?: string
+  fields?: Record<string, string>
+  id: string
+  raw?: unknown
+  source?: string
+  status: string
+  stage_name: string
+  time: string
+}
+
+function getLatestItemText(events: ThreadEvent[], itemType: "agent_message" | "reasoning") {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    if (
+      (event.type === "item.completed" || event.type === "item.updated" || event.type === "item.started") &&
+      event.item.type === itemType &&
+      event.item.text.trim()
+    ) {
+      return event.item.text.trim()
+    }
+  }
+  return ""
+}
+
+function buildAgentSummaries(turns: Turn[], currentPrompt: string, currentEvents: ThreadEvent[]): AgentSummary[] {
+  const summaries = turns.map(turn => ({
+    answer: getLatestItemText(turn.events, "agent_message"),
+    id: turn.id,
+    prompt: turn.userPrompt,
+    reasoning: getLatestItemText(turn.events, "reasoning"),
+  }))
+
+  if (currentPrompt || currentEvents.length > 0) {
+    summaries.push({
+      answer: getLatestItemText(currentEvents, "agent_message"),
+      id: "current",
+      prompt: currentPrompt,
+      reasoning: getLatestItemText(currentEvents, "reasoning"),
+    })
+  }
+
+  return summaries.filter(summary => summary.prompt || summary.answer || summary.reasoning)
+}
+
+function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[]): RunLogEntry[] {
+  const events = [...turns.flatMap(turn => turn.events), ...currentEvents]
+  const entries: RunLogEntry[] = []
+
+  events.forEach((event, index) => {
+    if (event.type === "turn.started") {
+      entries.push({ detail: "turn started", id: `turn-started-${index}`, status: "running", title: "开始运行", type: "run" })
+      return
+    }
+    if (event.type === "turn.completed") {
+      entries.push({
+        detail: `input ${event.usage.input_tokens} / output ${event.usage.output_tokens}`,
+        id: `turn-completed-${index}`,
+        status: "completed",
+        title: "运行完成",
+        type: "run",
+      })
+      return
+    }
+    if (event.type === "turn.failed") {
+      entries.push({ detail: event.error.message, id: `turn-failed-${index}`, status: "failed", title: "运行失败", type: "error" })
+      return
+    }
+    if (event.type === "error") {
+      entries.push({ detail: event.message, id: `error-${index}`, status: "error", title: "系统错误", type: "error" })
+      return
+    }
+    if (event.type !== "item.started" && event.type !== "item.updated" && event.type !== "item.completed") return
+
+    const done = event.type === "item.completed"
+    const item = event.item
+    if (item.type === "command_execution") {
+      const command = item.command.split("\n")[0] ?? item.command
+      entries.push({
+        detail: done ? `exit ${item.exit_code ?? "-"}` : item.status,
+        fields: {
+          command: item.command,
+          exit_code: item.exit_code == null ? "-" : String(item.exit_code),
+          output_chars: String(item.aggregated_output.length),
+        },
+        id: `${item.id}-${event.type}`,
+        raw: {
+          command: item.command,
+          output: item.aggregated_output,
+          status: item.status,
+          exit_code: item.exit_code ?? null,
+        },
+        status: item.status,
+        title: command,
+        type: "shell",
+      })
+      return
+    }
+    if (item.type === "file_change") {
+      entries.push({
+        detail: item.changes.map(change => `${change.kind} ${change.path}`).join(", "),
+        fields: {
+          changes: String(item.changes.length),
+          paths: item.changes.map(change => change.path).join(", "),
+        },
+        id: `${item.id}-${event.type}`,
+        raw: item.changes,
+        status: done ? "completed" : "running",
+        title: `文件变更 ${item.changes.length} 项`,
+        type: "file",
+      })
+      return
+    }
+    if (item.type === "mcp_tool_call") {
+      entries.push({
+        detail: `${item.server}.${item.tool} · ${item.status}`,
+        fields: {
+          server: item.server,
+          tool: item.tool,
+        },
+        id: `${item.id}-${event.type}`,
+        raw: {
+          arguments: item.arguments,
+          result: item.result ?? null,
+          error: item.error ?? null,
+        },
+        status: item.status,
+        title: "工具调用",
+        type: "tool",
+      })
+      return
+    }
+    if (item.type === "web_search") {
+      entries.push({ detail: item.query, id: `${item.id}-${event.type}`, status: done ? "completed" : "running", title: "网页搜索", type: "web" })
+      return
+    }
+    if (item.type === "ask_user") {
+      entries.push({ detail: item.question, id: `${item.id}-${event.type}`, status: "pending", title: "等待用户确认", type: "ask" })
+    }
+  })
+
+  return entries.slice(-80).reverse()
+}
+
+function getDisplayLogEntries(stageLogs: StageLogEntry[], runEntries: RunLogEntry[]): RunLogEntry[] {
+  if (stageLogs.length > 0) {
+    return stageLogs.map(entry => ({
+      detail: entry.detail ?? formatStageLogTime(entry.time),
+      fields: entry.fields,
+      id: entry.id,
+      raw: entry.raw,
+      source: entry.source,
+      status: entry.status,
+      time: entry.time,
+      title: entry.stage_name,
+      type: "stage",
+    }))
+  }
+  return runEntries
+}
+
+function AgentUnderstandingPanel({
+  currentEvents,
+  currentPrompt,
+  onSubmitAskUser,
+  onStopAskUser,
+  pendingAskUser,
+  turns,
+}: {
+  currentEvents: ThreadEvent[]
+  currentPrompt: string
+  onSubmitAskUser: (answer: string) => void
+  onStopAskUser: () => void
+  pendingAskUser: ReturnType<typeof useWorkspaceAppState>["pendingAskUser"]
+  turns: Turn[]
+}) {
+  const summaries = useMemo(() => buildAgentSummaries(turns, currentPrompt, currentEvents), [currentEvents, currentPrompt, turns])
+  const visibleSummaries = summaries.slice(-1)
+
+  return (
+    <section className="wa-left-section">
+      <div className="wa-left-section-header">
+        <div>
+          <strong>Agent 理解</strong>
+          <span>{summaries.length > 0 ? `${summaries.length} 轮` : "等待对话"}</span>
+        </div>
+      </div>
+      <div className="wa-agent-feed">
+        {visibleSummaries.length === 0 ? (
+          <div className="wa-left-empty">提交指令后，这里会显示 agent 对最新任务的理解和回复。</div>
+        ) : visibleSummaries.map(summary => (
+          <article className="wa-agent-card" key={summary.id}>
+            {summary.prompt && <div className="wa-agent-prompt">用户指令：{summary.prompt}</div>}
+            {summary.answer ? (
+              <div className="wa-agent-answer"><MarkdownText text={summary.answer} /></div>
+            ) : (
+              <div className="wa-agent-answer">正在理解并生成结果...</div>
+            )}
+            {summary.reasoning && (
+              <details className="wa-agent-thinking">
+                <summary>查看推理过程</summary>
+                <MarkdownText text={summary.reasoning} tone="muted" />
+              </details>
+            )}
+          </article>
+        ))}
+        {pendingAskUser && (
+          <article className="wa-agent-card">
+            <div className="wa-agent-prompt">需要确认：{pendingAskUser.question}</div>
+            <div className="wa-ask-user">
+              {pendingAskUser.options.map(option => (
+                <button type="button" key={option} onClick={() => onSubmitAskUser(option)}>{option}</button>
+              ))}
+              <button type="button" onClick={onStopAskUser}>停止对话</button>
+            </div>
+          </article>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function getStatusIcon(status: string) {
+  const normalized = status.toLowerCase()
+  if (["success", "completed", "complete", "done", "passed", "ok"].includes(normalized)) return "✓"
+  if (["failed", "failure", "error", "cancelled", "canceled"].includes(normalized)) return "!"
+  if (["running", "in_progress", "pending", "started", "processing"].includes(normalized)) return "…"
+  return "•"
+}
+
+function formatStageLogTime(time: string) {
+  if (!time) return "-"
+  const parsed = new Date(time)
+  if (Number.isNaN(parsed.getTime())) return time
+  return parsed.toLocaleString()
+}
+
+function RunLogPanel({
+  entries,
+  onSelect,
+  selectedLogId,
+}: {
+  entries: RunLogEntry[]
+  onSelect: (entry: RunLogEntry) => void
+  selectedLogId: string
+}) {
+  return (
+    <section className="wa-left-section">
+      <div className="wa-left-section-header">
+        <div>
+          <strong>系统日志</strong>
+          <span>{entries.length > 0 ? `${entries.length} 条` : "暂无 runs"}</span>
+        </div>
+      </div>
+      <div className="wa-run-feed">
+        {entries.length === 0 ? (
+          <div className="wa-left-empty">工作目录 logs 中的 JSON 阶段日志会显示在这里。</div>
+        ) : (
+          entries.map(entry => (
+            <button
+              type="button"
+              className={`wa-run-card${entry.id === selectedLogId ? " selected" : ""}`}
+              key={entry.id}
+              onClick={() => onSelect(entry)}
+            >
+              <span className={`wa-run-status-icon ${entry.status.toLowerCase()}`} title={entry.status}>
+                {getStatusIcon(entry.status)}
+              </span>
+              <div className="wa-run-main">
+                <div className="wa-run-title" title={entry.title}>{entry.title}</div>
+                <div className="wa-run-detail" title={entry.detail}>{entry.detail}</div>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </section>
+  )
+}
+
 interface WorkspaceSessionPageProps {
   homePath?: string
 }
@@ -659,7 +1528,9 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     currentEvents,
     currentPrompt,
     handleDelete: _handleDelete,
+    handleAssignSessionWorkspace,
     handleNew,
+    handleSelect,
     handleStopAskUser,
     handleSubmit,
     isMobile: _isMobile,
@@ -669,27 +1540,71 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     turns,
     abort,
   } = state
-  const { bomInfo, loading: bomLoading } = useBomInfo()
+  const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
+  const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce)
   const [selectedBomId, setSelectedBomId] = useState("")
   const [activePanel, setActivePanel] = useState<ActivePanel>("model")
   const [progressData, setProgressData] = useState<FreecadProgressResponse | null>(null)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
+  const [selectedLogId, setSelectedLogId] = useState("")
+  const [stageLogs, setStageLogs] = useState<StageLogEntry[]>([])
+  const [workspaces, setWorkspaces] = useState<FreecadWorkspacesResponse | null>(null)
+  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [workspaceChanging, setWorkspaceChanging] = useState(false)
+  const [hoveredWorkspaceName, setHoveredWorkspaceName] = useState<string | null>(null)
 
   const activeSession = sortedSessions.find(session => session.id === activeSessionId)
+  const workspaceItems = workspaces?.items ?? []
+  const currentWorkspaceName = workspaces?.currentName ?? workspaces?.effective?.split(/[\\/]/u).pop() ?? "未选择"
+  const currentWorkspaceDir = workspaces?.current ?? workspaces?.effective ?? null
+  const unassignedWorkspaceItem = useMemo<FreecadWorkspaceItem>(() => ({
+    missing: [],
+    name: UNASSIGNED_WORKSPACE_NAME,
+    path: currentWorkspaceDir ?? "",
+    valid: true,
+  }), [currentWorkspaceDir])
+  const menuWorkspaceItems = useMemo(() => {
+    const unassignedCount = sortedSessions.filter(session => !session.workspaceName && !session.workspaceDir).length
+    return unassignedCount > 0 ? [...workspaceItems, unassignedWorkspaceItem] : workspaceItems
+  }, [sortedSessions, unassignedWorkspaceItem, workspaceItems])
+  const hoveredWorkspace = menuWorkspaceItems.find(item => item.name === hoveredWorkspaceName) ??
+    menuWorkspaceItems.find(item => item.name === currentWorkspaceName) ??
+    menuWorkspaceItems[0] ??
+    null
+  const getWorkspaceSessionCount = useCallback((workspace: FreecadWorkspaceItem) => {
+    return sortedSessions.filter(session => {
+      if (workspace.name === UNASSIGNED_WORKSPACE_NAME) return !session.workspaceName && !session.workspaceDir
+      if (session.workspaceDir && workspace.path) return session.workspaceDir === workspace.path
+      return session.workspaceName === workspace.name
+    }).length
+  }, [sortedSessions])
+  const sessionsByWorkspace = useMemo<WorkspaceSessionGroup[]>(() => menuWorkspaceItems.map(item => ({
+    ...item,
+    sessions: sortedSessions.filter(session => {
+      if (item.name === UNASSIGNED_WORKSPACE_NAME) return !session.workspaceName && !session.workspaceDir
+      if (session.workspaceDir && item.path) return session.workspaceDir === item.path
+      return session.workspaceName === item.name
+    }),
+  })), [menuWorkspaceItems, sortedSessions])
+  const hoveredWorkspaceSessions = sessionsByWorkspace.find(item => item.name === hoveredWorkspace?.name)?.sessions ?? []
   const selectedBom = bomInfo.components.find(component => component.componentId === selectedBomId) ?? bomInfo.components[0]
   const fileNames = useMemo(() => getFileNames(turns, currentEvents), [turns, currentEvents])
   const progressEntries = useMemo(() => getProgressEntries(progressData?.data), [progressData])
+  const workflowProgressEntries = useMemo(() => getWorkflowProgressEntries(progressEntries), [progressEntries])
   const progressFiles = useMemo(() => getProgressFiles(progressData?.data), [progressData])
-  const hasProgressData = progressEntries.length > 0 || progressData?.exists === true
+  const runLogEntries = useMemo(() => getRunLogEntries(turns, currentEvents), [currentEvents, turns])
+  const logEntries = useMemo(() => getDisplayLogEntries(stageLogs, runLogEntries), [runLogEntries, stageLogs])
+  const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
   const displayedFileNames = progressFiles.length > 0 ? progressFiles : fileNames
   const previewGlbPath = useMemo(() => getViewerGlbPath(displayedFileNames), [displayedFileNames])
   const viewerHref = useMemo(() => {
     const params = new URLSearchParams()
     if (activeSessionId) params.set("sessionId", activeSessionId)
     if (previewGlbPath) params.set("glbPath", previewGlbPath)
+    if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
-  }, [activeSessionId, previewGlbPath])
+  }, [activeSessionId, previewGlbPath, workspaceRefreshNonce])
   const freecadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const paraviewHref = "http://10.110.10.11:6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const comsolHref = "http://10.110.10.11:6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
@@ -712,9 +1627,86 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const submitAndRefreshProgress = useCallback((input: string | CodexInputItem[], enabledSkills?: string[]) => {
     setProgressData(null)
     setProgressRefreshNonce(value => value + 1)
-    handleSubmit(input, enabledSkills)
+    handleSubmit(input, enabledSkills, {
+      workspaceDir: currentWorkspaceDir,
+      workspaceName: currentWorkspaceName,
+    })
     window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
-  }, [handleSubmit])
+  }, [currentWorkspaceDir, currentWorkspaceName, handleSubmit])
+
+  const handleSelectLog = useCallback((entry: RunLogEntry) => {
+    setSelectedLogId(entry.id)
+    setActivePanel("log")
+  }, [])
+
+  const handleReturnHome = useCallback(() => {
+    window.history.pushState(null, "", "/home")
+    window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
+  }, [])
+
+  const refreshWorkspaceViews = useCallback(() => {
+    setSelectedBomId("")
+    setSelectedLogId("")
+    setProgressData(null)
+    setWorkspaceRefreshNonce(value => value + 1)
+    setProgressRefreshNonce(value => value + 1)
+  }, [])
+
+  const switchWorkspace = useCallback((name: string) => {
+    setWorkspaceChanging(true)
+    return fetch("/api/freecad/workspace", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    })
+      .then(response => {
+        if (!response.ok) throw new Error("workspace switch failed")
+        return response.json() as Promise<unknown>
+      })
+      .then(() => {
+        refreshWorkspaceViews()
+      })
+      .catch(() => {
+        // Keep the previous workspace visible if the switch is rejected.
+      })
+      .finally(() => setWorkspaceChanging(false))
+  }, [refreshWorkspaceViews])
+
+  const handleSelectWorkspace = useCallback((name: string) => {
+    if (name === currentWorkspaceName) {
+      setHoveredWorkspaceName(name)
+      return
+    }
+
+    switchWorkspace(name).then(() => {
+      handleNew()
+      setWorkspaceOpen(false)
+    })
+  }, [currentWorkspaceName, handleNew, switchWorkspace])
+
+  const handleSelectWorkspaceHistory = useCallback((session: Session, workspace: FreecadWorkspaceItem) => {
+    const targetWorkspaceName = workspace.name === UNASSIGNED_WORKSPACE_NAME ? currentWorkspaceName : workspace.name
+    const targetWorkspaceDir = workspace.name === UNASSIGNED_WORKSPACE_NAME ? currentWorkspaceDir : workspace.path
+
+    if (targetWorkspaceName && targetWorkspaceName !== "未选择") {
+      handleAssignSessionWorkspace(session.id, {
+        workspaceDir: targetWorkspaceDir,
+        workspaceName: targetWorkspaceName,
+      })
+    }
+
+    const finishSelection = () => {
+      handleSelect(session.id)
+      setWorkspaceOpen(false)
+    }
+
+    if (workspace.name === UNASSIGNED_WORKSPACE_NAME || targetWorkspaceName === currentWorkspaceName) {
+      finishSelection()
+      return
+    }
+
+    switchWorkspace(targetWorkspaceName).then(finishSelection)
+  }, [currentWorkspaceDir, currentWorkspaceName, handleAssignSessionWorkspace, handleSelect, switchWorkspace])
 
   const openExternalWindow = useCallback((url: string) => {
     window.open(url, "_blank", "noopener,noreferrer")
@@ -738,8 +1730,31 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
 
   useEffect(() => {
     let cancelled = false
+    const loadWorkspaces = () => {
+      fetch("/api/freecad/workspaces", { cache: "no-store" })
+        .then(response => response.ok ? response.json() as Promise<FreecadWorkspacesResponse> : null)
+        .then(data => {
+          if (!cancelled) setWorkspaces(data)
+        })
+        .catch(() => {
+          if (!cancelled) setWorkspaces(null)
+        })
+    }
+
+    loadWorkspaces()
+    return () => {
+      cancelled = true
+    }
+  }, [workspaceRefreshNonce])
+
+  useEffect(() => {
+    let cancelled = false
 
     const loadProgress = () => {
+      if (!activeSessionId) {
+        setProgressData(null)
+        return
+      }
       const query = activeSessionId
         ? `?${new URLSearchParams({ sessionId: activeSessionId }).toString()}`
         : ""
@@ -759,17 +1774,47 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeSessionId, progressRefreshNonce, running])
+  }, [activeSessionId, progressRefreshNonce, running, workspaceRefreshNonce])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadStageLogs = () => {
+      fetch("/api/logs/stages", { cache: "no-store" })
+        .then(response => response.ok ? response.json() as Promise<StageLogEntry[]> : [])
+        .then(data => {
+          if (!cancelled) setStageLogs(Array.isArray(data) ? data : [])
+        })
+        .catch(() => {
+          if (!cancelled) setStageLogs([])
+        })
+    }
+
+    loadStageLogs()
+    const intervalId = window.setInterval(loadStageLogs, 3000)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [workspaceRefreshNonce])
+
+  useEffect(() => {
+    if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return
+    setSelectedLogId(logEntries[0]?.id ?? "")
+  }, [logEntries, selectedLogId])
 
   const stageTitle = activePanel === "model"
     ? "3D 模型预览"
     : activePanel === "bom"
       ? "BOM 清单"
+      : activePanel === "log"
+        ? "系统日志"
       : activeTool?.title ?? "工具工作台"
   const stageSubtitle = activePanel === "model"
     ? activeSessionId ? "当前会话模型" : "等待会话模型"
     : activePanel === "bom"
       ? bomLoading ? "正在加载 BOM 数据" : `${bomInfo.totalRecords} 个组件`
+      : activePanel === "log"
+        ? selectedLog ? selectedLog.title : "等待日志"
       : activeTool?.subtitle ?? "远程工具会话"
 
   return (
@@ -778,10 +1823,69 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       <header className="wa-topbar">
         <div className="wa-topbar-inner">
           <div className="wa-nav-left">
-            <button type="button" className="wa-back-button" aria-label="返回主页" onClick={handleNew}>
+            <button type="button" className="wa-back-button" aria-label="返回主页" onClick={handleReturnHome}>
               <span>‹</span>
-              <span>工作台首页</span>
+              <span>首页</span>
             </button>
+            <div className="wa-workspace-menu">
+              <button
+                type="button"
+                className="wa-workspace-button"
+                aria-expanded={workspaceOpen}
+                disabled={workspaceChanging}
+                onClick={() => setWorkspaceOpen(open => !open)}
+                title={workspaces?.effective ?? workspaces?.current ?? undefined}
+              >
+                <span>工作区：{currentWorkspaceName}</span>
+                <span>▾</span>
+              </button>
+              {workspaceOpen && (
+                <div className="wa-workspace-dropdown">
+                  <div className="wa-workspace-list">
+                    {menuWorkspaceItems.length === 0 ? (
+                      <div className="wa-left-empty">暂无可用工作区。</div>
+                    ) : (
+                      menuWorkspaceItems.map(item => (
+                        <button
+                          type="button"
+                          className={`wa-workspace-item${item.name === currentWorkspaceName ? " active" : ""}`}
+                          disabled={item.name !== UNASSIGNED_WORKSPACE_NAME && (!item.valid || workspaceChanging)}
+                          key={item.name}
+                          onClick={() => {
+                            if (item.name !== UNASSIGNED_WORKSPACE_NAME) handleSelectWorkspace(item.name)
+                          }}
+                          onFocus={() => setHoveredWorkspaceName(item.name)}
+                          onMouseEnter={() => setHoveredWorkspaceName(item.name)}
+                        >
+                          <strong>{item.name === UNASSIGNED_WORKSPACE_NAME ? "未归属历史" : item.name}</strong>
+                          <span>{item.valid ? `${getWorkspaceSessionCount(item)} 条历史` : `缺少 ${item.missing?.join(", ") || "必要目录"}`}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <div className="wa-workspace-history">
+                    <div className="wa-workspace-history-title">
+                      {hoveredWorkspace ? `${hoveredWorkspace.name === UNASSIGNED_WORKSPACE_NAME ? "未归属" : hoveredWorkspace.name} 的历史记录` : "历史记录"}
+                    </div>
+                    {hoveredWorkspace && hoveredWorkspaceSessions.length > 0 ? (
+                      hoveredWorkspaceSessions.slice(0, 12).map(session => (
+                        <button
+                          type="button"
+                          className={`wa-workspace-session${session.id === activeSessionId ? " active" : ""}`}
+                          key={session.id}
+                          onClick={() => handleSelectWorkspaceHistory(session, hoveredWorkspace)}
+                        >
+                          <strong>{session.turns[0]?.userPrompt || session.title || "未命名会话"}</strong>
+                          <span>{formatSessionTime(session.createdAt)}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="wa-left-empty">暂无历史记录。</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div className="wa-tabs" aria-label="工作区标签">
             <button
@@ -790,6 +1894,13 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
               onClick={() => setActivePanel("bom")}
             >
               BOM
+            </button>
+            <button
+              type="button"
+              className={activePanel === "log" ? "active" : undefined}
+              onClick={() => setActivePanel("log")}
+            >
+              日志
             </button>
             <button
               type="button"
@@ -830,37 +1941,40 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       </header>
 
       <main className="wa-workspace">
-        <aside className="wa-panel wa-chat">
-          <div className="wa-panel-header">
-            <div className="wa-panel-title">
-              <strong>{activeSession?.title || "选择或开始一个会话"}</strong>
-              <span>{activeSessionId ? `会话 ${activeSessionId}` : "暂无活动会话"}</span>
+        <aside className="wa-panel wa-chat wa-left-stack">
+          <section className="wa-left-section wa-left-input">
+            <div className="wa-left-section-header">
+              <div>
+                <strong>用户指令</strong>
+                <span>{activeSession?.title || (activeSessionId ? `会话 ${activeSessionId}` : "新任务")}</span>
+              </div>
             </div>
-          </div>
+            <div className="wa-left-input-body">
+              {pendingAskUser ? (
+                <div className="wa-left-pending">Agent 正在等待确认，请在中间区域处理后继续输入。</div>
+              ) : (
+                <AppleTaskComposer
+                  compact
+                  enableTools={false}
+                  onSubmit={submitAndRefreshProgress}
+                  onAbort={abort}
+                  running={running}
+                  placeholder="输入用户指令、修改要求或输入 @ 添加 Skill 或文件..."
+                />
+              )}
+            </div>
+          </section>
 
-          <div className="wa-log">
-            <OutputLog
-              turns={turns}
-              currentPrompt={currentPrompt}
-              currentEvents={currentEvents}
-              running={running}
-              pendingAskUser={pendingAskUser}
-              onSubmitAskUser={answer => submitAndRefreshProgress(answer)}
-              onStopAskUser={handleStopAskUser}
-            />
-          </div>
+          <AgentUnderstandingPanel
+            currentEvents={currentEvents}
+            currentPrompt={currentPrompt}
+            onSubmitAskUser={answer => submitAndRefreshProgress(answer)}
+            onStopAskUser={handleStopAskUser}
+            pendingAskUser={pendingAskUser}
+            turns={turns}
+          />
 
-          <div className="wa-composer">
-            {!pendingAskUser && (
-              <AppleTaskComposer
-                compact
-                onSubmit={submitAndRefreshProgress}
-                onAbort={abort}
-                running={running}
-                placeholder="继续描述设计目标、修改要求或输入 @ 添加 Skill 或文件..."
-              />
-            )}
-          </div>
+          <RunLogPanel entries={logEntries} onSelect={handleSelectLog} selectedLogId={selectedLogId} />
         </aside>
 
         <section className="wa-panel wa-stage">
@@ -879,13 +1993,22 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                   if (activePanel === "model") openExternalWindow(viewerHref)
                   if (activeTool) openExternalWindow(activeTool.url)
                 }}
-                disabled={activePanel === "bom"}
+                disabled={activePanel === "bom" || activePanel === "log" || (activePanel === "model" && !activeSessionId)}
               >
-                {activePanel === "model" ? "3D Viewer" : activePanel === "bom" ? "BOM" : activeTool?.label}
+                {activePanel === "model" ? "3D Viewer" : activePanel === "bom" ? "BOM" : activePanel === "log" ? "日志" : activeTool?.label}
               </button>
             </div>
             {activePanel === "model" ? (
-              <iframe className="wa-viewer" title="3D 模型预览" src={viewerHref} />
+              activeSessionId ? (
+                <iframe className="wa-viewer" title="3D 模型预览" src={viewerHref} />
+              ) : (
+                <div className="wa-stage-empty">
+                  <div className="wa-stage-empty-inner">
+                    <strong>等待生成模型</strong>
+                    <span>提交左侧用户指令后，本会话生成的 3D 模型会显示在这里。</span>
+                  </div>
+                </div>
+              )
             ) : activePanel === "bom" ? (
               <div className="wa-bom-stage">
                 <div className="wa-bom-stage-inner">
@@ -951,6 +2074,42 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                   )}
                 </div>
               </div>
+            ) : activePanel === "log" ? (
+              <div className="wa-log-stage">
+                <div className="wa-log-stage-inner">
+                  <h2>系统日志</h2>
+                  <p>{logEntries.length > 0 ? `共 ${logEntries.length} 条日志，点击左侧日志项查看详情。` : "暂无日志数据。"}</p>
+                  {selectedLog ? (
+                    <div className="wa-log-detail-card">
+                      <h3>{selectedLog.title}</h3>
+                      <p>{selectedLog.detail}</p>
+                      <div className="wa-log-detail-grid">
+                        {[
+                          ["状态", selectedLog.status],
+                          ["类型", selectedLog.type],
+                          ["时间", selectedLog.time ? formatStageLogTime(selectedLog.time) : "-"],
+                          ["来源", selectedLog.source ?? "-"],
+                          ["ID", selectedLog.id],
+                          ...Object.entries(selectedLog.fields ?? {}),
+                        ].map(([label, value]) => (
+                          <div className="wa-log-detail-field" key={label}>
+                            <span>{label}</span>
+                            <strong>{value}</strong>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedLog.raw !== undefined && (
+                        <pre className="wa-log-raw">{JSON.stringify(selectedLog.raw, null, 2)}</pre>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="wa-log-detail-card">
+                      <h3>等待日志</h3>
+                      <p>工作流运行后，系统日志会显示在这里。</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : (
               <iframe
                 className="wa-viewer"
@@ -986,30 +2145,15 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
             <section className="wa-info-card">
               <h3>工作流进度</h3>
               <p>更新时间：{formatProgressUpdatedAt(progressData)}</p>
-              {hasProgressData ? (
-                <div className="wa-progress">
-                  {(progressEntries.length > 0 ? progressEntries : [
-                    { fileNames: [], key: "layout", label: "布局", percent: 0 },
-                    { fileNames: [], key: "modeling", label: "建模", percent: 0 },
-                    { fileNames: [], key: "export", label: "导出", percent: 0 },
-                  ]).map(item => (
+              <div className="wa-progress">
+                {workflowProgressEntries.map(item => (
                     <div className="wa-progress-item" key={item.key}>
                       <span>{item.label}</span>
                       <div className="wa-bar"><span style={{ width: `${item.percent}%` }} /></div>
                       <span>{`${item.percent}%`}</span>
-                      {item.fileNames.length > 0 && (
-                        <div className="wa-progress-files" title={item.fileNames.join(", ")}>
-                          {item.fileNames.join(" · ")}
-                        </div>
-                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="wa-file">
-                  <span>等待进度更新</span>
-                </div>
-              )}
+                ))}
+              </div>
             </section>
 
             <section className="wa-info-card">

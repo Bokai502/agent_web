@@ -1,6 +1,5 @@
 import { StrictMode, lazy, Suspense, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
 import { APP_NAVIGATION_EVENT } from './app/sessionUtils.ts'
 import './styles/app.css'
 
@@ -51,7 +50,13 @@ function Router() {
     )
   }
 
-  if (isWorkspace) return <App />
+  if (isWorkspace) {
+    return (
+      <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
+        <WorkspaceSessionPage homePath="/workspace" />
+      </Suspense>
+    )
+  }
 
   return (
     <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>

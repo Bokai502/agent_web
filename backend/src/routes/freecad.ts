@@ -1,6 +1,11 @@
 import { FastifyInstance } from "fastify"
 import fs from "fs/promises"
 import path from "path"
+import {
+  listFreecadWorkspaces,
+  resolveFreecadWorkspaceDir,
+  setFreecadWorkspace,
+} from "../freecadWorkspace.js"
 
 type RegistryIndex = {
   version?: number
@@ -67,8 +72,6 @@ type RegistryLocation = {
 
 type ModelVariant = "original" | "replaced"
 
-const LEGACY_WORKSPACE_DIR = path.resolve(process.cwd(), "..", "..", "FreeCAD_data")
-const ROOT_CONFIG_JSON = path.resolve(process.cwd(), "..", "..", "config.json")
 const DEFAULT_FREECAD_RUNTIME_CONFIG = path.resolve(
   process.cwd(),
   "..",
@@ -114,38 +117,9 @@ function parseSimpleConfig(raw: string) {
   return config
 }
 
-async function readWorkspaceDirFromRootConfig() {
-  try {
-    const raw = await fs.readFile(ROOT_CONFIG_JSON, "utf-8")
-    if (!raw.trim()) return null
-
-    const parsed = JSON.parse(raw) as {
-      FREECAD_WORKSPACE_DIR?: unknown
-      freecad?: { workspaceDir?: unknown; workspace_dir?: unknown }
-    }
-
-    const candidates = [
-      parsed.FREECAD_WORKSPACE_DIR,
-      parsed.freecad?.workspaceDir,
-      parsed.freecad?.workspace_dir,
-    ]
-
-    const workspaceDir = candidates.find(isNonEmptyString)
-    return isNonEmptyString(workspaceDir) ? path.resolve(workspaceDir) : null
-  } catch {
-    return null
-  }
-}
-
 async function resolveConfiguredWorkspaceDir() {
-  if (isNonEmptyString(process.env.FREECAD_WORKSPACE_DIR)) {
-    return path.resolve(process.env.FREECAD_WORKSPACE_DIR)
-  }
-
-  const rootConfigWorkspaceDir = await readWorkspaceDirFromRootConfig()
-  if (rootConfigWorkspaceDir) {
-    return rootConfigWorkspaceDir
-  }
+  const rootConfigWorkspaceDir = await resolveFreecadWorkspaceDir()
+  if (rootConfigWorkspaceDir) return rootConfigWorkspaceDir
 
   const runtimeConfigPath = process.env.FREECAD_RUNTIME_CONFIG || DEFAULT_FREECAD_RUNTIME_CONFIG
   try {
@@ -159,7 +133,7 @@ async function resolveConfiguredWorkspaceDir() {
     // Fall back to the legacy workspace path below.
   }
 
-  return LEGACY_WORKSPACE_DIR
+  return rootConfigWorkspaceDir
 }
 
 async function resolveRegistryLocations() {
@@ -617,6 +591,25 @@ async function resolveProgressFromLatestSessionRun(sessionId: string) {
 }
 
 export async function freecadRoutes(fastify: FastifyInstance) {
+  fastify.get("/api/freecad/workspaces", async (_req, reply) => {
+    try {
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await listFreecadWorkspaces())
+    } catch {
+      return reply.status(500).send({ error: "failed to list FreeCAD workspaces" })
+    }
+  })
+
+  fastify.post<{ Body: { name?: unknown } }>("/api/freecad/workspace", async (req, reply) => {
+    try {
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await setFreecadWorkspace(req.body?.name))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "failed to set FreeCAD workspace"
+      return reply.status(400).send({ error: message })
+    }
+  })
+
   fastify.get("/api/freecad/component-info", async (_req, reply) => {
     try {
       const workspaceDir = await resolveConfiguredWorkspaceDir()

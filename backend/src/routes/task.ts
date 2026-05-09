@@ -8,6 +8,7 @@ import { randomBytes } from "node:crypto"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { initializeFreecadProgressForSession } from "../freecadProgress.js"
+import { resolveFreecadWorkspaceDir } from "../freecadWorkspace.js"
 
 const ASK_USER_PROTOCOL = [
   "You can ask the user for one missing piece of information through the application's ask-user-question capability.",
@@ -38,12 +39,23 @@ interface AskUserPayload {
 }
 
 interface RunContext {
+  freecadWorkspaceDir: string | null
   sessionId: string
   threadId: string | null
   turnId: string
 }
 
 type RunInputItem = UserInput
+type SessionRecord = {
+  createdAt?: number
+  dismissedAskUserId?: string | null
+  id?: string
+  threadId?: string | null
+  title?: string
+  turns?: Array<{ id?: string; userPrompt?: string; events?: unknown[] }>
+  workspaceDir?: string | null
+  workspaceName?: string | null
+}
 
 interface RunRequestBody {
   prompt?: string | null
@@ -60,6 +72,7 @@ const UPLOADABLE_IMAGE_MIME_TYPES = new Map([
   ["image/webp", ".webp"],
   ["image/gif", ".gif"],
 ])
+const SESSIONS_FILE = path.resolve(process.cwd(), "sessions.json")
 
 function sanitizeUploadName(name: string) {
   const base = path.basename(name).replace(/[^a-zA-Z0-9._-]/g, "_")
@@ -123,6 +136,7 @@ function buildPromptPrefix(skillNames: string[], context: RunContext) {
     `- session_id: ${context.sessionId}`,
     `- thread_id: ${context.threadId ?? "null"}`,
     `- turn_id: ${context.turnId}`,
+    `- freecad_workspace_dir: ${context.freecadWorkspaceDir ?? "null"}`,
     "",
     "When invoking any freecad-* CLI command, pass these values through environment variables:",
     `- FREECAD_SESSION_ID=${context.sessionId}`,
@@ -130,6 +144,12 @@ function buildPromptPrefix(skillNames: string[], context: RunContext) {
     `- FREECAD_TURN_ID=${context.turnId}`,
     "- FREECAD_CALLER=open_codex_web",
     "- FREECAD_AGENT_NAME=codex",
+    context.freecadWorkspaceDir
+      ? `- FREECAD_WORKSPACE_DIR=${context.freecadWorkspaceDir}`
+      : "- FREECAD_WORKSPACE_DIR=",
+    context.freecadWorkspaceDir
+      ? `Also pass --workspace ${context.freecadWorkspaceDir} to freecad-* CLI commands whenever the command supports it.`
+      : "No FreeCAD workspace is currently configured; ask before running FreeCAD CLI commands.",
   ].join("\n")
   return `${ASK_USER_PROTOCOL}\n\n${skillPrefix}${executionContext}`
 }
@@ -181,6 +201,122 @@ function getInputTextLength(input: RunInputItem[]) {
   return input.reduce((total, item) => total + (item.type === "text" ? item.text.length : 0), 0)
 }
 
+function getWorkspaceName(workspaceDir: string | null) {
+  return workspaceDir ? path.basename(workspaceDir) : null
+}
+
+async function atomicWrite(filePath: string, content: string) {
+  const tmp = `${filePath}.${randomBytes(4).toString("hex")}.tmp`
+  try {
+    await fs.mkdir(path.dirname(filePath), { recursive: true })
+    await fs.writeFile(tmp, content, "utf-8")
+    await fs.rename(tmp, filePath)
+  } catch (err) {
+    await fs.unlink(tmp).catch(() => {})
+    throw err
+  }
+}
+
+async function readSessionsFile(): Promise<SessionRecord[]> {
+  try {
+    const raw = await fs.readFile(SESSIONS_FILE, "utf-8")
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+async function writeSessionsFile(sessions: SessionRecord[]) {
+  await atomicWrite(SESSIONS_FILE, JSON.stringify(sessions, null, 2))
+}
+
+async function ensureRunSession({
+  prompt,
+  sessionId,
+  threadId,
+  workspaceDir,
+}: {
+  prompt: string
+  sessionId: string
+  threadId: string | null
+  workspaceDir: string | null
+}) {
+  const sessions = await readSessionsFile()
+  const index = sessions.findIndex(session => session.id === sessionId)
+  const workspaceName = getWorkspaceName(workspaceDir)
+
+  if (index >= 0) {
+    const existing = sessions[index]
+    sessions[index] = {
+      ...existing,
+      threadId: existing.threadId ?? threadId,
+      workspaceDir: existing.workspaceDir ?? workspaceDir,
+      workspaceName: existing.workspaceName ?? workspaceName,
+    }
+  } else {
+    sessions.push({
+      id: sessionId,
+      title: prompt.slice(0, 60),
+      threadId,
+      turns: [],
+      createdAt: Date.now(),
+      dismissedAskUserId: null,
+      workspaceDir,
+      workspaceName,
+    })
+  }
+
+  await writeSessionsFile(sessions)
+}
+
+async function completeRunSessionTurn({
+  events,
+  prompt,
+  sessionId,
+  threadId,
+  turnId,
+  workspaceDir,
+}: {
+  events: unknown[]
+  prompt: string
+  sessionId: string
+  threadId: string | null
+  turnId: string
+  workspaceDir: string | null
+}) {
+  const sessions = await readSessionsFile()
+  const index = sessions.findIndex(session => session.id === sessionId)
+  const workspaceName = getWorkspaceName(workspaceDir)
+  const turn = { id: turnId, userPrompt: prompt, events }
+
+  if (index >= 0) {
+    const existing = sessions[index]
+    const turns = Array.isArray(existing.turns) ? existing.turns : []
+    const hasTurn = turns.some(item => item.id === turnId)
+    sessions[index] = {
+      ...existing,
+      threadId: threadId ?? existing.threadId ?? null,
+      turns: hasTurn ? turns : [...turns, turn],
+      workspaceDir: existing.workspaceDir ?? workspaceDir,
+      workspaceName: existing.workspaceName ?? workspaceName,
+    }
+  } else {
+    sessions.push({
+      id: sessionId,
+      title: prompt.slice(0, 60),
+      threadId,
+      turns: [turn],
+      createdAt: Date.now(),
+      dismissedAskUserId: null,
+      workspaceDir,
+      workspaceName,
+    })
+  }
+
+  await writeSessionsFile(sessions)
+}
+
 function summarizeInput(input: RunInputItem[]) {
   return {
     itemCount: input.length,
@@ -188,6 +324,14 @@ function summarizeInput(input: RunInputItem[]) {
     localImageItemCount: input.filter(item => item.type === "local_image").length,
     textChars: getInputTextLength(input),
   }
+}
+
+function hasPersistableTerminalEvent(events: unknown[]) {
+  return events.some(event => {
+    if (!event || typeof event !== "object") return false
+    const type = (event as { type?: unknown }).type
+    return type === "turn.completed" || type === "turn.failed" || type === "error"
+  })
 }
 
 function normalizeXmlText(text: string): string {
@@ -269,14 +413,31 @@ export async function taskRoutes(
         .filter(s => typeof s === "string" && s.trim() !== "")
         .map(s => s.trim())
       const runContext = {
+        freecadWorkspaceDir: await resolveFreecadWorkspaceDir().catch(() => null),
         sessionId: trimmedSessionId,
         threadId: typeof threadId === "string" && threadId.trim() !== "" ? threadId.trim() : null,
         turnId: trimmedTurnId,
       }
+      const promptTextForHistory = typeof prompt === "string" && prompt.trim() !== ""
+        ? prompt.trim()
+        : sdkInputBase
+          .filter(item => item.type === "text")
+          .map(item => item.text)
+          .join("\n\n")
+          .trim() || "[input]"
       const finalPrompt = typeof prompt === "string" && prompt.trim() !== ""
         ? buildPrompt(prompt, skillNames, runContext)
         : null
       const sdkInput = buildSdkInput(sdkInputBase, skillNames, runContext)
+      const streamedEvents: unknown[] = []
+      let resolvedThreadId = runContext.threadId
+
+      await ensureRunSession({
+        prompt: promptTextForHistory,
+        sessionId: trimmedSessionId,
+        threadId: resolvedThreadId,
+        workspaceDir: runContext.freecadWorkspaceDir,
+      }).catch(err => logger.error("run session ensure failed", { err, sessionId: trimmedSessionId }))
 
       logger.info("codex run accepted", {
         requestId: req.id,
@@ -287,6 +448,7 @@ export async function taskRoutes(
         model: config.openai.model,
         modelReasoningEffort: config.codex.modelReasoningEffort,
         workingDirectory: config.codex.workingDirectory,
+        freecadWorkspaceDir: runContext.freecadWorkspaceDir,
         approvalPolicy: config.codex.approvalPolicy,
         sandboxMode: config.codex.sandboxMode,
         promptChars: typeof prompt === "string" ? prompt.length : 0,
@@ -356,6 +518,7 @@ export async function taskRoutes(
 
         for await (const event of streamed.events) {
           if (abort.signal.aborted) break
+          streamedEvents.push(event)
           const now = process.hrtime.bigint()
           eventCount += 1
           logger.info("codex run event", {
@@ -410,6 +573,9 @@ export async function taskRoutes(
           }
 
           reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
+          if (event.type === "thread.started" && typeof event.thread_id === "string") {
+            resolvedThreadId = event.thread_id
+          }
         }
       } catch (err) {
         if (!abort.signal.aborted) {
@@ -432,6 +598,19 @@ export async function taskRoutes(
           )
         }
       } finally {
+        const shouldPersistRun = streamedEvents.length > 0 &&
+          (!abort.signal.aborted || hasPersistableTerminalEvent(streamedEvents))
+
+        if (shouldPersistRun) {
+          await completeRunSessionTurn({
+            events: streamedEvents,
+            prompt: promptTextForHistory,
+            sessionId: trimmedSessionId,
+            threadId: resolvedThreadId,
+            turnId: trimmedTurnId,
+            workspaceDir: runContext.freecadWorkspaceDir,
+          }).catch(err => logger.error("run session completion failed", { err, sessionId: trimmedSessionId, turnId: trimmedTurnId }))
+        }
         logger.info("codex run finished", {
           requestId: req.id,
           sessionId: trimmedSessionId,
