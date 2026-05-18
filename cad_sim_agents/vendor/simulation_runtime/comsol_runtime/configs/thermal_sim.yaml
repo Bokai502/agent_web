@@ -1,0 +1,41 @@
+# 卫星热仿真配置文件
+
+comsol:
+  template_mph_path: "/data/lbk/codex_web/open_codex_web/cad_sim_agents/vendor/simulation_runtime/pipeline_resources/templates/comsol/thermal_template.mph"
+  component: "comp1"
+  geometry: "geom1"
+  import_feature: "imp1"
+  physics: "ht"
+
+thermal_sim:
+  # 导出节点标签列表（对应COMSOL模型中的Export节点）
+  # 注意：如果不需要导出特定数据，可以留空或删除此配置
+  export_tags: ['data1']
+
+  # 体数据导出节点（VTU格式，供 ParaView 后处理使用）
+  # TODO: 启用前需要在 thermal_template.mph 中手动添加 'volum_data' 导出节点（plot3D + VTU 格式）
+  #       否则 _export_vtu_with_fallback 会失败导致整个 export 阶段异常
+  #       当前 ParaView 后处理回退使用 data1.txt → VTU 转换 (paraview_runtime/paraview_renderer/render_from_txt.py)
+  export_volum_tags: []
+
+  # 后处理配置
+  postprocess:
+    enabled: true
+    grid_shape: [64, 64, 64]  # 张量网格形状
+    unit: "mm"
+
+  # v2 端到端测试使用较粗 FreeTet，避免冒烟测试在求解阶段长时间卡住。
+  mesh:
+    v2_hauto: 5
+
+  # 边界条件配置（可选，用于后续扩展）
+  boundary_conditions:
+    shell_faces:
+      type: "temperature"
+      emissivity: 0.8
+      ambient_temp: 3  # K
+
+# 数据集路径配置
+dataset:
+  base_dir: "/data/lbk/codex_web/open_codex_web/cad_sim_agents/runs"
+  samples_dir: "samples"

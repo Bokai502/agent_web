@@ -1,0 +1,76 @@
+# 单位说明
+units:
+  length: "mm"                           # 长度单位（毫米）
+  mass: "kg"                             # 质量单位（千克）
+  power: "W"                             # 功率单位（瓦特）
+  temperature: "K"                       # 温度单位（开尔文）
+  thermal_conductivity: "W/(m·K)"        # 导热系数单位
+  thermal_resistance: "m²·K/W"           # 热阻单位
+  thermal_conductance: "W/(m²·K)"        # 热导单位
+  elastic_modulus: "GPa"                 # 弹性模量单位（吉帕）
+  thermal_expansion: "1/K"               # 热膨胀系数单位
+
+# 数据集元信息
+dataset:
+  name: "satellite_layout_v1"
+  description: "卫星舱布局数据集"
+  version: "1.0"
+
+# 舱体包络分布
+envelope:
+  auto_envelope: true
+  fill_ratio: [0.25, 0.35]              # 范围：[min, max]
+  size_ratio_constraint: 2.0            # 最长边/最短边 < 此值（动态生成比例）
+  shell_thickness: [2.0, 5.0]           # 壳厚范围
+  
+  # 外壳材料参数
+  shell_material:
+    density: 2700                        # 铝合金密度
+    thermal:
+      conductivity: 160                  # 导热系数
+      emissivity: 0.8                    # 发射率
+      absorptivity: 0.3                  # 吸收率
+
+# 设备件分布
+components:
+  count: [15, 25]                        # 设备数量范围
+  dims:                                  # 尺寸范围
+    x: [50, 180]
+    y: [50, 200]
+    z: [50, 150]
+  mass: [0.5, 5.0]                       # 质量范围
+  power: [1, 50]                         # 功率范围
+  
+  # 形状分布（预留）
+  shapes: ["box", "cylinder"]
+  shape_probs: [1.0, 0.0]                # 本轮只生成box
+  
+  # 类别分布
+  categories: ["payload", "avionics", "power"]
+  category_probs: [0.4, 0.4, 0.2]
+  
+  # 热力学参数范围（预留，本轮写入但不用）
+  thermal:
+    surface:
+      emissivity: [0.05, 0.95]
+      absorptivity: [0.1, 0.9]
+    interfaces:
+      contact_resistance: [0.0001, 0.01]
+      contact_conductance: [100, 10000]
+  
+  # 热弹性参数（预留）
+  thermoelastic:
+    cte: [1e-6, 25e-6]                   # 热膨胀系数
+    elastic_modulus: [50, 210]           # 弹性模量
+    poisson_ratio: [0.2, 0.35]           # 泊松比
+
+# 装箱参数
+packing:
+  clearance: [5, 20]                     # 间隙范围
+  multistart: 10                         # 多启动次数
+
+# 禁区（可选）
+keep_out: []
+
+# 随机种子
+seed: null                               # null表示随机

@@ -1,0 +1,84 @@
+# v2 分布定义 (对应 schema_version="2.0")
+schema_version: "2.0"
+
+# 单位
+units:
+  length: "mm"
+  mass: "kg"
+  power: "W"
+  temperature: "K"
+
+# 数据集元信息
+dataset:
+  name: "satellite_layout_v2"
+  description: "卫星舱布局数据集 v2 (多仓 + 舱外件 + 散热面)"
+  version: "2.0"
+
+# 外壳 (auto_envelope)
+envelope:
+  auto_envelope: true
+  fill_ratio: [0.20, 0.30]
+  size_ratio_constraint: 1.8
+  shell_thickness: [2.0, 4.0]
+  shell_material:
+    density: 2700
+    thermal:
+      conductivity: 160
+      emissivity: 0.8
+      absorptivity: 0.3
+
+# 分仓布局 (v2: 决定 placement_tree 的结构)
+# type=auto → 未指定舱室数量时, 由 keep-out 子容器的安装面面积占比触发真实舱体
+# count/num_cabins/n_cabins → 可选, 指定 1~4 个舱室; 不设置时自动触发
+# type=single / axial_split / count / explicit_bboxes 仍可显式使用
+cabins_layout:
+  type: "auto"
+  surface_area_ratio_threshold: 0.25
+  min_edge_threshold: 5.0
+
+# 设备件分布
+components:
+  count: [10, 16]
+
+  # v2 新: 按 kind 分配 — internal / external / radiator
+  # internal 只走 cabin 面, external/radiator 只走 outer_shell.faces_outer
+  kinds:
+    internal:
+      prob: 0.70
+      dims_mm:
+        x: [40, 120]
+        y: [40, 120]
+        z: [40, 100]
+    external:
+      prob: 0.20
+      dims_mm:
+        x: [40, 100]
+        y: [40, 100]
+        z: [20, 60]
+    radiator:
+      prob: 0.10
+      dims_mm:
+        x: [80, 150]
+        y: [80, 150]
+        # radiator 作为外贴散热窗，默认法向厚度固定为 1mm
+        z: [1, 1]
+
+  mass: [0.5, 5.0]
+  power: [1, 40]
+
+  categories: ["payload", "avionics", "power"]
+  category_probs: [0.4, 0.4, 0.2]
+
+  thermal:
+    surface:
+      emissivity: [0.05, 0.95]
+      absorptivity: [0.1, 0.9]
+    interfaces:
+      contact_resistance: [0.0001, 0.01]
+
+# 装箱参数
+packing:
+  clearance: [3, 10]
+  multistart: 5
+
+seed: null

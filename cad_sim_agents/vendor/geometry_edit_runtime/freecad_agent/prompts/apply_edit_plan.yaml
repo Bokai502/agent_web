@@ -1,0 +1,68 @@
+name: apply_edit_plan
+description: |
+  按 edit_plan.json 对 STEP 执行组件级几何编辑。支持移动、删除、按 bbox 新增占位盒。
+  上游必须提前把 component_id 解析为 solid_index。
+keywords:
+  - edit_plan
+  - apply_edit_plan
+parameters:
+  edit_plan_path:
+    type: string
+    description: 已解析的 edit_plan.json 文件路径
+    default: ""
+code: |
+    import json as _json
+    from pathlib import Path as _Path
+    edit_plan_path = {edit_plan_path!r}
+    if not edit_plan_path:
+        raise ValueError("edit_plan_path is required")
+    plan = _json.loads(_Path(edit_plan_path).read_text(encoding="utf-8"))
+    actions = plan.get("actions") or []
+    print("OPERATION: apply_edit_plan actions={{}}".format(len(actions)))
+    solid_lookup = list(solids)
+
+    # Move before delete so solid_index values always refer to the original STEP order.
+    for action in actions:
+        if action.get("type") != "move_component":
+            continue
+        solid_index = int(action["solid_index"])
+        if solid_index < 0 or solid_index >= len(solid_lookup):
+            raise IndexError("move solid_index out of range: %s / %s" % (solid_index, len(solid_lookup)))
+        delta = action.get("delta_mm") or [action.get("dx", 0.0), action.get("dy", 0.0), action.get("dz", 0.0)]
+        dx, dy, dz = [float(value) for value in delta]
+        obj = solid_lookup[solid_index]
+        p = obj.Placement
+        p.Base = FreeCAD.Vector(p.Base.x + dx, p.Base.y + dy, p.Base.z + dz)
+        obj.Placement = p
+        print("MOVED_COMPONENT: %s solid_index=%s delta=(%s,%s,%s)" % (action.get("component_id"), solid_index, dx, dy, dz))
+
+    delete_indices = []
+    for action in actions:
+        if action.get("type") != "delete_component":
+            continue
+        solid_index = int(action["solid_index"])
+        if solid_index < 0 or solid_index >= len(solid_lookup):
+            raise IndexError("delete solid_index out of range: %s / %s" % (solid_index, len(solid_lookup)))
+        delete_indices.append(solid_index)
+
+    for solid_index in sorted(set(delete_indices), reverse=True):
+        obj = solid_lookup[solid_index]
+        print("DELETED_COMPONENT: solid_index=%s object=%s" % (solid_index, obj.Name))
+        doc.removeObject(obj.Name)
+
+    for action in actions:
+        if action.get("type") != "add_component":
+            continue
+        bbox = action.get("bbox") or dict()
+        bmin = [float(value) for value in bbox.get("min", [])]
+        bmax = [float(value) for value in bbox.get("max", [])]
+        if len(bmin) != 3 or len(bmax) != 3:
+            raise ValueError("add_component requires bbox.min and bbox.max with 3 numbers")
+        size = [bmax[index] - bmin[index] for index in range(3)]
+        if min(size) <= 0.0:
+            raise ValueError("add_component bbox must have positive size")
+        shape = Part.makeBox(size[0], size[1], size[2], FreeCAD.Vector(bmin[0], bmin[1], bmin[2]))
+        name = str(action.get("step_name") or action.get("component_id") or "added_component")
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = shape
+        print("ADDED_COMPONENT: %s bbox_min=%s bbox_max=%s" % (action.get("component_id"), bmin, bmax))

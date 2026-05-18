@@ -1,0 +1,34 @@
+name: translate_solid_by_index
+description: |
+  平移 STEP 中指定 solid_index 的单个实体。
+  solid_index 由上游根据 component_id 和 geometry_registry.json 映射得到。
+keywords:
+  - 移动单个
+  - translate_solid
+parameters:
+  solid_index:
+    type: int
+    description: solids 列表中的实体索引
+    default: 0
+  dx:
+    type: float
+    description: X 方向偏移 (mm)
+    default: 0.0
+  dy:
+    type: float
+    description: Y 方向偏移 (mm)
+    default: 0.0
+  dz:
+    type: float
+    description: Z 方向偏移 (mm)
+    default: 0.0
+code: |
+    solid_index = int({solid_index})
+    dx, dy, dz = {dx}, {dy}, {dz}
+    print("OPERATION: translate_solid_by_index solid_index={{}} dx={{}} dy={{}} dz={{}}".format(solid_index, dx, dy, dz))
+    if solid_index < 0 or solid_index >= len(solids):
+        raise IndexError("solid_index out of range: %s / %s" % (solid_index, len(solids)))
+    obj = solids[solid_index]
+    p = obj.Placement
+    p.Base = FreeCAD.Vector(p.Base.x + dx, p.Base.y + dy, p.Base.z + dz)
+    obj.Placement = p

@@ -1,0 +1,34 @@
+name: scale_all
+description: |
+  对 STEP 中所有实体按给定比例因子进行缩放 (围绕原点)。
+  适用指令示例: "整体放大 1.5 倍", "缩小到 0.8 倍"
+keywords:
+  - 缩放
+  - 放大
+  - 缩小
+  - scale
+parameters:
+  factor:
+    type: float
+    description: 缩放比例因子
+    default: 1.0
+code: |
+    import Part as _Part
+    factor = {factor}
+    print("OPERATION: scale_all factor={{}}".format(factor))
+    mat = FreeCAD.Matrix()
+    mat.scale(factor, factor, factor)
+    old_objs = list(doc.Objects)
+    scaled = []
+    for idx, obj in enumerate(old_objs):
+        if not (hasattr(obj, "Shape") and obj.Shape.Solids):
+            continue
+        new_shape = obj.Shape.copy()
+        new_shape = new_shape.transformGeometry(mat)
+        new_obj = doc.addObject("Part::Feature", "scaled_%d" % idx)
+        new_obj.Shape = new_shape
+        scaled.append((obj, new_obj))
+    doc.recompute()
+    # 删除原对象
+    for old, _new in scaled:
+        doc.removeObject(old.Name)

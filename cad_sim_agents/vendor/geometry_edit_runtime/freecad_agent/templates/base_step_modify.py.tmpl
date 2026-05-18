@@ -1,0 +1,55 @@
+"""
+通用 STEP 修改模板 (由 agent_loop.py 通过字符串替换渲染,再由 freecadcmd 执行)
+
+占位符 (literal string substitution, 无 Python .format 冲突):
+    __INPUT_STEP__     - 输入 STEP 路径 (会被替换为 repr)
+    __OUTPUT_STEP__    - 输出 STEP 路径 (会被替换为 repr)
+    __OPERATION_CODE__ - 具体修改操作代码（由 prompt 模板生成）
+"""
+
+import os
+import sys
+import traceback
+
+INPUT_STEP = __INPUT_STEP__
+OUTPUT_STEP = __OUTPUT_STEP__
+
+try:
+    import FreeCAD
+    import Part
+except Exception as exc:
+    sys.stderr.write("FREECAD_IMPORT_ERROR: %s\n" % exc)
+    sys.exit(2)
+
+if not os.path.isfile(INPUT_STEP):
+    sys.stderr.write("INPUT_NOT_FOUND: %s\n" % INPUT_STEP)
+    sys.exit(3)
+
+doc = FreeCAD.newDocument("stepmod")
+try:
+    Part.insert(INPUT_STEP, doc.Name)
+    doc.recompute()
+
+    solids = [obj for obj in doc.Objects if hasattr(obj, "Shape") and obj.Shape.Solids]
+    print("LOADED_OBJECTS: %d, SOLIDS: %d" % (len(doc.Objects), len(solids)))
+
+    # === 操作代码开始 ===
+__OPERATION_CODE__
+    # === 操作代码结束 ===
+
+    doc.recompute()
+
+    export_objs = [obj for obj in doc.Objects if hasattr(obj, "Shape") and not obj.Shape.isNull()]
+    if not export_objs:
+        sys.stderr.write("NO_EXPORT_OBJECTS\n")
+        sys.exit(4)
+
+    Part.export(export_objs, OUTPUT_STEP)
+    print("EXPORTED: %s" % OUTPUT_STEP)
+    print("EXPORT_SIZE: %d" % os.path.getsize(OUTPUT_STEP))
+
+except Exception:
+    traceback.print_exc()
+    sys.exit(1)
+finally:
+    FreeCAD.closeDocument(doc.Name)

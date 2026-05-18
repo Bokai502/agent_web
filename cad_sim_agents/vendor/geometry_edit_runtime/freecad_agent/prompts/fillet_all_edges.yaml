@@ -1,0 +1,31 @@
+name: fillet_all_edges
+description: |
+  对 STEP 中所有实体的所有边添加圆角 (fillet)。
+  适用指令示例: "给所有边加 2mm 圆角", "整体倒圆角"
+keywords:
+  - 圆角
+  - fillet
+  - 倒角
+parameters:
+  radius:
+    type: float
+    description: 圆角半径 (mm)
+    default: 1.0
+code: |
+    import Part as _Part
+    radius = {radius}
+    print("OPERATION: fillet_all_edges radius={{}}".format(radius))
+    filleted = 0
+    for obj in list(doc.Objects):
+        if not (hasattr(obj, "Shape") and obj.Shape.Solids):
+            continue
+        try:
+            edges = obj.Shape.Edges
+            if not edges:
+                continue
+            new_shape = obj.Shape.makeFillet(radius, edges)
+            obj.Shape = new_shape
+            filleted += 1
+        except Exception as ee:
+            print("FILLET_SKIP_OBJ: %s (%s)" % (obj.Name, ee))
+    print("FILLET_APPLIED: %d" % filleted)

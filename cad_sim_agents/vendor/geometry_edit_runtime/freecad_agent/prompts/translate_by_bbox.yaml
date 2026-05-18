@@ -1,0 +1,48 @@
+name: translate_by_bbox
+description: |
+  基于 STEP 整体包围盒将几何平移至指定锚点位置。
+  例如"将整体移动到原点"意味着把包围盒中心移到 (0,0,0)。
+  适用指令示例: "整体移动到原点", "包围盒中心归零"
+keywords:
+  - 归零
+  - 原点
+  - 包围盒
+  - 居中
+  - recenter
+parameters:
+  anchor_x:
+    type: float
+    description: 目标锚点 X (mm)
+    default: 0.0
+  anchor_y:
+    type: float
+    description: 目标锚点 Y (mm)
+    default: 0.0
+  anchor_z:
+    type: float
+    description: 目标锚点 Z (mm)
+    default: 0.0
+code: |
+    ax, ay, az = {anchor_x}, {anchor_y}, {anchor_z}
+    # 计算全局包围盒中心
+    bbox = None
+    for obj in list(doc.Objects):
+        if not (hasattr(obj, "Shape") and not obj.Shape.isNull()):
+            continue
+        b = obj.Shape.BoundBox
+        if bbox is None:
+            bbox = FreeCAD.BoundBox(b.XMin, b.YMin, b.ZMin, b.XMax, b.YMax, b.ZMax)
+        else:
+            bbox.add(b)
+    if bbox is None:
+        print("NO_BOUNDBOX_AVAILABLE")
+    else:
+        cx, cy, cz = bbox.Center.x, bbox.Center.y, bbox.Center.z
+        dx, dy, dz = ax - cx, ay - cy, az - cz
+        print("OPERATION: translate_by_bbox center=({{}},{{}},{{}}) -> anchor=({{}},{{}},{{}}) move=({{}},{{}},{{}})".format(cx, cy, cz, ax, ay, az, dx, dy, dz))
+        for obj in list(doc.Objects):
+            if not hasattr(obj, "Placement"):
+                continue
+            p = obj.Placement
+            p.Base = FreeCAD.Vector(p.Base.x + dx, p.Base.y + dy, p.Base.z + dz)
+            obj.Placement = p
