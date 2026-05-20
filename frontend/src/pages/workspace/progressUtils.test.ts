@@ -55,8 +55,8 @@ describe("progressUtils", () => {
 
     expect(workflowEntries).toHaveLength(8)
     expect(workflowEntries.map(entry => entry.key)).toEqual([
-      "layout",
       "modeling",
+      "validation",
       "simulation_run",
       "field_export",
       "postprocess",
@@ -87,14 +87,44 @@ describe("progressUtils", () => {
     }, i18n.t), i18n.t)
 
     expect(Object.fromEntries(entries.map(entry => [entry.key, entry.percent]))).toMatchObject({
-      layout: 100,
       modeling: 100,
+      validation: 0,
       simulation_run: 100,
       field_export: 100,
       postprocess: 100,
       case_build: 0,
       analysis: 0,
       suggestion: 0,
+    })
+  })
+
+  it("keeps top-level CAD progress while simulation steps are running", () => {
+    const entries = getWorkflowProgressEntries(getProgressEntries({
+      schema_version: "freecad_progress/1.0",
+      workflow: "simulation",
+      stage: "simulation",
+      status: "running",
+      overall_percent: 16,
+      modeling_percent: 100,
+      export_file_percent: 100,
+      validation_percent: 100,
+      steps: [
+        { command_name: "simulation", stage_name: "simulation_run", percent: 80 },
+        { command_name: "field_export", stage_name: "field_export", percent: 0 },
+        { command_name: "postprocess", stage_name: "postprocess", percent: 0 },
+        { command_name: "case_build", stage_name: "case_build", percent: 0 },
+        { command_name: "analysis", stage_name: "analysis", percent: 0 },
+      ],
+    }, i18n.t), i18n.t)
+
+    expect(Object.fromEntries(entries.map(entry => [entry.key, entry.percent]))).toMatchObject({
+      modeling: 100,
+      validation: 100,
+      simulation_run: 80,
+      field_export: 0,
+      postprocess: 0,
+      case_build: 0,
+      analysis: 0,
     })
   })
 })

@@ -5,10 +5,8 @@ const ROOT_CONFIG_JSON = path.resolve(process.cwd(), "..", "..", "config.json")
 const DEFAULT_WORKSPACE_ROOT = path.resolve(process.cwd(), "..", "..", "FreeCAD_data")
 
 type RootConfig = {
-  WORKSPACE_DIR?: unknown
   freecad?: {
     workspaceDir?: unknown
-    workspace_dir?: unknown
     [key: string]: unknown
   }
   [key: string]: unknown
@@ -31,10 +29,7 @@ async function readRootConfig() {
 }
 
 function getConfiguredWorkspaceDir(config: RootConfig) {
-  const configured =
-    config.WORKSPACE_DIR ??
-    config.freecad?.workspaceDir ??
-    config.freecad?.workspace_dir
+  const configured = config.freecad?.workspaceDir
   return isNonEmptyString(configured) ? path.resolve(configured) : null
 }
 
@@ -74,14 +69,7 @@ export async function getFreecadWorkspaceRoot() {
 
 export async function getConfiguredFreecadWorkspaceDir() {
   const config = await readRootConfig().catch(() => ({} as RootConfig))
-  const configuredWorkspaceDir = getConfiguredWorkspaceDir(config)
-  if (configuredWorkspaceDir) return configuredWorkspaceDir
-
-  if (isNonEmptyString(process.env.WORKSPACE_DIR)) {
-    return path.resolve(process.env.WORKSPACE_DIR)
-  }
-
-  return null
+  return getConfiguredWorkspaceDir(config)
 }
 
 export async function resolveFreecadWorkspaceDir() {
@@ -108,7 +96,7 @@ export async function listFreecadWorkspaces() {
       ? path.basename(configuredWorkspaceDir)
       : null,
     effective: effectiveWorkspaceDir,
-    envOverride: isNonEmptyString(process.env.WORKSPACE_DIR),
+    envOverride: false,
     items,
   }
 }

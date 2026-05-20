@@ -189,17 +189,16 @@ function buildPromptPrefix(skillNames: string[], skillInstructions: SkillInstruc
     `- workspace_dir: ${context.workspaceDir ?? "null"}`,
     "",
     "Use this same workspace_dir path for cad-sim-pipeline, freecad-* commands, artifact inspection, and logs.",
-    "When invoking CLI commands, pass these values through environment variables:",
+    "The workspace is resolved only from /data/lbk/codex_web/config.json field freecad.workspaceDir.",
+    "Do not override it with WORKSPACE_DIR, FREECAD_WORKSPACE_DIR, --workspace, or --workspace-dir.",
+    "When invoking CLI commands, pass these correlation values through environment variables:",
     `- FREECAD_SESSION_ID=${context.sessionId}`,
     `- FREECAD_THREAD_ID=${context.threadId ?? ""}`,
     `- FREECAD_TURN_ID=${context.turnId}`,
     "- FREECAD_CALLER=open_codex_web",
     "- FREECAD_AGENT_NAME=codex",
     context.workspaceDir
-      ? `- WORKSPACE_DIR=${context.workspaceDir}`
-      : "- WORKSPACE_DIR=",
-    context.workspaceDir
-      ? `Also pass --workspace ${context.workspaceDir} to freecad-* CLI commands whenever the command supports it.`
+      ? "Use CLI defaults for workspace-scoped commands; they read config.json."
       : "No workspace is currently configured; ask before running workspace-scoped CLI commands.",
   ].join("\n")
   return `${ASK_USER_PROTOCOL}\n\n${skillPrefix}${executionContext}`
@@ -531,7 +530,7 @@ export async function taskRoutes(
 
       const progressStartedAt = process.hrtime.bigint()
       await initializeFreecadProgressForSession(trimmedSessionId)
-      logger.info("codex run progress initialized", {
+      logger.info("codex run progress directory ensured", {
         requestId: req.id,
         sessionId: trimmedSessionId,
         turnId: trimmedTurnId,

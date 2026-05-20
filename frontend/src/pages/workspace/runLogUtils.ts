@@ -164,21 +164,18 @@ export function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[], t:
   return entries.slice(-80).reverse()
 }
 
-export function getDisplayLogEntries(stageLogs: StageLogEntry[], runEntries: RunLogEntry[]): RunLogEntry[] {
-  if (stageLogs.length > 0) {
-    return stageLogs.map(entry => ({
-      detail: entry.detail ?? formatStageLogTime(entry.time),
-      fields: entry.fields,
-      id: entry.id,
-      raw: entry.raw,
-      source: entry.source,
-      status: entry.status,
-      time: entry.time,
-      title: entry.stage_name,
-      type: "stage",
-    }))
-  }
-  return runEntries
+export function getDisplayLogEntries(stageLogs: StageLogEntry[], _runEntries: RunLogEntry[]): RunLogEntry[] {
+  return stageLogs.map(entry => ({
+    detail: entry.detail ?? formatStageLogTime(entry.time),
+    fields: entry.fields,
+    id: entry.id,
+    raw: entry.raw,
+    source: entry.source,
+    status: entry.status,
+    time: entry.time,
+    title: entry.stage_name,
+    type: "stage",
+  }))
 }
 
 export function getStatusIcon(status: string) {

@@ -17,8 +17,8 @@ export type ProgressEntry = {
 }
 
 const WORKFLOW_PROGRESS_STAGES: ProgressEntry[] = [
-  { fileNames: [], key: "layout", label: "workspace.progress.layout", percent: 0 },
   { fileNames: [], key: "modeling", label: "workspace.progress.modeling", percent: 0 },
+  { fileNames: [], key: "validation", label: "workspace.progress.validation", percent: 0 },
   { fileNames: [], key: "simulation_run", label: "workspace.progress.simulationRun", percent: 0 },
   { fileNames: [], key: "field_export", label: "workspace.progress.fieldExport", percent: 0 },
   { fileNames: [], key: "postprocess", label: "workspace.progress.postprocess", percent: 0 },
@@ -52,6 +52,8 @@ function progressLabel(key: string, t: TFunction) {
     glb: "GLB",
     step: "STEP",
     preview: t("workspace.progress.preview"),
+    validation: t("workspace.progress.validation"),
+    validationpercent: t("workspace.progress.validation"),
     simulation: t("workspace.progress.simulationRun"),
     postprocess: t("workspace.progress.postprocess"),
     analysis: t("workspace.progress.analysis"),
@@ -75,6 +77,8 @@ function normalizeProgressKey(key: string) {
     export: "export_file_percent",
     exportfilepercent: "export_file_percent",
     exportpercent: "export_file_percent",
+    validationpercent: "validation",
+    cadvalidation: "validation",
     casebuild: "case_build",
     simulation: "simulation_run",
     simulationrun: "simulation_run",
@@ -157,6 +161,29 @@ function getNestedFreecadProgress(data: unknown) {
   return null
 }
 
+function collectScalarProgressEntries(data: unknown, outputFilesByKey: Map<string, string[]>, t: TFunction) {
+  const progressData = isRecord(data) && isRecord(data.progress_percentages)
+    ? data.progress_percentages
+    : isRecord(data) && isRecord(data.progress)
+      ? data.progress
+      : data
+  const entries: ProgressEntry[] = []
+
+  if (!isRecord(progressData)) return entries
+  for (const [key, value] of Object.entries(progressData)) {
+    if (["files", "key_files", "artifacts", "outputs", "output_files", "progress", "progress_percentages", "updated_at", "tool", "success"].includes(key)) continue
+    const percent = normalizePercent(value)
+    if (percent === null) continue
+    entries.push({
+      fileNames: outputFilesByKey.get(key) ?? [],
+      key,
+      label: progressLabel(key, t),
+      percent,
+    })
+  }
+  return entries
+}
+
 export function getProgressEntries(data: unknown, t: TFunction): ProgressEntry[] {
   const outputFilesByKey = getProgressOutputFilesByKey(data)
 
@@ -189,6 +216,14 @@ export function getProgressEntries(data: unknown, t: TFunction): ProgressEntry[]
         entries.push(entry)
         existingKeys.add(normalizedKey)
       }
+    }
+
+    const existingKeys = new Set(entries.map(entry => normalizeProgressKey(entry.key)))
+    for (const entry of collectScalarProgressEntries(data, outputFilesByKey, t)) {
+      const normalizedKey = normalizeProgressKey(entry.key)
+      if (existingKeys.has(normalizedKey) || normalizedKey === "export_file_percent") continue
+      entries.push(entry)
+      existingKeys.add(normalizedKey)
     }
 
     return entries
@@ -224,19 +259,7 @@ export function getProgressEntries(data: unknown, t: TFunction): ProgressEntry[]
     return entries
   }
 
-  if (!isRecord(progressData)) return entries
-  for (const [key, value] of Object.entries(progressData)) {
-    if (["files", "key_files", "artifacts", "outputs", "output_files", "progress", "progress_percentages", "updated_at", "tool", "success"].includes(key)) continue
-    const percent = normalizePercent(value)
-    if (percent === null) continue
-    entries.push({
-      fileNames: outputFilesByKey.get(key) ?? [],
-      key,
-      label: progressLabel(key, t),
-      percent,
-    })
-  }
-  return entries
+  return collectScalarProgressEntries(progressData, outputFilesByKey, t)
 }
 
 function getProgressOutputFilesByKey(data: unknown) {

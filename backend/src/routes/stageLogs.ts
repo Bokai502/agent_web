@@ -15,11 +15,7 @@ type StageLogEntry = {
 }
 
 const MAX_FILES = 100
-const MAX_DEPTH = 4
 const MAX_ENTRIES = 300
-const IGNORED_LOG_RELATIVE_PATHS = new Set([
-  path.join("registry", "index.json"),
-])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
@@ -93,16 +89,8 @@ function collectFields(value: Record<string, unknown>) {
   return fields
 }
 
-function collectStageEntries(value: unknown, source: string, fallbackTime: string, entries: StageLogEntry[]) {
+function addStageEntry(value: Record<string, unknown>, source: string, fallbackTime: string, entries: StageLogEntry[]) {
   if (entries.length >= MAX_ENTRIES) return
-
-  if (Array.isArray(value)) {
-    for (const item of value) collectStageEntries(item, source, fallbackTime, entries)
-    return
-  }
-
-  if (!isRecord(value)) return
-
   const stageName = asString(value.stage_name)
   const status = asString(value.status)
   if (stageName && status) {
@@ -117,15 +105,20 @@ function collectStageEntries(value: unknown, source: string, fallbackTime: strin
       time: getTime(value, fallbackTime),
     })
   }
-
-  for (const nested of Object.values(value)) {
-    if (isRecord(nested) || Array.isArray(nested)) collectStageEntries(nested, source, fallbackTime, entries)
-  }
 }
 
-async function listJsonFiles(dir: string, depth = 0): Promise<string[]> {
-  if (depth > MAX_DEPTH) return []
+function collectStageEntries(value: unknown, source: string, fallbackTime: string, entries: StageLogEntry[]) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (isRecord(item)) addStageEntry(item, source, fallbackTime, entries)
+    }
+    return
+  }
 
+  if (isRecord(value)) addStageEntry(value, source, fallbackTime, entries)
+}
+
+async function listTopLevelJsonFiles(dir: string): Promise<string[]> {
   let dirents: Array<{ isDirectory(): boolean; isFile(): boolean; name: string }>
   try {
     dirents = await fs.readdir(dir, { withFileTypes: true })
@@ -137,19 +130,12 @@ async function listJsonFiles(dir: string, depth = 0): Promise<string[]> {
   for (const dirent of dirents) {
     if (files.length >= MAX_FILES) break
     const fullPath = path.join(dir, dirent.name)
-    if (dirent.isDirectory()) {
-      files.push(...await listJsonFiles(fullPath, depth + 1))
-    } else if (dirent.isFile() && dirent.name.endsWith(".json")) {
+    if (dirent.isFile() && dirent.name.endsWith("_stage_result.json")) {
       files.push(fullPath)
     }
   }
 
   return files.slice(0, MAX_FILES)
-}
-
-function isIgnoredLogFile(filePath: string, logDir: string) {
-  const relativePath = path.relative(logDir, filePath)
-  return IGNORED_LOG_RELATIVE_PATHS.has(relativePath)
 }
 
 function sortEntries(entries: StageLogEntry[]) {
@@ -164,18 +150,8 @@ function sortEntries(entries: StageLogEntry[]) {
 export async function stageLogsRoutes(fastify: FastifyInstance) {
   fastify.get("/api/logs/stages", async (_req, reply) => {
     const configuredWorkspaceDir = await resolveFreecadWorkspaceDir().catch(() => null)
-    const candidateDirs = [
-      configuredWorkspaceDir ? path.join(configuredWorkspaceDir, "logs") : null,
-      process.env.WORKSPACE_DIR ? path.join(path.resolve(process.env.WORKSPACE_DIR), "logs") : null,
-      path.resolve(process.cwd(), "..", "logs"),
-      path.resolve(process.cwd(), "logs"),
-      path.resolve(process.cwd(), "..", "FreeCAD_data", "v6_data", "logs"),
-    ]
-      .filter((dir): dir is string => !!dir)
-    const jsonFiles = [...new Set((await Promise.all(candidateDirs.map(async dir => {
-      const files = await listJsonFiles(dir)
-      return files.filter(filePath => !isIgnoredLogFile(filePath, dir))
-    }))).flat())]
+    const logDir = configuredWorkspaceDir ? path.join(configuredWorkspaceDir, "logs") : null
+    const jsonFiles = logDir ? await listTopLevelJsonFiles(logDir) : []
     const entries: StageLogEntry[] = []
 
     for (const filePath of jsonFiles) {

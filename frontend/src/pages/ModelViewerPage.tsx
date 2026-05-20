@@ -38,8 +38,12 @@ type ComponentDetail = {
 
 type RawComponentInfo = {
   components?: Array<{
+    category?: unknown
     component_id?: unknown
+    component_subtype?: unknown
+    kind?: unknown
     semantic_name?: unknown
+    size_mm?: unknown
     display_info?: {
       dimensions?: unknown
       kind?: unknown
@@ -47,10 +51,12 @@ type RawComponentInfo = {
       subsystem?: unknown
     }
   }>
+  items?: RawComponentInfo["components"]
 }
 
 type ViewerComponentMessage = {
   componentId?: unknown
+  semanticName?: unknown
   type?: unknown
 }
 
@@ -58,17 +64,28 @@ function asText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : "-"
 }
 
+function formatSize(value: unknown) {
+  return Array.isArray(value) && value.length > 0
+    ? value.map(item => typeof item === "number" && Number.isFinite(item) ? Number(item.toFixed(3)) : item).join(" x ")
+    : "-"
+}
+
 function parseComponentDetails(data: RawComponentInfo) {
   const detailsById: Record<string, ComponentDetail> = {}
 
-  data.components?.forEach((component) => {
+  const components = Array.isArray(data.components) ? data.components : Array.isArray(data.items) ? data.items : []
+  components.forEach((component) => {
     const componentId = asText(component.component_id)
     if (componentId === "-") return
 
     detailsById[componentId] = {
       componentId,
-      dimensions: asText(component.display_info?.dimensions),
-      kind: asText(component.display_info?.kind),
+      dimensions: asText(component.display_info?.dimensions) !== "-"
+        ? asText(component.display_info?.dimensions)
+        : formatSize(component.size_mm),
+      kind: asText(component.display_info?.kind) !== "-"
+        ? asText(component.display_info?.kind)
+        : asText(component.kind ?? component.category ?? component.component_subtype),
       semanticName: asText(component.display_info?.semantic_name ?? component.semantic_name),
       subsystem: asText(component.display_info?.subsystem),
     }
@@ -94,11 +111,22 @@ export default function ModelViewerPage() {
 
     const controller = new AbortController()
 
-    fetch("/api/freecad/component-info", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then((response) => response.ok ? response.json() as Promise<RawComponentInfo> : null)
+    const loadComponentDetails = async () => {
+      const componentInfo = await fetch("/api/freecad/component-info", {
+        cache: "no-store",
+        signal: controller.signal,
+      }).then((response) => response.ok ? response.json() as Promise<RawComponentInfo> : null)
+        .catch(() => null)
+      if (componentInfo) return componentInfo
+
+      return fetch("/api/freecad/bom", {
+        cache: "no-store",
+        signal: controller.signal,
+      }).then((response) => response.ok ? response.json() as Promise<RawComponentInfo> : null)
+        .catch(() => null)
+    }
+
+    loadComponentDetails()
       .then((data) => {
         if (!data) return
         componentDetailsRef.current = parseComponentDetails(data)
@@ -263,19 +291,20 @@ export default function ModelViewerPage() {
     }
 
     const selectComponent = (componentId: string, notifyParent = true) => {
-      const detail = componentDetailsRef.current[componentId]
-      setSelectedComponent(detail ?? {
+      const detail = componentDetailsRef.current[componentId] ?? {
         componentId,
         dimensions: "-",
         kind: "-",
         semanticName: componentId,
         subsystem: "-",
-      })
+      }
+      setSelectedComponent(detail)
       highlightComponent(componentId)
 
       if (notifyParent && window.parent !== window) {
         window.parent.postMessage({
           componentId,
+          semanticName: detail.semanticName,
           type: "viewer3d:component-selected",
         }, window.location.origin)
       }

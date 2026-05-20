@@ -81,23 +81,16 @@ type RegistryLocation = {
 
 type ModelVariant = "original" | "replaced"
 
-const DEFAULT_FREECAD_RUNTIME_CONFIG = path.resolve(
-  process.cwd(),
-  "..",
-  "..",
-  "..",
-  "freecad_skills",
-  "freecad-skill",
-  "config",
-  "freecad_runtime.conf",
-)
 const DEFAULT_ASSEMBLY_BUILDS_DIR = "assembly_builds"
 const DEFAULT_ARTIFACT_REGISTRY_DIR = path.join("logs", "registry")
 const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "geom_component_info.json")
 const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const DEFAULT_PROGRESS_PERCENTAGES_RELATIVE_PATH = path.join("logs", "progress_percentages.json")
-const DEFAULT_GEOMETRY_AFTER_GLB_RELATIVE_PATH = path.join("02_geometry_edit", "geometry_after.glb")
+const DEFAULT_GEOMETRY_AFTER_GLB_RELATIVE_PATHS = [
+  path.join("01_cad", "geometry_after.glb"),
+  path.join("02_geometry_edit", "geometry_after.glb"),
+]
 const COMPONENT_INFO_ASSEMBLY_STEM = "component_info_assembly"
 const LAYOUT_ASSEMBLY_STEM = "geometry_after"
 
@@ -109,40 +102,8 @@ function normalizeModelVariant(value: unknown): ModelVariant {
   return value === "replaced" ? "replaced" : "original"
 }
 
-function parseSimpleConfig(raw: string) {
-  const config = new Map<string, string>()
-
-  raw.split(/\r?\n/u).forEach((line) => {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith("#")) return
-
-    const separatorIndex = trimmed.indexOf("=")
-    if (separatorIndex <= 0) return
-
-    const key = trimmed.slice(0, separatorIndex).trim()
-    const value = trimmed.slice(separatorIndex + 1).trim()
-    if (key) config.set(key, value)
-  })
-
-  return config
-}
-
 async function resolveConfiguredWorkspaceDir() {
   const rootConfigWorkspaceDir = await resolveFreecadWorkspaceDir()
-  if (rootConfigWorkspaceDir) return rootConfigWorkspaceDir
-
-  const runtimeConfigPath = process.env.FREECAD_RUNTIME_CONFIG || DEFAULT_FREECAD_RUNTIME_CONFIG
-  try {
-    const raw = await fs.readFile(runtimeConfigPath, "utf-8")
-    const config = parseSimpleConfig(raw)
-    const configuredWorkspaceDir = config.get("WORKSPACE_DIR")
-    if (isNonEmptyString(configuredWorkspaceDir)) {
-      return path.resolve(configuredWorkspaceDir)
-    }
-  } catch {
-    // Fall back to the configured workspace resolver below.
-  }
-
   return rootConfigWorkspaceDir
 }
 
@@ -324,7 +285,11 @@ async function resolveModelFromGlbPath(glbPath: string | undefined) {
 }
 
 async function resolveDefaultGeometryAfterModel() {
-  return resolveModelFromGlbPath(DEFAULT_GEOMETRY_AFTER_GLB_RELATIVE_PATH)
+  for (const relativePath of DEFAULT_GEOMETRY_AFTER_GLB_RELATIVE_PATHS) {
+    const model = await resolveModelFromGlbPath(relativePath)
+    if (model) return model
+  }
+  return null
 }
 
 function resolveGlbPath(
@@ -666,16 +631,6 @@ async function resolveProgressFromLatestSessionRun(sessionId: string) {
   return null
 }
 
-function isPipelineProgressPayload(data: unknown) {
-  return Boolean(
-    data &&
-    typeof data === "object" &&
-    !Array.isArray(data) &&
-    (data as { schema_version?: unknown }).schema_version === "1.0" &&
-    Array.isArray((data as { steps?: unknown }).steps),
-  )
-}
-
 async function readWorkspaceProgress(progressPath: string): Promise<WorkspaceProgressData | null> {
   const raw = await fs.readFile(progressPath, "utf-8").catch(() => null)
   if (raw === null) return null
@@ -767,11 +722,10 @@ export async function freecadRoutes(fastify: FastifyInstance) {
     }
   })
 
-  fastify.get<{ Querystring: { sessionId?: string } }>("/api/freecad/progress", async (req, reply) => {
+  fastify.get("/api/freecad/progress", async (_req, reply) => {
     try {
       const workspaceDir = await resolveConfiguredWorkspaceDir()
       const progressPath = path.join(workspaceDir, DEFAULT_PROGRESS_PERCENTAGES_RELATIVE_PATH)
-      const sessionId = req.query.sessionId?.trim()
 
       let workspaceProgress: WorkspaceProgressData | null = null
       try {
@@ -787,31 +741,6 @@ export async function freecadRoutes(fastify: FastifyInstance) {
           source_version: stat ? [progressPath, stat.mtimeMs, stat.size].join(":") : null,
           updated_at: stat?.mtime.toISOString() ?? null,
         })
-      }
-
-      if (workspaceProgress && isPipelineProgressPayload(workspaceProgress.data)) {
-        reply.header("Cache-Control", "no-cache")
-        return reply.send({
-          exists: true,
-          data: workspaceProgress.data,
-          source_path: workspaceProgress.sourcePath,
-          source_version: workspaceProgress.sourceVersion,
-          updated_at: workspaceProgress.updatedAt,
-        })
-      }
-
-      if (isNonEmptyString(sessionId)) {
-        const sessionRunProgress = await resolveProgressFromLatestSessionRun(sessionId)
-        if (sessionRunProgress) {
-          reply.header("Cache-Control", "no-cache")
-          return reply.send({
-            exists: true,
-            data: sessionRunProgress.data,
-            source_path: sessionRunProgress.sourcePath,
-            source_version: sessionRunProgress.sourceVersion,
-            updated_at: sessionRunProgress.data.updated_at,
-          })
-        }
       }
 
       reply.header("Cache-Control", "no-cache")

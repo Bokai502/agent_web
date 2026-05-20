@@ -28,6 +28,7 @@ const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "02_geometry_edit/geometry_after.glb"
 
 type ViewerComponentMessage = {
   componentId?: unknown
+  semanticName?: unknown
   type?: unknown
 }
 
@@ -59,6 +60,18 @@ function formatBomValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "-"
   if (Array.isArray(value)) return value.length > 0 ? value.join(" x ") : "-"
   return String(value)
+}
+
+function getPresentBomText(value: string) {
+  return value && value !== "-" ? value : ""
+}
+
+function getBomDisplayName(component: { model: string; name: string; nameCn: string }) {
+  return getPresentBomText(component.nameCn) || getPresentBomText(component.name) || getPresentBomText(component.model)
+}
+
+function getBomPrimaryName(component: { model: string; name: string; nameCn: string; semanticName: string }) {
+  return getPresentBomText(component.semanticName) || getBomDisplayName(component) || getPresentBomText(component.model)
 }
 
 interface WorkspaceSessionPageProps {
@@ -264,12 +277,17 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       if (event.origin !== window.location.origin) return
       if (event.data?.type !== "viewer3d:component-selected") return
       if (typeof event.data.componentId !== "string") return
-      setSelectedBomId(event.data.componentId)
+      const semanticName = typeof event.data.semanticName === "string" ? event.data.semanticName : ""
+      const matchedComponent = bomInfo.components.find(component =>
+        component.componentId === event.data.componentId ||
+        (!!semanticName && component.semanticName === semanticName),
+      )
+      setSelectedBomId(matchedComponent?.componentId ?? event.data.componentId)
     }
 
     window.addEventListener("message", handleViewerMessage)
     return () => window.removeEventListener("message", handleViewerMessage)
-  }, [])
+  }, [bomInfo.components])
 
   useEffect(() => {
     setProgressData(null)
@@ -648,7 +666,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                       <div className="wa-bom-detail-card">
                         {selectedBom.imageExists && selectedBom.imagePath ? (
                           <img
-                            alt={selectedBom.nameCn || selectedBom.name}
+                            alt={getBomDisplayName(selectedBom)}
                             src={createImageUrl(selectedBom.imagePath) ?? ""}
                           />
                         ) : (
@@ -659,7 +677,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                         )}
                       </div>
                       <div className="wa-bom-detail-card">
-                        <h3>{selectedBom.componentId} · {selectedBom.nameCn || selectedBom.name || selectedBom.model}</h3>
+                        <h3>{selectedBom.componentId} · {getBomPrimaryName(selectedBom)}</h3>
                         <p>{selectedBom.description}</p>
                         <div className="wa-bom-detail-fields">
                           {[
@@ -695,7 +713,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                           onClick={() => setSelectedBomId(component.componentId)}
                         >
                           <span className="wa-bom-id">{component.componentId}</span>
-                          <strong>{component.nameCn || component.name || component.model}</strong>
+                          <strong>{getBomPrimaryName(component)}</strong>
                           <small>{component.subsystem || component.kind || t("common.component")} · x{component.quantity}</small>
                         </button>
                       ))}
@@ -801,7 +819,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                   >
                     <span className="wa-bom-row-top">
                       <span className="wa-bom-id">{component.componentId}</span>
-                      <strong>{component.nameCn || component.name || component.model}</strong>
+                      <strong title={getBomPrimaryName(component)}>{getBomPrimaryName(component)}</strong>
                       <small>x{component.quantity}</small>
                     </span>
                   </button>
