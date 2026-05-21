@@ -65,6 +65,71 @@ function manifestPath(rootDir: string) {
   return path.join(rootDir, MANIFEST_FILE)
 }
 
+function isPathInside(parent: string, child: string) {
+  const relative = path.relative(parent, child)
+  return relative === "" || (!!relative && !relative.startsWith("..") && !path.isAbsolute(relative))
+}
+
+async function readManifestFile(rootDir: string, sessionIdFallback: string) {
+  return normalizeManifest(
+    JSON.parse(await fs.readFile(manifestPath(rootDir), "utf-8")),
+    sessionIdFallback,
+    rootDir,
+  )
+}
+
+async function findManifestRootFromPath(workspaceDir: string) {
+  let current = path.resolve(workspaceDir)
+  for (;;) {
+    if (await pathExists(manifestPath(current))) return current
+    const parent = path.dirname(current)
+    if (parent === current) return null
+    current = parent
+  }
+}
+
+async function findManifestRootForWorkspaceName(workspaceName: string) {
+  const freecadRoot = await getFreecadWorkspaceRoot()
+  const workspacesRoot = path.join(freecadRoot, WORKSPACES_DIR)
+  const directRoot = path.join(workspacesRoot, workspaceName)
+  if (await pathExists(manifestPath(directRoot))) return directRoot
+
+  const dirents = await fs.readdir(workspacesRoot, { withFileTypes: true }).catch(() => [])
+  const prefix = `ws_${sanitizeIdPart(workspaceName)}_`
+  const candidates = dirents
+    .filter(dirent => dirent.isDirectory() && (dirent.name === `ws_${workspaceName}` || dirent.name.startsWith(prefix)))
+    .map(dirent => path.join(workspacesRoot, dirent.name))
+
+  for (const candidate of candidates) {
+    if (await pathExists(manifestPath(candidate))) return candidate
+  }
+
+  return null
+}
+
+async function resolveManifestRoot(options: {
+  sessionId?: string | null
+  workspaceDir?: string | null
+}) {
+  const workspaceDir = options.workspaceDir?.trim()
+  if (workspaceDir) {
+    const resolvedWorkspaceDir = path.resolve(workspaceDir)
+    const directManifestRoot = await findManifestRootFromPath(resolvedWorkspaceDir)
+    if (directManifestRoot) return directManifestRoot
+
+    const freecadRoot = await getFreecadWorkspaceRoot()
+    if (isPathInside(freecadRoot, resolvedWorkspaceDir)) {
+      const relativeParts = path.relative(freecadRoot, resolvedWorkspaceDir).split(path.sep).filter(Boolean)
+      const workspaceName = relativeParts[0] ?? path.basename(resolvedWorkspaceDir)
+      const matchedRoot = await findManifestRootForWorkspaceName(workspaceName)
+      if (matchedRoot) return matchedRoot
+    }
+  }
+
+  if (options.sessionId) return await getVersionRoot(normalizeDirectChildName(options.sessionId, "sessionId"))
+  throw new Error("workspaceDir or sessionId is required")
+}
+
 function emptyManifest(sessionId: string, rootDir: string): WorkspaceManifest {
   const timestamp = nowIso()
   return {
@@ -88,7 +153,7 @@ function normalizeManifest(value: unknown, sessionId: string, rootDir: string): 
     ...record,
     schemaVersion: "1.0",
     workspaceId: typeof record.workspaceId === "string" && record.workspaceId ? record.workspaceId : fallback.workspaceId,
-    sessionId,
+    sessionId: typeof record.sessionId === "string" && record.sessionId ? record.sessionId : sessionId,
     rootDir,
     activeVersionId: typeof record.activeVersionId === "string" && record.activeVersionId ? record.activeVersionId : null,
     versions: Array.isArray(record.versions) ? record.versions as VersionRecord[] : [],
@@ -113,6 +178,19 @@ export async function getWorkspaceManifest(sessionId: string) {
   } catch {
     return await writeManifest(emptyManifest(trimmedSessionId, rootDir))
   }
+}
+
+export async function getWorkspaceManifestByLocator(options: {
+  sessionId?: string | null
+  workspaceDir?: string | null
+}) {
+  const rootDir = await resolveManifestRoot(options)
+  if (await pathExists(manifestPath(rootDir))) {
+    return await readManifestFile(rootDir, options.sessionId ?? path.basename(rootDir))
+  }
+  const sessionId = normalizeDirectChildName(options.sessionId ?? path.basename(rootDir), "sessionId")
+  await fs.mkdir(rootDir, { recursive: true })
+  return await writeManifest(emptyManifest(sessionId, rootDir))
 }
 
 async function syncConfigToActiveVersion(manifest: WorkspaceManifest) {
@@ -155,6 +233,20 @@ export async function getOrCreateWorkspaceManifest(sessionId: string, options: {
   return await ensureInitialVersion(await getWorkspaceManifest(sessionId), options.sourceWorkspaceDir)
 }
 
+export async function getOrCreateWorkspaceManifestByLocator(options: {
+  sessionId?: string | null
+  sourceWorkspaceDir?: string | null
+  workspaceDir?: string | null
+}) {
+  return await ensureInitialVersion(
+    await getWorkspaceManifestByLocator({
+      sessionId: options.sessionId,
+      workspaceDir: options.workspaceDir ?? options.sourceWorkspaceDir,
+    }),
+    options.sourceWorkspaceDir,
+  )
+}
+
 function nextVersionId(manifest: WorkspaceManifest) {
   const max = manifest.versions.reduce((currentMax, version) => {
     const match = version.id.match(/^v(\d+)$/)
@@ -167,27 +259,29 @@ export async function branchVersion({
   baseVersionId,
   label,
   sessionId,
+  workspaceDir: locatorWorkspaceDir,
 }: {
   baseVersionId?: string | null
   label?: string | null
   sessionId: string
+  workspaceDir?: string | null
 }) {
-  let manifest = await getOrCreateWorkspaceManifest(sessionId)
+  let manifest = await getOrCreateWorkspaceManifestByLocator({ sessionId, workspaceDir: locatorWorkspaceDir })
   const baseId = baseVersionId ?? manifest.activeVersionId
   if (!baseId) throw new Error("base version is required")
   const baseVersion = manifest.versions.find(version => version.id === baseId)
   if (!baseVersion) throw new Error(`base version not found: ${baseId}`)
 
   const versionId = nextVersionId(manifest)
-  const workspaceDir = path.join(manifest.rootDir, "versions", versionId)
-  await copyWorkspaceInputs(baseVersion.workspaceDir, workspaceDir)
+  const newWorkspaceDir = path.join(manifest.rootDir, "versions", versionId)
+  await copyWorkspaceInputs(baseVersion.workspaceDir, newWorkspaceDir)
   const timestamp = nowIso()
   const version: VersionRecord = {
     id: versionId,
     parentVersionId: baseVersion.id,
     ...(label ? { label } : {}),
     status: "active",
-    workspaceDir,
+    workspaceDir: newWorkspaceDir,
     createdAt: timestamp,
     updatedAt: timestamp,
   }
@@ -204,8 +298,8 @@ export async function branchVersion({
   return { manifest, version }
 }
 
-export async function checkoutVersion(sessionId: string, versionId: string) {
-  const manifest = await getOrCreateWorkspaceManifest(sessionId)
+export async function checkoutVersion(sessionId: string, versionId: string, workspaceDir?: string | null) {
+  const manifest = await getOrCreateWorkspaceManifestByLocator({ sessionId, workspaceDir })
   const version = manifest.versions.find(item => item.id === versionId)
   if (!version) throw new Error(`version not found: ${versionId}`)
   const timestamp = nowIso()

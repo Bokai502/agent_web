@@ -43,6 +43,37 @@ if [[ -z "${FREECAD_WORKSPACE_DIR}" ]]; then
   exit 1
 fi
 
+port_available() {
+  local port="$1"
+  ! ss -ltn "( sport = :${port} )" | grep -q ":${port}"
+}
+
+close_port() {
+  local port="$1"
+  local pids
+
+  pids="$(lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null || true)"
+  if [[ -z "${pids}" ]]; then
+    return
+  fi
+
+  echo "closing backend port ${port}: ${pids}" >&2
+  kill ${pids} 2>/dev/null || true
+
+  for _ in $(seq 1 20); do
+    if port_available "${port}"; then
+      return
+    fi
+    sleep 0.2
+  done
+
+  pids="$(lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null || true)"
+  if [[ -n "${pids}" ]]; then
+    echo "force closing backend port ${port}: ${pids}" >&2
+    kill -9 ${pids} 2>/dev/null || true
+  fi
+}
+
 stop_session() {
   local session="$1"
   if tmux has-session -t "${session}" 2>/dev/null; then
@@ -54,11 +85,18 @@ for session in $(tmux ls -F '#S' 2>/dev/null | grep -E '^ocw-backend($|-)|^ocw-f
   stop_session "${session}"
 done
 
+close_port "${BACKEND_PORT}"
+
+if ! port_available "${BACKEND_PORT}"; then
+  echo "无法关闭后端端口 ${BACKEND_PORT}。" >&2
+  exit 1
+fi
+
 tmux new-session -d -s "${BACKEND_SESSION}" -c "${BACKEND_DIR}" \
-  "FREECAD_WORKSPACE_DIR='${FREECAD_WORKSPACE_DIR}' FREECAD_RPC_HOST='${FREECAD_RPC_HOST}' FREECAD_RPC_PORT='${FREECAD_RPC_PORT}' npm run dev"
+  "BACKEND_PORT='${BACKEND_PORT}' FREECAD_WORKSPACE_DIR='${FREECAD_WORKSPACE_DIR}' FREECAD_RPC_HOST='${FREECAD_RPC_HOST}' FREECAD_RPC_PORT='${FREECAD_RPC_PORT}' npm run dev"
 
 tmux new-session -d -s "${FRONTEND_SESSION}" -c "${FRONTEND_DIR}" \
-  "npm run dev -- --host '${FRONTEND_HOST}' --port '${FRONTEND_PORT}' --strictPort"
+  "BACKEND_PORT='${BACKEND_PORT}' npm run dev -- --host '${FRONTEND_HOST}' --port '${FRONTEND_PORT}' --strictPort"
 
 echo "backend:  http://localhost:${BACKEND_PORT}  tmux=${BACKEND_SESSION}"
 echo "frontend: http://10.110.10.11:${FRONTEND_PORT}  tmux=${FRONTEND_SESSION}"

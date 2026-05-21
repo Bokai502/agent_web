@@ -148,8 +148,11 @@ function sortEntries(entries: StageLogEntry[]) {
 }
 
 export async function stageLogsRoutes(fastify: FastifyInstance) {
-  fastify.get("/api/logs/stages", async (_req, reply) => {
-    const configuredWorkspaceDir = await resolveFreecadWorkspaceDir().catch(() => null)
+  fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/logs/stages", async (req, reply) => {
+    const requestedWorkspaceDir = req.query.workspaceDir?.trim()
+    const configuredWorkspaceDir = requestedWorkspaceDir
+      ? path.resolve(requestedWorkspaceDir)
+      : await resolveFreecadWorkspaceDir().catch(() => null)
     const logDir = configuredWorkspaceDir ? path.join(configuredWorkspaceDir, "logs") : null
     const jsonFiles = logDir ? await listTopLevelJsonFiles(logDir) : []
     const entries: StageLogEntry[] = []

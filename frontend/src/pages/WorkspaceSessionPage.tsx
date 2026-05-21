@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { AppleTaskComposer } from "../components/AppleTaskComposer"
-import { APP_NAVIGATION_EVENT, formatSessionTime } from "../app/sessionUtils"
+import { APP_NAVIGATION_EVENT } from "../app/sessionUtils"
 import { createImageUrl } from "../components/bomData"
 import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
-import type { CodexInputItem, Session } from "../types"
+import type { CodexInputItem } from "../types"
 import { AgentUnderstandingPanel } from "./workspace/AgentUnderstandingPanel"
 import {
   CurrentWorkspaceCard,
@@ -39,10 +39,13 @@ type ViewerComponentMessage = {
 }
 
 type FreecadWorkspaceItem = {
+  manifestRoot?: string
   missing?: string[]
   name: string
   path: string
+  sourcePath?: string
   valid: boolean
+  versionWorkspaceDir?: string
 }
 
 type FreecadWorkspacesResponse = {
@@ -53,14 +56,6 @@ type FreecadWorkspacesResponse = {
   items?: FreecadWorkspaceItem[]
   root?: string
 }
-
-type VersionSummary = NonNullable<WorkspaceManifestSummary["versions"]>[number]
-
-type WorkspaceSessionGroup = FreecadWorkspaceItem & {
-  sessions: Session[]
-}
-
-const UNASSIGNED_WORKSPACE_NAME = "__unassigned__"
 
 type ActivePanel = "bom" | "log" | "model" | "freecad" | "paraview" | "comsol"
 
@@ -97,9 +92,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     currentEvents,
     currentPrompt,
     handleDelete,
-    handleAssignSessionWorkspace,
     handleNew,
-    handleSelect,
     handleStopAskUser,
     handleSubmit,
     isMobile: _isMobile,
@@ -110,7 +103,6 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     abort,
   } = state
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
-  const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce)
   const [selectedBomId, setSelectedBomId] = useState("")
   const [activePanel, setActivePanel] = useState<ActivePanel>("model")
   const [progressData, setProgressData] = useState<FreecadProgressResponse | null>(null)
@@ -118,9 +110,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const [selectedLogId, setSelectedLogId] = useState("")
   const [stageLogs, setStageLogs] = useState<StageLogEntry[]>([])
   const [workspaces, setWorkspaces] = useState<FreecadWorkspacesResponse | null>(null)
-  const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [workspaceChanging, setWorkspaceChanging] = useState(false)
-  const [hoveredWorkspaceName, setHoveredWorkspaceName] = useState<string | null>(null)
   const [branchManifest, setBranchManifest] = useState<WorkspaceManifestSummary | null>(null)
   const [manifestLoading, setManifestLoading] = useState(false)
   const [manifestRefreshNonce, setManifestRefreshNonce] = useState(0)
@@ -136,20 +126,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const workspaceItems = workspaces?.items ?? []
   const currentWorkspaceName = workspaces?.currentName ?? workspaces?.effective?.split(/[\\/]/u).pop() ?? t("workspace.noWorkspace")
   const currentWorkspaceDir = workspaces?.current ?? workspaces?.effective ?? null
-  const unassignedWorkspaceItem = useMemo<FreecadWorkspaceItem>(() => ({
-    missing: [],
-    name: UNASSIGNED_WORKSPACE_NAME,
-    path: currentWorkspaceDir ?? "",
-    valid: true,
-  }), [currentWorkspaceDir])
-  const menuWorkspaceItems = useMemo(() => {
-    const unassignedCount = sortedSessions.filter(session => !session.workspaceName && !session.workspaceDir).length
-    return unassignedCount > 0 ? [...workspaceItems, unassignedWorkspaceItem] : workspaceItems
-  }, [sortedSessions, unassignedWorkspaceItem, workspaceItems])
-  const hoveredWorkspace = menuWorkspaceItems.find(item => item.name === hoveredWorkspaceName) ??
-    menuWorkspaceItems.find(item => item.name === currentWorkspaceName) ??
-    menuWorkspaceItems[0] ??
-    null
+  const currentWorkspaceItem = workspaceItems.find(item => item.name === currentWorkspaceName) ?? null
+  const currentManifestLocatorDir = currentWorkspaceItem?.manifestRoot ?? currentWorkspaceItem?.versionWorkspaceDir ?? currentWorkspaceDir
+  const activeVersionWorkspaceDir = branchManifest?.versions?.find(version => version.id === branchManifest.activeVersionId)?.workspaceDir ??
+    currentWorkspaceItem?.versionWorkspaceDir ??
+    currentWorkspaceDir
+  const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, activeVersionWorkspaceDir)
   const activeManifestVersion = useMemo(() => (
     branchManifest?.versions?.find(version => version.id === branchManifest.activeVersionId) ?? null
   ), [branchManifest])
@@ -174,22 +156,6 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     sortNodes(roots)
     return roots
   }, [branchManifest])
-  const getWorkspaceSessionCount = useCallback((workspace: FreecadWorkspaceItem) => {
-    return sortedSessions.filter(session => {
-      if (workspace.name === UNASSIGNED_WORKSPACE_NAME) return !session.workspaceName && !session.workspaceDir
-      if (session.workspaceDir && workspace.path) return session.workspaceDir === workspace.path
-      return session.workspaceName === workspace.name
-    }).length
-  }, [sortedSessions])
-  const sessionsByWorkspace = useMemo<WorkspaceSessionGroup[]>(() => menuWorkspaceItems.map(item => ({
-    ...item,
-    sessions: sortedSessions.filter(session => {
-      if (item.name === UNASSIGNED_WORKSPACE_NAME) return !session.workspaceName && !session.workspaceDir
-      if (session.workspaceDir && item.path) return session.workspaceDir === item.path
-      return session.workspaceName === item.name
-    }),
-  })), [menuWorkspaceItems, sortedSessions])
-  const hoveredWorkspaceSessions = sessionsByWorkspace.find(item => item.name === hoveredWorkspace?.name)?.sessions ?? []
   const selectedBom = bomInfo.components.find(component => component.componentId === selectedBomId) ?? bomInfo.components[0]
   const progressEntries = useMemo(() => getProgressEntries(progressData?.data, t), [progressData, t])
   const workflowProgressEntries = useMemo(() => getWorkflowProgressEntries(progressEntries, t), [progressEntries, t])
@@ -200,10 +166,11 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     const params = new URLSearchParams()
     if (activeSessionId) params.set("sessionId", activeSessionId)
     params.set("glbPath", WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
+    if (activeVersionWorkspaceDir) params.set("workspaceDir", activeVersionWorkspaceDir)
     if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
-  }, [activeSessionId, workspaceRefreshNonce])
+  }, [activeSessionId, activeVersionWorkspaceDir, workspaceRefreshNonce])
   const freecadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const paraviewHref = "http://10.110.10.11:6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const comsolHref = "http://10.110.10.11:6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
@@ -227,11 +194,11 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     setProgressData(null)
     setProgressRefreshNonce(value => value + 1)
     handleSubmit(input, enabledSkills, {
-      workspaceDir: currentWorkspaceDir,
+      workspaceDir: activeVersionWorkspaceDir,
       workspaceName: currentWorkspaceName,
     })
     window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
-  }, [currentWorkspaceDir, currentWorkspaceName, handleSubmit])
+  }, [activeVersionWorkspaceDir, currentWorkspaceName, handleSubmit])
 
   const handleSelectLog = useCallback((entry: RunLogEntry) => {
     setSelectedLogId(entry.id)
@@ -263,7 +230,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     fetch(`/api/versions/${encodeURIComponent(versionId)}/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: activeSessionId }),
+      body: JSON.stringify({ sessionId: activeSessionId, workspaceDir: currentManifestLocatorDir }),
     })
       .then(response => {
         if (!response.ok) throw new Error("version checkout failed")
@@ -276,7 +243,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       })
       .catch(err => setVersionError(err instanceof Error ? err.message : "Version checkout failed"))
       .finally(() => setVersionAction(null))
-  }, [activeSessionId, refreshManifest, refreshWorkspaceViews])
+  }, [activeSessionId, currentManifestLocatorDir, refreshManifest, refreshWorkspaceViews])
 
   const branchVersion = useCallback((baseVersionId: string, label: string) => {
     if (!activeSessionId || !baseVersionId) return
@@ -285,7 +252,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     fetch(`/api/versions/${encodeURIComponent(baseVersionId)}/branch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, sessionId: activeSessionId }),
+      body: JSON.stringify({ label, sessionId: activeSessionId, workspaceDir: currentManifestLocatorDir }),
     })
       .then(response => {
         if (!response.ok) throw new Error("version branch failed")
@@ -299,7 +266,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       })
       .catch(err => setVersionError(err instanceof Error ? err.message : "Version branch failed"))
       .finally(() => setVersionAction(null))
-  }, [activeSessionId, refreshManifest, refreshWorkspaceViews])
+  }, [activeSessionId, currentManifestLocatorDir, refreshManifest, refreshWorkspaceViews])
 
   const createChildBranch = useCallback((baseVersionId?: string) => {
     if (!baseVersionId) return
@@ -333,40 +300,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   }, [refreshWorkspaceViews])
 
   const handleSelectWorkspace = useCallback((name: string) => {
-    if (name === currentWorkspaceName) {
-      setHoveredWorkspaceName(name)
-      return
-    }
+    if (name === currentWorkspaceName) return
 
     switchWorkspace(name).then(() => {
       handleNew()
-      setWorkspaceOpen(false)
     })
   }, [currentWorkspaceName, handleNew, switchWorkspace])
-
-  const handleSelectWorkspaceHistory = useCallback((session: Session, workspace: FreecadWorkspaceItem) => {
-    const targetWorkspaceName = workspace.name === UNASSIGNED_WORKSPACE_NAME ? currentWorkspaceName : workspace.name
-    const targetWorkspaceDir = workspace.name === UNASSIGNED_WORKSPACE_NAME ? currentWorkspaceDir : workspace.path
-
-    if (targetWorkspaceName && targetWorkspaceName !== t("workspace.noWorkspace")) {
-      handleAssignSessionWorkspace(session.id, {
-        workspaceDir: targetWorkspaceDir,
-        workspaceName: targetWorkspaceName,
-      })
-    }
-
-    const finishSelection = () => {
-      handleSelect(session.id)
-      setWorkspaceOpen(false)
-    }
-
-    if (workspace.name === UNASSIGNED_WORKSPACE_NAME || targetWorkspaceName === currentWorkspaceName) {
-      finishSelection()
-      return
-    }
-
-    switchWorkspace(targetWorkspaceName).then(finishSelection)
-  }, [currentWorkspaceDir, currentWorkspaceName, handleAssignSessionWorkspace, handleSelect, switchWorkspace])
 
   const openExternalWindow = useCallback((url: string) => {
     window.open(url, "_blank", "noopener,noreferrer")
@@ -413,7 +352,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   }, [workspaceRefreshNonce])
 
   useEffect(() => {
-    if (!activeSessionId) {
+    if (!currentManifestLocatorDir) {
       setBranchManifest(null)
       return
     }
@@ -421,8 +360,10 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     let cancelled = false
     setManifestLoading(true)
     const params = new URLSearchParams({ initialize: "1" })
+    params.set("workspaceDir", currentManifestLocatorDir)
     if (currentWorkspaceDir) params.set("sourceWorkspaceDir", currentWorkspaceDir)
-    fetch(`/api/workspaces/${encodeURIComponent(activeSessionId)}/manifest?${params.toString()}`, { cache: "no-store" })
+    if (activeSessionId) params.set("sessionId", activeSessionId)
+    fetch(`/api/workspace-manifest?${params.toString()}`, { cache: "no-store" })
       .then(response => response.ok ? response.json() as Promise<WorkspaceManifestSummary> : null)
       .then(data => {
         if (!cancelled) setBranchManifest(data)
@@ -437,7 +378,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     return () => {
       cancelled = true
     }
-  }, [activeSessionId, currentWorkspaceDir, manifestRefreshNonce, workspaceRefreshNonce])
+  }, [activeSessionId, currentManifestLocatorDir, currentWorkspaceDir, manifestRefreshNonce, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
@@ -448,7 +389,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         return
       }
       const query = activeSessionId
-        ? `?${new URLSearchParams({ sessionId: activeSessionId }).toString()}`
+        ? `?${new URLSearchParams({
+            sessionId: activeSessionId,
+            ...(activeVersionWorkspaceDir ? { workspaceDir: activeVersionWorkspaceDir } : {}),
+          }).toString()}`
+        : activeVersionWorkspaceDir
+          ? `?${new URLSearchParams({ workspaceDir: activeVersionWorkspaceDir }).toString()}`
         : ""
       fetch(`/api/freecad/progress${query}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<FreecadProgressResponse> : null)
@@ -466,12 +412,13 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeSessionId, progressRefreshNonce, running, workspaceRefreshNonce])
+  }, [activeSessionId, activeVersionWorkspaceDir, progressRefreshNonce, running, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
     const loadStageLogs = () => {
-      fetch("/api/logs/stages", { cache: "no-store" })
+      const query = activeVersionWorkspaceDir ? `?${new URLSearchParams({ workspaceDir: activeVersionWorkspaceDir }).toString()}` : ""
+      fetch(`/api/logs/stages${query}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<StageLogEntry[]> : [])
         .then(data => {
           if (!cancelled) setStageLogs(Array.isArray(data) ? data : [])
@@ -487,7 +434,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [workspaceRefreshNonce])
+  }, [activeVersionWorkspaceDir, workspaceRefreshNonce])
 
   useEffect(() => {
     if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return
@@ -518,95 +465,6 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
               <span>‹</span>
               <span>{t("common.home")}</span>
             </button>
-            <div className="wa-workspace-menu">
-              <button
-                type="button"
-                className="wa-workspace-button"
-                aria-expanded={workspaceOpen}
-                disabled={workspaceChanging}
-                onClick={() => setWorkspaceOpen(open => !open)}
-                title={workspaces?.effective ?? workspaces?.current ?? undefined}
-              >
-                <span>{t("workspace.workspacePrefix", { name: currentWorkspaceName })}</span>
-                <span>▾</span>
-              </button>
-              {workspaceOpen && (
-                <div className="wa-workspace-dropdown">
-                  <div className="wa-workspace-list">
-                    {menuWorkspaceItems.length === 0 ? (
-                      <div className="wa-left-empty">{t("workspace.noWorkspaces")}</div>
-                    ) : (
-                      menuWorkspaceItems.map(item => (
-                        <button
-                          type="button"
-                          className={`wa-workspace-item${item.name === currentWorkspaceName ? " active" : ""}`}
-                          disabled={item.name !== UNASSIGNED_WORKSPACE_NAME && workspaceChanging}
-                          key={item.name}
-                          title={item.name === UNASSIGNED_WORKSPACE_NAME ? t("workspace.unassignedHistory") : item.name}
-                          onClick={() => {
-                            if (item.name !== UNASSIGNED_WORKSPACE_NAME) handleSelectWorkspace(item.name)
-                          }}
-                          onFocus={() => setHoveredWorkspaceName(item.name)}
-                          onMouseEnter={() => setHoveredWorkspaceName(item.name)}
-                        >
-                          <strong>{item.name === UNASSIGNED_WORKSPACE_NAME ? t("workspace.unassignedHistory") : item.name}</strong>
-                          <span>{t("workspace.historyCount", { count: getWorkspaceSessionCount(item) })}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                  <div className="wa-workspace-history">
-                    <div className="wa-workspace-history-title">
-                      {hoveredWorkspace ? t("workspace.workspaceHistoryTitle", { name: hoveredWorkspace.name === UNASSIGNED_WORKSPACE_NAME ? t("workspace.unassigned") : hoveredWorkspace.name }) : t("workspace.historyRecords")}
-                    </div>
-                    {hoveredWorkspace && hoveredWorkspaceSessions.length > 0 ? (
-                      hoveredWorkspaceSessions.slice(0, 12).map(session => (
-                        <div
-                          className={`wa-workspace-session${session.id === activeSessionId ? " active" : ""}`}
-                          key={session.id}
-                          onClick={() => handleSelectWorkspaceHistory(session, hoveredWorkspace)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(event) => {
-                            if (event.key !== "Enter" && event.key !== " ") return
-                            event.preventDefault()
-                            handleSelectWorkspaceHistory(session, hoveredWorkspace)
-                          }}
-                        >
-                          <span className="wa-workspace-session-main">
-                            <strong>{session.turns[0]?.userPrompt || session.title || t("common.unnamedSession")}</strong>
-                            <span>{formatSessionTime(session.createdAt)}</span>
-                          </span>
-                          <button
-                            type="button"
-                            className="wa-workspace-session-delete"
-                            aria-label={t("home.deleteConversation")}
-                            title={t("home.deleteConversation")}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              const title = session.turns[0]?.userPrompt || session.title || t("common.unnamedSession")
-                              setDeleteError("")
-                              setDeleteTarget({ id: session.id, title })
-                            }}
-                          >
-                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M9 5h6" />
-                              <path d="M10 5l1-2h2l1 2" />
-                              <path d="M5 7h14" />
-                              <path d="M7 7l1 14h8l1-14" />
-                              <path d="M10 11v6" />
-                              <path d="M14 11v6" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="wa-left-empty">{t("workspace.noHistory")}</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
           <div className="wa-tabs" aria-label={t("workspace.tabsAria")}>
             <button
@@ -909,12 +767,6 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         </section>
 
         <aside className="wa-panel wa-inspector">
-          <div className="wa-panel-header">
-            <div className="wa-panel-title">
-              <strong>{t("workspace.inspector.title")}</strong>
-              <span>{t("workspace.inspector.subtitle")}</span>
-            </div>
-          </div>
           <div className="wa-inspector-content">
             <CurrentWorkspaceCard
               activeManifestVersion={activeManifestVersion}

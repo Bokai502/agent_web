@@ -1,8 +1,11 @@
 import fs from "fs/promises"
 import path from "path"
+import { fileURLToPath } from "url"
 
-const ROOT_CONFIG_JSON = path.resolve(process.cwd(), "..", "..", "config.json")
-const DEFAULT_WORKSPACE_ROOT = path.resolve(process.cwd(), "..", "..", "FreeCAD_data")
+const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
+const PROJECT_ROOT = path.resolve(BACKEND_SRC_DIR, "..", "..", "..")
+const ROOT_CONFIG_JSON = path.join(PROJECT_ROOT, "config.json")
+const DEFAULT_WORKSPACE_ROOT = path.join(PROJECT_ROOT, "FreeCAD_data")
 
 type RootConfig = {
   freecad?: {
@@ -13,9 +16,12 @@ type RootConfig = {
 }
 
 export type FreecadWorkspaceItem = {
+  manifestRoot?: string
   name: string
   path: string
+  sourcePath?: string
   valid: boolean
+  versionWorkspaceDir?: string
   missing: string[]
 }
 
@@ -53,19 +59,89 @@ async function pathExists(filePath: string) {
 
 async function inspectWorkspace(root: string, name: string): Promise<FreecadWorkspaceItem> {
   const workspacePath = path.join(root, name)
-  const required = ["00_inputs", "01_layout", "component_info", "logs"]
+  const required = ["00_inputs"]
   const missing: string[] = []
 
   for (const dirname of required) {
     if (!await pathExists(path.join(workspacePath, dirname))) missing.push(dirname)
   }
 
+  const versionedWorkspace = await findVersionedWorkspaceForName(root, name)
+
   return {
+    ...(versionedWorkspace ? {
+      manifestRoot: versionedWorkspace.rootDir,
+      sourcePath: workspacePath,
+      versionWorkspaceDir: versionedWorkspace.activeVersionDir,
+    } : {}),
     name,
-    path: workspacePath,
+    path: versionedWorkspace?.activeVersionDir ?? workspacePath,
     valid: missing.length === 0,
     missing,
   }
+}
+
+async function readWorkspaceManifestSummary(manifestPath: string) {
+  const raw = await fs.readFile(manifestPath, "utf-8")
+  const parsed = JSON.parse(raw) as {
+    activeVersionId?: unknown
+    rootDir?: unknown
+    versions?: unknown
+  }
+  const versions = Array.isArray(parsed.versions) ? parsed.versions as Array<{ id?: unknown; workspaceDir?: unknown }> : []
+  return {
+    activeVersionDir: typeof parsed.activeVersionId === "string"
+      ? versions.find(version => version.id === parsed.activeVersionId && typeof version.workspaceDir === "string")?.workspaceDir as string | undefined
+      : undefined,
+    rootDir: typeof parsed.rootDir === "string" ? parsed.rootDir : path.dirname(manifestPath),
+  }
+}
+
+async function findVersionedWorkspaceFromConfigured(configuredWorkspaceDir: string | null) {
+  if (!configuredWorkspaceDir) return null
+  const resolvedWorkspaceDir = path.resolve(configuredWorkspaceDir)
+  let current = resolvedWorkspaceDir
+
+  for (;;) {
+    const manifestPath = path.join(current, "workspace_manifest.json")
+    if (await pathExists(manifestPath)) {
+      const summary = await readWorkspaceManifestSummary(manifestPath).catch(() => null)
+      return {
+        rootDir: summary?.rootDir ?? current,
+        activeVersionDir: summary?.activeVersionDir ?? resolvedWorkspaceDir,
+      }
+    }
+
+    const parent = path.dirname(current)
+    if (parent === current) return null
+    current = parent
+  }
+}
+
+async function findVersionedWorkspaceForName(root: string, name: string) {
+  const workspacesRoot = path.join(root, "workspaces")
+  const directRoot = path.join(workspacesRoot, name)
+  const sanitizedName = name.trim().replace(/[^a-zA-Z0-9._-]/g, "_").replace(/^_+|_+$/g, "") || "workspace"
+  const prefix = `ws_${sanitizedName}_`
+  const dirents = await fs.readdir(workspacesRoot, { withFileTypes: true }).catch(() => [])
+  const candidates = [
+    directRoot,
+    ...dirents
+      .filter(dirent => dirent.isDirectory() && (dirent.name === `ws_${name}` || dirent.name.startsWith(prefix)))
+      .map(dirent => path.join(workspacesRoot, dirent.name)),
+  ]
+
+  for (const candidate of candidates) {
+    const manifestPath = path.join(candidate, "workspace_manifest.json")
+    if (!await pathExists(manifestPath)) continue
+    const summary = await readWorkspaceManifestSummary(manifestPath).catch(() => null)
+    return {
+      rootDir: summary?.rootDir ?? candidate,
+      activeVersionDir: summary?.activeVersionDir ?? candidate,
+    }
+  }
+
+  return null
 }
 
 export async function getFreecadWorkspaceRoot() {
@@ -87,23 +163,32 @@ export async function listFreecadWorkspaces() {
   const configuredWorkspaceDir = getConfiguredWorkspaceDir(config)
   const effectiveWorkspaceDir = await resolveFreecadWorkspaceDir()
   const root = getWorkspaceRootFromConfigured(configuredWorkspaceDir)
+  const configuredName = configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
+    ? path.basename(configuredWorkspaceDir)
+    : null
+  const versionedWorkspace = configuredName
+    ? await findVersionedWorkspaceForName(root, configuredName)
+    : await findVersionedWorkspaceFromConfigured(configuredWorkspaceDir)
   const dirents = await fs.readdir(root, { withFileTypes: true }).catch(() => [])
   const items = await Promise.all(
     dirents
       .filter(dirent => dirent.isDirectory() && !dirent.name.startsWith("."))
       .map(dirent => inspectWorkspace(root, dirent.name)),
   )
-  items.sort((left, right) => left.name.localeCompare(right.name))
+  const availableItems = items.filter(item => item.valid)
+  availableItems.sort((left, right) => left.name.localeCompare(right.name))
 
   return {
     root,
-    current: configuredWorkspaceDir,
-    currentName: configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
+    current: versionedWorkspace?.activeVersionDir ?? configuredWorkspaceDir,
+    currentName: versionedWorkspace
+      ? configuredName ?? path.basename(versionedWorkspace.rootDir)
+      : configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
       ? path.basename(configuredWorkspaceDir)
       : null,
     effective: effectiveWorkspaceDir,
     envOverride: false,
-    items,
+    items: availableItems,
   }
 }
 

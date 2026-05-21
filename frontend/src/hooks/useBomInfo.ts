@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { EMPTY_BOM_INFO, parseBomInfo, type BomInfo } from "../components/bomData"
 
-export function useBomInfo(refreshKey = 0) {
+export function useBomInfo(refreshKey = 0, workspaceDir?: string | null) {
   const [bomInfo, setBomInfo] = useState<BomInfo>(EMPTY_BOM_INFO)
   const [loading, setLoading] = useState(true)
 
@@ -14,7 +14,8 @@ export function useBomInfo(refreshKey = 0) {
     const controller = new AbortController()
     setLoading(true)
 
-    fetch("/api/freecad/bom", {
+    const query = workspaceDir ? `?${new URLSearchParams({ workspaceDir }).toString()}` : ""
+    fetch(`/api/freecad/bom${query}`, {
       cache: "no-store",
       signal: controller.signal,
     })
@@ -30,7 +31,7 @@ export function useBomInfo(refreshKey = 0) {
       })
 
     return () => controller.abort()
-  }, [refreshKey])
+  }, [refreshKey, workspaceDir])
 
   return { bomInfo, loading }
 }

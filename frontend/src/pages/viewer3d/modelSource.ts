@@ -5,11 +5,13 @@ export function buildViewerModelSource(variant: ModelVariant): ViewerModelSource
   const sessionId = params.get("sessionId")?.trim() ?? ""
   const runId = params.get("runId")?.trim() ?? ""
   const glbPath = params.get("glbPath")?.trim() ?? ""
+  const workspaceDir = params.get("workspaceDir")?.trim() ?? ""
 
   const query = new URLSearchParams()
   if (sessionId) query.set("sessionId", sessionId)
   if (runId) query.set("runId", runId)
   if (glbPath) query.set("glbPath", glbPath)
+  if (workspaceDir) query.set("workspaceDir", workspaceDir)
   query.set("variant", variant)
 
   return {

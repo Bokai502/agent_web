@@ -104,7 +104,9 @@ export default function ModelViewerPage() {
   const annotationLabelsRef = useRef<HTMLDivElement>(null)
   const componentDetailsRef = useRef<Record<string, ComponentDetail>>({})
   const modelVariant = getModelVariantFromUrl()
-  const sessionId = new URLSearchParams(window.location.search).get("sessionId")?.trim() ?? ""
+  const pageParams = new URLSearchParams(window.location.search)
+  const sessionId = pageParams.get("sessionId")?.trim() ?? ""
+  const workspaceDir = pageParams.get("workspaceDir")?.trim() ?? ""
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving FreeCAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -115,7 +117,10 @@ export default function ModelViewerPage() {
     const controller = new AbortController()
 
     const loadComponentDetails = async () => {
-      const query = sessionId ? `?${new URLSearchParams({ sessionId }).toString()}` : ""
+      const queryParams = new URLSearchParams()
+      if (sessionId) queryParams.set("sessionId", sessionId)
+      if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
+      const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
       const componentInfo = await fetch(`/api/freecad/component-info${query}`, {
         cache: "no-store",
         signal: controller.signal,
@@ -140,7 +145,7 @@ export default function ModelViewerPage() {
       })
 
     return () => controller.abort()
-  }, [sessionId])
+  }, [sessionId, workspaceDir])
 
   useEffect(() => {
     const mount = mountRef.current

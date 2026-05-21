@@ -23,10 +23,13 @@ export type VersionTreeNode = {
 export type VersionAction = "branch" | "checkout"
 
 export type FreecadWorkspaceItem = {
+  manifestRoot?: string
   missing?: string[]
   name: string
   path: string
+  sourcePath?: string
   valid: boolean
+  versionWorkspaceDir?: string
 }
 
 type CurrentWorkspaceCardProps = {
