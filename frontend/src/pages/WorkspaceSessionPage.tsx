@@ -7,6 +7,12 @@ import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
 import type { CodexInputItem, Session } from "../types"
 import { AgentUnderstandingPanel } from "./workspace/AgentUnderstandingPanel"
+import {
+  CurrentWorkspaceCard,
+  type VersionAction,
+  type VersionTreeNode,
+  type WorkspaceManifestSummary,
+} from "./workspace/CurrentWorkspaceCard"
 import { RunLogPanel } from "./workspace/RunLogPanel"
 import {
   formatProgressUpdatedAt,
@@ -47,6 +53,8 @@ type FreecadWorkspacesResponse = {
   items?: FreecadWorkspaceItem[]
   root?: string
 }
+
+type VersionSummary = NonNullable<WorkspaceManifestSummary["versions"]>[number]
 
 type WorkspaceSessionGroup = FreecadWorkspaceItem & {
   sessions: Session[]
@@ -113,6 +121,13 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [workspaceChanging, setWorkspaceChanging] = useState(false)
   const [hoveredWorkspaceName, setHoveredWorkspaceName] = useState<string | null>(null)
+  const [branchManifest, setBranchManifest] = useState<WorkspaceManifestSummary | null>(null)
+  const [manifestLoading, setManifestLoading] = useState(false)
+  const [manifestRefreshNonce, setManifestRefreshNonce] = useState(0)
+  const [versionAction, setVersionAction] = useState<VersionAction | null>(null)
+  const [versionError, setVersionError] = useState("")
+  const [versionListOpen, setVersionListOpen] = useState(false)
+  const [workspaceListOpen, setWorkspaceListOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [deleteError, setDeleteError] = useState("")
   const [deletePending, setDeletePending] = useState(false)
@@ -135,6 +150,30 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     menuWorkspaceItems.find(item => item.name === currentWorkspaceName) ??
     menuWorkspaceItems[0] ??
     null
+  const activeManifestVersion = useMemo(() => (
+    branchManifest?.versions?.find(version => version.id === branchManifest.activeVersionId) ?? null
+  ), [branchManifest])
+  const versionTreeRoots = useMemo<VersionTreeNode[]>(() => {
+    const versions = branchManifest?.versions ?? []
+    const nodes = new Map<string, VersionTreeNode>()
+    const roots: VersionTreeNode[] = []
+    versions.forEach(version => {
+      if (version.id) nodes.set(version.id, { children: [], version })
+    })
+    versions.forEach(version => {
+      const node = version.id ? nodes.get(version.id) : null
+      if (!node) return
+      const parentNode = version.parentVersionId ? nodes.get(version.parentVersionId) : null
+      if (parentNode) parentNode.children.push(node)
+      else roots.push(node)
+    })
+    const sortNodes = (items: VersionTreeNode[]) => {
+      items.sort((left, right) => (left.version.id ?? "").localeCompare(right.version.id ?? ""))
+      items.forEach(item => sortNodes(item.children))
+    }
+    sortNodes(roots)
+    return roots
+  }, [branchManifest])
   const getWorkspaceSessionCount = useCallback((workspace: FreecadWorkspaceItem) => {
     return sortedSessions.filter(session => {
       if (workspace.name === UNASSIGNED_WORKSPACE_NAME) return !session.workspaceName && !session.workspaceDir
@@ -211,6 +250,67 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     setWorkspaceRefreshNonce(value => value + 1)
     setProgressRefreshNonce(value => value + 1)
   }, [])
+
+  const refreshManifest = useCallback(() => {
+    setVersionError("")
+    setManifestRefreshNonce(value => value + 1)
+  }, [])
+
+  const checkoutVersion = useCallback((versionId: string) => {
+    if (!activeSessionId) return
+    setVersionAction("checkout")
+    setVersionError("")
+    fetch(`/api/versions/${encodeURIComponent(versionId)}/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: activeSessionId }),
+    })
+      .then(response => {
+        if (!response.ok) throw new Error("version checkout failed")
+        return response.json() as Promise<WorkspaceManifestSummary>
+      })
+      .then(data => {
+        setBranchManifest(data)
+        refreshWorkspaceViews()
+        refreshManifest()
+      })
+      .catch(err => setVersionError(err instanceof Error ? err.message : "Version checkout failed"))
+      .finally(() => setVersionAction(null))
+  }, [activeSessionId, refreshManifest, refreshWorkspaceViews])
+
+  const branchVersion = useCallback((baseVersionId: string, label: string) => {
+    if (!activeSessionId || !baseVersionId) return
+    setVersionAction("branch")
+    setVersionError("")
+    fetch(`/api/versions/${encodeURIComponent(baseVersionId)}/branch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, sessionId: activeSessionId }),
+    })
+      .then(response => {
+        if (!response.ok) throw new Error("version branch failed")
+        return response.json() as Promise<{ manifest?: WorkspaceManifestSummary }>
+      })
+      .then(data => {
+        if (data.manifest) setBranchManifest(data.manifest)
+        refreshWorkspaceViews()
+        refreshManifest()
+        setVersionListOpen(true)
+      })
+      .catch(err => setVersionError(err instanceof Error ? err.message : "Version branch failed"))
+      .finally(() => setVersionAction(null))
+  }, [activeSessionId, refreshManifest, refreshWorkspaceViews])
+
+  const createChildBranch = useCallback((baseVersionId?: string) => {
+    if (!baseVersionId) return
+    branchVersion(baseVersionId, "UI child branch")
+  }, [branchVersion])
+
+  const createSiblingBranch = useCallback(() => {
+    const parentVersionId = activeManifestVersion?.parentVersionId
+    if (!parentVersionId) return
+    branchVersion(parentVersionId, "UI sibling branch")
+  }, [activeManifestVersion?.parentVersionId, branchVersion])
 
   const switchWorkspace = useCallback((name: string) => {
     setWorkspaceChanging(true)
@@ -311,6 +411,33 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
     }
   }, [workspaceRefreshNonce])
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      setBranchManifest(null)
+      return
+    }
+
+    let cancelled = false
+    setManifestLoading(true)
+    const params = new URLSearchParams({ initialize: "1" })
+    if (currentWorkspaceDir) params.set("sourceWorkspaceDir", currentWorkspaceDir)
+    fetch(`/api/workspaces/${encodeURIComponent(activeSessionId)}/manifest?${params.toString()}`, { cache: "no-store" })
+      .then(response => response.ok ? response.json() as Promise<WorkspaceManifestSummary> : null)
+      .then(data => {
+        if (!cancelled) setBranchManifest(data)
+      })
+      .catch(() => {
+        if (!cancelled) setBranchManifest(null)
+      })
+      .finally(() => {
+        if (!cancelled) setManifestLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeSessionId, currentWorkspaceDir, manifestRefreshNonce, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
@@ -789,6 +916,26 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
             </div>
           </div>
           <div className="wa-inspector-content">
+            <CurrentWorkspaceCard
+              activeManifestVersion={activeManifestVersion}
+              branchManifest={branchManifest}
+              currentWorkspaceName={currentWorkspaceName}
+              manifestLoading={manifestLoading}
+              onCheckoutVersion={checkoutVersion}
+              onCreateChildBranch={createChildBranch}
+              onCreateSiblingBranch={createSiblingBranch}
+              onSelectWorkspace={handleSelectWorkspace}
+              onToggleVersionList={() => setVersionListOpen(open => !open)}
+              onToggleWorkspaceList={() => setWorkspaceListOpen(open => !open)}
+              versionAction={versionAction}
+              versionError={versionError}
+              versionListOpen={versionListOpen}
+              versionTreeRoots={versionTreeRoots}
+              workspaceChanging={workspaceChanging}
+              workspaceItems={workspaceItems}
+              workspaceListOpen={workspaceListOpen}
+            />
+
             <section className="wa-info-card">
               <h3>{t("workspace.inspector.progressTitle")}</h3>
               <p>{t("workspace.inspector.updatedAt", { time: formatProgressUpdatedAt(progressData, i18n.language, t) })}</p>

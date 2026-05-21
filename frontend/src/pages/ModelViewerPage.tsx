@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import * as THREE from "three/webgpu"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 import {
   ANNOTATION_PALETTES,
@@ -16,15 +15,19 @@ import {
 import {
   fetchResolvedModel,
   buildViewerModelSource,
-  getModelDisplayName,
   getModelVariantFromUrl,
   getModelVersion,
   getVariantDisplayName,
 } from "./viewer3d/modelSource"
-import { applyTransparency, disposeModelResources, loadGltf } from "./viewer3d/modelUtils"
+import {
+  addLightweightMeshEdges,
+  applyLightweightPreviewStyle,
+  disposeModelResources,
+  loadGltf,
+} from "./viewer3d/modelUtils"
 import type { Disposable, PartAnnotation, ResolvedModel, WebGPURendererRuntime } from "./viewer3d/types"
 
-const MAX_DEVICE_PIXEL_RATIO = 2
+const MAX_DEVICE_PIXEL_RATIO = 1.25
 const ANNOTATION_MAX_TRACKS_PER_SIDE = 3
 const ANNOTATION_TRACK_GAP = 10
 
@@ -101,7 +104,7 @@ export default function ModelViewerPage() {
   const annotationLabelsRef = useRef<HTMLDivElement>(null)
   const componentDetailsRef = useRef<Record<string, ComponentDetail>>({})
   const modelVariant = getModelVariantFromUrl()
-  const [modelInfo, setModelInfo] = useState<ResolvedModel | null>(null)
+  const sessionId = new URLSearchParams(window.location.search).get("sessionId")?.trim() ?? ""
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving FreeCAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -112,14 +115,15 @@ export default function ModelViewerPage() {
     const controller = new AbortController()
 
     const loadComponentDetails = async () => {
-      const componentInfo = await fetch("/api/freecad/component-info", {
+      const query = sessionId ? `?${new URLSearchParams({ sessionId }).toString()}` : ""
+      const componentInfo = await fetch(`/api/freecad/component-info${query}`, {
         cache: "no-store",
         signal: controller.signal,
       }).then((response) => response.ok ? response.json() as Promise<RawComponentInfo> : null)
         .catch(() => null)
       if (componentInfo) return componentInfo
 
-      return fetch("/api/freecad/bom", {
+      return fetch(`/api/freecad/bom${query}`, {
         cache: "no-store",
         signal: controller.signal,
       }).then((response) => response.ok ? response.json() as Promise<RawComponentInfo> : null)
@@ -136,7 +140,7 @@ export default function ModelViewerPage() {
       })
 
     return () => controller.abort()
-  }, [])
+  }, [sessionId])
 
   useEffect(() => {
     const mount = mountRef.current
@@ -167,10 +171,16 @@ export default function ModelViewerPage() {
     const axisDirection = new THREE.Vector3()
     const cameraInverse = new THREE.Quaternion()
     let annotationsNeedLayout = false
+    let renderRequested = true
     let highlightedComponentId: string | null = null
+
+    const requestRender = () => {
+      renderRequested = true
+    }
 
     const markAnnotationsDirty = () => {
       annotationsNeedLayout = true
+      requestRender()
     }
 
     const hideAnnotation = (annotation: PartAnnotation) => {
@@ -247,6 +257,7 @@ export default function ModelViewerPage() {
       highlightMaterials.clear()
       highlightedComponentId = null
       setAnnotationActiveState(null)
+      requestRender()
     }
 
     const highlightComponent = (componentId: string) => {
@@ -288,6 +299,7 @@ export default function ModelViewerPage() {
 
       highlightedComponentId = componentId
       setAnnotationActiveState(componentId)
+      requestRender()
     }
 
     const selectComponent = (componentId: string, notifyParent = true) => {
@@ -567,59 +579,22 @@ export default function ModelViewerPage() {
         Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO),
       )
       nextRenderer.setSize(width, height)
-      nextRenderer.shadowMap.enabled = true
-      nextRenderer.shadowMap.type = THREE.PCFSoftShadowMap
+      nextRenderer.shadowMap.enabled = false
       nextRenderer.outputColorSpace = THREE.SRGBColorSpace
-      nextRenderer.toneMapping = THREE.ACESFilmicToneMapping
-      nextRenderer.toneMappingExposure = 0.88
+      nextRenderer.toneMapping = THREE.NoToneMapping
+      nextRenderer.toneMappingExposure = 1
       domElement = nextRenderer.domElement
       mount.appendChild(nextRenderer.domElement)
 
       const scene = new THREE.Scene()
-      scene.background = new THREE.Color(0x050914)
-      const pmrem = new THREE.PMREMGenerator(nextRenderer as unknown as THREE.WebGLRenderer)
-      pmrem.compileEquirectangularShader()
-      const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
-      scene.environment = envTex
-      scene.fog = new THREE.FogExp2(0x050914, 0.016)
-      disposableResources.push(pmrem, envTex)
+      scene.background = new THREE.Color(0x111318)
 
       const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 1000)
       camera.position.set(3, 2, 5)
 
-      const keyLight = new THREE.DirectionalLight(0x8fbaff, 0.72)
-      keyLight.position.set(6, 12, 8)
-      keyLight.castShadow = true
-      keyLight.shadow.mapSize.set(2048, 2048)
-      keyLight.shadow.bias = -0.0005
-      keyLight.shadow.camera.near = 0.5
-      keyLight.shadow.camera.far = 80
-      keyLight.shadow.camera.left = -10
-      keyLight.shadow.camera.right = 10
-      keyLight.shadow.camera.top = 10
-      keyLight.shadow.camera.bottom = -10
-      scene.add(keyLight)
-
-      const fillLight = new THREE.DirectionalLight(0x3c6db6, 0.24)
-      fillLight.position.set(-8, 4, -6)
-      scene.add(fillLight)
-
-      const rimLight = new THREE.DirectionalLight(0x6d87bb, 0.22)
-      rimLight.position.set(0, -4, -10)
-      scene.add(rimLight)
-
-      const ambient = new THREE.AmbientLight(0x4c618a, 0.08)
-      scene.add(ambient)
-
-      const pointA = new THREE.PointLight(0x2f62c9, 0.8, 14)
-      pointA.position.set(-2, 3, 2)
-      scene.add(pointA)
-
-      const pointB = new THREE.PointLight(0x2f8bb8, 0.42, 11)
-      pointB.position.set(3, 1, -2)
-      scene.add(pointB)
-
-      const grid = new THREE.GridHelper(30, 60, 0x1d3f80, 0x0b1630)
+      const grid = new THREE.GridHelper(30, 30, 0xd8dde6, 0x2d323a)
+      grid.material.transparent = true
+      grid.material.opacity = 0.22
       scene.add(grid)
 
       controls = new OrbitControls(camera, nextRenderer.domElement)
@@ -628,6 +603,8 @@ export default function ModelViewerPage() {
       controls.minDistance = 0.3
       controls.maxDistance = 150
       controls.addEventListener("change", markAnnotationsDirty)
+      controls.addEventListener("start", requestRender)
+      controls.addEventListener("end", requestRender)
 
       loadingMesh = new THREE.Mesh(
         new THREE.TorusGeometry(0.4, 0.05, 8, 48),
@@ -646,7 +623,6 @@ export default function ModelViewerPage() {
         }
 
         setErrorMessage(null)
-        setModelInfo(resolvedModel)
         setStatusMessage(phase === "initial" ? "Loading GLB..." : "Refreshing geometry...")
 
         const gltf = await loadGltf(loader, resolvedModel.modelUrl)
@@ -671,21 +647,7 @@ export default function ModelViewerPage() {
         const model = gltf.scene
         modelRoot = model
 
-        model.traverse((node) => {
-          const mesh = node as THREE.Mesh
-          if (!mesh.isMesh) return
-
-          mesh.castShadow = true
-          mesh.receiveShadow = true
-
-          if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((material) => applyTransparency(material))
-          } else {
-            applyTransparency(mesh.material)
-          }
-
-          mesh.renderOrder = 1
-        })
+        applyLightweightPreviewStyle(model)
 
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
@@ -699,22 +661,12 @@ export default function ModelViewerPage() {
         model.position.y -= groundedBox.min.y
 
         scene.add(model)
+        addLightweightMeshEdges(model)
 
         const sphere = new THREE.Sphere()
         new THREE.Box3().setFromObject(model).getBoundingSphere(sphere)
         const radius = Math.max(sphere.radius, 0.2)
         const sphereCenter = sphere.center
-
-        pointA.position.set(
-          sphereCenter.x - radius * 1.2,
-          sphereCenter.y + radius * 0.8,
-          sphereCenter.z + radius,
-        )
-        pointB.position.set(
-          sphereCenter.x + radius,
-          sphereCenter.y + radius * 0.2,
-          sphereCenter.z - radius * 1.2,
-        )
 
         camera.position.set(
           sphereCenter.x + radius * 2.2,
@@ -727,6 +679,7 @@ export default function ModelViewerPage() {
         buildAnnotations(model, camera)
         currentModelVersion = nextModelVersion
         setStatusMessage("")
+        requestRender()
       }
 
       const resolveLatestModel = async (phase: "initial" | "refresh") => {
@@ -743,7 +696,6 @@ export default function ModelViewerPage() {
         await loadResolvedModel(resolvedModel, phase)
       }
 
-      const clock = new THREE.Clock()
       const syncViewport = () => {
         const nextWidth = mount.clientWidth
         const nextHeight = mount.clientHeight
@@ -757,6 +709,7 @@ export default function ModelViewerPage() {
         nextRenderer.setSize(nextWidth, nextHeight)
         refreshAnnotationMeasurements()
         layoutAnnotations(camera, true)
+        requestRender()
       }
 
       const resizeObserver = new ResizeObserver(() => {
@@ -768,6 +721,7 @@ export default function ModelViewerPage() {
         if (disposed) return
         refreshAnnotationMeasurements()
         layoutAnnotations(camera, true)
+        requestRender()
       })
 
       window.addEventListener("message", handleComponentMessage)
@@ -775,19 +729,21 @@ export default function ModelViewerPage() {
       nextRenderer.setAnimationLoop(() => {
         if (disposed) return
 
-        const elapsed = clock.getElapsedTime()
-
         if (loadingMesh) {
           loadingMesh.rotation.z += 0.04
+          renderRequested = true
         }
 
-        pointA.intensity = 0.8 + Math.sin(elapsed * 1.2) * 0.12
-        pointB.intensity = 0.42 + Math.sin(elapsed * 0.9 + 1.5) * 0.08
+        if (controls?.update()) {
+          renderRequested = true
+        }
 
-        controls?.update()
+        if (!renderRequested && !annotationsNeedLayout) return
+
         updateAxisOverlay(camera)
-        nextRenderer.render(scene, camera)
         layoutAnnotations(camera)
+        nextRenderer.render(scene, camera)
+        renderRequested = false
       })
 
       const refreshLatestModel = (phase: "initial" | "refresh") => {
@@ -824,6 +780,8 @@ export default function ModelViewerPage() {
         resizeObserver.disconnect()
         window.removeEventListener("message", handleComponentMessage)
         controls?.removeEventListener("change", markAnnotationsDirty)
+        controls?.removeEventListener("start", requestRender)
+        controls?.removeEventListener("end", requestRender)
         if (lookupInterval) {
           clearInterval(lookupInterval)
           lookupInterval = null
@@ -873,7 +831,7 @@ export default function ModelViewerPage() {
       style={{
         width: "100vw",
         height: "100vh",
-        background: "radial-gradient(circle at top, #0a1730 0%, #050914 52%, #03050d 100%)",
+        background: "#111318",
         position: "relative",
         overflow: "hidden",
       }}
@@ -1058,46 +1016,6 @@ export default function ModelViewerPage() {
         </div>
       )}
 
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          display: "flex",
-          alignItems: "center",
-          padding: "12px 20px",
-          background:
-            "linear-gradient(to bottom, rgba(3, 8, 20, 0.94), rgba(3, 8, 20, 0.38), transparent)",
-          pointerEvents: "none",
-        }}
-      >
-        <div style={{ display: "grid", gap: 4 }}>
-          <span
-            style={{
-              color: "#b6cdfd",
-              fontFamily: "\"Space Grotesk\", system-ui, sans-serif",
-              fontSize: 15,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-            }}
-            >
-            {getModelDisplayName(modelInfo)}
-          </span>
-          <span
-            style={{
-              color: "rgba(145, 172, 226, 0.62)",
-              fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
-              fontSize: 11,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-            }}
-          >
-            {modelInfo?.runId || "Part Index Overlay"}
-          </span>
-        </div>
-      </div>
-
       {(statusMessage || errorMessage) && (
         <div
           style={{
@@ -1144,25 +1062,6 @@ export default function ModelViewerPage() {
         </div>
       )}
 
-      <div
-        style={{
-          position: "absolute",
-          bottom: 16,
-          left: "50%",
-          transform: "translateX(-50%)",
-          color: "rgba(126, 154, 208, 0.62)",
-          fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
-          fontSize: 12,
-          letterSpacing: "0.08em",
-          background: "rgba(5, 10, 22, 0.48)",
-          padding: "6px 16px",
-          borderRadius: 20,
-          pointerEvents: "none",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Orbit / Pan / Zoom
-      </div>
     </div>
   )
 }

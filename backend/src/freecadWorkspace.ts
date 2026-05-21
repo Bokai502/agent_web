@@ -28,6 +28,12 @@ async function readRootConfig() {
   return JSON.parse(raw) as RootConfig
 }
 
+async function writeRootConfig(config: RootConfig) {
+  const tmpPath = `${ROOT_CONFIG_JSON}.tmp-${process.pid}-${Date.now()}`
+  await fs.writeFile(tmpPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8")
+  await fs.rename(tmpPath, ROOT_CONFIG_JSON)
+}
+
 function getConfiguredWorkspaceDir(config: RootConfig) {
   const configured = config.freecad?.workspaceDir
   return isNonEmptyString(configured) ? path.resolve(configured) : null
@@ -126,14 +132,26 @@ export async function setFreecadWorkspace(name: unknown) {
     workspaceDir: workspace.path,
   }
 
-  const tmpPath = `${ROOT_CONFIG_JSON}.tmp-${process.pid}-${Date.now()}`
-  await fs.writeFile(tmpPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8")
-  await fs.rename(tmpPath, ROOT_CONFIG_JSON)
+  await writeRootConfig(config)
 
   return {
     root,
     current: workspace.path,
     currentName: workspace.name,
     item: workspace,
+  }
+}
+
+export async function setFreecadWorkspaceDir(workspaceDir: string) {
+  const config = await readRootConfig()
+  const resolvedWorkspaceDir = path.resolve(workspaceDir)
+  config.freecad = {
+    ...(config.freecad ?? {}),
+    workspaceDir: resolvedWorkspaceDir,
+  }
+  await writeRootConfig(config)
+  return {
+    current: resolvedWorkspaceDir,
+    currentName: path.basename(resolvedWorkspaceDir),
   }
 }

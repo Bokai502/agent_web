@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react"
 import * as THREE from "three/webgpu"
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 import {
   collectComponentRoots,
   resolveComponentLabel,
 } from "../pages/viewer3d/annotations"
 import { fetchResolvedModel, getModelVersion } from "../pages/viewer3d/modelSource"
-import { applyTransparency, disposeModelResources, loadGltf } from "../pages/viewer3d/modelUtils"
+import {
+  addLightweightMeshEdges,
+  applyLightweightPreviewStyle,
+  disposeModelResources,
+  loadGltf,
+} from "../pages/viewer3d/modelUtils"
 import type { Disposable, ResolvedModel, WebGPURendererRuntime } from "../pages/viewer3d/types"
 import {
   cacheCanvasThumbnail,
@@ -17,8 +21,8 @@ import {
   SAMPLE_THUMBNAIL_CACHE_PREFIX,
 } from "./thumbnailCache"
 
-const MAX_DEVICE_PIXEL_RATIO = 1.5
-const THUMBNAIL_RENDER_SCALE = 1.45
+const MAX_DEVICE_PIXEL_RATIO = 1.15
+const THUMBNAIL_RENDER_SCALE = 1.2
 const MAX_COMPONENT_LABELS = 4
 const SAMPLE_THUMBNAIL_PIXEL_RATIO = 2
 const SAMPLE_THUMBNAIL_QUALITY = 0.94
@@ -347,14 +351,13 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       }
 
       nextRenderer.setPixelRatio(
-        Math.min((window.devicePixelRatio || 1) * 1.25, MAX_DEVICE_PIXEL_RATIO * 1.5),
+        Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO),
       )
       nextRenderer.setSize(width, height)
-      nextRenderer.shadowMap.enabled = true
-      nextRenderer.shadowMap.type = THREE.PCFSoftShadowMap
+      nextRenderer.shadowMap.enabled = false
       nextRenderer.outputColorSpace = THREE.SRGBColorSpace
-      nextRenderer.toneMapping = THREE.ACESFilmicToneMapping
-      nextRenderer.toneMappingExposure = 0.95
+      nextRenderer.toneMapping = THREE.NoToneMapping
+      nextRenderer.toneMappingExposure = 1
 
       domElement = nextRenderer.domElement
       domElement.style.display = "block"
@@ -363,28 +366,9 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       mount.appendChild(domElement)
 
       const scene = new THREE.Scene()
-      scene.background = new THREE.Color(0x070b16)
-      scene.fog = new THREE.FogExp2(0x070b16, 0.02)
-
-      const pmrem = new THREE.PMREMGenerator(nextRenderer as unknown as THREE.WebGLRenderer)
-      const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
-      scene.environment = envTex
-      disposableResources.push(pmrem, envTex)
+      scene.background = new THREE.Color(0x111318)
 
       const camera = new THREE.PerspectiveCamera(40, width / height, 0.01, 1000)
-      const keyLight = new THREE.DirectionalLight(0xb7d1ff, 1.18)
-      keyLight.position.set(7, 11, 8)
-      keyLight.castShadow = true
-      scene.add(keyLight)
-
-      const fillLight = new THREE.DirectionalLight(0x4f8be0, 0.46)
-      fillLight.position.set(-7, 4, -6)
-      scene.add(fillLight)
-
-      const rimLight = new THREE.DirectionalLight(0xa7c2ff, 0.56)
-      rimLight.position.set(0, 3, -8)
-      scene.add(rimLight)
-      scene.add(new THREE.AmbientLight(0x8ba4c8, 0.22))
 
       const loader = new GLTFLoader()
       const gltf = await loadGltf(loader, resolvedModel.modelUrl)
@@ -392,20 +376,7 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
 
       const model = gltf.scene
       modelRoot = model
-      model.traverse((node) => {
-        const mesh = node as THREE.Mesh
-        if (!mesh.isMesh) return
-        mesh.castShadow = true
-        mesh.receiveShadow = true
-
-        if (Array.isArray(mesh.material)) {
-          mesh.material.forEach((material) => applyTransparency(material, 0.68))
-        } else {
-          applyTransparency(mesh.material, 0.68)
-        }
-
-        mesh.renderOrder = 1
-      })
+      applyLightweightPreviewStyle(model, 0.2)
 
       const box = new THREE.Box3().setFromObject(model)
       const size = box.getSize(new THREE.Vector3())
@@ -418,6 +389,7 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       const groundedBox = new THREE.Box3().setFromObject(model)
       model.position.y -= groundedBox.min.y
       scene.add(model)
+      addLightweightMeshEdges(model)
 
       const sphere = new THREE.Sphere()
       new THREE.Box3().setFromObject(model).getBoundingSphere(sphere)
