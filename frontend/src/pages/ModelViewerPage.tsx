@@ -125,13 +125,6 @@ export default function ModelViewerPage() {
       if (versionId) queryParams.set("versionId", versionId)
       if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
       const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-      const componentInfo = await fetch(`/api/freecad/component-info${query}`, {
-        cache: "no-store",
-        signal: controller.signal,
-      }).then((response) => response.ok ? response.json() as Promise<RawComponentInfo> : null)
-        .catch(() => null)
-      if (componentInfo) return componentInfo
-
       return fetch(`/api/freecad/bom${query}`, {
         cache: "no-store",
         signal: controller.signal,

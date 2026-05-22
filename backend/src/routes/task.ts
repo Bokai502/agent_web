@@ -9,8 +9,6 @@ import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { initializeFreecadProgressForSession } from "../freecadProgress.js"
 import { resolveFreecadWorkspaceDir } from "../freecadWorkspace.js"
-import { readSkillInstructions } from "../skills.js"
-import type { SkillInstruction } from "../skills.js"
 import { createRun, patchRun, resolveRunWorkspaceContext } from "../manifest/store.js"
 
 type CodexConfigValue = string | number | boolean | CodexConfigValue[] | CodexConfigObject
@@ -90,6 +88,7 @@ const UPLOADABLE_IMAGE_MIME_TYPES = new Map([
 ])
 const SESSIONS_FILE = path.resolve(process.cwd(), "sessions.json")
 const DELETED_SESSIONS_FILE = path.resolve(process.cwd(), "deleted-sessions.json")
+const AGENT_GUIDE_FILE = path.resolve(process.cwd(), "scripts", "AGENT_GUIDE.md")
 
 function sanitizeUploadName(name: string) {
   const base = path.basename(name).replace(/[^a-zA-Z0-9._-]/g, "_")
@@ -167,29 +166,7 @@ function summarizeCodexEvent(event: unknown): Record<string, unknown> {
   return summary
 }
 
-function formatSkillInstructions(skills: SkillInstruction[]) {
-  if (skills.length === 0) return ""
-
-  const blocks = skills.map(skill => [
-    `## ${skill.name}`,
-    skill.description ? `Description: ${skill.description}` : null,
-    `Source: ${skill.file}`,
-    "",
-    skill.content.trim(),
-  ].filter((line): line is string => line !== null).join("\n"))
-
-  return [
-    "Selected skill instructions:",
-    "Use these local SKILL.md instructions as authoritative guidance for this turn, even if the runtime's startup skill list is stale.",
-    "",
-    ...blocks,
-  ].join("\n\n")
-}
-
-function buildPromptPrefix(skillNames: string[], skillInstructions: SkillInstruction[], context: RunContext) {
-  const skillPrefix = skillNames.length > 0
-    ? `Please use the following skills if applicable: ${skillNames.join(", ")}.\n\n${formatSkillInstructions(skillInstructions)}\n\n`
-    : ""
+function buildPromptPrefix(context: RunContext, agentGuide: string) {
   const executionContext = [
     "Execution context:",
     `- session_id: ${context.sessionId}`,
@@ -213,12 +190,11 @@ function buildPromptPrefix(skillNames: string[], skillInstructions: SkillInstruc
       ? "Before running workspace-scoped commands, verify they target the workspace_dir above."
       : "No workspace is currently configured; ask before running workspace-scoped CLI commands.",
   ].join("\n")
-  return `${ASK_USER_PROTOCOL}\n\n${skillPrefix}${executionContext}`
-}
-
-function buildPrompt(prompt: string, skillNames: string[], context: RunContext) {
-  const skillInstructions = readSkillInstructions(skillNames)
-  return `${buildPromptPrefix(skillNames, skillInstructions, context)}\n\n${prompt.trim()}`
+  const guide = agentGuide.trim()
+  return [
+    executionContext,
+    guide ? `Agent guide:\n${guide}` : null,
+  ].filter((block): block is string => block !== null).join("\n\n")
 }
 
 function isRunInputItem(item: unknown): item is RunInputItem {
@@ -246,9 +222,15 @@ function normalizeRunInput(input: unknown, prompt: unknown): RunInputItem[] | nu
   return null
 }
 
-function buildSdkInput(input: RunInputItem[], skillNames: string[], context: RunContext): string | RunInputItem[] {
-  const skillInstructions = readSkillInstructions(skillNames)
-  const prefix = buildPromptPrefix(skillNames, skillInstructions, context)
+function buildSdkInput(
+  input: RunInputItem[],
+  context: RunContext,
+  injectPromptPrefix: boolean,
+  agentGuide: string
+): string | RunInputItem[] {
+  if (!injectPromptPrefix) return input
+
+  const prefix = buildPromptPrefix(context, agentGuide)
   const firstTextIndex = input.findIndex(item => item.type === "text")
 
   if (firstTextIndex === -1) {
@@ -309,6 +291,21 @@ async function readDeletedSessionIds() {
   } catch {
     return new Set<string>()
   }
+}
+
+async function readAgentGuide() {
+  try {
+    return await fs.readFile(AGENT_GUIDE_FILE, "utf-8")
+  } catch {
+    return ""
+  }
+}
+
+async function shouldInjectPromptPrefixForSession(sessionId: string) {
+  const sessions = await readSessionsFile()
+  const existing = sessions.find(session => session.id === sessionId)
+  if (!existing) return true
+  return !Array.isArray(existing.turns) || existing.turns.length === 0
 }
 
 async function ensureRunSession({
@@ -531,7 +528,7 @@ export async function taskRoutes(
       let lastEventAt = requestStartedAt
       let eventCount = 0
 
-      // 如果指定了 skills，把提示注入到 prompt 前面
+      // Only inject execution context and the agent guide on the first recorded turn for a session.
       const skillNames = (enabledSkills ?? [])
         .filter(s => typeof s === "string" && s.trim() !== "")
         .map(s => s.trim())
@@ -550,10 +547,9 @@ export async function taskRoutes(
           .map(item => item.text)
           .join("\n\n")
           .trim() || "[input]"
-      const finalPrompt = typeof prompt === "string" && prompt.trim() !== ""
-        ? buildPrompt(prompt, skillNames, runContext)
-        : null
-      const sdkInput = buildSdkInput(sdkInputBase, skillNames, runContext)
+      const injectPromptPrefix = await shouldInjectPromptPrefixForSession(trimmedSessionId)
+      const agentGuide = injectPromptPrefix ? await readAgentGuide() : ""
+      const sdkInput = buildSdkInput(sdkInputBase, runContext, injectPromptPrefix, agentGuide)
       const streamedEvents: unknown[] = []
       let resolvedThreadId = runContext.threadId
       let manifestRunId: string | null = null
@@ -613,7 +609,9 @@ export async function taskRoutes(
         approvalPolicy: config.codex.approvalPolicy,
         sandboxMode: config.codex.sandboxMode,
         promptChars: typeof prompt === "string" ? prompt.length : 0,
-        finalPromptChars: finalPrompt?.length ?? getInputTextLength(Array.isArray(sdkInput) ? sdkInput : sdkInputBase),
+        sdkInputTextChars: getInputTextLength(Array.isArray(sdkInput) ? sdkInput : sdkInputBase),
+        promptPrefixInjected: injectPromptPrefix,
+        agentGuideInjected: injectPromptPrefix && agentGuide.trim() !== "",
         input: summarizeInput(sdkInputBase),
         enabledSkills: skillNames,
       })
