@@ -4,8 +4,10 @@ import type { ThreadEvent, Turn } from "../../types"
 export type AgentSummary = {
   answer: string
   id: string
+  isCurrent: boolean
   prompt: string
   reasoning: string
+  turnNumber: number
 }
 
 export type RunLogEntry = {
@@ -46,19 +48,23 @@ function getLatestItemText(events: ThreadEvent[], itemType: "agent_message" | "r
 }
 
 export function buildAgentSummaries(turns: Turn[], currentPrompt: string, currentEvents: ThreadEvent[]): AgentSummary[] {
-  const summaries = turns.map(turn => ({
+  const summaries = turns.map((turn, index) => ({
     answer: getLatestItemText(turn.events, "agent_message"),
     id: turn.id,
+    isCurrent: false,
     prompt: turn.userPrompt,
     reasoning: getLatestItemText(turn.events, "reasoning"),
+    turnNumber: index + 1,
   }))
 
   if (currentPrompt || currentEvents.length > 0) {
     summaries.push({
       answer: getLatestItemText(currentEvents, "agent_message"),
       id: "current",
+      isCurrent: true,
       prompt: currentPrompt,
       reasoning: getLatestItemText(currentEvents, "reasoning"),
+      turnNumber: turns.length + 1,
     })
   }
 

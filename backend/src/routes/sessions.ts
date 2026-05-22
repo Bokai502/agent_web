@@ -12,7 +12,9 @@ type SessionLike = {
   id?: unknown
   threadId?: unknown
   turns?: unknown
+  versionId?: unknown
   workspaceDir?: unknown
+  workspaceId?: unknown
   workspaceName?: unknown
 }
 
@@ -71,6 +73,12 @@ function mergeSession(existing: unknown, incoming: unknown) {
 
   if (incomingSession.threadId == null && existingSession.threadId != null) {
     merged.threadId = existingSession.threadId
+  }
+  if (incomingSession.workspaceId == null && existingSession.workspaceId != null) {
+    merged.workspaceId = existingSession.workspaceId
+  }
+  if (incomingSession.versionId == null && existingSession.versionId != null) {
+    merged.versionId = existingSession.versionId
   }
   if (incomingSession.workspaceDir == null && existingSession.workspaceDir != null) {
     merged.workspaceDir = existingSession.workspaceDir

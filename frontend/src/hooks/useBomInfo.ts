@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react"
 import { EMPTY_BOM_INFO, parseBomInfo, type BomInfo } from "../components/bomData"
 
-export function useBomInfo(refreshKey = 0, workspaceDir?: string | null) {
+export type BomWorkspaceContext = {
+  versionDir?: string | null
+  versionId?: string | null
+  workspaceId?: string | null
+}
+
+export function useBomInfo(refreshKey = 0, workspace?: BomWorkspaceContext | string | null) {
   const [bomInfo, setBomInfo] = useState<BomInfo>(EMPTY_BOM_INFO)
   const [loading, setLoading] = useState(true)
+  const workspaceDir = typeof workspace === "string" ? workspace : workspace?.versionDir
+  const workspaceId = typeof workspace === "string" ? null : workspace?.workspaceId
+  const versionId = typeof workspace === "string" ? null : workspace?.versionId
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") {
@@ -14,7 +23,11 @@ export function useBomInfo(refreshKey = 0, workspaceDir?: string | null) {
     const controller = new AbortController()
     setLoading(true)
 
-    const query = workspaceDir ? `?${new URLSearchParams({ workspaceDir }).toString()}` : ""
+    const params = new URLSearchParams()
+    if (workspaceDir) params.set("workspaceDir", workspaceDir)
+    if (workspaceId) params.set("workspaceId", workspaceId)
+    if (versionId) params.set("versionId", versionId)
+    const query = params.size > 0 ? `?${params.toString()}` : ""
     fetch(`/api/freecad/bom${query}`, {
       cache: "no-store",
       signal: controller.signal,
@@ -31,7 +44,7 @@ export function useBomInfo(refreshKey = 0, workspaceDir?: string | null) {
       })
 
     return () => controller.abort()
-  }, [refreshKey, workspaceDir])
+  }, [refreshKey, versionId, workspaceDir, workspaceId])
 
   return { bomInfo, loading }
 }

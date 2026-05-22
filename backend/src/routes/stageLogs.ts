@@ -1,7 +1,8 @@
 import { FastifyInstance } from "fastify"
 import fs from "fs/promises"
 import path from "path"
-import { resolveFreecadWorkspaceDir } from "../freecadWorkspace.js"
+import { getFreecadWorkspaceRoot, resolveFreecadWorkspaceDir } from "../freecadWorkspace.js"
+import { resolveRunWorkspaceContext } from "../manifest/store.js"
 
 type StageLogEntry = {
   detail?: string
@@ -148,11 +149,35 @@ function sortEntries(entries: StageLogEntry[]) {
 }
 
 export async function stageLogsRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/logs/stages", async (req, reply) => {
+  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/stages", async (req, reply) => {
     const requestedWorkspaceDir = req.query.workspaceDir?.trim()
-    const configuredWorkspaceDir = requestedWorkspaceDir
+    const requestedWorkspaceId = req.query.workspaceId?.trim()
+    const requestedVersionId = req.query.versionId?.trim()
+    const freecadRoot = path.resolve(await getFreecadWorkspaceRoot())
+    let configuredWorkspaceDir = requestedWorkspaceDir
       ? path.resolve(requestedWorkspaceDir)
-      : await resolveFreecadWorkspaceDir().catch(() => null)
+      : null
+
+    if (requestedWorkspaceId || requestedVersionId) {
+      try {
+        const context = await resolveRunWorkspaceContext({
+          workspaceDir: configuredWorkspaceDir,
+          workspaceId: requestedWorkspaceId,
+          versionId: requestedVersionId,
+        })
+        configuredWorkspaceDir = context.workspaceDir
+      } catch (err) {
+        return reply.status(400).send({ error: err instanceof Error ? err.message : "workspace context mismatch" })
+      }
+    }
+
+    configuredWorkspaceDir = configuredWorkspaceDir ?? await resolveFreecadWorkspaceDir().catch(() => null)
+    if (configuredWorkspaceDir) {
+      const relative = path.relative(freecadRoot, configuredWorkspaceDir)
+      if (relative.startsWith("..") || path.isAbsolute(relative)) {
+        return reply.status(400).send({ error: "workspaceDir must be under the FreeCAD_data root" })
+      }
+    }
     const logDir = configuredWorkspaceDir ? path.join(configuredWorkspaceDir, "logs") : null
     const jsonFiles = logDir ? await listTopLevelJsonFiles(logDir) : []
     const entries: StageLogEntry[] = []

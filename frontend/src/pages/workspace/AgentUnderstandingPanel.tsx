@@ -23,7 +23,7 @@ export function AgentUnderstandingPanel({
 }: AgentUnderstandingPanelProps) {
   const { t } = useTranslation()
   const summaries = useMemo(() => buildAgentSummaries(turns, currentPrompt, currentEvents), [currentEvents, currentPrompt, turns])
-  const visibleSummaries = summaries.slice(-1)
+  const visibleSummaries = useMemo(() => [...summaries].reverse(), [summaries])
 
   return (
     <section className="wa-left-section">
@@ -38,6 +38,10 @@ export function AgentUnderstandingPanel({
           <div className="wa-left-empty">{t("workspace.agent.empty")}</div>
         ) : visibleSummaries.map(summary => (
           <article className="wa-agent-card" key={summary.id}>
+            <div className="wa-agent-meta">
+              <span>{t("workspace.agent.turnNumber", { count: summary.turnNumber })}</span>
+              {summary.isCurrent && <em>{t("workspace.agent.latest")}</em>}
+            </div>
             {summary.prompt && <div className="wa-agent-prompt">{t("workspace.agent.userPrompt", { prompt: summary.prompt })}</div>}
             {summary.answer ? (
               <div className="wa-agent-answer"><MarkdownText text={summary.answer} /></div>

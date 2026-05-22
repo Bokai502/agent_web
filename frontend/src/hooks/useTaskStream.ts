@@ -1,6 +1,25 @@
 import { useRef, useCallback } from "react"
 import type { CodexInputItem, ThreadEvent } from "../types"
 
+async function getResponseErrorMessage(response: Response) {
+  const text = await response.text().catch(() => "")
+  if (text) {
+    try {
+      const parsed = JSON.parse(text) as { error?: unknown; message?: unknown }
+      const message = typeof parsed.error === "string"
+        ? parsed.error
+        : typeof parsed.message === "string"
+          ? parsed.message
+          : null
+      if (message) return message
+    } catch {
+      return text
+    }
+    return text
+  }
+  return `请求失败：${response.status}`
+}
+
 export function useCodexStream() {
   const abortRef = useRef<AbortController | null>(null)
 
@@ -10,6 +29,12 @@ export function useCodexStream() {
     threadId: string | null,
     turnId: string,
     enabledSkills: string[],
+    workspace: {
+      workspaceDir?: string | null
+      workspaceId?: string | null
+      workspaceName?: string | null
+      versionId?: string | null
+    } | undefined,
     onEvent: (event: ThreadEvent) => void,
     onDone: () => void
   ) => {
@@ -36,10 +61,17 @@ export function useCodexStream() {
           threadId,
           turnId,
           enabledSkills,
+          workspaceDir: workspace?.workspaceDir ?? null,
+          workspaceId: workspace?.workspaceId ?? null,
+          workspaceName: workspace?.workspaceName ?? null,
+          versionId: workspace?.versionId ?? null,
         }),
         signal: controller.signal,
       })
 
+      if (!res.ok) {
+        throw new Error(await getResponseErrorMessage(res))
+      }
       if (!res.body) throw new Error("No response body")
 
       const reader = res.body.getReader()

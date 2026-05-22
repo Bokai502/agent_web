@@ -1,36 +1,11 @@
 import { useCallback } from "react"
-
-export type WorkspaceManifestSummary = {
-  activeVersionId: string | null
-  rootDir?: string
-  sessionId?: string
-  versions?: VersionSummary[]
-  workspaceId?: string
-}
-
-export type VersionSummary = {
-  id?: string
-  parentVersionId?: string | null
-  status?: string
-  workspaceDir?: string
-}
-
-export type VersionTreeNode = {
-  children: VersionTreeNode[]
-  version: VersionSummary
-}
-
-export type VersionAction = "branch" | "checkout"
-
-export type FreecadWorkspaceItem = {
-  manifestRoot?: string
-  missing?: string[]
-  name: string
-  path: string
-  sourcePath?: string
-  valid: boolean
-  versionWorkspaceDir?: string
-}
+import type {
+  FreecadWorkspaceItem,
+  VersionAction,
+  VersionSummary,
+  VersionTreeNode,
+  WorkspaceManifestSummary,
+} from "./workspaceVersion"
 
 type CurrentWorkspaceCardProps = {
   activeManifestVersion: VersionSummary | null
@@ -81,7 +56,7 @@ export function CurrentWorkspaceCard({
           className={`wa-version-row${isActive ? " active" : ""}`}
           disabled={!versionId || isActive || versionAction !== null}
           onClick={() => onCheckoutVersion(versionId)}
-          title={isActive ? `${versionId} is active` : `Switch to ${versionId}`}
+          title={isActive ? `${versionId} 为当前版本` : `切换到 ${versionId}`}
         >
           <strong>{versionId || "-"}</strong>
         </button>
@@ -99,14 +74,14 @@ export function CurrentWorkspaceCard({
       <div className="wa-version-card-header">
         <h3>当前工作区</h3>
       </div>
-      {manifestLoading && <p>Loading branch state...</p>}
+      {manifestLoading && <p>正在加载版本状态...</p>}
       <div className="wa-current-context">
         <div>
-          <span>Workspace</span>
+          <span>工作区</span>
           <strong>{currentWorkspaceName}</strong>
         </div>
         <div>
-          <span>Version</span>
+          <span>版本</span>
           <strong>{branchManifest?.activeVersionId ?? "-"}</strong>
         </div>
       </div>
@@ -116,9 +91,9 @@ export function CurrentWorkspaceCard({
         disabled={workspaceChanging}
         onClick={onToggleWorkspaceList}
         aria-expanded={workspaceListOpen}
-        aria-label={workspaceListOpen ? "Collapse workspaces" : "Expand workspaces"}
+        aria-label={workspaceListOpen ? "收起工作区" : "展开工作区"}
       >
-        <span>Workspaces</span>
+        <span>工作区</span>
         <strong>{workspaceItems.length}</strong>
         <em>{workspaceListOpen ? "-" : "+"}</em>
       </button>
@@ -135,12 +110,14 @@ export function CurrentWorkspaceCard({
             >
               <span>
                 <strong>{item.name}</strong>
-                <small>{item.valid ? "Ready" : item.missing?.length ? `Missing ${item.missing.join(", ")}` : "Unavailable"}</small>
+                {!item.valid && (
+                  <small>{item.missing?.length ? `缺少 ${item.missing.join(", ")}` : "不可用"}</small>
+                )}
               </span>
-              <em>{item.name === currentWorkspaceName ? "Active" : "Switch"}</em>
+              <em>{item.name === currentWorkspaceName ? "当前" : "切换"}</em>
             </button>
           )) : (
-            <span className="wa-version-empty">No workspaces</span>
+            <span className="wa-version-empty">暂无工作区</span>
           )}
         </div>
       )}
@@ -150,9 +127,9 @@ export function CurrentWorkspaceCard({
         className="wa-version-toggle"
         onClick={onToggleVersionList}
         aria-expanded={versionListOpen}
-        aria-label={versionListOpen ? "Collapse branches" : "Expand branches"}
+        aria-label={versionListOpen ? "收起版本" : "展开版本"}
       >
-        <span>Branches</span>
+        <span>版本</span>
         <strong>{branchManifest?.versions?.length ?? 0}</strong>
         <em>{versionListOpen ? "-" : "+"}</em>
       </button>
@@ -164,20 +141,20 @@ export function CurrentWorkspaceCard({
               disabled={!branchManifest?.activeVersionId || versionAction !== null}
               onClick={() => onCreateChildBranch(branchManifest?.activeVersionId ?? undefined)}
             >
-              {versionAction === "branch" ? "Creating..." : "New branch"}
+              {versionAction === "branch" ? "创建中..." : "新建子版本"}
             </button>
             <button
               type="button"
               disabled={!activeManifestVersion?.parentVersionId || versionAction !== null}
               onClick={onCreateSiblingBranch}
             >
-              {activeManifestVersion?.parentVersionId ? "Sibling branch" : "No parent"}
+              {activeManifestVersion?.parentVersionId ? "新建同级版本" : "无父版本"}
             </button>
           </div>
           <div className="wa-version-tree">
             {versionTreeRoots.map(root => renderVersionNode(root))}
             {versionTreeRoots.length === 0 && (
-              <span className="wa-version-empty">No branches</span>
+              <span className="wa-version-empty">暂无版本</span>
             )}
           </div>
         </div>

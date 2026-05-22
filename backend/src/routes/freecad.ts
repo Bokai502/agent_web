@@ -1,11 +1,13 @@
-import { FastifyInstance } from "fastify"
+import { FastifyInstance, FastifyReply } from "fastify"
 import fs from "fs/promises"
 import path from "path"
 import {
+  getFreecadWorkspaceRoot,
   listFreecadWorkspaces,
   resolveFreecadWorkspaceDir,
   setFreecadWorkspace,
 } from "../freecadWorkspace.js"
+import { resolveRunWorkspaceContext } from "../manifest/store.js"
 
 type RegistryIndex = {
   version?: number
@@ -81,6 +83,12 @@ type RegistryLocation = {
 
 type ModelVariant = "original" | "replaced"
 
+type ResolvedQueryWorkspaceContext = {
+  versionId: string | null
+  workspaceDir: string
+  workspaceId: string | null
+}
+
 const DEFAULT_ASSEMBLY_BUILDS_DIR = "assembly_builds"
 const DEFAULT_ARTIFACT_REGISTRY_DIR = path.join("logs", "registry")
 const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "geom_component_info.json")
@@ -111,8 +119,73 @@ function getQueryWorkspaceDir(value: unknown) {
   return isNonEmptyString(value) ? path.resolve(value) : null
 }
 
+function isPathInside(parent: string, child: string) {
+  const relative = path.relative(parent, child)
+  return relative === "" || (!!relative && !relative.startsWith("..") && !path.isAbsolute(relative))
+}
+
+class WorkspaceQueryError extends Error {
+  statusCode: number
+
+  constructor(message: string, statusCode: number) {
+    super(message)
+    this.name = "WorkspaceQueryError"
+    this.statusCode = statusCode
+  }
+}
+
+function toWorkspaceQueryError(err: unknown, statusCode: number, fallbackMessage: string) {
+  return new WorkspaceQueryError(err instanceof Error ? err.message : fallbackMessage, statusCode)
+}
+
+function replyWithWorkspaceQueryError(reply: FastifyReply, err: unknown, fallbackMessage: string) {
+  if (err instanceof WorkspaceQueryError) {
+    return reply.status(err.statusCode).send({ error: err.message })
+  }
+  return reply.status(500).send({ error: fallbackMessage })
+}
+
 async function resolveRequestWorkspaceDir(workspaceDir?: string | null) {
-  return workspaceDir ? path.resolve(workspaceDir) : await resolveConfiguredWorkspaceDir()
+  if (!workspaceDir) return await resolveConfiguredWorkspaceDir()
+  const freecadRoot = path.resolve(await getFreecadWorkspaceRoot())
+  const resolvedWorkspaceDir = path.resolve(workspaceDir)
+  if (!isPathInside(freecadRoot, resolvedWorkspaceDir)) {
+    throw new Error("workspaceDir must be under the FreeCAD_data root")
+  }
+  return resolvedWorkspaceDir
+}
+
+async function resolveQueryWorkspaceContext(query: { versionId?: string; workspaceDir?: string; workspaceId?: string }): Promise<ResolvedQueryWorkspaceContext> {
+  const workspaceDir = getQueryWorkspaceDir(query.workspaceDir)
+  const workspaceId = isNonEmptyString(query.workspaceId) ? query.workspaceId.trim() : null
+  const versionId = isNonEmptyString(query.versionId) ? query.versionId.trim() : null
+  if (workspaceId || versionId) {
+    try {
+      const context = await resolveRunWorkspaceContext({ workspaceDir, workspaceId, versionId })
+      if (!context.workspaceDir) throw new Error("workspace version directory is not resolved")
+      return {
+        versionId: context.versionId,
+        workspaceDir: context.workspaceDir,
+        workspaceId: context.workspaceId,
+      }
+    } catch (err) {
+      throw toWorkspaceQueryError(err, 409, "workspace context mismatch")
+    }
+  }
+
+  try {
+    return {
+      versionId: null,
+      workspaceDir: await resolveRequestWorkspaceDir(workspaceDir),
+      workspaceId: null,
+    }
+  } catch (err) {
+    throw toWorkspaceQueryError(err, 400, "invalid workspaceDir")
+  }
+}
+
+async function resolveQueryWorkspaceDir(query: { versionId?: string; workspaceDir?: string; workspaceId?: string }) {
+  return (await resolveQueryWorkspaceContext(query)).workspaceDir
 }
 
 async function resolveRegistryLocations(workspaceDirOverride?: string | null) {
@@ -673,9 +746,9 @@ export async function freecadRoutes(fastify: FastifyInstance) {
     }
   })
 
-  fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/freecad/component-info", async (req, reply) => {
+  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/freecad/component-info", async (req, reply) => {
     try {
-      const workspaceDir = await resolveRequestWorkspaceDir(getQueryWorkspaceDir(req.query.workspaceDir))
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       const componentInfoPath = path.join(workspaceDir, DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH)
       const raw = await fs.readFile(componentInfoPath, "utf-8").catch(() => null)
 
@@ -691,14 +764,14 @@ export async function freecadRoutes(fastify: FastifyInstance) {
         source_path: componentInfoPath,
         source_version: [componentInfoPath, stat.mtimeMs, stat.size].join(":"),
       })
-    } catch {
-      return reply.status(500).send({ error: "failed to resolve component info data" })
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve component info data")
     }
   })
 
-  fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/freecad/bom", async (req, reply) => {
+  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/freecad/bom", async (req, reply) => {
     try {
-      const workspaceDir = await resolveRequestWorkspaceDir(getQueryWorkspaceDir(req.query.workspaceDir))
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       const candidatePaths = [
         path.join(workspaceDir, DEFAULT_BOM_INFO_RELATIVE_PATH),
         path.join(workspaceDir, DEFAULT_REAL_BOM_RELATIVE_PATH),
@@ -726,14 +799,14 @@ export async function freecadRoutes(fastify: FastifyInstance) {
         source_path: bomInfoPath,
         source_version: [bomInfoPath, stat.mtimeMs, stat.size].join(":"),
       })
-    } catch {
-      return reply.status(500).send({ error: "failed to resolve BOM data" })
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve BOM data")
     }
   })
 
-  fastify.get<{ Querystring: { sessionId?: string; workspaceDir?: string } }>("/api/freecad/progress", async (req, reply) => {
+  fastify.get<{ Querystring: { sessionId?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/freecad/progress", async (req, reply) => {
     try {
-      const workspaceDir = await resolveRequestWorkspaceDir(getQueryWorkspaceDir(req.query.workspaceDir))
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       const progressPath = path.join(workspaceDir, DEFAULT_PROGRESS_PERCENTAGES_RELATIVE_PATH)
 
       let workspaceProgress: WorkspaceProgressData | null = null
@@ -780,17 +853,18 @@ export async function freecadRoutes(fastify: FastifyInstance) {
         source_version: workspaceProgress.sourceVersion,
         updated_at: workspaceProgress.updatedAt,
       })
-    } catch {
-      return reply.status(500).send({ error: "failed to resolve freecad progress data" })
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve freecad progress data")
     }
   })
 
-  fastify.get<{ Querystring: { sessionId?: string; runId?: string; variant?: string; glbPath?: string; workspaceDir?: string } }>(
+  fastify.get<{ Querystring: { sessionId?: string; runId?: string; variant?: string; glbPath?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>(
     "/api/freecad/model",
     async (req, reply) => {
       try {
         const variant = normalizeModelVariant(req.query.variant)
-        const workspaceDir = getQueryWorkspaceDir(req.query.workspaceDir)
+        const workspaceContext = await resolveQueryWorkspaceContext(req.query)
+        const workspaceDir = workspaceContext.workspaceDir
         const model = await resolveModel(req.query.sessionId, req.query.runId, variant, req.query.glbPath, workspaceDir)
         if (!model) {
           return reply.status(404).send({ error: "model not found" })
@@ -801,6 +875,8 @@ export async function freecadRoutes(fastify: FastifyInstance) {
           ...(model.sessionId ? { sessionId: model.sessionId } : {}),
           ...(model.runId ? { runId: model.runId } : {}),
           ...(workspaceDir ? { workspaceDir } : {}),
+          ...(workspaceContext.workspaceId ? { workspaceId: workspaceContext.workspaceId } : {}),
+          ...(workspaceContext.versionId ? { versionId: workspaceContext.versionId } : {}),
           variant,
           v: model.version,
         })
@@ -808,17 +884,17 @@ export async function freecadRoutes(fastify: FastifyInstance) {
           ...model,
           modelUrl: `/api/freecad/model/file?${modelParams.toString()}`,
         })
-      } catch {
-        return reply.status(500).send({ error: "failed to resolve freecad model" })
+      } catch (err) {
+        return replyWithWorkspaceQueryError(reply, err, "failed to resolve freecad model")
       }
     },
   )
 
-  fastify.get<{ Querystring: { sessionId?: string; runId?: string; variant?: string; glbPath?: string; workspaceDir?: string } }>(
+  fastify.get<{ Querystring: { sessionId?: string; runId?: string; variant?: string; glbPath?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>(
     "/api/freecad/model/file",
     async (req, reply) => {
       try {
-        const workspaceDir = getQueryWorkspaceDir(req.query.workspaceDir)
+        const workspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
         const model = await resolveModel(
           req.query.sessionId,
           req.query.runId,
@@ -834,7 +910,10 @@ export async function freecadRoutes(fastify: FastifyInstance) {
         reply.header("Content-Type", "model/gltf-binary")
         reply.header("Cache-Control", "no-cache")
         return reply.send(data)
-      } catch {
+      } catch (err) {
+        if (err instanceof WorkspaceQueryError) {
+          return reply.status(err.statusCode).send({ error: err.message })
+        }
         return reply.status(404).send({ error: "glb file not found" })
       }
     },

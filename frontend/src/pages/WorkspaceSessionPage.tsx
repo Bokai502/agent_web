@@ -7,13 +7,22 @@ import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
 import type { CodexInputItem } from "../types"
 import { AgentUnderstandingPanel } from "./workspace/AgentUnderstandingPanel"
-import {
-  CurrentWorkspaceCard,
-  type VersionAction,
-  type VersionTreeNode,
-  type WorkspaceManifestSummary,
-} from "./workspace/CurrentWorkspaceCard"
+import { CurrentWorkspaceCard } from "./workspace/CurrentWorkspaceCard"
 import { RunLogPanel } from "./workspace/RunLogPanel"
+import {
+  branchWorkspaceVersion,
+  buildVersionTree,
+  checkoutWorkspaceVersion,
+  fetchFreecadWorkspaces,
+  fetchWorkspaceManifest,
+  getActiveVersion,
+  getVersionWorkspaceKey,
+  resolveWorkspaceVersionContext,
+  switchFreecadWorkspace,
+  type FreecadWorkspacesResponse,
+  type VersionAction,
+  type WorkspaceManifestSummary,
+} from "./workspace/workspaceVersion"
 import {
   formatProgressUpdatedAt,
   getProgressEntries,
@@ -36,25 +45,6 @@ type ViewerComponentMessage = {
   componentId?: unknown
   semanticName?: unknown
   type?: unknown
-}
-
-type FreecadWorkspaceItem = {
-  manifestRoot?: string
-  missing?: string[]
-  name: string
-  path: string
-  sourcePath?: string
-  valid: boolean
-  versionWorkspaceDir?: string
-}
-
-type FreecadWorkspacesResponse = {
-  current?: string | null
-  currentName?: string | null
-  effective?: string | null
-  envOverride?: boolean
-  items?: FreecadWorkspaceItem[]
-  root?: string
 }
 
 type ActivePanel = "bom" | "log" | "model" | "freecad" | "paraview" | "comsol"
@@ -93,11 +83,13 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     currentPrompt,
     handleDelete,
     handleNew,
+    handleSelectWorkspaceSession,
     handleStopAskUser,
     handleSubmit,
     isMobile: _isMobile,
     pendingAskUser,
     running,
+    sessionsLoaded,
     sortedSessions,
     turns,
     abort,
@@ -123,54 +115,48 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const [deletePending, setDeletePending] = useState(false)
 
   const activeSession = sortedSessions.find(session => session.id === activeSessionId)
+  const sessionWorkspaceSignature = useMemo(
+    () => sortedSessions.map(session => [
+      session.id,
+      session.workspaceId ?? "",
+      session.versionId ?? "",
+      session.workspaceDir ?? "",
+      session.createdAt,
+    ].join(":")).join("|"),
+    [sortedSessions],
+  )
   const workspaceItems = workspaces?.items ?? []
-  const currentWorkspaceName = workspaces?.currentName ?? workspaces?.effective?.split(/[\\/]/u).pop() ?? t("workspace.noWorkspace")
-  const currentWorkspaceDir = workspaces?.current ?? workspaces?.effective ?? null
-  const currentWorkspaceItem = workspaceItems.find(item => item.name === currentWorkspaceName) ?? null
-  const currentManifestLocatorDir = currentWorkspaceItem?.manifestRoot ?? currentWorkspaceItem?.versionWorkspaceDir ?? currentWorkspaceDir
-  const activeVersionWorkspaceDir = branchManifest?.versions?.find(version => version.id === branchManifest.activeVersionId)?.workspaceDir ??
-    currentWorkspaceItem?.versionWorkspaceDir ??
-    currentWorkspaceDir
-  const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, activeVersionWorkspaceDir)
-  const activeManifestVersion = useMemo(() => (
-    branchManifest?.versions?.find(version => version.id === branchManifest.activeVersionId) ?? null
-  ), [branchManifest])
-  const versionTreeRoots = useMemo<VersionTreeNode[]>(() => {
-    const versions = branchManifest?.versions ?? []
-    const nodes = new Map<string, VersionTreeNode>()
-    const roots: VersionTreeNode[] = []
-    versions.forEach(version => {
-      if (version.id) nodes.set(version.id, { children: [], version })
-    })
-    versions.forEach(version => {
-      const node = version.id ? nodes.get(version.id) : null
-      if (!node) return
-      const parentNode = version.parentVersionId ? nodes.get(version.parentVersionId) : null
-      if (parentNode) parentNode.children.push(node)
-      else roots.push(node)
-    })
-    const sortNodes = (items: VersionTreeNode[]) => {
-      items.sort((left, right) => (left.version.id ?? "").localeCompare(right.version.id ?? ""))
-      items.forEach(item => sortNodes(item.children))
-    }
-    sortNodes(roots)
-    return roots
-  }, [branchManifest])
+  const activeContext = resolveWorkspaceVersionContext({
+    branchManifest,
+    fallbackWorkspaceName: t("workspace.noWorkspace"),
+    workspaces,
+  })
+  const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, {
+    versionDir: activeContext.versionDir,
+    versionId: activeContext.versionId,
+    workspaceId: activeContext.workspaceId,
+  })
+  const activeManifestVersion = useMemo(() => getActiveVersion(branchManifest), [branchManifest])
+  const versionTreeRoots = useMemo(() => buildVersionTree(branchManifest), [branchManifest])
   const selectedBom = bomInfo.components.find(component => component.componentId === selectedBomId) ?? bomInfo.components[0]
   const progressEntries = useMemo(() => getProgressEntries(progressData?.data, t), [progressData, t])
   const workflowProgressEntries = useMemo(() => getWorkflowProgressEntries(progressEntries, t), [progressEntries, t])
   const runLogEntries = useMemo(() => getRunLogEntries(turns, currentEvents, t), [currentEvents, t, turns])
   const logEntries = useMemo(() => getDisplayLogEntries(stageLogs, runLogEntries), [runLogEntries, stageLogs])
   const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
+  const hasModelPreview = !!activeContext.versionDir || !!activeSessionId
   const viewerHref = useMemo(() => {
     const params = new URLSearchParams()
     if (activeSessionId) params.set("sessionId", activeSessionId)
     params.set("glbPath", WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
-    if (activeVersionWorkspaceDir) params.set("workspaceDir", activeVersionWorkspaceDir)
+    if (activeContext.workspaceKey) params.set("workspaceKey", activeContext.workspaceKey)
+    if (activeContext.workspaceId) params.set("workspaceId", activeContext.workspaceId)
+    if (activeContext.versionId) params.set("versionId", activeContext.versionId)
+    if (activeContext.versionDir) params.set("workspaceDir", activeContext.versionDir)
     if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
-  }, [activeSessionId, activeVersionWorkspaceDir, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, activeSessionId, workspaceRefreshNonce])
   const freecadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const paraviewHref = "http://10.110.10.11:6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const comsolHref = "http://10.110.10.11:6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
@@ -194,11 +180,13 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     setProgressData(null)
     setProgressRefreshNonce(value => value + 1)
     handleSubmit(input, enabledSkills, {
-      workspaceDir: activeVersionWorkspaceDir,
-      workspaceName: currentWorkspaceName,
+      workspaceDir: activeContext.versionDir,
+      workspaceId: activeContext.workspaceId,
+      workspaceName: activeContext.workspaceName,
+      versionId: activeContext.versionId,
     })
     window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
-  }, [activeVersionWorkspaceDir, currentWorkspaceName, handleSubmit])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, handleSubmit])
 
   const handleSelectLog = useCallback((entry: RunLogEntry) => {
     setSelectedLogId(entry.id)
@@ -223,73 +211,62 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     setManifestRefreshNonce(value => value + 1)
   }, [])
 
+  const versionWorkspaceKey = activeContext.workspaceKey ?? getVersionWorkspaceKey(branchManifest, activeContext.workspaceName)
+
   const checkoutVersion = useCallback((versionId: string) => {
-    if (!activeSessionId) return
+    if (!versionWorkspaceKey && !activeContext.workspaceId && !activeContext.manifestRoot) return
     setVersionAction("checkout")
     setVersionError("")
-    fetch(`/api/versions/${encodeURIComponent(versionId)}/checkout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: activeSessionId, workspaceDir: currentManifestLocatorDir }),
+    checkoutWorkspaceVersion({
+      versionId,
+      workspaceKey: versionWorkspaceKey,
+      workspaceId: activeContext.workspaceId,
+      workspaceDir: activeContext.manifestRoot,
     })
-      .then(response => {
-        if (!response.ok) throw new Error("version checkout failed")
-        return response.json() as Promise<WorkspaceManifestSummary>
-      })
       .then(data => {
         setBranchManifest(data)
         refreshWorkspaceViews()
         refreshManifest()
       })
-      .catch(err => setVersionError(err instanceof Error ? err.message : "Version checkout failed"))
+      .catch(err => setVersionError(err instanceof Error ? err.message : "版本切换失败"))
       .finally(() => setVersionAction(null))
-  }, [activeSessionId, currentManifestLocatorDir, refreshManifest, refreshWorkspaceViews])
+  }, [activeContext.manifestRoot, activeContext.workspaceId, refreshManifest, refreshWorkspaceViews, versionWorkspaceKey])
 
   const branchVersion = useCallback((baseVersionId: string, label: string) => {
-    if (!activeSessionId || !baseVersionId) return
+    if ((!versionWorkspaceKey && !activeContext.workspaceId && !activeContext.manifestRoot) || !baseVersionId) return
     setVersionAction("branch")
     setVersionError("")
-    fetch(`/api/versions/${encodeURIComponent(baseVersionId)}/branch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, sessionId: activeSessionId, workspaceDir: currentManifestLocatorDir }),
+    branchWorkspaceVersion({
+      baseVersionId,
+      label,
+      workspaceKey: versionWorkspaceKey,
+      workspaceId: activeContext.workspaceId,
+      workspaceDir: activeContext.manifestRoot,
     })
-      .then(response => {
-        if (!response.ok) throw new Error("version branch failed")
-        return response.json() as Promise<{ manifest?: WorkspaceManifestSummary }>
-      })
       .then(data => {
         if (data.manifest) setBranchManifest(data.manifest)
         refreshWorkspaceViews()
         refreshManifest()
         setVersionListOpen(true)
       })
-      .catch(err => setVersionError(err instanceof Error ? err.message : "Version branch failed"))
+      .catch(err => setVersionError(err instanceof Error ? err.message : "版本创建失败"))
       .finally(() => setVersionAction(null))
-  }, [activeSessionId, currentManifestLocatorDir, refreshManifest, refreshWorkspaceViews])
+  }, [activeContext.manifestRoot, activeContext.workspaceId, refreshManifest, refreshWorkspaceViews, versionWorkspaceKey])
 
   const createChildBranch = useCallback((baseVersionId?: string) => {
     if (!baseVersionId) return
-    branchVersion(baseVersionId, "UI child branch")
+    branchVersion(baseVersionId, "界面创建的子版本")
   }, [branchVersion])
 
   const createSiblingBranch = useCallback(() => {
     const parentVersionId = activeManifestVersion?.parentVersionId
     if (!parentVersionId) return
-    branchVersion(parentVersionId, "UI sibling branch")
+    branchVersion(parentVersionId, "界面创建的同级版本")
   }, [activeManifestVersion?.parentVersionId, branchVersion])
 
   const switchWorkspace = useCallback((name: string) => {
     setWorkspaceChanging(true)
-    return fetch("/api/freecad/workspace", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    })
-      .then(response => {
-        if (!response.ok) throw new Error("workspace switch failed")
-        return response.json() as Promise<unknown>
-      })
+    return switchFreecadWorkspace(name)
       .then(() => {
         refreshWorkspaceViews()
       })
@@ -300,12 +277,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   }, [refreshWorkspaceViews])
 
   const handleSelectWorkspace = useCallback((name: string) => {
-    if (name === currentWorkspaceName) return
+    if (name === activeContext.workspaceName) return
 
     switchWorkspace(name).then(() => {
       handleNew()
     })
-  }, [currentWorkspaceName, handleNew, switchWorkspace])
+  }, [activeContext.workspaceName, handleNew, switchWorkspace])
 
   const openExternalWindow = useCallback((url: string) => {
     window.open(url, "_blank", "noopener,noreferrer")
@@ -333,10 +310,26 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   }, [activeSessionId])
 
   useEffect(() => {
+    setProgressData(null)
+    setSelectedLogId("")
+    setProgressRefreshNonce(value => value + 1)
+  }, [activeContext.versionDir, activeContext.versionId])
+
+  useEffect(() => {
+    if (!sessionsLoaded) return
+    if (!activeContext.versionDir && (!activeContext.workspaceId || !activeContext.versionId)) return
+    handleSelectWorkspaceSession({
+      workspaceDir: activeContext.versionDir,
+      workspaceId: activeContext.workspaceId,
+      workspaceName: activeContext.workspaceName,
+      versionId: activeContext.versionId,
+    })
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, handleSelectWorkspaceSession, sessionWorkspaceSignature, sessionsLoaded])
+
+  useEffect(() => {
     let cancelled = false
     const loadWorkspaces = () => {
-      fetch("/api/freecad/workspaces", { cache: "no-store" })
-        .then(response => response.ok ? response.json() as Promise<FreecadWorkspacesResponse> : null)
+      fetchFreecadWorkspaces()
         .then(data => {
           if (!cancelled) setWorkspaces(data)
         })
@@ -352,19 +345,19 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   }, [workspaceRefreshNonce])
 
   useEffect(() => {
-    if (!currentManifestLocatorDir) {
+    if (!activeContext.manifestRoot) {
       setBranchManifest(null)
       return
     }
 
     let cancelled = false
     setManifestLoading(true)
-    const params = new URLSearchParams({ initialize: "1" })
-    params.set("workspaceDir", currentManifestLocatorDir)
-    if (currentWorkspaceDir) params.set("sourceWorkspaceDir", currentWorkspaceDir)
-    if (activeSessionId) params.set("sessionId", activeSessionId)
-    fetch(`/api/workspace-manifest?${params.toString()}`, { cache: "no-store" })
-      .then(response => response.ok ? response.json() as Promise<WorkspaceManifestSummary> : null)
+    fetchWorkspaceManifest({
+      workspaceKey: activeContext.workspaceKey,
+      workspaceId: activeContext.workspaceId,
+      manifestRoot: activeContext.manifestRoot,
+      sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
+    })
       .then(data => {
         if (!cancelled) setBranchManifest(data)
       })
@@ -378,23 +371,29 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     return () => {
       cancelled = true
     }
-  }, [activeSessionId, currentManifestLocatorDir, currentWorkspaceDir, manifestRefreshNonce, workspaceRefreshNonce])
+  }, [activeContext.manifestRoot, activeContext.sourceWorkspaceDir, activeContext.workspaceId, activeSessionId, manifestRefreshNonce, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
 
     const loadProgress = () => {
-      if (!activeSessionId) {
+      if (!activeSessionId && !activeContext.versionDir) {
         setProgressData(null)
         return
       }
       const query = activeSessionId
         ? `?${new URLSearchParams({
             sessionId: activeSessionId,
-            ...(activeVersionWorkspaceDir ? { workspaceDir: activeVersionWorkspaceDir } : {}),
+            ...(activeContext.versionDir ? { workspaceDir: activeContext.versionDir } : {}),
+            ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
+            ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
           }).toString()}`
-        : activeVersionWorkspaceDir
-          ? `?${new URLSearchParams({ workspaceDir: activeVersionWorkspaceDir }).toString()}`
+        : activeContext.versionDir
+          ? `?${new URLSearchParams({
+              workspaceDir: activeContext.versionDir,
+              ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
+              ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
+            }).toString()}`
         : ""
       fetch(`/api/freecad/progress${query}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<FreecadProgressResponse> : null)
@@ -412,12 +411,18 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeSessionId, activeVersionWorkspaceDir, progressRefreshNonce, running, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeSessionId, progressRefreshNonce, running, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
     const loadStageLogs = () => {
-      const query = activeVersionWorkspaceDir ? `?${new URLSearchParams({ workspaceDir: activeVersionWorkspaceDir }).toString()}` : ""
+      const query = activeContext.versionDir
+        ? `?${new URLSearchParams({
+            workspaceDir: activeContext.versionDir,
+            ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
+            ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
+          }).toString()}`
+        : ""
       fetch(`/api/logs/stages${query}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<StageLogEntry[]> : [])
         .then(data => {
@@ -434,7 +439,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeVersionWorkspaceDir, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, workspaceRefreshNonce])
 
   useEffect(() => {
     if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return
@@ -449,7 +454,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         ? t("workspace.stage.logTitle")
       : activeTool?.title ?? t("workspace.stage.toolTitle")
   const stageSubtitle = activePanel === "model"
-    ? activeSessionId ? t("workspace.stage.currentModel") : t("workspace.stage.waitingModel")
+    ? hasModelPreview ? t("workspace.stage.currentModel") : t("workspace.stage.waitingModel")
     : activePanel === "bom"
       ? bomLoading ? t("workspace.stage.loadingBom") : t("workspace.stage.components", { count: bomInfo.totalRecords })
       : activePanel === "log"
@@ -616,7 +621,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
             </div>
           </div>
           <div className="wa-stage-body">
-            {(activeTool || (activePanel === "model" && activeSessionId)) && (
+            {(activeTool || (activePanel === "model" && hasModelPreview)) && (
               <div className="wa-stage-toolbar">
                 <button
                   type="button"
@@ -626,12 +631,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                     if (activeTool) openExternalWindow(activeTool.url)
                   }}
                 >
-                  {activePanel === "model" ? "3D Viewer" : activeTool?.label}
+                  {activePanel === "model" ? t("workspace.stage.openModelViewer") : activeTool?.label}
                 </button>
               </div>
             )}
             {activePanel === "model" ? (
-              activeSessionId ? (
+              hasModelPreview ? (
                 <iframe className="wa-viewer" title={t("workspace.stage.modelTitle")} src={viewerHref} />
               ) : (
                 <div className="wa-stage-empty">
@@ -771,7 +776,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
             <CurrentWorkspaceCard
               activeManifestVersion={activeManifestVersion}
               branchManifest={branchManifest}
-              currentWorkspaceName={currentWorkspaceName}
+              currentWorkspaceName={activeContext.workspaceName}
               manifestLoading={manifestLoading}
               onCheckoutVersion={checkoutVersion}
               onCreateChildBranch={createChildBranch}

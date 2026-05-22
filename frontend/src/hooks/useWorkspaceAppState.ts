@@ -18,7 +18,28 @@ interface WorkspaceAppStateOptions {
 
 export type SessionWorkspace = {
   workspaceDir?: string | null
+  workspaceId?: string | null
   workspaceName?: string | null
+  versionId?: string | null
+}
+
+function normalizeWorkspaceDir(workspaceDir?: string | null) {
+  return workspaceDir?.trim() || null
+}
+
+function normalizeId(value?: string | null) {
+  return value?.trim() || null
+}
+
+function isSameWorkspaceContext(session: Session | null | undefined, workspace: SessionWorkspace) {
+  const workspaceId = normalizeId(workspace.workspaceId)
+  const versionId = normalizeId(workspace.versionId)
+  const workspaceDir = normalizeWorkspaceDir(workspace.workspaceDir)
+  if (workspaceId && versionId) {
+    return normalizeId(session?.workspaceId) === workspaceId && normalizeId(session?.versionId) === versionId
+  }
+  if (workspaceDir) return normalizeWorkspaceDir(session?.workspaceDir) === workspaceDir
+  return false
 }
 
 function getInputPromptText(input: string | CodexInputItem[]) {
@@ -84,6 +105,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
   const [currentPrompt, setCurrentPrompt] = useState("")
   const [currentEvents, setCurrentEvents] = useState<ThreadEvent[]>([])
   const [running, setRunning] = useState(false)
+  const [sessionsLoaded, setSessionsLoaded] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1100)
   const currentEventsRef = useRef<ThreadEvent[]>([])
   const currentPromptRef = useRef("")
@@ -137,10 +159,15 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
   }, [])
 
   useEffect(() => {
-    apiLoad().then(serverSessions => {
-      hasLoadedSessionsRef.current = true
-      setSessions(serverSessions)
-    })
+    apiLoad()
+      .then(serverSessions => {
+        hasLoadedSessionsRef.current = true
+        setSessions(serverSessions)
+      })
+      .finally(() => {
+        hasLoadedSessionsRef.current = true
+        setSessionsLoaded(true)
+      })
   }, [])
 
   const saveSession = useCallback((session: Session, immediate = false) => {
@@ -213,11 +240,45 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     resetLiveTurn()
   }, [homePath, resetLiveTurn, running])
 
+  const handleSelectWorkspaceSession = useCallback((workspace: SessionWorkspace) => {
+    if (running) return
+
+    const workspaceDir = normalizeWorkspaceDir(workspace.workspaceDir)
+    const workspaceId = normalizeId(workspace.workspaceId)
+    const versionId = normalizeId(workspace.versionId)
+    if (!workspaceDir && (!workspaceId || !versionId)) return
+
+    const activeSession = sessionsRef.current.find(session => session.id === activeSessionIdRef.current) ?? null
+    if (isSameWorkspaceContext(activeSession, workspace)) return
+
+    const matchingSession = [...sessionsRef.current]
+      .filter(session => {
+        if (workspaceId && versionId) {
+          return normalizeId(session.workspaceId) === workspaceId && normalizeId(session.versionId) === versionId
+        }
+        return normalizeWorkspaceDir(session.workspaceDir) === workspaceDir
+      })
+      .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null
+
+    if (batchTimerRef.current) {
+      clearTimeout(batchTimerRef.current)
+      batchTimerRef.current = null
+    }
+
+    const nextSessionId = matchingSession?.id ?? null
+    setActiveSessionId(nextSessionId)
+    activeSessionIdRef.current = nextSessionId
+    updateBrowserPath(nextSessionId, false, homePath)
+    resetLiveTurn()
+  }, [homePath, resetLiveTurn, running])
+
   const handleAssignSessionWorkspace = useCallback((id: string, workspace: SessionWorkspace) => {
     setSessions(prev => prev.map(session => {
       if (session.id !== id) return session
       const nextSession = {
         ...session,
+        workspaceId: workspace.workspaceId ?? session.workspaceId ?? null,
+        versionId: workspace.versionId ?? session.versionId ?? null,
         workspaceDir: workspace.workspaceDir ?? session.workspaceDir ?? null,
         workspaceName: workspace.workspaceName ?? session.workspaceName ?? null,
       }
@@ -269,9 +330,18 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
 
   const handleSubmit = useCallback((input: string | CodexInputItem[], enabledSkills: string[] = [], workspace?: SessionWorkspace) => {
     const prompt = getInputPromptText(input)
+    const workspaceDir = normalizeWorkspaceDir(workspace?.workspaceDir)
+    const workspaceId = normalizeId(workspace?.workspaceId)
+    const versionId = normalizeId(workspace?.versionId)
     let sid = activeSessionIdRef.current
     let threadIdForRun: string | null = null
     const turnIdForRun = generateId()
+    const activeSession = sid ? sessions.find(session => session.id === sid) ?? null : null
+
+    if (sid && workspace && !isSameWorkspaceContext(activeSession, workspace) && (workspaceDir || (workspaceId && versionId))) {
+      sid = null
+      activeSessionIdRef.current = null
+    }
 
     if (!sid) {
       const newSession: Session = {
@@ -281,7 +351,9 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
         turns: [],
         createdAt: Date.now(),
         dismissedAskUserId: null,
-        workspaceDir: workspace?.workspaceDir ?? null,
+        workspaceId,
+        versionId,
+        workspaceDir,
         workspaceName: workspace?.workspaceName ?? null,
       }
       setSessions(prev => [...prev, newSession])
@@ -291,7 +363,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
       updateBrowserPath(newSession.id, false, homePath)
       sid = newSession.id
     } else {
-      threadIdForRun = sessions.find(session => session.id === sid)?.threadId ?? null
+      threadIdForRun = activeSession?.threadId ?? null
       updateBrowserPath(sid, true, homePath)
     }
 
@@ -300,8 +372,10 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
       const nextSession = {
         ...session,
         dismissedAskUserId: null,
-        workspaceDir: session.workspaceDir ?? workspace?.workspaceDir ?? null,
-        workspaceName: session.workspaceName ?? workspace?.workspaceName ?? null,
+        workspaceId: workspaceId ?? session.workspaceId ?? null,
+        versionId: versionId ?? session.versionId ?? null,
+        workspaceDir: workspaceDir ?? session.workspaceDir ?? null,
+        workspaceName: workspace?.workspaceName ?? session.workspaceName ?? null,
       }
       saveSession(nextSession)
       return nextSession
@@ -319,6 +393,12 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
       threadIdForRun,
       turnIdForRun,
       enabledSkills,
+      {
+        workspaceDir,
+        workspaceId,
+        workspaceName: workspace?.workspaceName ?? null,
+        versionId,
+      },
       event => {
         if (shouldSuppressEvent(event)) return
 
@@ -390,12 +470,14 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     handleDelete,
     handleNew,
     handleSelect,
+    handleSelectWorkspaceSession,
     handleAssignSessionWorkspace,
     handleStopAskUser,
     handleSubmit,
     isMobile,
     pendingAskUser,
     running,
+    sessionsLoaded,
     sortedSessions,
     turns,
     abort,

@@ -106,7 +106,9 @@ export default function ModelViewerPage() {
   const modelVariant = getModelVariantFromUrl()
   const pageParams = new URLSearchParams(window.location.search)
   const sessionId = pageParams.get("sessionId")?.trim() ?? ""
+  const versionId = pageParams.get("versionId")?.trim() ?? ""
   const workspaceDir = pageParams.get("workspaceDir")?.trim() ?? ""
+  const workspaceId = pageParams.get("workspaceId")?.trim() ?? ""
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving FreeCAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -119,6 +121,8 @@ export default function ModelViewerPage() {
     const loadComponentDetails = async () => {
       const queryParams = new URLSearchParams()
       if (sessionId) queryParams.set("sessionId", sessionId)
+      if (workspaceId) queryParams.set("workspaceId", workspaceId)
+      if (versionId) queryParams.set("versionId", versionId)
       if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
       const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
       const componentInfo = await fetch(`/api/freecad/component-info${query}`, {
@@ -145,7 +149,7 @@ export default function ModelViewerPage() {
       })
 
     return () => controller.abort()
-  }, [sessionId, workspaceDir])
+  }, [sessionId, versionId, workspaceDir, workspaceId])
 
   useEffect(() => {
     const mount = mountRef.current

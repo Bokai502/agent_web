@@ -177,12 +177,15 @@ export async function listFreecadWorkspaces() {
   )
   const availableItems = items.filter(item => item.valid)
   availableItems.sort((left, right) => left.name.localeCompare(right.name))
+  const activeWorkspaceItem = versionedWorkspace
+    ? availableItems.find(item => item.manifestRoot === versionedWorkspace.rootDir)
+    : null
 
   return {
     root,
     current: versionedWorkspace?.activeVersionDir ?? configuredWorkspaceDir,
     currentName: versionedWorkspace
-      ? configuredName ?? path.basename(versionedWorkspace.rootDir)
+      ? configuredName ?? activeWorkspaceItem?.name ?? path.basename(versionedWorkspace.rootDir)
       : configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
       ? path.basename(configuredWorkspaceDir)
       : null,
@@ -207,6 +210,9 @@ export async function setFreecadWorkspace(name: unknown) {
   const configuredWorkspaceDir = getConfiguredWorkspaceDir(config)
   const root = getWorkspaceRootFromConfigured(configuredWorkspaceDir)
   const workspace = await inspectWorkspace(root, workspaceName)
+  if (!workspace.valid) {
+    throw new Error(`workspace is missing required files: ${workspace.missing.join(", ")}`)
+  }
 
   const relative = path.relative(root, workspace.path)
   if (relative.startsWith("..") || path.isAbsolute(relative)) {

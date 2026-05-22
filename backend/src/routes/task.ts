@@ -11,6 +11,7 @@ import { initializeFreecadProgressForSession } from "../freecadProgress.js"
 import { resolveFreecadWorkspaceDir } from "../freecadWorkspace.js"
 import { readSkillInstructions } from "../skills.js"
 import type { SkillInstruction } from "../skills.js"
+import { createRun, patchRun, resolveRunWorkspaceContext } from "../manifest/store.js"
 
 type CodexConfigValue = string | number | boolean | CodexConfigValue[] | CodexConfigObject
 type CodexConfigObject = {
@@ -47,9 +48,11 @@ interface AskUserPayload {
 
 interface RunContext {
   workspaceDir: string | null
+  workspaceId: string | null
   sessionId: string
   threadId: string | null
   turnId: string
+  versionId: string | null
 }
 
 type RunInputItem = UserInput
@@ -60,7 +63,9 @@ type SessionRecord = {
   threadId?: string | null
   title?: string
   turns?: Array<{ id?: string; userPrompt?: string; events?: unknown[] }>
+  versionId?: string | null
   workspaceDir?: string | null
+  workspaceId?: string | null
   workspaceName?: string | null
 }
 
@@ -71,6 +76,10 @@ interface RunRequestBody {
   threadId?: string | null
   turnId?: string | null
   enabledSkills?: string[]
+  versionId?: string | null
+  workspaceDir?: string | null
+  workspaceId?: string | null
+  workspaceName?: string | null
 }
 
 const UPLOADABLE_IMAGE_MIME_TYPES = new Map([
@@ -186,11 +195,14 @@ function buildPromptPrefix(skillNames: string[], skillInstructions: SkillInstruc
     `- session_id: ${context.sessionId}`,
     `- thread_id: ${context.threadId ?? "null"}`,
     `- turn_id: ${context.turnId}`,
+    `- workspace_id: ${context.workspaceId ?? "null"}`,
+    `- version_id: ${context.versionId ?? "null"}`,
     `- workspace_dir: ${context.workspaceDir ?? "null"}`,
     "",
     "Use this same workspace_dir path for cad-sim-pipeline, freecad-* commands, artifact inspection, and logs.",
-    "The workspace is resolved only from /data/lbk/codex_web/config.json field freecad.workspaceDir.",
-    "Do not override it with WORKSPACE_DIR, FREECAD_WORKSPACE_DIR, --workspace, or --workspace-dir.",
+    "For versioned work, workspace_dir is the active version workspace selected by the Versioning API.",
+    "The Versioning API checkout/branch operation synchronizes /data/lbk/codex_web/config.json freecad.workspaceDir to the active version workspace.",
+    "If a CLI supports --workspace-dir, pass this workspace_dir explicitly; otherwise verify the CLI default resolves to the same config.json workspaceDir.",
     "When invoking CLI commands, pass these correlation values through environment variables:",
     `- FREECAD_SESSION_ID=${context.sessionId}`,
     `- FREECAD_THREAD_ID=${context.threadId ?? ""}`,
@@ -198,7 +210,7 @@ function buildPromptPrefix(skillNames: string[], skillInstructions: SkillInstruc
     "- FREECAD_CALLER=open_codex_web",
     "- FREECAD_AGENT_NAME=codex",
     context.workspaceDir
-      ? "Use CLI defaults for workspace-scoped commands; they read config.json."
+      ? "Before running workspace-scoped commands, verify they target the workspace_dir above."
       : "No workspace is currently configured; ask before running workspace-scoped CLI commands.",
   ].join("\n")
   return `${ASK_USER_PROTOCOL}\n\n${skillPrefix}${executionContext}`
@@ -257,6 +269,10 @@ function getWorkspaceName(workspaceDir: string | null) {
   return workspaceDir ? path.basename(workspaceDir) : null
 }
 
+function getString(value: unknown) {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null
+}
+
 async function atomicWrite(filePath: string, content: string) {
   const tmp = `${filePath}.${randomBytes(4).toString("hex")}.tmp`
   try {
@@ -299,26 +315,34 @@ async function ensureRunSession({
   prompt,
   sessionId,
   threadId,
+  versionId,
   workspaceDir,
+  workspaceId,
+  workspaceName,
 }: {
   prompt: string
   sessionId: string
   threadId: string | null
+  versionId: string | null
   workspaceDir: string | null
+  workspaceId: string | null
+  workspaceName: string | null
 }) {
   if ((await readDeletedSessionIds()).has(sessionId)) return
 
   const sessions = await readSessionsFile()
   const index = sessions.findIndex(session => session.id === sessionId)
-  const workspaceName = getWorkspaceName(workspaceDir)
+  const resolvedWorkspaceName = workspaceName ?? getWorkspaceName(workspaceDir)
 
   if (index >= 0) {
     const existing = sessions[index]
     sessions[index] = {
       ...existing,
       threadId: existing.threadId ?? threadId,
-      workspaceDir: existing.workspaceDir ?? workspaceDir,
-      workspaceName: existing.workspaceName ?? workspaceName,
+      workspaceId: workspaceId ?? existing.workspaceId ?? null,
+      versionId: versionId ?? existing.versionId ?? null,
+      workspaceDir: workspaceDir ?? existing.workspaceDir ?? null,
+      workspaceName: resolvedWorkspaceName ?? existing.workspaceName ?? null,
     }
   } else {
     sessions.push({
@@ -328,8 +352,10 @@ async function ensureRunSession({
       turns: [],
       createdAt: Date.now(),
       dismissedAskUserId: null,
+      workspaceId,
+      versionId,
       workspaceDir,
-      workspaceName,
+      workspaceName: resolvedWorkspaceName,
     })
   }
 
@@ -342,32 +368,42 @@ async function completeRunSessionTurn({
   sessionId,
   threadId,
   turnId,
+  versionId,
   workspaceDir,
+  workspaceId,
+  workspaceName,
 }: {
   events: unknown[]
   prompt: string
   sessionId: string
   threadId: string | null
   turnId: string
+  versionId: string | null
   workspaceDir: string | null
+  workspaceId: string | null
+  workspaceName: string | null
 }) {
   if ((await readDeletedSessionIds()).has(sessionId)) return
 
   const sessions = await readSessionsFile()
   const index = sessions.findIndex(session => session.id === sessionId)
-  const workspaceName = getWorkspaceName(workspaceDir)
+  const resolvedWorkspaceName = workspaceName ?? getWorkspaceName(workspaceDir)
   const turn = { id: turnId, userPrompt: prompt, events }
 
   if (index >= 0) {
     const existing = sessions[index]
     const turns = Array.isArray(existing.turns) ? existing.turns : []
-    const hasTurn = turns.some(item => item.id === turnId)
+    const nextTurns = turns.some(item => item.id === turnId)
+      ? turns.map(item => item.id === turnId ? turn : item)
+      : [...turns, turn]
     sessions[index] = {
       ...existing,
       threadId: threadId ?? existing.threadId ?? null,
-      turns: hasTurn ? turns : [...turns, turn],
-      workspaceDir: existing.workspaceDir ?? workspaceDir,
-      workspaceName: existing.workspaceName ?? workspaceName,
+      turns: nextTurns,
+      workspaceId: workspaceId ?? existing.workspaceId ?? null,
+      versionId: versionId ?? existing.versionId ?? null,
+      workspaceDir: workspaceDir ?? existing.workspaceDir ?? null,
+      workspaceName: resolvedWorkspaceName ?? existing.workspaceName ?? null,
     }
   } else {
     sessions.push({
@@ -377,8 +413,10 @@ async function completeRunSessionTurn({
       turns: [turn],
       createdAt: Date.now(),
       dismissedAskUserId: null,
+      workspaceId,
+      versionId,
       workspaceDir,
-      workspaceName,
+      workspaceName: resolvedWorkspaceName,
     })
   }
 
@@ -472,6 +510,22 @@ export async function taskRoutes(
 
       const trimmedSessionId = sessionId.trim()
       const trimmedTurnId = turnId.trim()
+      const requestedWorkspaceDir = getString(req.body.workspaceDir)
+      const requestedWorkspaceId = getString(req.body.workspaceId)
+      const requestedVersionId = getString(req.body.versionId)
+      const requestedWorkspaceName = getString(req.body.workspaceName)
+      let resolvedWorkspaceContext: Awaited<ReturnType<typeof resolveRunWorkspaceContext>> | null = null
+      if (requestedWorkspaceDir || requestedWorkspaceId || requestedVersionId) {
+        try {
+          resolvedWorkspaceContext = await resolveRunWorkspaceContext({
+            workspaceDir: requestedWorkspaceDir,
+            workspaceId: requestedWorkspaceId,
+            versionId: requestedVersionId,
+          })
+        } catch (err) {
+          return reply.status(409).send({ error: err instanceof Error ? err.message : "workspace context mismatch" })
+        }
+      }
       const requestStartedAt = process.hrtime.bigint()
       let lastEventAt = requestStartedAt
       let eventCount = 0
@@ -481,10 +535,12 @@ export async function taskRoutes(
         .filter(s => typeof s === "string" && s.trim() !== "")
         .map(s => s.trim())
       const runContext = {
-        workspaceDir: await resolveFreecadWorkspaceDir().catch(() => null),
+        workspaceDir: resolvedWorkspaceContext?.workspaceDir ?? requestedWorkspaceDir ?? await resolveFreecadWorkspaceDir().catch(() => null),
+        workspaceId: resolvedWorkspaceContext?.workspaceId ?? requestedWorkspaceId,
         sessionId: trimmedSessionId,
         threadId: typeof threadId === "string" && threadId.trim() !== "" ? threadId.trim() : null,
         turnId: trimmedTurnId,
+        versionId: resolvedWorkspaceContext?.versionId ?? requestedVersionId,
       }
       const promptTextForHistory = typeof prompt === "string" && prompt.trim() !== ""
         ? prompt.trim()
@@ -499,19 +555,51 @@ export async function taskRoutes(
       const sdkInput = buildSdkInput(sdkInputBase, skillNames, runContext)
       const streamedEvents: unknown[] = []
       let resolvedThreadId = runContext.threadId
+      let manifestRunId: string | null = null
 
       await ensureRunSession({
         prompt: promptTextForHistory,
         sessionId: trimmedSessionId,
         threadId: resolvedThreadId,
+        versionId: runContext.versionId,
         workspaceDir: runContext.workspaceDir,
+        workspaceId: runContext.workspaceId,
+        workspaceName: requestedWorkspaceName,
       }).catch(err => logger.error("run session ensure failed", { err, sessionId: trimmedSessionId }))
+
+      if (runContext.workspaceDir || runContext.workspaceId) {
+        await createRun({
+          kind: "agent",
+          sessionId: trimmedSessionId,
+          skillNames,
+          status: "running",
+          threadId: runContext.threadId,
+          turnId: trimmedTurnId,
+          versionId: runContext.versionId,
+          workspaceDir: runContext.workspaceDir,
+          workspaceId: runContext.workspaceId,
+        })
+          .then(({ run }) => {
+            manifestRunId = run.id
+          })
+          .catch(err => logger.error("manifest run create failed", {
+            err,
+            sessionId: trimmedSessionId,
+            turnId: trimmedTurnId,
+            workspaceDir: runContext.workspaceDir,
+            workspaceId: runContext.workspaceId,
+            versionId: runContext.versionId,
+          }))
+      }
 
       logger.info("codex run accepted", {
         requestId: req.id,
+        manifestRunId,
         sessionId: trimmedSessionId,
         threadId: typeof threadId === "string" && threadId.trim() !== "" ? threadId.trim() : null,
         turnId: trimmedTurnId,
+        workspaceId: runContext.workspaceId,
+        versionId: runContext.versionId,
         baseUrl: config.openai.baseUrl,
         model: config.openai.model,
         modelProvider: config.openai.modelProvider,
@@ -520,6 +608,7 @@ export async function taskRoutes(
         modelReasoningEffort: config.codex.modelReasoningEffort,
         workingDirectory: config.codex.workingDirectory,
         workspaceDir: runContext.workspaceDir,
+        workspaceName: requestedWorkspaceName,
         approvalPolicy: config.codex.approvalPolicy,
         sandboxMode: config.codex.sandboxMode,
         promptChars: typeof prompt === "string" ? prompt.length : 0,
@@ -658,6 +747,9 @@ export async function taskRoutes(
               threadId: threadId ?? null,
               turnId: turnId ?? null,
               enabledSkills: skillNames,
+              workspaceDir: runContext.workspaceDir,
+              workspaceId: runContext.workspaceId,
+              versionId: runContext.versionId,
             },
           })
           reply.raw.write(
@@ -670,6 +762,30 @@ export async function taskRoutes(
       } finally {
         const shouldPersistRun = streamedEvents.length > 0 &&
           (!abort.signal.aborted || hasPersistableTerminalEvent(streamedEvents))
+        const terminalStatus = abort.signal.aborted
+          ? "cancelled"
+          : streamedEvents.some(event => event && typeof event === "object" && (event as { type?: unknown }).type === "turn.failed")
+            ? "failed"
+            : streamedEvents.some(event => event && typeof event === "object" && (event as { type?: unknown }).type === "error")
+              ? "failed"
+              : "completed"
+
+        if (manifestRunId) {
+          await patchRun(manifestRunId, {
+            sessionId: trimmedSessionId,
+            status: terminalStatus,
+            threadId: resolvedThreadId,
+            turnId: trimmedTurnId,
+            versionId: runContext.versionId,
+            workspaceDir: runContext.workspaceDir,
+            workspaceId: runContext.workspaceId,
+          }).catch(err => logger.error("manifest run patch failed", {
+            err,
+            runId: manifestRunId,
+            sessionId: trimmedSessionId,
+            turnId: trimmedTurnId,
+          }))
+        }
 
         if (shouldPersistRun) {
           await completeRunSessionTurn({
@@ -678,7 +794,10 @@ export async function taskRoutes(
             sessionId: trimmedSessionId,
             threadId: resolvedThreadId,
             turnId: trimmedTurnId,
+            versionId: runContext.versionId,
             workspaceDir: runContext.workspaceDir,
+            workspaceId: runContext.workspaceId,
+            workspaceName: requestedWorkspaceName,
           }).catch(err => logger.error("run session completion failed", { err, sessionId: trimmedSessionId, turnId: trimmedTurnId }))
         }
         logger.info("codex run finished", {

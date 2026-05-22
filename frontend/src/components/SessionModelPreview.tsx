@@ -29,6 +29,9 @@ const SAMPLE_THUMBNAIL_QUALITY = 0.94
 
 interface SessionModelPreviewProps {
   sessionId: string
+  versionId?: string | null
+  workspaceDir?: string | null
+  workspaceId?: string | null
 }
 
 function getThumbnailCacheKey(sessionId: string, model: ResolvedModel) {
@@ -267,7 +270,25 @@ function nextFrame() {
   })
 }
 
-export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
+function buildModelLookupUrl({
+  sessionId,
+  versionId,
+  workspaceDir,
+  workspaceId,
+}: SessionModelPreviewProps) {
+  const params = new URLSearchParams({ sessionId })
+  if (workspaceId?.trim()) params.set("workspaceId", workspaceId.trim())
+  if (versionId?.trim()) params.set("versionId", versionId.trim())
+  if (workspaceDir?.trim()) params.set("workspaceDir", workspaceDir.trim())
+  return `/api/freecad/model?${params.toString()}`
+}
+
+export function SessionModelPreview({
+  sessionId,
+  versionId,
+  workspaceDir,
+  workspaceId,
+}: SessionModelPreviewProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const mountRef = useRef<HTMLDivElement>(null)
   const objectUrlRef = useRef<string | null>(null)
@@ -432,7 +453,7 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       const resolvedModel = await fetchResolvedModel(
         {
           autoRefresh: false,
-          lookupUrl: `/api/freecad/model?${new URLSearchParams({ sessionId }).toString()}`,
+          lookupUrl: buildModelLookupUrl({ sessionId, versionId, workspaceDir, workspaceId }),
           variant: "original",
         },
         controller.signal,
@@ -465,7 +486,7 @@ export function SessionModelPreview({ sessionId }: SessionModelPreviewProps) {
       controller.abort()
       cleanupPreviewResources()
     }
-  }, [sessionId, shouldLoad])
+  }, [sessionId, shouldLoad, versionId, workspaceDir, workspaceId])
 
   return (
     <div

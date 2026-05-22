@@ -717,15 +717,16 @@ async function readOrCreateSampleThumbnail(sessionId: string, variant: SampleThu
 
 function CachedSessionPreview({
   allowGenerate,
-  sessionId,
+  session,
   variant,
 }: {
   allowGenerate: boolean
-  sessionId: string
+  session: Session
   variant: SampleThumbnailVariant
 }) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
   const objectUrlRef = useRef<string | null>(null)
+  const sessionId = session.id
 
   useEffect(() => {
     let cancelled = false
@@ -778,7 +779,12 @@ function CachedSessionPreview({
   return thumbnailUrl ? (
     <img src={thumbnailUrl} alt="" />
   ) : allowGenerate ? (
-    <SessionModelPreview sessionId={sessionId} />
+    <SessionModelPreview
+      sessionId={sessionId}
+      versionId={session.versionId}
+      workspaceDir={session.workspaceDir}
+      workspaceId={session.workspaceId}
+    />
   ) : (
     null
   )
@@ -835,7 +841,7 @@ function SampleSessionCard({
         <div className="apple-sample-preview">
           <CachedSessionPreview
             allowGenerate={featured || previewPriority}
-            sessionId={session.id}
+            session={session}
             variant={featured ? "featured" : "card"}
           />
         </div>

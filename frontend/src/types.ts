@@ -114,6 +114,8 @@ export interface Session {
   turns: Turn[]
   createdAt: number     // 时间戳
   dismissedAskUserId?: string | null
+  workspaceId?: string | null
+  versionId?: string | null
   workspaceDir?: string | null
   workspaceName?: string | null
 }
