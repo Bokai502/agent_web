@@ -526,6 +526,7 @@ export async function taskRoutes(
           return reply.status(409).send({ error: err instanceof Error ? err.message : "workspace context mismatch" })
         }
       }
+      const workspaceContextRequested = !!(requestedWorkspaceDir || requestedWorkspaceId || requestedVersionId)
       const requestStartedAt = process.hrtime.bigint()
       let lastEventAt = requestStartedAt
       let eventCount = 0
@@ -535,7 +536,7 @@ export async function taskRoutes(
         .filter(s => typeof s === "string" && s.trim() !== "")
         .map(s => s.trim())
       const runContext = {
-        workspaceDir: resolvedWorkspaceContext?.workspaceDir ?? requestedWorkspaceDir ?? await resolveFreecadWorkspaceDir().catch(() => null),
+        workspaceDir: resolvedWorkspaceContext?.workspaceDir ?? (workspaceContextRequested ? null : await resolveFreecadWorkspaceDir().catch(() => null)),
         workspaceId: resolvedWorkspaceContext?.workspaceId ?? requestedWorkspaceId,
         sessionId: trimmedSessionId,
         threadId: typeof threadId === "string" && threadId.trim() !== "" ? threadId.trim() : null,

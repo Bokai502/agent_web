@@ -228,6 +228,20 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     resetLiveTurn()
   }, [homePath, resetLiveTurn])
 
+  const handleClearActiveSession = useCallback(() => {
+    if (running) return
+    if (batchTimerRef.current) {
+      clearTimeout(batchTimerRef.current)
+      batchTimerRef.current = null
+    }
+    if (activeSessionIdRef.current !== null) {
+      setActiveSessionId(null)
+      activeSessionIdRef.current = null
+      updateBrowserPath(null, false, homePath)
+    }
+    resetLiveTurn()
+  }, [homePath, resetLiveTurn, running])
+
   const handleSelect = useCallback((id: string) => {
     if (running) return
     if (batchTimerRef.current) {
@@ -468,6 +482,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     currentEvents,
     currentPrompt,
     handleDelete,
+    handleClearActiveSession,
     handleNew,
     handleSelect,
     handleSelectWorkspaceSession,

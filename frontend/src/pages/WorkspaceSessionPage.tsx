@@ -81,6 +81,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     activeSessionId,
     currentEvents,
     currentPrompt,
+    handleClearActiveSession,
     handleDelete,
     handleNew,
     handleSelectWorkspaceSession,
@@ -102,6 +103,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const [selectedLogId, setSelectedLogId] = useState("")
   const [stageLogs, setStageLogs] = useState<StageLogEntry[]>([])
   const [workspaces, setWorkspaces] = useState<FreecadWorkspacesResponse | null>(null)
+  const [workspacesLoaded, setWorkspacesLoaded] = useState(false)
   const [workspaceChanging, setWorkspaceChanging] = useState(false)
   const [branchManifest, setBranchManifest] = useState<WorkspaceManifestSummary | null>(null)
   const [manifestLoading, setManifestLoading] = useState(false)
@@ -132,6 +134,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     workspaces,
   })
   const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, {
+    enabled: !!activeContext.versionDir,
     versionDir: activeContext.versionDir,
     versionId: activeContext.versionId,
     workspaceId: activeContext.workspaceId,
@@ -144,10 +147,9 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const runLogEntries = useMemo(() => getRunLogEntries(turns, currentEvents, t), [currentEvents, t, turns])
   const logEntries = useMemo(() => getDisplayLogEntries(stageLogs, runLogEntries), [runLogEntries, stageLogs])
   const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
-  const hasModelPreview = !!activeContext.versionDir || !!activeSessionId
+  const hasModelPreview = !!activeContext.versionDir
   const viewerHref = useMemo(() => {
     const params = new URLSearchParams()
-    if (activeSessionId) params.set("sessionId", activeSessionId)
     params.set("glbPath", WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
     if (activeContext.workspaceKey) params.set("workspaceKey", activeContext.workspaceKey)
     if (activeContext.workspaceId) params.set("workspaceId", activeContext.workspaceId)
@@ -156,7 +158,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, activeSessionId, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, workspaceRefreshNonce])
   const freecadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const paraviewHref = "http://10.110.10.11:6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const comsolHref = "http://10.110.10.11:6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
@@ -176,28 +178,6 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     })
   }, [bomInfo.components, selectedBomId])
 
-  const submitAndRefreshProgress = useCallback((input: string | CodexInputItem[], enabledSkills?: string[]) => {
-    setProgressData(null)
-    setProgressRefreshNonce(value => value + 1)
-    handleSubmit(input, enabledSkills, {
-      workspaceDir: activeContext.versionDir,
-      workspaceId: activeContext.workspaceId,
-      workspaceName: activeContext.workspaceName,
-      versionId: activeContext.versionId,
-    })
-    window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, handleSubmit])
-
-  const handleSelectLog = useCallback((entry: RunLogEntry) => {
-    setSelectedLogId(entry.id)
-    setActivePanel("log")
-  }, [])
-
-  const handleReturnHome = useCallback(() => {
-    window.history.pushState(null, "", "/home")
-    window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
-  }, [])
-
   const refreshWorkspaceViews = useCallback(() => {
     setSelectedBomId("")
     setSelectedLogId("")
@@ -209,6 +189,71 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const refreshManifest = useCallback(() => {
     setVersionError("")
     setManifestRefreshNonce(value => value + 1)
+  }, [])
+
+  const submitAndRefreshProgress = useCallback((input: string | CodexInputItem[], enabledSkills?: string[]) => {
+    setProgressData(null)
+    setProgressRefreshNonce(value => value + 1)
+    const submitWithContext = (context: typeof activeContext) => {
+      handleSubmit(input, enabledSkills, {
+        workspaceDir: context.versionDir,
+        workspaceId: context.workspaceId,
+        workspaceName: context.workspaceName,
+        versionId: context.versionId,
+      })
+    }
+
+    if (!activeContext.versionDir && activeContext.manifestRoot) {
+      fetchWorkspaceManifest({
+        initialize: true,
+        manifestRoot: activeContext.manifestRoot,
+        sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
+        workspaceId: activeContext.workspaceId,
+        workspaceKey: activeContext.workspaceKey,
+      })
+        .then(data => {
+          if (!data) {
+            submitWithContext(activeContext)
+            return
+          }
+          const activeVersion = getActiveVersion(data)
+          const initializedContext = activeVersion?.workspaceDir
+            ? {
+              ...activeContext,
+              manifestRoot: data.rootDir ?? activeContext.manifestRoot,
+              manifestSessionId: data.sessionId ?? activeContext.manifestSessionId,
+              versionDir: activeVersion.workspaceDir,
+              versionId: activeVersion.id ?? null,
+              workspaceId: data.workspaceId ?? activeContext.workspaceId,
+              workspaceKey: data.workspaceId ?? activeContext.workspaceKey,
+              workspaceRoot: data.rootDir ?? activeContext.workspaceRoot,
+            }
+            : resolveWorkspaceVersionContext({
+              branchManifest: data,
+              fallbackWorkspaceName: activeContext.workspaceName,
+              workspaces,
+            })
+          setBranchManifest(data)
+          refreshWorkspaceViews()
+          submitWithContext(initializedContext)
+        })
+        .catch(() => submitWithContext(activeContext))
+      window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
+      return
+    }
+
+    submitWithContext(activeContext)
+    window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
+  }, [activeContext, handleSubmit, refreshWorkspaceViews, workspaces])
+
+  const handleSelectLog = useCallback((entry: RunLogEntry) => {
+    setSelectedLogId(entry.id)
+    setActivePanel("log")
+  }, [])
+
+  const handleReturnHome = useCallback(() => {
+    window.history.pushState(null, "", "/home")
+    window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
   }, [])
 
   const versionWorkspaceKey = activeContext.workspaceKey ?? getVersionWorkspaceKey(branchManifest, activeContext.workspaceName)
@@ -266,15 +311,17 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
 
   const switchWorkspace = useCallback((name: string) => {
     setWorkspaceChanging(true)
+    setBranchManifest(null)
     return switchFreecadWorkspace(name)
       .then(() => {
         refreshWorkspaceViews()
+        refreshManifest()
       })
       .catch(() => {
         // Keep the previous workspace visible if the switch is rejected.
       })
       .finally(() => setWorkspaceChanging(false))
-  }, [refreshWorkspaceViews])
+  }, [refreshManifest, refreshWorkspaceViews])
 
   const handleSelectWorkspace = useCallback((name: string) => {
     if (name === activeContext.workspaceName) return
@@ -317,6 +364,11 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
 
   useEffect(() => {
     if (!sessionsLoaded) return
+    if (!workspacesLoaded) return
+    if (!activeContext.versionDir && !activeContext.versionId) {
+      handleClearActiveSession()
+      return
+    }
     if (!activeContext.versionDir && (!activeContext.workspaceId || !activeContext.versionId)) return
     handleSelectWorkspaceSession({
       workspaceDir: activeContext.versionDir,
@@ -324,10 +376,11 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       workspaceName: activeContext.workspaceName,
       versionId: activeContext.versionId,
     })
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, handleSelectWorkspaceSession, sessionWorkspaceSignature, sessionsLoaded])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, handleClearActiveSession, handleSelectWorkspaceSession, sessionWorkspaceSignature, sessionsLoaded, workspacesLoaded])
 
   useEffect(() => {
     let cancelled = false
+    setWorkspacesLoaded(false)
     const loadWorkspaces = () => {
       fetchFreecadWorkspaces()
         .then(data => {
@@ -335,6 +388,9 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         })
         .catch(() => {
           if (!cancelled) setWorkspaces(null)
+        })
+        .finally(() => {
+          if (!cancelled) setWorkspacesLoaded(true)
         })
     }
 
@@ -377,24 +433,15 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     let cancelled = false
 
     const loadProgress = () => {
-      if (!activeSessionId && !activeContext.versionDir) {
+      if (!activeContext.versionDir) {
         setProgressData(null)
         return
       }
-      const query = activeSessionId
-        ? `?${new URLSearchParams({
-            sessionId: activeSessionId,
-            ...(activeContext.versionDir ? { workspaceDir: activeContext.versionDir } : {}),
-            ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
-            ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
-          }).toString()}`
-        : activeContext.versionDir
-          ? `?${new URLSearchParams({
-              workspaceDir: activeContext.versionDir,
-              ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
-              ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
-            }).toString()}`
-        : ""
+      const query = `?${new URLSearchParams({
+        workspaceDir: activeContext.versionDir,
+        ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
+        ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
+      }).toString()}`
       fetch(`/api/freecad/progress${query}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<FreecadProgressResponse> : null)
         .then(data => {
@@ -411,18 +458,20 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeSessionId, progressRefreshNonce, running, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, progressRefreshNonce, running, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
     const loadStageLogs = () => {
-      const query = activeContext.versionDir
-        ? `?${new URLSearchParams({
-            workspaceDir: activeContext.versionDir,
-            ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
-            ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
-          }).toString()}`
-        : ""
+      if (!activeContext.versionDir) {
+        setStageLogs([])
+        return
+      }
+      const query = `?${new URLSearchParams({
+        workspaceDir: activeContext.versionDir,
+        ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
+        ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
+      }).toString()}`
       fetch(`/api/logs/stages${query}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<StageLogEntry[]> : [])
         .then(data => {

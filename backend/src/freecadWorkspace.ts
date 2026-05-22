@@ -57,6 +57,10 @@ async function pathExists(filePath: string) {
   return fs.access(filePath).then(() => true).catch(() => false)
 }
 
+function isVersionWorkspaceDir(workspaceDir: string | null | undefined) {
+  return !!workspaceDir && path.basename(path.dirname(workspaceDir)) === "versions"
+}
+
 async function inspectWorkspace(root: string, name: string): Promise<FreecadWorkspaceItem> {
   const workspacePath = path.join(root, name)
   const required = ["00_inputs"]
@@ -89,10 +93,11 @@ async function readWorkspaceManifestSummary(manifestPath: string) {
     versions?: unknown
   }
   const versions = Array.isArray(parsed.versions) ? parsed.versions as Array<{ id?: unknown; workspaceDir?: unknown }> : []
+  const activeVersionDir = typeof parsed.activeVersionId === "string"
+    ? versions.find(version => version.id === parsed.activeVersionId && typeof version.workspaceDir === "string")?.workspaceDir as string | undefined
+    : undefined
   return {
-    activeVersionDir: typeof parsed.activeVersionId === "string"
-      ? versions.find(version => version.id === parsed.activeVersionId && typeof version.workspaceDir === "string")?.workspaceDir as string | undefined
-      : undefined,
+    activeVersionDir: activeVersionDir && await pathExists(activeVersionDir) ? activeVersionDir : undefined,
     rootDir: typeof parsed.rootDir === "string" ? parsed.rootDir : path.dirname(manifestPath),
   }
 }
@@ -108,7 +113,7 @@ async function findVersionedWorkspaceFromConfigured(configuredWorkspaceDir: stri
       const summary = await readWorkspaceManifestSummary(manifestPath).catch(() => null)
       return {
         rootDir: summary?.rootDir ?? current,
-        activeVersionDir: summary?.activeVersionDir ?? resolvedWorkspaceDir,
+        activeVersionDir: summary?.activeVersionDir,
       }
     }
 
@@ -137,7 +142,7 @@ async function findVersionedWorkspaceForName(root: string, name: string) {
     const summary = await readWorkspaceManifestSummary(manifestPath).catch(() => null)
     return {
       rootDir: summary?.rootDir ?? candidate,
-      activeVersionDir: summary?.activeVersionDir ?? candidate,
+      activeVersionDir: summary?.activeVersionDir,
     }
   }
 
@@ -180,10 +185,15 @@ export async function listFreecadWorkspaces() {
   const activeWorkspaceItem = versionedWorkspace
     ? availableItems.find(item => item.manifestRoot === versionedWorkspace.rootDir)
     : null
+  const current = versionedWorkspace
+    ? versionedWorkspace.activeVersionDir ??
+      activeWorkspaceItem?.path ??
+      (isVersionWorkspaceDir(configuredWorkspaceDir) ? null : configuredWorkspaceDir)
+    : isVersionWorkspaceDir(configuredWorkspaceDir) ? null : configuredWorkspaceDir
 
   return {
     root,
-    current: versionedWorkspace?.activeVersionDir ?? configuredWorkspaceDir,
+    current,
     currentName: versionedWorkspace
       ? configuredName ?? activeWorkspaceItem?.name ?? path.basename(versionedWorkspace.rootDir)
       : configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root

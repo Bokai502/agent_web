@@ -11,6 +11,7 @@ import {
   getOrCreateWorkspaceManifestByLocator,
   getWorkspaceManifestByLocator,
   getWorkspaceManifest,
+  getWorkspaceManifestSnapshotByLocator,
   patchRun,
   registerArtifact,
   registerCheckpoint,
@@ -55,8 +56,8 @@ export async function manifestRoutes(
               })
             : await getOrCreateWorkspaceManifest(sessionId, { sourceWorkspaceDir: getString(req.query.sourceWorkspaceDir) })
           : workspaceDir
-            ? await getWorkspaceManifestByLocator({ sessionId, workspaceDir })
-            : await getWorkspaceManifest(sessionId)
+            ? await getWorkspaceManifestSnapshotByLocator({ sessionId, workspaceDir })
+            : await getWorkspaceManifestSnapshotByLocator({ sessionId })
         return reply.send(manifest)
       } catch (err) {
         logger.error("manifest read failed", { err, sessionId, workspaceDir })
@@ -79,7 +80,7 @@ export async function manifestRoutes(
               sourceWorkspaceDir: getString(req.query.sourceWorkspaceDir) ?? workspaceDir,
               workspaceDir,
             })
-          : await getWorkspaceManifestByLocator({ sessionId: manifestKey, workspaceDir })
+          : await getWorkspaceManifestSnapshotByLocator({ sessionId: manifestKey, workspaceDir })
         return reply.send(manifest)
       } catch (err) {
         logger.error("manifest read failed", { err, legacySessionId, workspaceDir, workspaceKey })
@@ -101,7 +102,7 @@ export async function manifestRoutes(
               sourceWorkspaceDir: getString(req.query.sourceWorkspaceDir) ?? workspaceDir,
               workspaceDir,
             })
-          : await getWorkspaceManifestByLocator({ sessionId: workspaceId, workspaceDir })
+          : await getWorkspaceManifestSnapshotByLocator({ sessionId: workspaceId, workspaceDir })
         return reply.send(manifest)
       } catch (err) {
         logger.error("workspace index manifest read failed", { err, workspaceId, workspaceDir })

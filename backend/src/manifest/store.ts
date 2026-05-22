@@ -156,11 +156,28 @@ function normalizeRecordArray<T extends { id: string }>(value: unknown): T[] {
 
 async function readManifestFile(rootDir: string, sessionIdFallback: string) {
   const resolvedRootDir = await assertManifestRootAllowed(rootDir)
-  return normalizeManifest(
+  return await pruneMissingVersionWorkspaces(normalizeManifest(
     JSON.parse(await fs.readFile(manifestPath(resolvedRootDir), "utf-8")),
     sessionIdFallback,
     resolvedRootDir,
-  )
+  ))
+}
+
+async function pruneMissingVersionWorkspaces(manifest: WorkspaceManifest) {
+  const versions: VersionRecord[] = []
+  for (const version of manifest.versions) {
+    if (await pathExists(version.workspaceDir)) versions.push(version)
+  }
+
+  const activeVersionId = versions.some(version => version.id === manifest.activeVersionId)
+    ? manifest.activeVersionId
+    : null
+
+  if (versions.length === manifest.versions.length && activeVersionId === manifest.activeVersionId) {
+    return manifest
+  }
+
+  return { ...manifest, activeVersionId, versions }
 }
 
 async function findManifestRootFromPath(workspaceDir: string) {
@@ -270,10 +287,22 @@ export async function getWorkspaceManifest(sessionId: string) {
   await fs.mkdir(rootDir, { recursive: true })
   const file = manifestPath(rootDir)
   try {
-    return normalizeManifest(JSON.parse(await fs.readFile(file, "utf-8")), trimmedSessionId, rootDir)
+    return await readManifestFile(rootDir, trimmedSessionId)
   } catch {
     return await writeManifest(emptyManifest(trimmedSessionId, rootDir))
   }
+}
+
+export async function getWorkspaceManifestSnapshotByLocator(options: {
+  sessionId?: string | null
+  workspaceDir?: string | null
+}) {
+  const rootDir = await resolveManifestRoot(options)
+  if (await pathExists(manifestPath(rootDir))) {
+    return await readManifestFile(rootDir, options.sessionId ?? path.basename(rootDir))
+  }
+  const sessionId = normalizeDirectChildName(options.sessionId ?? path.basename(rootDir), "sessionId")
+  return emptyManifest(sessionId, rootDir)
 }
 
 export async function getWorkspaceManifestByLocator(options: {
@@ -417,7 +446,7 @@ async function getManifestForBody(body: Record<string, unknown>) {
   const workspaceDir = getString(body.workspaceDir)
   const workspaceId = getString(body.workspaceId)
   const sessionId = workspaceId ?? getString(body.sessionId)
-  return await getOrCreateWorkspaceManifestByLocator({ sessionId, workspaceDir })
+  return await getWorkspaceManifestSnapshotByLocator({ sessionId, workspaceDir })
 }
 
 function assertMatchingWorkspaceDir(requestedWorkspaceDir: string | null, version: VersionRecord) {
@@ -454,15 +483,20 @@ function getVersionForRun(manifest: WorkspaceManifest, requestedVersionId: strin
 export async function resolveRunWorkspaceContext(body: Record<string, unknown>) {
   const manifest = await getManifestForBody(body)
   const requestedWorkspaceId = getString(body.workspaceId)
+  const requestedVersionId = getString(body.versionId)
+  const requestedWorkspaceDir = getString(body.workspaceDir)
   if (requestedWorkspaceId && manifest.workspaceId !== requestedWorkspaceId) {
     throw new Error(`workspaceId does not match resolved manifest: ${requestedWorkspaceId}`)
   }
-  const version = getVersionForRun(manifest, getString(body.versionId), getString(body.workspaceDir))
+  const version = getVersionForRun(manifest, requestedVersionId, requestedWorkspaceDir)
+  if ((requestedWorkspaceId || requestedVersionId || requestedWorkspaceDir) && !version) {
+    throw new Error("workspace has no active version")
+  }
   return {
     manifest,
     version,
     versionId: version?.id ?? null,
-    workspaceDir: version?.workspaceDir ?? getString(body.workspaceDir),
+    workspaceDir: version?.workspaceDir ?? requestedWorkspaceDir,
     workspaceId: manifest.workspaceId,
   }
 }
