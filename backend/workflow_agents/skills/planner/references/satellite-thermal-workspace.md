@@ -55,7 +55,7 @@ this policy.
   simulation stages.
 - Read only the specific files required by the user's requested change.
 - The planner's Markdown output must also be written here as
-  `planner_ouput.md`.
+  `planner_output.md`.
 
 `<selected version>/logs/`
 
@@ -176,7 +176,7 @@ Do not read every file by default. Route by user intent:
 
 ## Change Report Evidence
 
-For every configuration change, `00_inputs/planner_ouput.md` should briefly cite:
+For every configuration change, `00_inputs/planner_output.md` should briefly cite:
 
 - The user request that required the change.
 - The exact config file and field changed.

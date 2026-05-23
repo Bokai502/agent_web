@@ -1,71 +1,64 @@
 # Thermal Simulation Agent Workflow
 
-Main Chain: Agent Workflow = Planner + Executer + Reviewer
+## Goal
 
-Debug Chain: Debug Workflow = Debugger -> Planner + Executer -> check result -> repeat if needed
+Coordinate planning, CAD generation, thermal simulation, debugging, and reporting for the selected workspace/version.
 
-Debug loop:
-1. Debugger reads the failing artifact or error file and explains the root cause with evidence.
-2. Debugger writes concrete modification suggestions for the next Planner run.
-3. Planner updates `00_inputs` and writes `00_inputs/planner_ouput.md`.
-4. Executer runs the CAD/simulation workflow from the updated `00_inputs`.
-5. If validation succeeds, continue to the next normal workflow step.
-6. If validation still fails, return to step 1 with the newest error file and repeat Debugger -> Planner + Executer.
+## Stages
 
+| Stage | Skill | Responsibility | Main Outputs |
+| --- | --- | --- | --- |
+| Planner | `planner` | Convert the user goal or Debugger suggestions into configuration updates. | `00_inputs/planner_output.md`, updated config files |
+| Executor | `freecad`, `simulation-skill` | Build or validate CAD artifacts, run simulation, and validate generated artifacts. | `01_cad`, `02_sim` |
+| Debugger | none required | Explain failures from concrete artifacts and propose changes for Planner. | root-cause analysis, Planner suggestions |
+| Reviewer | `cad-sim-report-agent` | Review completed `00_inputs`, `01_cad`, and `02_sim` artifacts and write final reports. | `reports` |
 
-## 0. Debugger
+## Main Flow
 
-When to invoke: an error file, failed validation, failed CAD build, failed simulation run, or inconsistent artifact is present.
+1. Run Planner.
+2. Run Executor.
+3. If Executor fails, run the Debug loop.
+4. Run Reviewer only after required execution artifacts exist and validate.
 
-Skill: none required. Use direct evidence from the failed artifact first.
+## Debug Loop
 
-Inputs:
-- failed file, for example `01_cad/cad_agent_output.json`
-- related inputs from `00_inputs`
-- related outputs from `01_cad` or `02_sim`
+Use the newest failing artifact or error file as the current failure.
 
-Outputs:
-- root-cause explanation with file paths and exact evidence
-- concrete modification suggestions for Planner
-- decision: continue normal workflow if no issue remains, or run Planner + Executer again
+Repeat up to 3 times:
 
-## 1. Planner
+1. Debugger explains the root cause using file paths and evidence.
+2. Debugger gives concrete modification suggestions for Planner.
+3. Planner applies the needed configuration updates and writes `00_inputs/planner_output.md`.
+4. Executor reruns from the updated inputs.
+5. Stop the loop when Executor succeeds.
 
-When to invoke: define the thermal simulation task, inputs, constraints, and execution plan.
+If all attempts fail, stop and report the unresolved failure with the latest failing artifact.
 
-Skill: `planner`.
+## Hard Rules
 
-Inputs:
-- user goal, `00_inputs`
+- Always use the selected workspace/version. Do not rely on global config defaults when a request-scoped workspace is available.
+- Do not mix artifacts across versions.
+- Planner owns configuration updates.
+- Executor owns CAD and simulation commands.
+- Debugger must not edit configuration files directly.
+- Reviewer must report from existing artifacts; it must not rerun or mutate the workflow.
+- Use the relevant skill instructions for detailed command syntax, validation rules, and output expectations.
 
-Outputs:
-- `00_inputs/planner_ouput.md`
+## Required Artifacts
 
-## 2. Executer
+Planner requires:
 
-When to invoke: prepare the model, run the simulation, and generate result artifacts according to the Planner output.
-
-Skill:
-- `freecad`
-- `simulation-skill`
-
-Inputs:
 - `00_inputs`
+- user goal or Debugger suggestions
 
-Outputs:
-- `01_cad`
-- `02_sim`
+Executor requires:
 
-## 3. Reviewer
+- `00_inputs`
+- valid or rebuildable `01_cad`
 
-When to invoke: review the execution results and produce the final report.
+Reviewer requires:
 
-Skill: `cad-sim-report-agent`.
-
-Inputs:
 - `00_inputs`
 - `01_cad`
 - `02_sim`
 
-Outputs:
-- `reports`

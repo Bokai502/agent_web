@@ -1,6 +1,6 @@
 ---
 name: planner
-description: "Plan satellite thermal simulation config updates from workspace inputs and logs, then write planner_ouput.md explaining the changes."
+description: "Plan satellite thermal simulation config updates from workspace inputs and logs, then write planner_output.md explaining the changes."
 ---
 
 # Planner
@@ -22,7 +22,7 @@ Use this skill for satellite thermal simulation configuration planning.
 7. Write the result to:
 
 ```text
-<selected version workspace>/00_inputs/planner_ouput.md
+<selected version workspace>/00_inputs/planner_output.md
 ```
 
 Use `templates/planner_report_template.md` for the output shape.
@@ -34,6 +34,6 @@ Use `templates/planner_report_template.md` for the output shape.
   If the component is not present in that database, do not add it.
 - Preserve unknown config fields and existing structure.
 - If evidence is missing or conflicting, make the smallest reasonable change
-  and record the assumption in `planner_ouput.md`.
+  and record the assumption in `planner_output.md`.
 - Keep the final chat response brief: changed config file, output path, and
   validation result.
