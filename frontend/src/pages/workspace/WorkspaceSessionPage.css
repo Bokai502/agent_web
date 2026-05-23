@@ -1011,11 +1011,23 @@ button.wa-run-card.selected {
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.025);
 }
-.wa-current-context div {
+.wa-current-context button {
+  position: relative;
   min-width: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   padding: 10px 12px;
+  text-align: left;
 }
-.wa-current-context div + div {
+.wa-current-context button:hover {
+  background: rgba(0, 0, 0, 0.035);
+}
+.wa-current-context button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+.wa-current-context button + button {
   border-left: 1px solid rgba(0, 0, 0, 0.06);
 }
 .wa-current-context span {
@@ -1028,6 +1040,7 @@ button.wa-run-card.selected {
 .wa-current-context strong {
   display: block;
   overflow: hidden;
+  max-width: calc(100% - 22px);
   margin-top: 6px;
   color: #1d1d1f;
   font-size: 14px;
@@ -1035,43 +1048,11 @@ button.wa-run-card.selected {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.wa-version-toggle {
+.wa-current-context em {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 18px;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 28px;
-  margin-top: 8px;
-  border: 0;
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.04);
-  color: #4f4f54;
-  cursor: pointer;
-  padding: 0 8px;
-  text-align: left;
-  font-size: 11.5px;
-  font-weight: 700;
-}
-.wa-version-toggle:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-.wa-version-toggle span,
-.wa-version-toggle strong,
-.wa-version-toggle em {
-  min-width: 0;
-}
-.wa-version-toggle strong {
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.68);
-  color: #5f6368;
-  padding: 1px 6px;
-  font-size: 11px;
-  line-height: 18px;
-}
-.wa-version-toggle em {
-  display: grid;
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
   width: 18px;
   height: 18px;
   place-items: center;
@@ -1086,11 +1067,33 @@ button.wa-run-card.selected {
   color: #b42318 !important;
   font-weight: 650;
 }
-.wa-branch-workspaces,
-.wa-version-branches {
+.wa-context-popover {
   display: grid;
   gap: 8px;
   margin-top: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.74);
+  padding: 10px;
+}
+.wa-context-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #6e6e73;
+  font-size: 11px;
+  font-weight: 800;
+}
+.wa-context-popover-header strong {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.055);
+  color: #4f4f54;
+  font-size: 11px;
 }
 .wa-branch-workspace-row {
   display: grid;

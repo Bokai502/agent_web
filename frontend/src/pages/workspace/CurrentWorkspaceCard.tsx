@@ -76,29 +76,34 @@ export function CurrentWorkspaceCard({
       </div>
       {manifestLoading && <p>正在加载版本状态...</p>}
       <div className="wa-current-context">
-        <div>
-          <span>工作区</span>
+        <button
+          type="button"
+          disabled={workspaceChanging}
+          onClick={onToggleWorkspaceList}
+          aria-expanded={workspaceListOpen}
+          aria-label={workspaceListOpen ? "收起数据源" : "选择数据源"}
+        >
+          <span>数据源</span>
           <strong>{currentWorkspaceName}</strong>
-        </div>
-        <div>
+          <em>{workspaceListOpen ? "⌃" : "⌄"}</em>
+        </button>
+        <button
+          type="button"
+          onClick={onToggleVersionList}
+          aria-expanded={versionListOpen}
+          aria-label={versionListOpen ? "收起版本" : "选择版本"}
+        >
           <span>版本</span>
           <strong>{branchManifest?.activeVersionId ?? "-"}</strong>
-        </div>
+          <em>{versionListOpen ? "⌃" : "⌄"}</em>
+        </button>
       </div>
-      <button
-        type="button"
-        className="wa-version-toggle"
-        disabled={workspaceChanging}
-        onClick={onToggleWorkspaceList}
-        aria-expanded={workspaceListOpen}
-        aria-label={workspaceListOpen ? "收起工作区" : "展开工作区"}
-      >
-        <span>工作区</span>
-        <strong>{workspaceItems.length}</strong>
-        <em>{workspaceListOpen ? "-" : "+"}</em>
-      </button>
       {workspaceListOpen && (
-        <div className="wa-branch-workspaces">
+        <div className="wa-context-popover">
+          <div className="wa-context-popover-header">
+            <span>选择数据源</span>
+            <strong>{workspaceItems.length}</strong>
+          </div>
           {workspaceItems.length > 0 ? workspaceItems.map(item => (
             <button
               type="button"
@@ -122,19 +127,12 @@ export function CurrentWorkspaceCard({
         </div>
       )}
       {versionError && <p className="wa-version-error">{versionError}</p>}
-      <button
-        type="button"
-        className="wa-version-toggle"
-        onClick={onToggleVersionList}
-        aria-expanded={versionListOpen}
-        aria-label={versionListOpen ? "收起版本" : "展开版本"}
-      >
-        <span>版本</span>
-        <strong>{branchManifest?.versions?.length ?? 0}</strong>
-        <em>{versionListOpen ? "-" : "+"}</em>
-      </button>
       {versionListOpen && (
-        <div className="wa-version-branches">
+        <div className="wa-context-popover">
+          <div className="wa-context-popover-header">
+            <span>选择版本</span>
+            <strong>{branchManifest?.versions?.length ?? 0}</strong>
+          </div>
           <div className="wa-version-create-actions">
             <button
               type="button"
