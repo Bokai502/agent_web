@@ -63,6 +63,25 @@ type ViewerComponentMessage = {
   type?: unknown
 }
 
+type ViewerMode = "freecad" | "temperature"
+
+type TemperatureField = {
+  attributes?: {
+    color_rgb?: unknown
+    position?: unknown
+    temperature_K?: unknown
+  }
+  bounds?: {
+    max?: unknown
+    min?: unknown
+  }
+  point_count?: unknown
+  temperature_range_K?: {
+    max?: unknown
+    min?: unknown
+  }
+}
+
 function asText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : "-"
 }
@@ -97,6 +116,17 @@ function parseComponentDetails(data: RawComponentInfo) {
   return detailsById
 }
 
+function mapBodyXyzToViewerPositions(positions: number[]) {
+  const mapped: number[] = []
+  for (let index = 0; index < positions.length; index += 3) {
+    const x = positions[index]
+    const y = positions[index + 1]
+    const z = positions[index + 2]
+    mapped.push(x, z, -y)
+  }
+  return mapped
+}
+
 export default function ModelViewerPage() {
   const mountRef = useRef<HTMLDivElement>(null)
   const axisSvgRef = useRef<SVGSVGElement>(null)
@@ -112,6 +142,13 @@ export default function ModelViewerPage() {
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving FreeCAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [viewerMode, setViewerMode] = useState<ViewerMode>("freecad")
+  const [temperatureRange, setTemperatureRange] = useState<{ max: number; min: number } | null>(null)
+  const viewerModeRef = useRef<ViewerMode>("freecad")
+
+  useEffect(() => {
+    viewerModeRef.current = viewerMode
+  }, [viewerMode])
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") return
@@ -157,6 +194,9 @@ export default function ModelViewerPage() {
     let controls: OrbitControls | null = null
     let domElement: HTMLCanvasElement | null = null
     let modelRoot: THREE.Object3D | null = null
+    let temperatureRoot: THREE.Points | null = null
+    let temperatureFieldLoaded = false
+    let temperatureFieldLoading = false
     let loadingMesh: THREE.Mesh | null = null
     let currentModelVersion: string | null = null
     let modelRefreshInFlight = false
@@ -180,6 +220,19 @@ export default function ModelViewerPage() {
       renderRequested = true
     }
 
+    const setSceneMode = (mode: ViewerMode) => {
+      if (modelRoot) modelRoot.visible = mode === "freecad"
+      if (temperatureRoot) temperatureRoot.visible = mode === "temperature"
+      annotationLabels.style.display = mode === "freecad" ? "block" : "none"
+      annotationSvg.style.display = mode === "freecad" ? "block" : "none"
+      if (mode === "temperature") {
+        clearModelHighlight()
+        setSelectedComponent(null)
+      }
+      markAnnotationsDirty()
+      requestRender()
+    }
+
     const markAnnotationsDirty = () => {
       annotationsNeedLayout = true
       requestRender()
@@ -197,6 +250,101 @@ export default function ModelViewerPage() {
       annotationsNeedLayout = false
       annotationLabels.replaceChildren()
       annotationSvg.replaceChildren()
+    }
+
+    const buildTemperatureFieldUrl = () => {
+      const queryParams = new URLSearchParams()
+      if (workspaceId) queryParams.set("workspaceId", workspaceId)
+      if (versionId) queryParams.set("versionId", versionId)
+      if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
+      const query = queryParams.toString()
+      return `/api/freecad/temperature-field${query ? `?${query}` : ""}`
+    }
+
+    const parseNumericArray = (value: unknown) => (
+      Array.isArray(value)
+        ? value.filter((item): item is number => typeof item === "number" && Number.isFinite(item))
+        : []
+    )
+
+    const loadTemperatureField = async (scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
+      if (temperatureFieldLoaded || temperatureFieldLoading) return
+      temperatureFieldLoading = true
+      setStatusMessage("Loading temperature field...")
+      try {
+        const response = await fetch(buildTemperatureFieldUrl(), {
+          cache: "no-store",
+          signal: modelRequest.signal,
+        })
+        if (!response.ok) throw new Error("Temperature field result is unavailable.")
+        const data = await response.json() as TemperatureField
+        const positions = parseNumericArray(data.attributes?.position)
+        const colors = parseNumericArray(data.attributes?.color_rgb)
+        const temperatures = parseNumericArray(data.attributes?.temperature_K)
+        if (positions.length < 3 || positions.length % 3 !== 0) {
+          throw new Error("Temperature field has no renderable points.")
+        }
+        if (colors.length !== positions.length) {
+          throw new Error("Temperature field color data is incomplete.")
+        }
+        const viewerPositions = mapBodyXyzToViewerPositions(positions)
+
+        const geometry = new THREE.BufferGeometry()
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(viewerPositions, 3))
+        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3))
+        geometry.computeBoundingBox()
+
+        const material = new THREE.PointsMaterial({
+          size: 0.018,
+          sizeAttenuation: true,
+          vertexColors: true,
+        })
+        const points = new THREE.Points(geometry, material)
+        points.visible = viewerModeRef.current === "temperature"
+
+        const box = geometry.boundingBox ?? new THREE.Box3().setFromBufferAttribute(geometry.getAttribute("position") as THREE.BufferAttribute)
+        const size = box.getSize(new THREE.Vector3())
+        const center = box.getCenter(new THREE.Vector3())
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const scale = maxDim > 0 ? 3.5 / maxDim : 1
+        points.scale.setScalar(scale)
+        points.position.sub(center.multiplyScalar(scale))
+        const groundedBox = new THREE.Box3().setFromObject(points)
+        points.position.y -= groundedBox.min.y
+
+        temperatureRoot = points
+        temperatureFieldLoaded = true
+        const tempMin = typeof data.temperature_range_K?.min === "number"
+          ? data.temperature_range_K.min
+          : temperatures.length ? Math.min(...temperatures) : 0
+        const tempMax = typeof data.temperature_range_K?.max === "number"
+          ? data.temperature_range_K.max
+          : temperatures.length ? Math.max(...temperatures) : 0
+        setTemperatureRange({ max: tempMax, min: tempMin })
+        scene.add(points)
+
+        const sphere = new THREE.Sphere()
+        new THREE.Box3().setFromObject(points).getBoundingSphere(sphere)
+        const radius = Math.max(sphere.radius, 0.2)
+        if (viewerModeRef.current === "temperature") {
+          camera.position.set(
+            sphere.center.x + radius * 2.2,
+            sphere.center.y + radius * 1.4,
+            sphere.center.z + radius * 2.2,
+          )
+          controls?.target.copy(sphere.center)
+          controls?.update()
+        }
+        setStatusMessage("")
+        setSceneMode(viewerModeRef.current)
+        requestRender()
+      } catch (error) {
+        if (disposed || modelRequest.signal.aborted) return
+        setErrorMessage(error instanceof Error ? error.message : "Temperature field load failed.")
+        if (viewerModeRef.current === "temperature") setStatusMessage("")
+      } finally {
+        temperatureFieldLoading = false
+      }
     }
 
     const updateAxisOverlay = (camera: THREE.PerspectiveCamera) => {
@@ -664,6 +812,7 @@ export default function ModelViewerPage() {
 
         scene.add(model)
         addLightweightMeshEdges(model)
+        setSceneMode(viewerModeRef.current)
 
         const sphere = new THREE.Sphere()
         new THREE.Box3().setFromObject(model).getBoundingSphere(sphere)
@@ -770,6 +919,14 @@ export default function ModelViewerPage() {
           })
       }
 
+      const handleModeChange = () => {
+        setSceneMode(viewerModeRef.current)
+        if (viewerModeRef.current === "temperature") {
+          void loadTemperatureField(scene, camera)
+        }
+      }
+
+      window.addEventListener("viewer3d:mode-change", handleModeChange)
       refreshLatestModel("initial")
 
       if (modelSource.autoRefresh) {
@@ -781,6 +938,7 @@ export default function ModelViewerPage() {
       return () => {
         resizeObserver.disconnect()
         window.removeEventListener("message", handleComponentMessage)
+        window.removeEventListener("viewer3d:mode-change", handleModeChange)
         controls?.removeEventListener("change", markAnnotationsDirty)
         controls?.removeEventListener("start", requestRender)
         controls?.removeEventListener("end", requestRender)
@@ -814,10 +972,14 @@ export default function ModelViewerPage() {
       disposeResize?.()
       clearModelHighlight()
       clearAnnotations()
+      setTemperatureRange(null)
       controls?.dispose()
       renderer?.setAnimationLoop(null)
       if (lookupInterval) clearInterval(lookupInterval)
       disposeModelResources(modelRoot)
+      if (temperatureRoot) {
+        disposeModelResources(temperatureRoot)
+      }
 
       disposableResources.forEach((resource) => resource.dispose())
       renderer?.dispose()
@@ -826,7 +988,11 @@ export default function ModelViewerPage() {
         mount.removeChild(domElement)
       }
     }
-  }, [modelVariant])
+  }, [modelVariant, versionId, workspaceDir, workspaceId])
+
+  useEffect(() => {
+    window.dispatchEvent(new Event("viewer3d:mode-change"))
+  }, [viewerMode])
 
   return (
     <div
@@ -839,6 +1005,91 @@ export default function ModelViewerPage() {
       }}
     >
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+
+      <div
+        style={{
+          position: "absolute",
+          left: 18,
+          top: 18,
+          display: "flex",
+          gap: 6,
+          padding: 4,
+          borderRadius: 8,
+          background: "rgba(6, 12, 27, 0.74)",
+          border: "1px solid rgba(122, 148, 212, 0.28)",
+          backdropFilter: "blur(12px)",
+          pointerEvents: "auto",
+        }}
+      >
+        {([
+          ["freecad", "FreeCAD"],
+          ["temperature", "Thermal"],
+        ] as const).map(([mode, label]) => {
+          const active = viewerMode === mode
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewerMode(mode)}
+              style={{
+                minWidth: 92,
+                height: 32,
+                border: "1px solid rgba(143, 172, 230, 0.28)",
+                borderRadius: 6,
+                background: active ? "rgba(65, 167, 255, 0.24)" : "rgba(11, 21, 45, 0.68)",
+                color: active ? "#f4f9ff" : "rgba(211, 226, 255, 0.78)",
+                cursor: "pointer",
+                fontFamily: "\"IBM Plex Sans\", system-ui, sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+
+      {viewerMode === "temperature" && temperatureRange && (
+        <div
+          style={{
+            position: "absolute",
+            left: 18,
+            bottom: 18,
+            display: "grid",
+            gap: 8,
+            width: 220,
+            padding: "12px",
+            borderRadius: 8,
+            background: "rgba(6, 12, 27, 0.74)",
+            border: "1px solid rgba(122, 148, 212, 0.28)",
+            backdropFilter: "blur(12px)",
+            color: "#d9e6ff",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              height: 10,
+              borderRadius: 999,
+              background: "linear-gradient(90deg, #0066ff 0%, #00d4ff 35%, #23d66b 50%, #f4d03f 70%, #ff3b30 100%)",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.16) inset",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
+              fontSize: 11,
+              color: "rgba(218, 231, 255, 0.82)",
+            }}
+          >
+            <span>{temperatureRange.min.toFixed(2)} K</span>
+            <span>{temperatureRange.max.toFixed(2)} K</span>
+          </div>
+        </div>
+      )}
 
       <svg
         ref={axisSvgRef}

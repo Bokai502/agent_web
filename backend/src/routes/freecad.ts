@@ -95,6 +95,7 @@ const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "g
 const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const DEFAULT_PROGRESS_PERCENTAGES_RELATIVE_PATH = path.join("logs", "progress_percentages.json")
+const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "postprocess", "temperature_field_threejs.json")
 const DEFAULT_GEOMETRY_AFTER_GLB_RELATIVE_PATHS = [
   path.join("01_cad", "geometry_after.glb"),
   path.join("02_geometry_edit", "geometry_after.glb"),
@@ -915,6 +916,29 @@ export async function freecadRoutes(fastify: FastifyInstance) {
           return reply.status(err.statusCode).send({ error: err.message })
         }
         return reply.status(404).send({ error: "glb file not found" })
+      }
+    },
+  )
+
+  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>(
+    "/api/freecad/temperature-field",
+    async (req, reply) => {
+      try {
+        const workspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
+        const fieldPath = resolveScopedWorkspaceFilePath(DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH, workspaceDir)
+        if (!fieldPath) {
+          return reply.status(404).send({ error: "temperature field not found" })
+        }
+
+        const data = JSON.parse(await fs.readFile(fieldPath, "utf-8")) as unknown
+        reply.header("Content-Type", "application/json; charset=utf-8")
+        reply.header("Cache-Control", "no-cache")
+        return reply.send(data)
+      } catch (err) {
+        if (err instanceof WorkspaceQueryError) {
+          return reply.status(err.statusCode).send({ error: err.message })
+        }
+        return reply.status(404).send({ error: "temperature field not found" })
       }
     },
   )
