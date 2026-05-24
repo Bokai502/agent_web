@@ -1,6 +1,6 @@
 # Satellite Thermal Workspace Reference
 
-This planner currently supports one fixed task family: satellite thermal
+This config editor currently supports one fixed task family: satellite thermal
 simulation configuration. Use this reference to locate the correct workspace
 and version, choose which configuration/history files to read, and understand
 what each file contains.
@@ -36,7 +36,7 @@ If `version_id` is missing, use the active version from the workspace manifest
 when available. If no active version can be identified, stop and ask for the
 workspace/version context instead of guessing.
 
-For this planner task, the configuration source is always the initial version:
+For this config-editing task, the configuration source is always the initial version:
 
 ```text
 <workspace root>/workspaces/<workspace_id>/versions/v0001/00_inputs
@@ -54,8 +54,8 @@ this policy.
 - Contains component, geometry, and layout/topology data used by CAD and
   simulation stages.
 - Read only the specific files required by the user's requested change.
-- The planner's Markdown output must also be written here as
-  `planner_output.md`.
+- The config editor's Markdown output must also be written here as
+  `config_editor_output.md`.
 
 `<selected version>/logs/`
 
@@ -176,7 +176,7 @@ Do not read every file by default. Route by user intent:
 
 ## Change Report Evidence
 
-For every configuration change, `00_inputs/planner_output.md` should briefly cite:
+For every configuration change, `00_inputs/config_editor_output.md` should briefly cite:
 
 - The user request that required the change.
 - The exact config file and field changed.

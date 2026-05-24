@@ -21,7 +21,7 @@ async function getResponseErrorMessage(response: Response) {
 }
 
 export function useCodexStream() {
-  const abortRef = useRef<AbortController | null>(null)
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map())
 
   const run = useCallback(async (
     promptOrInput: string | CodexInputItem[],
@@ -38,9 +38,9 @@ export function useCodexStream() {
     onEvent: (event: ThreadEvent) => void,
     onDone: () => void
   ) => {
-    abortRef.current?.abort()
+    abortControllersRef.current.get(sessionId)?.abort()
     const controller = new AbortController()
-    abortRef.current = controller
+    abortControllersRef.current.set(sessionId, controller)
 
     // 防止 onDone 被调用两次（turn.completed 提前触发 + finally 兜底）
     let doneCalled = false
@@ -108,13 +108,22 @@ export function useCodexStream() {
         onEvent({ type: "error", message: String(err) })
       }
     } finally {
+      if (abortControllersRef.current.get(sessionId) === controller) {
+        abortControllersRef.current.delete(sessionId)
+      }
       // 兜底：如果没有收到 turn.completed（网络中断等），仍然结束
       callDoneOnce()
     }
   }, [])
 
-  const abort = useCallback(() => {
-    abortRef.current?.abort()
+  const abort = useCallback((sessionId?: string | null) => {
+    if (sessionId) {
+      abortControllersRef.current.get(sessionId)?.abort()
+      return
+    }
+    for (const controller of abortControllersRef.current.values()) {
+      controller.abort()
+    }
   }, [])
 
   return { run, abort }

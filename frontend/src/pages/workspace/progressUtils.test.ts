@@ -8,6 +8,35 @@ import {
 } from "./progressUtils"
 
 describe("progressUtils", () => {
+  it("parses loop progress from logs/progress.json", () => {
+    const entries = getWorkflowProgressEntries(getProgressEntries({
+      schema_version: "loop_progress/1.0",
+      updated_at: "2026-05-23T15:57:50Z",
+      loops: {
+        create_cad: {
+          status: "completed",
+          completed: true,
+          percentage: 100,
+        },
+        simulation: {
+          status: "simulation_running",
+          completed: false,
+          percentage: 70,
+        },
+      },
+    }, i18n.t), i18n.t)
+
+    expect(Object.fromEntries(entries.map(entry => [entry.key, entry.percent]))).toMatchObject({
+      modeling: 100,
+      validation: 100,
+      simulation_run: 100,
+      field_export: 0,
+      postprocess: 0,
+      case_build: 0,
+      analysis: 0,
+    })
+  })
+
   it("parses the pipeline progress file with nested FreeCAD outputs", () => {
     const data = {
       schema_version: "1.0",

@@ -671,7 +671,7 @@ export async function registerExistingArtifacts(versionId: string, body: Record<
     "02_sim/analysis/metrics_summary.json",
     "02_sim/analysis/anomaly_candidates.json",
     "02_sim/analysis/diagnosis.json",
-    "logs/progress_percentages.json",
+    "logs/progress.json",
   ]
   const artifacts: ArtifactRecord[] = []
   for (const relativePath of common) {

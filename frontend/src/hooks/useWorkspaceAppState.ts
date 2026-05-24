@@ -111,6 +111,8 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
   const currentPromptRef = useRef("")
   const currentTurnIdRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
+  const runningSessionIdRef = useRef<string | null>(null)
+  const runningWorkspaceRef = useRef<SessionWorkspace | null>(null)
   const sessionsRef = useRef<Session[]>(sessions)
 
   const batchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -225,11 +227,10 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     setActiveSessionId(null)
     activeSessionIdRef.current = null
     updateBrowserPath(null, false, homePath)
-    resetLiveTurn()
+    if (!runningSessionIdRef.current) resetLiveTurn()
   }, [homePath, resetLiveTurn])
 
   const handleClearActiveSession = useCallback(() => {
-    if (running) return
     if (batchTimerRef.current) {
       clearTimeout(batchTimerRef.current)
       batchTimerRef.current = null
@@ -239,8 +240,8 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
       activeSessionIdRef.current = null
       updateBrowserPath(null, false, homePath)
     }
-    resetLiveTurn()
-  }, [homePath, resetLiveTurn, running])
+    if (!runningSessionIdRef.current) resetLiveTurn()
+  }, [homePath, resetLiveTurn])
 
   const handleSelect = useCallback((id: string) => {
     if (running) return
@@ -255,8 +256,6 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
   }, [homePath, resetLiveTurn, running])
 
   const handleSelectWorkspaceSession = useCallback((workspace: SessionWorkspace) => {
-    if (running) return
-
     const workspaceDir = normalizeWorkspaceDir(workspace.workspaceDir)
     const workspaceId = normalizeId(workspace.workspaceId)
     const versionId = normalizeId(workspace.versionId)
@@ -283,8 +282,8 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     setActiveSessionId(nextSessionId)
     activeSessionIdRef.current = nextSessionId
     updateBrowserPath(nextSessionId, false, homePath)
-    resetLiveTurn()
-  }, [homePath, resetLiveTurn, running])
+    if (!runningSessionIdRef.current) resetLiveTurn()
+  }, [homePath, resetLiveTurn])
 
   const handleAssignSessionWorkspace = useCallback((id: string, workspace: SessionWorkspace) => {
     setSessions(prev => prev.map(session => {
@@ -303,7 +302,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
 
   const handleDelete = useCallback(async (id: string) => {
     if (id === activeSessionIdRef.current && running) {
-      abort()
+      abort(id)
     }
 
     const previousSessions = sessionsRef.current
@@ -347,6 +346,12 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     const workspaceDir = normalizeWorkspaceDir(workspace?.workspaceDir)
     const workspaceId = normalizeId(workspace?.workspaceId)
     const versionId = normalizeId(workspace?.versionId)
+    const workspaceForRun: SessionWorkspace = {
+      workspaceDir,
+      workspaceId,
+      workspaceName: workspace?.workspaceName ?? null,
+      versionId,
+    }
     let sid = activeSessionIdRef.current
     let threadIdForRun: string | null = null
     const turnIdForRun = generateId()
@@ -399,7 +404,44 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     currentEventsRef.current = []
     currentPromptRef.current = prompt
     currentTurnIdRef.current = turnIdForRun
+    runningSessionIdRef.current = sid
+    runningWorkspaceRef.current = workspaceForRun
     setRunning(true)
+    let runEvents: ThreadEvent[] = []
+    let livePersistTimer: ReturnType<typeof setTimeout> | null = null
+    let lastPersistedEventCount = 0
+
+    const persistLiveTurn = (immediate = false) => {
+      const write = () => {
+        livePersistTimer = null
+        if (runEvents.length === lastPersistedEventCount && !immediate) return
+        const session = sessionsRef.current.find(item => item.id === sid)
+        if (!session) return
+        const liveTurn: Turn = {
+          id: turnIdForRun,
+          userPrompt: prompt,
+          events: runEvents,
+        }
+        const turns = session.turns.some(turn => turn.id === turnIdForRun)
+          ? session.turns.map(turn => turn.id === turnIdForRun ? liveTurn : turn)
+          : [...session.turns, liveTurn]
+        saveSession({ ...session, turns }, true)
+        lastPersistedEventCount = runEvents.length
+      }
+
+      if (immediate) {
+        if (livePersistTimer) {
+          clearTimeout(livePersistTimer)
+          livePersistTimer = null
+        }
+        write()
+        return
+      }
+
+      if (!livePersistTimer) {
+        livePersistTimer = setTimeout(write, 1000)
+      }
+    }
 
     run(
       input,
@@ -407,12 +449,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
       threadIdForRun,
       turnIdForRun,
       enabledSkills,
-      {
-        workspaceDir,
-        workspaceId,
-        workspaceName: workspace?.workspaceName ?? null,
-        versionId,
-      },
+      workspaceForRun,
       event => {
         if (shouldSuppressEvent(event)) return
 
@@ -421,7 +458,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
           if (tid) {
             setSessions(prev =>
               prev.map(session => {
-                if (session.id !== activeSessionIdRef.current) return session
+                if (session.id !== sid) return session
                 const nextSession = { ...session, threadId: tid }
                 saveSession(nextSession)
                 return nextSession
@@ -430,7 +467,11 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
           }
         }
 
-        currentEventsRef.current = [...currentEventsRef.current, event]
+        runEvents = [...runEvents, event]
+        if (runningSessionIdRef.current === sid) {
+          currentEventsRef.current = runEvents
+        }
+        persistLiveTurn()
 
         if (
           event.type === "turn.completed" ||
@@ -441,11 +482,11 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
             clearTimeout(batchTimerRef.current)
             batchTimerRef.current = null
           }
-          setCurrentEvents([...currentEventsRef.current])
+          if (runningSessionIdRef.current === sid) setCurrentEvents(runEvents)
         } else if (!batchTimerRef.current) {
           batchTimerRef.current = setTimeout(() => {
             batchTimerRef.current = null
-            setCurrentEvents([...currentEventsRef.current])
+            if (runningSessionIdRef.current === sid) setCurrentEvents(runEvents)
           }, 80)
         }
       },
@@ -454,24 +495,32 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
           clearTimeout(batchTimerRef.current)
           batchTimerRef.current = null
         }
+        if (livePersistTimer) {
+          clearTimeout(livePersistTimer)
+          livePersistTimer = null
+        }
 
         const completedTurn: Turn = {
-          id: currentTurnIdRef.current ?? generateId(),
-          userPrompt: currentPromptRef.current,
-          events: currentEventsRef.current,
+          id: turnIdForRun,
+          userPrompt: prompt,
+          events: runEvents,
         }
 
         setSessions(prev =>
           prev.map(session => {
-            if (session.id !== activeSessionIdRef.current) return session
+            if (session.id !== sid) return session
             const nextSession = { ...session, turns: [...session.turns, completedTurn] }
             saveSession(nextSession, true)
             return nextSession
           })
         )
 
-        resetLiveTurn()
-        setRunning(false)
+        if (runningSessionIdRef.current === sid) {
+          resetLiveTurn()
+          runningSessionIdRef.current = null
+          runningWorkspaceRef.current = null
+          setRunning(false)
+        }
       }
     )
   }, [homePath, resetLiveTurn, run, saveSession, sessions])
@@ -492,6 +541,8 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     isMobile,
     pendingAskUser,
     running,
+    runningSessionId: runningSessionIdRef.current,
+    runningWorkspace: runningWorkspaceRef.current,
     sessionsLoaded,
     sortedSessions,
     turns,

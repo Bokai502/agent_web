@@ -1,4 +1,4 @@
-# Planner Output
+# Config Editor Output
 
 Generated: `<ISO-8601 timestamp>`
 

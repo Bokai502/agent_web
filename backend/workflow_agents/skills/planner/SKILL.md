@@ -1,39 +1,78 @@
 ---
 name: planner
-description: "Plan satellite thermal simulation config updates from workspace inputs and logs, then write planner_output.md explaining the changes."
+description: "Plan CAD and thermal simulation workflow steps from the user's goal, workspace context, and failure evidence without editing configuration files."
 ---
 
 # Planner
 
-Use this skill for satellite thermal simulation configuration planning.
+Use this skill to decide what the CAD/thermal workflow should do before any
+configuration edits or execution commands run.
+
+## Workflow
+
+Coordinate planning, configuration editing, CAD generation, thermal simulation,
+debugging, and reporting for the selected workspace/version.
+
+| Stage | Skill | Responsibility | Main Outputs |
+| --- | --- | --- | --- |
+| Planner | `planner` | Convert the user goal or Debugger suggestions into a concrete CAD/simulation execution plan. | plan summary and ordered next steps |
+| Config Editor | `config-editor` | Apply the plan's required configuration updates to workspace inputs. | `00_inputs/config_editor_output.md`, updated config files |
+| Executor | `freecad`, `simulation-skill` | Build or validate CAD artifacts, run simulation, and validate generated artifacts. | `01_cad`, `02_sim` |
+| Debugger | none required | Explain failures from concrete artifacts and propose changes for Planner. | root-cause analysis, Planner suggestions |
+| Reviewer | `cad-sim-report-agent` | Review completed `00_inputs`, `01_cad`, and `02_sim` artifacts and write final reports. | `reports` |
+
+Main flow:
+
+1. Run Planner.
+2. Run Config Editor when the plan requires input configuration changes.
+3. Run Executor.
+4. If Executor fails, run the Debug loop.
+5. Run Reviewer only after required execution artifacts exist and validate.
+
+Debug loop, up to 3 attempts:
+
+1. Debugger explains the root cause using file paths and evidence.
+2. Debugger gives concrete modification suggestions for Planner.
+3. Planner updates the execution plan.
+4. Config Editor applies needed configuration updates and writes
+   `00_inputs/config_editor_output.md`.
+5. Executor reruns from the updated inputs.
+6. Stop the loop when Executor succeeds.
+
+If all attempts fail, stop and report the unresolved failure with the latest
+failing artifact.
 
 ## Flow
 
-1. Read `references/satellite-thermal-workspace.md`.
-2. Resolve the workspace/version from `workspace_id`, `version_id`, and
-   `workspace_dir`.
-3. Read only the relevant files from `v0001/00_inputs` and the selected
-   version's `logs`.
-4. If component information must be queried or added beyond `real_bom.json`,
-   review `references/热仿真数据库_headers.md`, then look it up in
-   `references/热仿真数据库.json`.
-5. Update only the configuration fields needed for the user's request.
-6. Validate edited config syntax when possible.
-7. Write the result to:
-
-```text
-<selected version workspace>/00_inputs/planner_output.md
-```
-
-Use `templates/planner_report_template.md` for the output shape.
+1. Resolve the selected `workspace_dir`, `workspace_id`, and `version_id` from
+   the execution context.
+2. Inspect only lightweight workspace state needed to plan: manifest metadata,
+   `00_inputs` filenames, progress summaries, stage result summaries, and
+   failure snippets when relevant.
+3. Convert the user goal or Debugger suggestions into an ordered plan.
+4. Identify which specialist should perform each step:
+   - `config-editor` for `00_inputs` configuration changes.
+   - `freecad` for CAD build, validation, geometry edits, and visual checks.
+   - `simulation-skill` for thermal simulation and postprocess artifacts.
+   - `cad-sim-report-agent` for final artifact review and report writing.
+5. State required inputs, expected artifacts, validation gates, and stop
+   conditions.
 
 ## Rules
 
-- Do not read every input or log file by default; follow the reference routing.
-- When adding a new component, you must check `references/热仿真数据库.json`.
-  If the component is not present in that database, do not add it.
-- Preserve unknown config fields and existing structure.
-- If evidence is missing or conflicting, make the smallest reasonable change
-  and record the assumption in `planner_output.md`.
-- Keep the final chat response brief: changed config file, output path, and
-  validation result.
+- Do not edit files.
+- Do not run CAD or simulation commands.
+- Planner owns workflow planning; it must not edit configuration files
+  directly.
+- Config Editor owns configuration updates.
+- Executor owns CAD and simulation commands.
+- Debugger must not edit configuration files directly.
+- Reviewer must report from existing artifacts; it must not rerun or mutate the
+  workflow.
+- Do not read full large logs by default; use structured summaries or targeted
+  snippets.
+- If the goal is already a direct execution request with no ambiguity, produce
+  a short plan and hand off to the needed specialist skill.
+- If required workspace/version context is missing, ask for it instead of
+  guessing.
+- Keep the final chat response brief unless the user asks for the full plan.

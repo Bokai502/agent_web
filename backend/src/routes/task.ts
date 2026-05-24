@@ -10,6 +10,12 @@ import type { Logger } from "../logger.js"
 import { initializeFreecadProgressForSession } from "../freecadProgress.js"
 import { resolveFreecadWorkspaceDir } from "../freecadWorkspace.js"
 import { createRun, patchRun, resolveRunWorkspaceContext } from "../manifest/store.js"
+import {
+  findWorkspaceSession,
+  readWorkspaceSessionHistory,
+  upsertWorkspaceSessionHistory,
+} from "../sessionStore.js"
+import { readSkillInstructions, type SkillInstruction } from "../skills.js"
 
 type CodexConfigValue = string | number | boolean | CodexConfigValue[] | CodexConfigObject
 type CodexConfigObject = {
@@ -86,8 +92,6 @@ const UPLOADABLE_IMAGE_MIME_TYPES = new Map([
   ["image/webp", ".webp"],
   ["image/gif", ".gif"],
 ])
-const SESSIONS_FILE = path.resolve(process.cwd(), "sessions.json")
-const DELETED_SESSIONS_FILE = path.resolve(process.cwd(), "deleted-sessions.json")
 const AGENT_GUIDE_FILE = path.resolve(process.cwd(), "scripts", "AGENT_GUIDE.md")
 
 function sanitizeUploadName(name: string) {
@@ -166,7 +170,27 @@ function summarizeCodexEvent(event: unknown): Record<string, unknown> {
   return summary
 }
 
-function buildPromptPrefix(context: RunContext, agentGuide: string) {
+function buildSkillInstructionsBlock(skillInstructions: SkillInstruction[]) {
+  if (skillInstructions.length === 0) return ""
+
+  return [
+    "Enabled skill instructions:",
+    "The user explicitly enabled these skills for this turn. Follow the matching skill instructions when they apply.",
+    ...skillInstructions.map(skill => [
+      `## ${skill.name}`,
+      `Description: ${skill.description || "(none)"}`,
+      `Source: ${skill.file}`,
+      "",
+      skill.content.trim(),
+    ].join("\n")),
+  ].join("\n\n")
+}
+
+function buildPromptPrefix(
+  context: RunContext,
+  agentGuide: string,
+  skillInstructions: SkillInstruction[]
+) {
   const executionContext = [
     "Execution context:",
     `- session_id: ${context.sessionId}`,
@@ -191,9 +215,11 @@ function buildPromptPrefix(context: RunContext, agentGuide: string) {
       : "No workspace is currently configured; ask before running workspace-scoped CLI commands.",
   ].join("\n")
   const guide = agentGuide.trim()
+  const skillsBlock = buildSkillInstructionsBlock(skillInstructions).trim()
   return [
     executionContext,
     guide ? `Agent guide:\n${guide}` : null,
+    skillsBlock || null,
   ].filter((block): block is string => block !== null).join("\n\n")
 }
 
@@ -226,11 +252,12 @@ function buildSdkInput(
   input: RunInputItem[],
   context: RunContext,
   injectPromptPrefix: boolean,
-  agentGuide: string
+  agentGuide: string,
+  skillInstructions: SkillInstruction[]
 ): string | RunInputItem[] {
   if (!injectPromptPrefix) return input
 
-  const prefix = buildPromptPrefix(context, agentGuide)
+  const prefix = buildPromptPrefix(context, agentGuide, skillInstructions)
   const firstTextIndex = input.findIndex(item => item.type === "text")
 
   if (firstTextIndex === -1) {
@@ -255,44 +282,6 @@ function getString(value: unknown) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null
 }
 
-async function atomicWrite(filePath: string, content: string) {
-  const tmp = `${filePath}.${randomBytes(4).toString("hex")}.tmp`
-  try {
-    await fs.mkdir(path.dirname(filePath), { recursive: true })
-    await fs.writeFile(tmp, content, "utf-8")
-    await fs.rename(tmp, filePath)
-  } catch (err) {
-    await fs.unlink(tmp).catch(() => {})
-    throw err
-  }
-}
-
-async function readSessionsFile(): Promise<SessionRecord[]> {
-  try {
-    const raw = await fs.readFile(SESSIONS_FILE, "utf-8")
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-async function writeSessionsFile(sessions: SessionRecord[]) {
-  await atomicWrite(SESSIONS_FILE, JSON.stringify(sessions, null, 2))
-}
-
-async function readDeletedSessionIds() {
-  try {
-    const raw = await fs.readFile(DELETED_SESSIONS_FILE, "utf-8")
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed)
-      ? new Set(parsed.filter((id): id is string => typeof id === "string" && id.trim() !== ""))
-      : new Set<string>()
-  } catch {
-    return new Set<string>()
-  }
-}
-
 async function readAgentGuide() {
   try {
     return await fs.readFile(AGENT_GUIDE_FILE, "utf-8")
@@ -301,8 +290,8 @@ async function readAgentGuide() {
   }
 }
 
-async function shouldInjectPromptPrefixForSession(sessionId: string) {
-  const sessions = await readSessionsFile()
+async function shouldInjectPromptPrefixForSession(sessionId: string, workspaceDir: string | null) {
+  const sessions = await readWorkspaceSessionHistory(workspaceDir)
   const existing = sessions.find(session => session.id === sessionId)
   if (!existing) return true
   return !Array.isArray(existing.turns) || existing.turns.length === 0
@@ -325,24 +314,20 @@ async function ensureRunSession({
   workspaceId: string | null
   workspaceName: string | null
 }) {
-  if ((await readDeletedSessionIds()).has(sessionId)) return
-
-  const sessions = await readSessionsFile()
-  const index = sessions.findIndex(session => session.id === sessionId)
   const resolvedWorkspaceName = workspaceName ?? getWorkspaceName(workspaceDir)
+  const existing = await findWorkspaceSession(sessionId, workspaceDir) as SessionRecord | null
 
-  if (index >= 0) {
-    const existing = sessions[index]
-    sessions[index] = {
+  if (existing) {
+    await upsertWorkspaceSessionHistory({
       ...existing,
       threadId: existing.threadId ?? threadId,
       workspaceId: workspaceId ?? existing.workspaceId ?? null,
       versionId: versionId ?? existing.versionId ?? null,
       workspaceDir: workspaceDir ?? existing.workspaceDir ?? null,
       workspaceName: resolvedWorkspaceName ?? existing.workspaceName ?? null,
-    }
+    })
   } else {
-    sessions.push({
+    await upsertWorkspaceSessionHistory({
       id: sessionId,
       title: prompt.slice(0, 60),
       threadId,
@@ -355,8 +340,6 @@ async function ensureRunSession({
       workspaceName: resolvedWorkspaceName,
     })
   }
-
-  await writeSessionsFile(sessions)
 }
 
 async function completeRunSessionTurn({
@@ -380,20 +363,16 @@ async function completeRunSessionTurn({
   workspaceId: string | null
   workspaceName: string | null
 }) {
-  if ((await readDeletedSessionIds()).has(sessionId)) return
-
-  const sessions = await readSessionsFile()
-  const index = sessions.findIndex(session => session.id === sessionId)
   const resolvedWorkspaceName = workspaceName ?? getWorkspaceName(workspaceDir)
   const turn = { id: turnId, userPrompt: prompt, events }
+  const existing = await findWorkspaceSession(sessionId, workspaceDir) as SessionRecord | null
 
-  if (index >= 0) {
-    const existing = sessions[index]
+  if (existing) {
     const turns = Array.isArray(existing.turns) ? existing.turns : []
     const nextTurns = turns.some(item => item.id === turnId)
       ? turns.map(item => item.id === turnId ? turn : item)
       : [...turns, turn]
-    sessions[index] = {
+    await upsertWorkspaceSessionHistory({
       ...existing,
       threadId: threadId ?? existing.threadId ?? null,
       turns: nextTurns,
@@ -401,9 +380,9 @@ async function completeRunSessionTurn({
       versionId: versionId ?? existing.versionId ?? null,
       workspaceDir: workspaceDir ?? existing.workspaceDir ?? null,
       workspaceName: resolvedWorkspaceName ?? existing.workspaceName ?? null,
-    }
+    })
   } else {
-    sessions.push({
+    await upsertWorkspaceSessionHistory({
       id: sessionId,
       title: prompt.slice(0, 60),
       threadId,
@@ -416,8 +395,6 @@ async function completeRunSessionTurn({
       workspaceName: resolvedWorkspaceName,
     })
   }
-
-  await writeSessionsFile(sessions)
 }
 
 function summarizeInput(input: RunInputItem[]) {
@@ -494,7 +471,12 @@ export async function taskRoutes(
     "/api/run",
     async (req, reply) => {
       const { prompt, input, sessionId, threadId, turnId, enabledSkills } = req.body
-      const sdkInputBase = normalizeRunInput(input, prompt)
+      const skillNames = (enabledSkills ?? [])
+        .filter(s => typeof s === "string" && s.trim() !== "")
+        .map(s => s.trim())
+      const normalizedInput = normalizeRunInput(input, prompt)
+      const hasTextOrFileInput = normalizedInput !== null
+      const sdkInputBase = normalizedInput ?? (skillNames.length > 0 ? [] : null)
       if (!sdkInputBase) {
         return reply.status(400).send({ error: "prompt or input is required" })
       }
@@ -528,10 +510,8 @@ export async function taskRoutes(
       let lastEventAt = requestStartedAt
       let eventCount = 0
 
-      // Only inject execution context and the agent guide on the first recorded turn for a session.
-      const skillNames = (enabledSkills ?? [])
-        .filter(s => typeof s === "string" && s.trim() !== "")
-        .map(s => s.trim())
+      // Always inject execution context and the agent guide on the first recorded turn.
+      // Explicitly enabled skills are injected on every turn so @skill is a hard trigger.
       const runContext = {
         workspaceDir: resolvedWorkspaceContext?.workspaceDir ?? (workspaceContextRequested ? null : await resolveFreecadWorkspaceDir().catch(() => null)),
         workspaceId: resolvedWorkspaceContext?.workspaceId ?? requestedWorkspaceId,
@@ -547,9 +527,19 @@ export async function taskRoutes(
           .map(item => item.text)
           .join("\n\n")
           .trim() || "[input]"
-      const injectPromptPrefix = await shouldInjectPromptPrefixForSession(trimmedSessionId)
-      const agentGuide = injectPromptPrefix ? await readAgentGuide() : ""
-      const sdkInput = buildSdkInput(sdkInputBase, runContext, injectPromptPrefix, agentGuide)
+      const injectSessionPrefix = await shouldInjectPromptPrefixForSession(trimmedSessionId, runContext.workspaceDir)
+      const skillInstructions = readSkillInstructions(skillNames)
+      const injectedSkillNames = new Set(skillInstructions.map(skill => skill.name.toLowerCase()))
+      const missingSkillNames = skillNames.filter(name => !injectedSkillNames.has(name.toLowerCase()))
+      if (missingSkillNames.length > 0) {
+        return reply.status(400).send({ error: `enabled skill not found: ${missingSkillNames.join(", ")}` })
+      }
+      if (!hasTextOrFileInput && skillInstructions.length === 0) {
+        return reply.status(400).send({ error: "prompt, input, or enabled skill is required" })
+      }
+      const injectPromptPrefix = injectSessionPrefix || skillInstructions.length > 0
+      const agentGuide = injectSessionPrefix ? await readAgentGuide() : ""
+      const sdkInput = buildSdkInput(sdkInputBase, runContext, injectPromptPrefix, agentGuide, skillInstructions)
       const streamedEvents: unknown[] = []
       let resolvedThreadId = runContext.threadId
       let manifestRunId: string | null = null
@@ -611,7 +601,8 @@ export async function taskRoutes(
         promptChars: typeof prompt === "string" ? prompt.length : 0,
         sdkInputTextChars: getInputTextLength(Array.isArray(sdkInput) ? sdkInput : sdkInputBase),
         promptPrefixInjected: injectPromptPrefix,
-        agentGuideInjected: injectPromptPrefix && agentGuide.trim() !== "",
+        agentGuideInjected: injectSessionPrefix && agentGuide.trim() !== "",
+        skillInstructionsInjected: skillInstructions.map(skill => skill.name),
         input: summarizeInput(sdkInputBase),
         enabledSkills: skillNames,
       })

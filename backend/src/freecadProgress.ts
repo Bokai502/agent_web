@@ -3,7 +3,7 @@ import path from "path"
 import { resolveFreecadWorkspaceDir } from "./freecadWorkspace.js"
 
 export async function getFreecadProgressPercentagesFile() {
-  return path.join(await resolveFreecadWorkspaceDir(), "logs", "progress_percentages.json")
+  return path.join(await resolveFreecadWorkspaceDir(), "logs", "progress.json")
 }
 
 export async function initializeFreecadProgressForSession(_sessionId: string, _force = false) {

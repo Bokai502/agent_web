@@ -1,12 +1,13 @@
 import { FastifyInstance } from "fastify"
-import fs from "fs/promises"
-import path from "path"
-import { randomBytes } from "crypto"
 import type { Logger } from "../logger.js"
 import { initializeFreecadProgressForSession } from "../freecadProgress.js"
-
-const SESSIONS_FILE = path.resolve(process.cwd(), "sessions.json")
-const DELETED_SESSIONS_FILE = path.resolve(process.cwd(), "deleted-sessions.json")
+import {
+  findWorkspaceSession,
+  readAllWorkspaceSessionHistories,
+  removeWorkspaceSessionHistoryById,
+  replaceWorkspaceSessionHistories,
+  upsertWorkspaceSessionHistory,
+} from "../sessionStore.js"
 
 type SessionLike = {
   id?: unknown
@@ -90,62 +91,6 @@ function mergeSession(existing: unknown, incoming: unknown) {
   return merged
 }
 
-// 先写临时文件再 rename，避免并发写入导致文件截断
-async function atomicWrite(filePath: string, content: string) {
-  const tmp = `${filePath}.${randomBytes(4).toString("hex")}.tmp`
-  try {
-    await fs.mkdir(path.dirname(filePath), { recursive: true })
-    await fs.writeFile(tmp, content, "utf-8")
-    await fs.rename(tmp, filePath)
-  } catch (err) {
-    await fs.unlink(tmp).catch(() => {})
-    throw err
-  }
-}
-
-function extractSessionIds(value: unknown): Set<string> {
-  if (!Array.isArray(value)) return new Set()
-
-  return new Set(
-    value
-      .map((session: SessionLike) => session?.id)
-      .filter((id): id is string => typeof id === "string" && id.trim() !== "")
-      .map(id => id.trim()),
-  )
-}
-
-async function readExistingSessions() {
-  try {
-    const raw = await fs.readFile(SESSIONS_FILE, "utf-8")
-    const data = JSON.parse(raw)
-    return Array.isArray(data) ? data : []
-  } catch {
-    return []
-  }
-}
-
-async function readDeletedSessionIds() {
-  try {
-    const raw = await fs.readFile(DELETED_SESSIONS_FILE, "utf-8")
-    const data = JSON.parse(raw)
-    return Array.isArray(data)
-      ? new Set(data.filter((id): id is string => typeof id === "string" && id.trim() !== ""))
-      : new Set<string>()
-  } catch {
-    return new Set<string>()
-  }
-}
-
-async function writeDeletedSessionIds(ids: Set<string>) {
-  await atomicWrite(DELETED_SESSIONS_FILE, JSON.stringify([...ids], null, 2))
-}
-
-async function markSessionDeleted(sessionId: string) {
-  const ids = await readDeletedSessionIds()
-  ids.add(sessionId)
-  await writeDeletedSessionIds(ids)
-}
-
 async function writeMergedSession(session: unknown, expectedId: string) {
   if (!session || typeof session !== "object") {
     throw new Error("session must be an object")
@@ -156,28 +101,18 @@ async function writeMergedSession(session: unknown, expectedId: string) {
     throw new Error("session id mismatch")
   }
 
-  if ((await readDeletedSessionIds()).has(sessionId)) {
-    return
-  }
+  const existing = await findWorkspaceSession(sessionId, (session as SessionLike).workspaceDir)
+  const nextSession = existing ? mergeSession(existing, session) : session
 
-  const existing = await readExistingSessions()
-  const index = existing.findIndex((item: SessionLike) => item?.id === sessionId)
-  const nextSessions = index >= 0
-    ? existing.map((item: SessionLike, itemIndex: number) => itemIndex === index ? mergeSession(item, session) : item)
-    : [...existing, session]
-
-  if (index < 0) {
+  if (!existing) {
     await initializeFreecadProgressForSession(sessionId, true)
   }
 
-  await atomicWrite(SESSIONS_FILE, JSON.stringify(nextSessions, null, 2))
+  await upsertWorkspaceSessionHistory(nextSession as SessionLike)
 }
 
 async function deleteSession(sessionId: string) {
-  await markSessionDeleted(sessionId)
-  const existing = await readExistingSessions()
-  const nextSessions = existing.filter((item: SessionLike) => item?.id !== sessionId)
-  await atomicWrite(SESSIONS_FILE, JSON.stringify(nextSessions, null, 2))
+  await removeWorkspaceSessionHistoryById(sessionId)
 }
 
 export async function sessionRoutes(
@@ -187,14 +122,7 @@ export async function sessionRoutes(
   // GET /api/sessions — 读取所有 sessions
   fastify.get("/api/sessions", async (_req, reply) => {
     try {
-      const raw = await fs.readFile(SESSIONS_FILE, "utf-8")
-      const data = JSON.parse(raw)
-      if (!Array.isArray(data)) return reply.send([])
-      const deletedSessionIds = await readDeletedSessionIds()
-      return reply.send(data.filter((session: SessionLike) => {
-        const id = getSessionId(session?.id)
-        return !id || !deletedSessionIds.has(id)
-      }))
+      return reply.send(await readAllWorkspaceSessionHistories())
     } catch {
       return reply.send([])
     }
@@ -292,25 +220,15 @@ export async function sessionRoutes(
         return reply.status(400).send({ error: "Too many sessions (max 1000)" })
       }
       try {
-        const deletedSessionIds = await readDeletedSessionIds()
-        const sessions = req.body.filter((session: SessionLike) => {
-          const id = getSessionId(session?.id)
-          return !id || !deletedSessionIds.has(id)
-        })
-        const beforeSessionIds = extractSessionIds(await readExistingSessions())
-        const afterSessionIds = extractSessionIds(sessions)
-        const newSessionIds = [...afterSessionIds].filter(id => !beforeSessionIds.has(id))
-        const removedSessionIds = [...beforeSessionIds].filter(id => !afterSessionIds.has(id))
+        const sessions = req.body.filter((session: SessionLike) => getSessionId(session?.id))
+        const existingSessionIds = new Set((await readAllWorkspaceSessionHistories()).map((session: SessionLike) => getSessionId(session?.id)).filter((id): id is string => !!id))
 
-        for (const sessionId of newSessionIds) {
+        for (const session of sessions) {
+          const sessionId = getSessionId((session as SessionLike).id)
+          if (!sessionId || existingSessionIds.has(sessionId)) continue
           await initializeFreecadProgressForSession(sessionId, true)
         }
-        if (removedSessionIds.length > 0) {
-          const deletedSessionIds = await readDeletedSessionIds()
-          removedSessionIds.forEach(id => deletedSessionIds.add(id))
-          await writeDeletedSessionIds(deletedSessionIds)
-        }
-        await atomicWrite(SESSIONS_FILE, JSON.stringify(sessions, null, 2))
+        await replaceWorkspaceSessionHistories(sessions)
         return reply.status(204).send()
       } catch (err) {
         logger.error("sessions write failed", { err })

@@ -90,6 +90,66 @@ function normalizeProgressKey(key: string) {
   return aliases[normalized] ?? key
 }
 
+function splitSimulationLoopPercentage(value: number) {
+  const percent = Math.max(0, Math.min(100, value))
+  const ranges = [
+    { key: "simulation_run", start: 0, end: 70 },
+    { key: "field_export", start: 70, end: 80 },
+    { key: "postprocess", start: 80, end: 90 },
+    { key: "case_build", start: 90, end: 96 },
+    { key: "analysis", start: 96, end: 100 },
+  ]
+  return ranges.map(range => {
+    const span = range.end - range.start
+    const stagePercent = span <= 0
+      ? 0
+      : Math.max(0, Math.min(100, ((percent - range.start) / span) * 100))
+    return { key: range.key, percent: Math.round(stagePercent) }
+  })
+}
+
+function getLoopProgressEntries(data: Record<string, unknown>, t: TFunction): ProgressEntry[] | null {
+  if (data.schema_version !== "loop_progress/1.0" || !isRecord(data.loops)) return null
+  const entries: ProgressEntry[] = []
+  const createCad = data.loops.create_cad
+  const modifyCad = data.loops.modify_cad
+  const cadLoop = isRecord(createCad) ? createCad : isRecord(modifyCad) ? modifyCad : null
+  if (cadLoop) {
+    const cadPercent = normalizePercent(cadLoop.percentage)
+    if (cadPercent !== null) {
+      entries.push({
+        fileNames: [],
+        key: "modeling",
+        label: progressLabel("modeling", t),
+        percent: cadPercent,
+      })
+      entries.push({
+        fileNames: [],
+        key: "validation",
+        label: progressLabel("validation", t),
+        percent: cadLoop.completed === true ? 100 : 0,
+      })
+    }
+  }
+
+  const simulation = data.loops.simulation
+  if (isRecord(simulation)) {
+    const simulationPercent = normalizePercent(simulation.percentage)
+    if (simulationPercent !== null) {
+      for (const entry of splitSimulationLoopPercentage(simulationPercent)) {
+        entries.push({
+          fileNames: [],
+          key: entry.key,
+          label: progressLabel(entry.key, t),
+          percent: entry.percent,
+        })
+      }
+    }
+  }
+
+  return entries
+}
+
 export function getWorkflowProgressEntries(progressEntries: ProgressEntry[], t: TFunction) {
   const progressByKey = new Map(progressEntries.map(entry => [normalizeProgressKey(entry.key), entry]))
   return WORKFLOW_PROGRESS_STAGES.map(stage => {
@@ -186,6 +246,11 @@ function collectScalarProgressEntries(data: unknown, outputFilesByKey: Map<strin
 
 export function getProgressEntries(data: unknown, t: TFunction): ProgressEntry[] {
   const outputFilesByKey = getProgressOutputFilesByKey(data)
+
+  if (isRecord(data)) {
+    const loopEntries = getLoopProgressEntries(data, t)
+    if (loopEntries) return loopEntries
+  }
 
   if (isRecord(data) && Array.isArray(data.steps)) {
     const entries: ProgressEntry[] = []

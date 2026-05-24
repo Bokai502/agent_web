@@ -94,7 +94,7 @@ const DEFAULT_ARTIFACT_REGISTRY_DIR = path.join("logs", "registry")
 const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "geom_component_info.json")
 const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
-const DEFAULT_PROGRESS_PERCENTAGES_RELATIVE_PATH = path.join("logs", "progress_percentages.json")
+const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
 const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "postprocess", "temperature_field_threejs.json")
 const DEFAULT_GEOMETRY_AFTER_GLB_RELATIVE_PATHS = [
   path.join("01_cad", "geometry_after.glb"),
@@ -808,7 +808,7 @@ export async function freecadRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: { sessionId?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/freecad/progress", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
-      const progressPath = path.join(workspaceDir, DEFAULT_PROGRESS_PERCENTAGES_RELATIVE_PATH)
+      const progressPath = path.join(workspaceDir, DEFAULT_PROGRESS_RELATIVE_PATH)
 
       let workspaceProgress: WorkspaceProgressData | null = null
       try {

@@ -90,6 +90,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     isMobile: _isMobile,
     pendingAskUser,
     running,
+    runningWorkspace,
     sessionsLoaded,
     sortedSessions,
     turns,
@@ -144,7 +145,27 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const selectedBom = bomInfo.components.find(component => component.componentId === selectedBomId) ?? bomInfo.components[0]
   const progressEntries = useMemo(() => getProgressEntries(progressData?.data, t), [progressData, t])
   const workflowProgressEntries = useMemo(() => getWorkflowProgressEntries(progressEntries, t), [progressEntries, t])
-  const runLogEntries = useMemo(() => getRunLogEntries(turns, currentEvents, t), [currentEvents, t, turns])
+  const currentWorkspaceDir = activeContext.versionDir?.trim() ?? null
+  const activeSessionMatchesWorkspace = !!activeSession && (
+    currentWorkspaceDir
+      ? activeSession.workspaceDir?.trim() === currentWorkspaceDir
+      : !!activeContext.workspaceId && !!activeContext.versionId &&
+        activeSession.workspaceId === activeContext.workspaceId &&
+        activeSession.versionId === activeContext.versionId
+  )
+  const runningMatchesWorkspace = !!runningWorkspace && (
+    currentWorkspaceDir
+      ? runningWorkspace.workspaceDir?.trim() === currentWorkspaceDir
+      : !!activeContext.workspaceId && !!activeContext.versionId &&
+        runningWorkspace.workspaceId === activeContext.workspaceId &&
+        runningWorkspace.versionId === activeContext.versionId
+  )
+  const visibleTurns = activeSessionMatchesWorkspace ? turns : []
+  const visibleCurrentEvents = runningMatchesWorkspace ? currentEvents : []
+  const visibleCurrentPrompt = runningMatchesWorkspace ? currentPrompt : ""
+  const visiblePendingAskUser = activeSessionMatchesWorkspace ? pendingAskUser : null
+  const visibleRunning = running && runningMatchesWorkspace
+  const runLogEntries = useMemo(() => getRunLogEntries(visibleTurns, visibleCurrentEvents, t), [visibleCurrentEvents, t, visibleTurns])
   const logEntries = useMemo(() => getDisplayLogEntries(stageLogs, runLogEntries), [runLogEntries, stageLogs])
   const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
   const hasModelPreview = !!activeContext.versionDir
@@ -568,7 +589,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
           </div>
           <div className="wa-status-pill">
             <span className="wa-status-dot" />
-            {running ? t("workspace.status.running") : activeSession ? t("workspace.status.loaded") : t("workspace.status.waiting")}
+            {visibleRunning ? t("workspace.status.running") : activeSessionMatchesWorkspace ? t("workspace.status.loaded") : t("workspace.status.waiting")}
           </div>
         </div>
       </header>
@@ -635,7 +656,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
               </div>
             </div>
             <div className="wa-left-input-body">
-              {pendingAskUser ? (
+              {visiblePendingAskUser ? (
                 <div className="wa-left-pending">{t("workspace.input.pending")}</div>
               ) : (
                 <AppleTaskComposer
@@ -643,7 +664,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                   enableTools={false}
                   onSubmit={submitAndRefreshProgress}
                   onAbort={abort}
-                  running={running}
+                  running={visibleRunning}
                   placeholder={t("composer.compactPlaceholder")}
                 />
               )}
@@ -651,12 +672,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
           </section>
 
           <AgentUnderstandingPanel
-            currentEvents={currentEvents}
-            currentPrompt={currentPrompt}
+            currentEvents={visibleCurrentEvents}
+            currentPrompt={visibleCurrentPrompt}
             onSubmitAskUser={answer => submitAndRefreshProgress(answer)}
             onStopAskUser={handleStopAskUser}
-            pendingAskUser={pendingAskUser}
-            turns={turns}
+            pendingAskUser={visiblePendingAskUser}
+            turns={visibleTurns}
           />
 
           <RunLogPanel entries={logEntries} onSelect={handleSelectLog} selectedLogId={selectedLogId} />
@@ -810,11 +831,11 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
               <span>{t("workspace.footer.bomComponents")}</span>
             </div>
             <div>
-              <strong>{turns.length}</strong>
+              <strong>{visibleTurns.length}</strong>
               <span>{t("workspace.footer.turns")}</span>
             </div>
             <div>
-              <strong>{running ? t("workspace.status.run") : t("workspace.status.idle")}</strong>
+              <strong>{visibleRunning ? t("workspace.status.run") : t("workspace.status.idle")}</strong>
               <span>{t("workspace.footer.currentStatus")}</span>
             </div>
           </div>
