@@ -267,17 +267,17 @@ export function AppleTaskComposer({
       .then(data => {
         if (!Array.isArray(data)) return
         const nextSkills = data as Skill[]
-        const hasFreecad = nextSkills.some(skill => skill.name.toLowerCase() === "freecad")
-        setSkills(hasFreecad
+        const hasCad = nextSkills.some(skill => skill.name.toLowerCase() === "cad")
+        setSkills(hasCad
           ? nextSkills
           : [
-              { name: "freecad", description: "FreeCAD workflow for CAD assembly generation, component moves, and STEP/GLB outputs." },
+              { name: "cad", description: "CAD workflow for assembly generation, component moves, and STEP/GLB outputs." },
               ...nextSkills,
             ])
       })
       .catch(() => {
         setSkills([
-          { name: "freecad", description: "FreeCAD workflow for CAD assembly generation, component moves, and STEP/GLB outputs." },
+          { name: "cad", description: "CAD workflow for assembly generation, component moves, and STEP/GLB outputs." },
         ])
       })
   }, [])

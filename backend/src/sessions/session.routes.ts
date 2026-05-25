@@ -1,13 +1,13 @@
 import { FastifyInstance } from "fastify"
 import type { Logger } from "../logger.js"
-import { initializeFreecadProgressForSession } from "../freecadProgress.js"
+import { initializeWorkspaceProgressForSession } from "../workspaces/workspaceProgressInit.js"
 import {
   findWorkspaceSession,
   readAllWorkspaceSessionHistories,
   removeWorkspaceSessionHistoryById,
   replaceWorkspaceSessionHistories,
   upsertWorkspaceSessionHistory,
-} from "../sessionStore.js"
+} from "./sessionStore.js"
 
 type SessionLike = {
   id?: unknown
@@ -105,7 +105,7 @@ async function writeMergedSession(session: unknown, expectedId: string) {
   const nextSession = existing ? mergeSession(existing, session) : session
 
   if (!existing) {
-    await initializeFreecadProgressForSession(sessionId, true)
+    await initializeWorkspaceProgressForSession(sessionId, true)
   }
 
   await upsertWorkspaceSessionHistory(nextSession as SessionLike)
@@ -226,7 +226,7 @@ export async function sessionRoutes(
         for (const session of sessions) {
           const sessionId = getSessionId((session as SessionLike).id)
           if (!sessionId || existingSessionIds.has(sessionId)) continue
-          await initializeFreecadProgressForSession(sessionId, true)
+          await initializeWorkspaceProgressForSession(sessionId, true)
         }
         await replaceWorkspaceSessionHistories(sessions)
         return reply.status(204).send()

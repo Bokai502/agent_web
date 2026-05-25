@@ -13,7 +13,7 @@ describe("fetchResolvedModel", () => {
     const result = await fetchResolvedModel(
       {
         autoRefresh: true,
-        lookupUrl: "/api/freecad/model?sessionId=missing-session&variant=original",
+        lookupUrl: "/api/workspace/model?sessionId=missing-session&variant=original",
         variant: "original",
       },
       new AbortController().signal,
@@ -22,7 +22,7 @@ describe("fetchResolvedModel", () => {
     expect(result).toBeNull()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/freecad/model?sessionId=missing-session&variant=original",
+      "/api/workspace/model?sessionId=missing-session&variant=original",
       expect.objectContaining({ cache: "no-store" }),
     )
   })

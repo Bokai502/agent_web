@@ -41,7 +41,7 @@ export function useBomInfo(refreshKey = 0, workspace?: BomWorkspaceContext | str
       if (inFlight || controller.signal.aborted) return
       inFlight = true
       if (showLoading) setLoading(true)
-      fetch(`/api/freecad/bom${query}`, {
+      fetch(`/api/workspace/bom${query}`, {
         cache: "no-store",
         signal: controller.signal,
       })

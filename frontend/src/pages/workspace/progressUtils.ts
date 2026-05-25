@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next"
 import type { ThreadEvent, Turn } from "../../types"
 
-export type FreecadProgressResponse = {
+export type WorkspaceProgressResponse = {
   exists?: boolean
   data?: unknown
   source_path?: string | null
@@ -15,6 +15,8 @@ export type ProgressEntry = {
   label: string
   percent: number
 }
+
+const LEGACY_CAD_PROGRESS_KEY = ["free", "cad_progress"].join("")
 
 const WORKFLOW_PROGRESS_STAGES: ProgressEntry[] = [
   { fileNames: [], key: "modeling", label: "workspace.progress.modeling", percent: 0 },
@@ -205,16 +207,21 @@ function getStepProgressKey(item: Record<string, unknown>, index: number) {
             : `step_${index + 1}`
 }
 
-function getNestedFreecadProgress(data: unknown) {
+function getNestedCadProgress(data: unknown) {
   if (!isRecord(data)) return null
-  if (isRecord(data.freecad_progress)) return data.freecad_progress
+  if (isRecord(data.cad_progress)) return data.cad_progress
+  const legacyProgress = data[LEGACY_CAD_PROGRESS_KEY]
+  if (isRecord(legacyProgress)) return legacyProgress
 
   if (Array.isArray(data.steps)) {
-    const freecadStep = data.steps.find(step =>
-      isRecord(step) && isRecord(step.freecad_progress),
+    const cadStep = data.steps.find(step =>
+      isRecord(step) && (isRecord(step.cad_progress) || isRecord(step[LEGACY_CAD_PROGRESS_KEY])),
     )
-    if (isRecord(freecadStep) && isRecord(freecadStep.freecad_progress)) {
-      return freecadStep.freecad_progress
+    if (isRecord(cadStep) && isRecord(cadStep.cad_progress)) {
+      return cadStep.cad_progress
+    }
+    if (isRecord(cadStep) && isRecord(cadStep[LEGACY_CAD_PROGRESS_KEY])) {
+      return cadStep[LEGACY_CAD_PROGRESS_KEY]
     }
   }
 
@@ -260,8 +267,13 @@ export function getProgressEntries(data: unknown, t: TFunction): ProgressEntry[]
       const key = getStepProgressKey(item, index)
       const percent = normalizePercent(item.percent ?? item.percentage ?? item.progress ?? item.value)
       if (percent === null) return
-      const stepFiles = isRecord(item.freecad_progress)
-        ? getProgressFiles(item.freecad_progress).map(getDisplayFileName)
+      const stepProgress = isRecord(item.cad_progress)
+        ? item.cad_progress
+        : isRecord(item[LEGACY_CAD_PROGRESS_KEY])
+          ? item[LEGACY_CAD_PROGRESS_KEY]
+          : null
+      const stepFiles = stepProgress
+        ? getProgressFiles(stepProgress).map(getDisplayFileName)
         : []
       entries.push({
         fileNames: outputFilesByKey.get(key) ?? outputFilesByKey.get(normalizeProgressKey(key)) ?? stepFiles,
@@ -271,11 +283,11 @@ export function getProgressEntries(data: unknown, t: TFunction): ProgressEntry[]
       })
     })
 
-    const freecadProgress = getNestedFreecadProgress(data)
-    if (isRecord(freecadProgress)) {
-      const freecadEntries = getProgressEntries(freecadProgress, t)
+    const cadProgress = getNestedCadProgress(data)
+    if (isRecord(cadProgress)) {
+      const cadEntries = getProgressEntries(cadProgress, t)
       const existingKeys = new Set(entries.map(entry => normalizeProgressKey(entry.key)))
-      for (const entry of freecadEntries) {
+      for (const entry of cadEntries) {
         const normalizedKey = normalizeProgressKey(entry.key)
         if (existingKeys.has(normalizedKey) || normalizedKey === "export_file_percent") continue
         entries.push(entry)
@@ -357,14 +369,19 @@ function getProgressOutputFilesByKey(data: unknown) {
 
   addOutputFiles(data, data.success === true || typeof data.overall_percent === "number")
 
-  const freecadProgress = getNestedFreecadProgress(data)
-  if (isRecord(freecadProgress)) addOutputFiles(freecadProgress, freecadProgress.success === true)
+  const cadProgress = getNestedCadProgress(data)
+  if (isRecord(cadProgress)) addOutputFiles(cadProgress, cadProgress.success === true)
 
   if (Array.isArray(data.steps)) {
     for (const step of data.steps) {
       if (!isRecord(step)) continue
       addOutputFiles(step, step.status === "completed" || step.success === true)
-      if (isRecord(step.freecad_progress)) addOutputFiles(step.freecad_progress, step.freecad_progress.success === true)
+      const stepProgress = isRecord(step.cad_progress)
+        ? step.cad_progress
+        : isRecord(step[LEGACY_CAD_PROGRESS_KEY])
+          ? step[LEGACY_CAD_PROGRESS_KEY]
+          : null
+      if (stepProgress) addOutputFiles(stepProgress, stepProgress.success === true)
     }
   }
 
@@ -401,8 +418,8 @@ function collectProgressFiles(data: unknown, paths: Set<string>) {
     }
   }
 
-  const freecadProgress = getNestedFreecadProgress(data)
-  if (freecadProgress && freecadProgress !== data) collectProgressFiles(freecadProgress, paths)
+  const cadProgress = getNestedCadProgress(data)
+  if (cadProgress && cadProgress !== data) collectProgressFiles(cadProgress, paths)
 
   if (Array.isArray(data.steps)) {
     for (const step of data.steps) collectProgressFiles(step, paths)
@@ -426,7 +443,7 @@ export function getFileNames(turns: Turn[], currentEvents: ThreadEvent[]) {
   return [...names].slice(0, 5)
 }
 
-export function formatProgressUpdatedAt(progressData: FreecadProgressResponse | null, language: string, t: TFunction) {
+export function formatProgressUpdatedAt(progressData: WorkspaceProgressResponse | null, language: string, t: TFunction) {
   const rawUpdatedAt = progressData?.updated_at ??
     (isRecord(progressData?.data) && typeof progressData.data.updated_at === "string"
       ? progressData.data.updated_at

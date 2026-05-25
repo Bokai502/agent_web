@@ -63,7 +63,7 @@ type ViewerComponentMessage = {
   type?: unknown
 }
 
-type ViewerMode = "freecad" | "temperature"
+type ViewerMode = "cad" | "temperature"
 
 type TemperatureField = {
   attributes?: {
@@ -140,11 +140,11 @@ export default function ModelViewerPage() {
   const workspaceDir = pageParams.get("workspaceDir")?.trim() ?? ""
   const workspaceId = pageParams.get("workspaceId")?.trim() ?? ""
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
-  const [statusMessage, setStatusMessage] = useState("Resolving FreeCAD geometry...")
+  const [statusMessage, setStatusMessage] = useState("Resolving CAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [viewerMode, setViewerMode] = useState<ViewerMode>("freecad")
+  const [viewerMode, setViewerMode] = useState<ViewerMode>("cad")
   const [temperatureRange, setTemperatureRange] = useState<{ max: number; min: number } | null>(null)
-  const viewerModeRef = useRef<ViewerMode>("freecad")
+  const viewerModeRef = useRef<ViewerMode>("cad")
 
   useEffect(() => {
     viewerModeRef.current = viewerMode
@@ -162,7 +162,7 @@ export default function ModelViewerPage() {
       if (versionId) queryParams.set("versionId", versionId)
       if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
       const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-      return fetch(`/api/freecad/bom${query}`, {
+      return fetch(`/api/workspace/bom${query}`, {
         cache: "no-store",
         signal: controller.signal,
       }).then((response) => response.ok ? response.json() as Promise<RawComponentInfo> : null)
@@ -221,10 +221,10 @@ export default function ModelViewerPage() {
     }
 
     const setSceneMode = (mode: ViewerMode) => {
-      if (modelRoot) modelRoot.visible = mode === "freecad"
+      if (modelRoot) modelRoot.visible = mode === "cad"
       if (temperatureRoot) temperatureRoot.visible = mode === "temperature"
-      annotationLabels.style.display = mode === "freecad" ? "block" : "none"
-      annotationSvg.style.display = mode === "freecad" ? "block" : "none"
+      annotationLabels.style.display = mode === "cad" ? "block" : "none"
+      annotationSvg.style.display = mode === "cad" ? "block" : "none"
       if (mode === "temperature") {
         clearModelHighlight()
         setSelectedComponent(null)
@@ -258,7 +258,7 @@ export default function ModelViewerPage() {
       if (versionId) queryParams.set("versionId", versionId)
       if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
       const query = queryParams.toString()
-      return `/api/freecad/temperature-field${query ? `?${query}` : ""}`
+      return `/api/workspace/temperature-field${query ? `?${query}` : ""}`
     }
 
     const parseNumericArray = (value: unknown) => (
@@ -837,7 +837,7 @@ export default function ModelViewerPage() {
         const resolvedModel = await fetchResolvedModel(modelSource, modelRequest.signal)
         if (!resolvedModel) {
           if (phase === "initial") {
-            throw new Error("Unable to resolve a FreeCAD GLB artifact.")
+            throw new Error("Unable to resolve a CAD GLB artifact.")
           }
           return
         }
@@ -908,7 +908,7 @@ export default function ModelViewerPage() {
               setErrorMessage(
                 modelSource.autoRefresh
                   ? null
-                  : error instanceof Error ? error.message : "Unable to resolve a FreeCAD GLB artifact.",
+                  : error instanceof Error ? error.message : "Unable to resolve a CAD GLB artifact.",
               )
             } else {
               console.error("Viewer3D auto-refresh error:", error)
@@ -1022,7 +1022,7 @@ export default function ModelViewerPage() {
         }}
       >
         {([
-          ["freecad", "FreeCAD"],
+          ["cad", "CAD"],
           ["temperature", "Thermal"],
         ] as const).map(([mode, label]) => {
           const active = viewerMode === mode

@@ -122,6 +122,19 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
 
   const { run, abort } = useCodexStream()
 
+  const reloadSessions = useCallback(async () => {
+    const serverSessions = await apiLoad()
+    const deletedSessionIds = deletedSessionIdsRef.current
+    const nextSessions = deletedSessionIds.size > 0
+      ? serverSessions.filter(session => !deletedSessionIds.has(session.id))
+      : serverSessions
+
+    hasLoadedSessionsRef.current = true
+    setSessions(nextSessions)
+    setSessionsLoaded(true)
+    return nextSessions
+  }, [])
+
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId
   }, [activeSessionId])
@@ -161,16 +174,28 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
   }, [])
 
   useEffect(() => {
-    apiLoad()
-      .then(serverSessions => {
-        hasLoadedSessionsRef.current = true
-        setSessions(serverSessions)
-      })
-      .finally(() => {
-        hasLoadedSessionsRef.current = true
-        setSessionsLoaded(true)
-      })
-  }, [])
+    reloadSessions().catch(() => {
+      hasLoadedSessionsRef.current = true
+      setSessionsLoaded(true)
+    })
+  }, [reloadSessions])
+
+  useEffect(() => {
+    const reloadIfIdle = () => {
+      if (runningSessionIdRef.current) return
+      reloadSessions().catch(() => {})
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") reloadIfIdle()
+    }
+
+    window.addEventListener("focus", reloadIfIdle)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => {
+      window.removeEventListener("focus", reloadIfIdle)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [reloadSessions])
 
   const saveSession = useCallback((session: Session, immediate = false) => {
     if (!hasLoadedSessionsRef.current) return
@@ -505,17 +530,50 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
           userPrompt: prompt,
           events: runEvents,
         }
+        const completedThreadId = runEvents.find(event => event.type === "thread.started")?.thread_id ?? threadIdForRun
 
-        setSessions(prev =>
-          prev.map(session => {
+        setSessions(prev => {
+          let foundSession = false
+          const nextSessions = prev.map(session => {
             if (session.id !== sid) return session
-            const nextSession = { ...session, turns: [...session.turns, completedTurn] }
+            foundSession = true
+            const turns = session.turns.some(turn => turn.id === turnIdForRun)
+              ? session.turns.map(turn => turn.id === turnIdForRun ? completedTurn : turn)
+              : [...session.turns, completedTurn]
+            const nextSession = {
+              ...session,
+              threadId: completedThreadId,
+              turns,
+              workspaceId: workspaceId ?? session.workspaceId ?? null,
+              versionId: versionId ?? session.versionId ?? null,
+              workspaceDir: workspaceDir ?? session.workspaceDir ?? null,
+              workspaceName: workspace?.workspaceName ?? session.workspaceName ?? null,
+            }
             saveSession(nextSession, true)
             return nextSession
           })
-        )
+
+          if (foundSession) return nextSessions
+
+          const restoredSession: Session = {
+            id: sid,
+            title: prompt.slice(0, 60),
+            threadId: completedThreadId,
+            turns: [completedTurn],
+            createdAt: Date.now(),
+            dismissedAskUserId: null,
+            workspaceId,
+            versionId,
+            workspaceDir,
+            workspaceName: workspace?.workspaceName ?? null,
+          }
+          saveSession(restoredSession, true)
+          return [...nextSessions, restoredSession]
+        })
 
         if (runningSessionIdRef.current === sid) {
+          setActiveSessionId(sid)
+          activeSessionIdRef.current = sid
           resetLiveTurn()
           runningSessionIdRef.current = null
           runningWorkspaceRef.current = null
@@ -543,6 +601,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     running,
     runningSessionId: runningSessionIdRef.current,
     runningWorkspace: runningWorkspaceRef.current,
+    reloadSessions,
     sessionsLoaded,
     sortedSessions,
     turns,

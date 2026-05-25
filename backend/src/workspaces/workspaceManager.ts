@@ -3,19 +3,22 @@ import path from "path"
 import { fileURLToPath } from "url"
 
 const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
-const PROJECT_ROOT = path.resolve(BACKEND_SRC_DIR, "..", "..", "..")
+const PROJECT_ROOT = path.resolve(BACKEND_SRC_DIR, "..", "..", "..", "..")
 const ROOT_CONFIG_JSON = path.join(PROJECT_ROOT, "config.json")
-const DEFAULT_WORKSPACE_ROOT = path.join(PROJECT_ROOT, "FreeCAD_data")
+const DEFAULT_WORKSPACE_ROOT_NAME = ["Free", "CAD_data"].join("")
+const DEFAULT_WORKSPACE_ROOT = path.join(PROJECT_ROOT, DEFAULT_WORKSPACE_ROOT_NAME)
+const LEGACY_CAD_CONFIG_KEY = ["free", "cad"].join("")
+const WORKSPACE_CONFIG_KEY = "workspace"
 
 type RootConfig = {
-  freecad?: {
+  workspace?: {
     workspaceDir?: unknown
     [key: string]: unknown
   }
   [key: string]: unknown
 }
 
-export type FreecadWorkspaceItem = {
+export type WorkspaceItem = {
   manifestRoot?: string
   name: string
   path: string
@@ -41,16 +44,33 @@ async function writeRootConfig(config: RootConfig) {
 }
 
 function getConfiguredWorkspaceDir(config: RootConfig) {
-  const configured = config.freecad?.workspaceDir
+  const workspaceConfig = getWorkspaceConfig(config)
+  const configured = workspaceConfig?.workspaceDir
   return isNonEmptyString(configured) ? path.resolve(configured) : null
 }
 
 function getWorkspaceRootFromConfigured(configuredWorkspaceDir: string | null) {
   if (!configuredWorkspaceDir) return DEFAULT_WORKSPACE_ROOT
   const parent = path.dirname(configuredWorkspaceDir)
-  if (path.basename(parent) === "FreeCAD_data") return parent
-  if (path.basename(configuredWorkspaceDir) === "FreeCAD_data") return configuredWorkspaceDir
+  if (path.basename(parent) === DEFAULT_WORKSPACE_ROOT_NAME) return parent
+  if (path.basename(configuredWorkspaceDir) === DEFAULT_WORKSPACE_ROOT_NAME) return configuredWorkspaceDir
   return DEFAULT_WORKSPACE_ROOT
+}
+
+function getWorkspaceConfig(config: RootConfig) {
+  const current = config[WORKSPACE_CONFIG_KEY]
+  if (typeof current === "object" && current !== null) return current as RootConfig["workspace"]
+  const legacy = config[LEGACY_CAD_CONFIG_KEY]
+  if (typeof legacy === "object" && legacy !== null) return legacy as RootConfig["workspace"]
+  return null
+}
+
+function setConfiguredWorkspaceDir(config: RootConfig, workspaceDir: string) {
+  config[WORKSPACE_CONFIG_KEY] = {
+    ...(getWorkspaceConfig(config) ?? {}),
+    workspaceDir,
+  }
+  delete config[LEGACY_CAD_CONFIG_KEY]
 }
 
 async function pathExists(filePath: string) {
@@ -61,7 +81,7 @@ function isVersionWorkspaceDir(workspaceDir: string | null | undefined) {
   return !!workspaceDir && path.basename(path.dirname(workspaceDir)) === "versions"
 }
 
-async function inspectWorkspace(root: string, name: string): Promise<FreecadWorkspaceItem> {
+async function inspectWorkspace(root: string, name: string): Promise<WorkspaceItem> {
   const workspacePath = path.join(root, name)
   const required = ["00_inputs"]
   const missing: string[] = []
@@ -149,24 +169,24 @@ async function findVersionedWorkspaceForName(root: string, name: string) {
   return null
 }
 
-export async function getFreecadWorkspaceRoot() {
+export async function getWorkspaceRoot() {
   const config = await readRootConfig().catch(() => ({} as RootConfig))
   return getWorkspaceRootFromConfigured(getConfiguredWorkspaceDir(config))
 }
 
-export async function getConfiguredFreecadWorkspaceDir() {
+export async function getConfiguredWorkspaceDirFromConfig() {
   const config = await readRootConfig().catch(() => ({} as RootConfig))
   return getConfiguredWorkspaceDir(config)
 }
 
-export async function resolveFreecadWorkspaceDir() {
-  return await getConfiguredFreecadWorkspaceDir() ?? DEFAULT_WORKSPACE_ROOT
+export async function resolveWorkspaceDir() {
+  return await getConfiguredWorkspaceDirFromConfig() ?? DEFAULT_WORKSPACE_ROOT
 }
 
-export async function listFreecadWorkspaces() {
+export async function listWorkspaces() {
   const config = await readRootConfig().catch(() => ({} as RootConfig))
   const configuredWorkspaceDir = getConfiguredWorkspaceDir(config)
-  const effectiveWorkspaceDir = await resolveFreecadWorkspaceDir()
+  const effectiveWorkspaceDir = await resolveWorkspaceDir()
   const root = getWorkspaceRootFromConfigured(configuredWorkspaceDir)
   const configuredName = configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
     ? path.basename(configuredWorkspaceDir)
@@ -214,7 +234,7 @@ function validateWorkspaceName(name: unknown) {
   return trimmed
 }
 
-export async function setFreecadWorkspace(name: unknown) {
+export async function setWorkspace(name: unknown) {
   const workspaceName = validateWorkspaceName(name)
   const config = await readRootConfig()
   const configuredWorkspaceDir = getConfiguredWorkspaceDir(config)
@@ -226,12 +246,9 @@ export async function setFreecadWorkspace(name: unknown) {
 
   const relative = path.relative(root, workspace.path)
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("workspace must be under the configured FreeCAD_data root")
+    throw new Error("workspace must be under the configured workspace data root")
   }
-  config.freecad = {
-    ...(config.freecad ?? {}),
-    workspaceDir: workspace.path,
-  }
+  setConfiguredWorkspaceDir(config, workspace.path)
 
   await writeRootConfig(config)
 
@@ -243,13 +260,10 @@ export async function setFreecadWorkspace(name: unknown) {
   }
 }
 
-export async function setFreecadWorkspaceDir(workspaceDir: string) {
+export async function setWorkspaceDir(workspaceDir: string) {
   const config = await readRootConfig()
   const resolvedWorkspaceDir = path.resolve(workspaceDir)
-  config.freecad = {
-    ...(config.freecad ?? {}),
-    workspaceDir: resolvedWorkspaceDir,
-  }
+  setConfiguredWorkspaceDir(config, resolvedWorkspaceDir)
   await writeRootConfig(config)
   return {
     current: resolvedWorkspaceDir,

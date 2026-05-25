@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { resolveWorkspaceVersionContext, type FreecadWorkspacesResponse } from "./workspaceVersion"
+import { resolveWorkspaceVersionContext, type WorkspacesResponse } from "./workspaceVersion"
 
 describe("resolveWorkspaceVersionContext", () => {
   it("does not reuse an effective version path when the workspace index reports no current version", () => {
-    const workspaces: FreecadWorkspacesResponse = {
+    const workspaces: WorkspacesResponse = {
       current: null,
       currentName: "lbk",
       effective: "/data/FreeCAD_data/workspaces/ws_lbk/versions/v0001",

@@ -214,8 +214,8 @@ export const resources = {
           suggestion: "Optimization suggestions",
         },
         tools: {
-          freecadSubtitle: "Remote FreeCAD session",
-          freecadTitle: "FreeCAD Workspace",
+          cadSubtitle: "Remote CAD session",
+          cadTitle: "CAD Workspace",
           paraviewSubtitle: "Remote ParaView session",
           paraviewTitle: "ParaView Workspace",
           comsolSubtitle: "Remote COMSOL session",
@@ -247,7 +247,7 @@ export const resources = {
           workspaceTitle: "Multi-view workspace",
           workspaceText: "Link models, logs, BOM, and analysis",
           skillsTitle: "Specialist skills",
-          skillsText: "Quickly enable capabilities such as FreeCAD",
+          skillsText: "Quickly enable capabilities such as CAD",
         },
         actions: {
           workspace: "Enter AI Design Workspace",
@@ -465,8 +465,8 @@ export const resources = {
           suggestion: "优化建议",
         },
         tools: {
-          freecadSubtitle: "远程 FreeCAD 会话",
-          freecadTitle: "FreeCAD 工作台",
+          cadSubtitle: "远程 CAD 会话",
+          cadTitle: "CAD 工作台",
           paraviewSubtitle: "远程 ParaView 会话",
           paraviewTitle: "ParaView 工作台",
           comsolSubtitle: "远程 COMSOL 会话",
@@ -498,7 +498,7 @@ export const resources = {
           workspaceTitle: "多视图工作区",
           workspaceText: "模型、日志、物料与分析联动",
           skillsTitle: "专业技能",
-          skillsText: "快速启用 FreeCAD 等能力",
+          skillsText: "快速启用 CAD 等能力",
         },
         actions: {
           workspace: "进入AI设计工作台",

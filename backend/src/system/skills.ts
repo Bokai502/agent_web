@@ -1,7 +1,7 @@
 import fs from "fs"
 import path from "path"
 import os from "os"
-import type { Logger } from "./logger.js"
+import type { Logger } from "../logger.js"
 
 export interface Skill {
   name: string

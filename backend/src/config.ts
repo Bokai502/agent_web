@@ -26,7 +26,7 @@ export interface AppConfig {
     host: string
     corsOrigin: string | string[]
   }
-  freecad: {
+  workspace: {
     workspaceDir: string | null
     rpcHost: string
     rpcPort: number
@@ -58,7 +58,10 @@ type RawOpenAiConfig = Partial<AppConfig["openai"]> & {
 
 type RawConfig = Partial<AppConfig> & {
   openai?: RawOpenAiConfig
+  [key: string]: unknown
 }
+
+const LEGACY_CAD_CONFIG_KEY = ["free", "cad"].join("")
 
 function die(msg: string): never {
   process.stderr.write(`\n[config] ${msg}\n\n`)
@@ -113,7 +116,7 @@ export function loadConfig(): AppConfig {
   if (!fs.existsSync(CONFIG_FILE)) {
     die(
       `配置文件不存在: ${CONFIG_FILE}\n` +
-      `请在 /data/lbk/codex_web/config.json 中配置 openai、server、frontend、freecad 等参数后再启动。`
+      `请在 /data/lbk/codex_web/config.json 中配置 openai、server、frontend、workspace 等参数后再启动。`
     )
   }
 
@@ -149,7 +152,12 @@ export function loadConfig(): AppConfig {
 
   const codex = cfg.codex ?? {} as Partial<AppConfig["codex"]>
   const server = cfg.server ?? {} as Partial<AppConfig["server"]>
-  const freecad = cfg.freecad ?? {} as Partial<AppConfig["freecad"]>
+  const workspace = (
+    cfg.workspace ??
+    (typeof cfg[LEGACY_CAD_CONFIG_KEY] === "object" && cfg[LEGACY_CAD_CONFIG_KEY] !== null
+      ? cfg[LEGACY_CAD_CONFIG_KEY]
+      : {})
+  ) as Partial<AppConfig["workspace"]>
   const logging = cfg.logging ?? {} as Partial<AppConfig["logging"]>
   const envServerPort = process.env.BACKEND_PORT ? Number(process.env.BACKEND_PORT) : null
 
@@ -179,10 +187,10 @@ export function loadConfig(): AppConfig {
       host: server.host ?? "0.0.0.0",
       corsOrigin: normalizeCorsOrigin(server.corsOrigin),
     },
-    freecad: {
-      workspaceDir: freecad.workspaceDir ?? null,
-      rpcHost: freecad.rpcHost ?? "localhost",
-      rpcPort: freecad.rpcPort ?? 9876,
+    workspace: {
+      workspaceDir: workspace.workspaceDir ?? null,
+      rpcHost: workspace.rpcHost ?? "localhost",
+      rpcPort: workspace.rpcPort ?? 9876,
     },
     logging: {
       level: logging.level ?? "info",

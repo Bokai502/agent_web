@@ -50,7 +50,7 @@ describe("progressUtils", () => {
           index: 2,
           status: "completed",
           percent: 100,
-          freecad_progress: {
+          cad_progress: {
             success: true,
             progress_percentages: {
               layout_completion_percent: 100,
@@ -70,7 +70,7 @@ describe("progressUtils", () => {
         { command_name: "analysis", stage_name: "analysis", index: 7, status: "completed", percent: 100 },
         { command_name: "suggestion", stage_name: "suggestion", index: 8, status: "completed", percent: 100 },
       ],
-      freecad_progress: {
+      cad_progress: {
         success: true,
         output_files: {
           glb: { path: "/workspace/02_geometry_edit/geometry_after.glb", exists: true },
@@ -129,7 +129,7 @@ describe("progressUtils", () => {
 
   it("keeps top-level CAD progress while simulation steps are running", () => {
     const entries = getWorkflowProgressEntries(getProgressEntries({
-      schema_version: "freecad_progress/1.0",
+      schema_version: "cad_progress/1.0",
       workflow: "simulation",
       stage: "simulation",
       status: "running",

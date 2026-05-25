@@ -1,6 +1,7 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { getFreecadWorkspaceRoot, resolveFreecadWorkspaceDir, setFreecadWorkspaceDir } from "../freecadWorkspace.js"
+import { getString, isPathInside } from "../shared/index.js"
+import { getWorkspaceRoot, resolveWorkspaceDir, setWorkspaceDir } from "../workspaces/workspaceManager.js"
 import type {
   ArtifactRecord,
   CheckpointRecord,
@@ -30,10 +31,6 @@ function normalizeDirectChildName(value: string, field: string) {
     throw new Error(`${field} must be a direct child name`)
   }
   return trimmed
-}
-
-function getString(value: unknown) {
-  return typeof value === "string" && value.trim() !== "" ? value.trim() : null
 }
 
 function getStringArray(value: unknown) {
@@ -83,7 +80,7 @@ async function copyWorkspaceInputs(sourceWorkspace: string, destinationWorkspace
 }
 
 async function getVersionRoot(sessionId: string) {
-  const root = await getFreecadWorkspaceRoot()
+  const root = await getWorkspaceRoot()
   const sanitized = sanitizeIdPart(sessionId).slice(0, 96)
   const directWorkspaceIdRoot = path.join(root, WORKSPACES_DIR, sanitized)
   if (sanitized.startsWith("ws_")) {
@@ -103,30 +100,25 @@ function manifestPath(rootDir: string) {
   return path.join(rootDir, MANIFEST_FILE)
 }
 
-function isPathInside(parent: string, child: string) {
-  const relative = path.relative(parent, child)
-  return relative === "" || (!!relative && !relative.startsWith("..") && !path.isAbsolute(relative))
+async function getAllowedWorkspaceRoot() {
+  return path.resolve(await getWorkspaceRoot())
 }
 
-async function getAllowedFreecadRoot() {
-  return path.resolve(await getFreecadWorkspaceRoot())
-}
-
-async function assertPathInsideFreecadRoot(filePath: string, field: string) {
-  const freecadRoot = await getAllowedFreecadRoot()
+async function assertPathInsideWorkspaceRoot(filePath: string, field: string) {
+  const workspaceRoot = await getAllowedWorkspaceRoot()
   const resolvedPath = path.resolve(filePath)
-  if (!isPathInside(freecadRoot, resolvedPath)) {
-    throw new Error(`${field} must be under the FreeCAD_data root`)
+  if (!isPathInside(workspaceRoot, resolvedPath)) {
+    throw new Error(`${field} must be under the workspace data root`)
   }
   return resolvedPath
 }
 
 async function assertManifestRootAllowed(rootDir: string) {
-  const freecadRoot = await getAllowedFreecadRoot()
+  const workspaceRoot = await getAllowedWorkspaceRoot()
   const resolvedRootDir = path.resolve(rootDir)
-  const workspacesRoot = path.join(freecadRoot, WORKSPACES_DIR)
+  const workspacesRoot = path.join(workspaceRoot, WORKSPACES_DIR)
   if (!isPathInside(workspacesRoot, resolvedRootDir)) {
-    throw new Error("workspace manifest must be under FreeCAD_data/workspaces")
+    throw new Error("workspace manifest must be under workspace data root/workspaces")
   }
   return resolvedRootDir
 }
@@ -181,19 +173,19 @@ async function pruneMissingVersionWorkspaces(manifest: WorkspaceManifest) {
 }
 
 async function findManifestRootFromPath(workspaceDir: string) {
-  let current = await assertPathInsideFreecadRoot(workspaceDir, "workspaceDir")
-  const freecadRoot = await getAllowedFreecadRoot()
+  let current = await assertPathInsideWorkspaceRoot(workspaceDir, "workspaceDir")
+  const workspaceRoot = await getAllowedWorkspaceRoot()
   for (;;) {
     if (await pathExists(manifestPath(current))) return current
     const parent = path.dirname(current)
-    if (parent === current || !isPathInside(freecadRoot, parent)) return null
+    if (parent === current || !isPathInside(workspaceRoot, parent)) return null
     current = parent
   }
 }
 
 async function findManifestRootForWorkspaceName(workspaceName: string) {
-  const freecadRoot = await getFreecadWorkspaceRoot()
-  const workspacesRoot = path.join(freecadRoot, WORKSPACES_DIR)
+  const workspaceRoot = await getWorkspaceRoot()
+  const workspacesRoot = path.join(workspaceRoot, WORKSPACES_DIR)
   const directRoot = path.join(workspacesRoot, workspaceName)
   if (await pathExists(manifestPath(directRoot))) return directRoot
 
@@ -216,13 +208,13 @@ async function resolveManifestRoot(options: {
 }) {
   const workspaceDir = options.workspaceDir?.trim()
   if (workspaceDir) {
-    const resolvedWorkspaceDir = await assertPathInsideFreecadRoot(workspaceDir, "workspaceDir")
+    const resolvedWorkspaceDir = await assertPathInsideWorkspaceRoot(workspaceDir, "workspaceDir")
     const directManifestRoot = await findManifestRootFromPath(resolvedWorkspaceDir)
     if (directManifestRoot) return directManifestRoot
 
-    const freecadRoot = await getAllowedFreecadRoot()
-    if (isPathInside(freecadRoot, resolvedWorkspaceDir)) {
-      const relativeParts = path.relative(freecadRoot, resolvedWorkspaceDir).split(path.sep).filter(Boolean)
+    const workspaceRoot = await getAllowedWorkspaceRoot()
+    if (isPathInside(workspaceRoot, resolvedWorkspaceDir)) {
+      const relativeParts = path.relative(workspaceRoot, resolvedWorkspaceDir).split(path.sep).filter(Boolean)
       const workspaceName = relativeParts[0] ?? path.basename(resolvedWorkspaceDir)
       const matchedRoot = await findManifestRootForWorkspaceName(workspaceName)
       if (matchedRoot) return matchedRoot
@@ -320,7 +312,7 @@ export async function getWorkspaceManifestByLocator(options: {
 
 async function syncConfigToActiveVersion(manifest: WorkspaceManifest) {
   const activeVersion = manifest.versions.find(version => version.id === manifest.activeVersionId) ?? null
-  if (activeVersion) await setFreecadWorkspaceDir(activeVersion.workspaceDir)
+  if (activeVersion) await setWorkspaceDir(activeVersion.workspaceDir)
   return manifest
 }
 
@@ -334,8 +326,8 @@ async function ensureInitialVersion(manifest: WorkspaceManifest, sourceWorkspace
   }
 
   const sourceWorkspace = sourceWorkspaceDir
-    ? await assertPathInsideFreecadRoot(sourceWorkspaceDir, "sourceWorkspaceDir")
-    : await assertPathInsideFreecadRoot(await resolveFreecadWorkspaceDir(), "sourceWorkspaceDir")
+    ? await assertPathInsideWorkspaceRoot(sourceWorkspaceDir, "sourceWorkspaceDir")
+    : await assertPathInsideWorkspaceRoot(await resolveWorkspaceDir(), "sourceWorkspaceDir")
   const versionId = "v0001"
   const workspaceDir = path.join(manifest.rootDir, "versions", versionId)
   await copyWorkspaceInputs(sourceWorkspace, workspaceDir)
@@ -548,7 +540,7 @@ export async function diffVersions(a: string, b: string, workspaceId: string) {
 }
 
 async function listWorkspaceFiles(workspaceDir: string) {
-  const root = await assertPathInsideFreecadRoot(workspaceDir, "workspaceDir")
+  const root = await assertPathInsideWorkspaceRoot(workspaceDir, "workspaceDir")
   const files = new Map<string, { mtimeMs: number; size: number }>()
   const visit = async (dir: string) => {
     const dirents = await fs.readdir(dir, { withFileTypes: true }).catch(() => [])

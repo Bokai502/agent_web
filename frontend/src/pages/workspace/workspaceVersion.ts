@@ -20,7 +20,7 @@ export type VersionTreeNode = {
 
 export type VersionAction = "branch" | "checkout"
 
-export type FreecadWorkspaceItem = {
+export type WorkspaceItem = {
   manifestRoot?: string
   missing?: string[]
   name: string
@@ -30,12 +30,12 @@ export type FreecadWorkspaceItem = {
   versionWorkspaceDir?: string
 }
 
-export type FreecadWorkspacesResponse = {
+export type WorkspacesResponse = {
   current?: string | null
   currentName?: string | null
   effective?: string | null
   envOverride?: boolean
-  items?: FreecadWorkspaceItem[]
+  items?: WorkspaceItem[]
   root?: string
 }
 
@@ -49,7 +49,7 @@ export type WorkspaceVersionContext = {
   workspaceKey: string | null
   workspaceName: string
   workspaceRoot: string | null
-  workspaceItem: FreecadWorkspaceItem | null
+  workspaceItem: WorkspaceItem | null
 }
 
 function isVersionWorkspaceDir(value?: string | null) {
@@ -68,7 +68,7 @@ export function resolveWorkspaceVersionContext({
 }: {
   branchManifest: WorkspaceManifestSummary | null
   fallbackWorkspaceName: string
-  workspaces: FreecadWorkspacesResponse | null
+  workspaces: WorkspacesResponse | null
 }): WorkspaceVersionContext {
   const workspaceItems = workspaces?.items ?? []
   const hasCurrentWorkspace = workspaces ? Object.prototype.hasOwnProperty.call(workspaces, "current") : false
@@ -155,9 +155,9 @@ async function readJsonResponse<T>(response: Response, fallbackMessage: string) 
   return response.json() as Promise<T>
 }
 
-export function fetchFreecadWorkspaces() {
-  return fetch("/api/freecad/workspaces", { cache: "no-store" })
-    .then(response => response.ok ? response.json() as Promise<FreecadWorkspacesResponse> : null)
+export function fetchWorkspaces() {
+  return fetch("/api/workspace/workspaces", { cache: "no-store" })
+    .then(response => response.ok ? response.json() as Promise<WorkspacesResponse> : null)
 }
 
 export function fetchWorkspaceManifest({
@@ -223,8 +223,8 @@ export function branchWorkspaceVersion({
   }).then(response => readJsonResponse<{ manifest?: WorkspaceManifestSummary }>(response, "version branch failed"))
 }
 
-export function switchFreecadWorkspace(name: string) {
-  return fetch("/api/freecad/workspace", {
+export function switchWorkspace(name: string) {
+  return fetch("/api/workspace/workspace", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),

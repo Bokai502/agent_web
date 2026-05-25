@@ -2,15 +2,8 @@ import Fastify from "fastify"
 import cors from "@fastify/cors"
 import { loadConfig } from "./config.js"
 import { createLogger } from "./logger.js"
-import { taskRoutes } from "./routes/task.js"
-import { sessionRoutes } from "./routes/sessions.js"
-import { imageRoutes } from "./routes/image.js"
-import { healthRoutes, checkCodexEndpoint } from "./routes/health.js"
-import { skillsRoutes } from "./routes/skills.js"
-import { freecadRoutes } from "./routes/freecad.js"
-import { manifestRoutes } from "./routes/manifest.js"
-import { stageLogsRoutes } from "./routes/stageLogs.js"
-import { refreshSkillsCache } from "./skills.js"
+import { registerApiRoutes } from "./server/routes.js"
+import { checkCodexEndpoint, refreshSkillsCache } from "./system/index.js"
 
 const config = loadConfig()
 const logger = createLogger(config.logging)
@@ -35,14 +28,7 @@ await fastify.register(cors, {
   origin: config.server.corsOrigin,
   methods: ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
 })
-await fastify.register(taskRoutes, { config, logger })
-await fastify.register(sessionRoutes, { logger })
-await fastify.register(imageRoutes)
-await fastify.register(healthRoutes, { config, logger })
-await fastify.register(skillsRoutes)
-await fastify.register(freecadRoutes)
-await fastify.register(manifestRoutes, { logger })
-await fastify.register(stageLogsRoutes)
+await registerApiRoutes(fastify, { config, logger })
 
 // 启动时做一次连接自检（不阻塞启动）
 void checkCodexEndpoint(config).then(result => {

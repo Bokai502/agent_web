@@ -20,7 +20,7 @@ export function buildViewerModelSource(variant: ModelVariant): ViewerModelSource
 
   return {
     autoRefresh: runId.length === 0,
-    lookupUrl: `/api/freecad/model?${query.toString()}`,
+    lookupUrl: `/api/workspace/model?${query.toString()}`,
     variant,
   }
 }

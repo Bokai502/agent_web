@@ -1,6 +1,6 @@
 import { useCallback } from "react"
 import type {
-  FreecadWorkspaceItem,
+  WorkspaceItem,
   VersionAction,
   VersionSummary,
   VersionTreeNode,
@@ -23,7 +23,7 @@ type CurrentWorkspaceCardProps = {
   versionListOpen: boolean
   versionTreeRoots: VersionTreeNode[]
   workspaceChanging: boolean
-  workspaceItems: FreecadWorkspaceItem[]
+  workspaceItems: WorkspaceItem[]
   workspaceListOpen: boolean
 }
 

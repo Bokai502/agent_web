@@ -13,13 +13,13 @@ import {
   branchWorkspaceVersion,
   buildVersionTree,
   checkoutWorkspaceVersion,
-  fetchFreecadWorkspaces,
+  fetchWorkspaces,
   fetchWorkspaceManifest,
   getActiveVersion,
   getVersionWorkspaceKey,
   resolveWorkspaceVersionContext,
-  switchFreecadWorkspace,
-  type FreecadWorkspacesResponse,
+  switchWorkspace as switchWorkspaceRequest,
+  type WorkspacesResponse,
   type VersionAction,
   type WorkspaceManifestSummary,
 } from "./workspace/workspaceVersion"
@@ -27,7 +27,7 @@ import {
   formatProgressUpdatedAt,
   getProgressEntries,
   getWorkflowProgressEntries,
-  type FreecadProgressResponse,
+  type WorkspaceProgressResponse,
 } from "./workspace/progressUtils"
 import {
   formatStageLogTime,
@@ -47,7 +47,7 @@ type ViewerComponentMessage = {
   type?: unknown
 }
 
-type ActivePanel = "bom" | "log" | "model" | "freecad" | "paraview" | "comsol"
+type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol"
 
 function formatBomValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "-"
@@ -89,6 +89,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     handleSubmit,
     isMobile: _isMobile,
     pendingAskUser,
+    reloadSessions,
     running,
     runningWorkspace,
     sessionsLoaded,
@@ -99,11 +100,11 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
   const [selectedBomId, setSelectedBomId] = useState("")
   const [activePanel, setActivePanel] = useState<ActivePanel>("model")
-  const [progressData, setProgressData] = useState<FreecadProgressResponse | null>(null)
+  const [progressData, setProgressData] = useState<WorkspaceProgressResponse | null>(null)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
   const [selectedLogId, setSelectedLogId] = useState("")
   const [stageLogs, setStageLogs] = useState<StageLogEntry[]>([])
-  const [workspaces, setWorkspaces] = useState<FreecadWorkspacesResponse | null>(null)
+  const [workspaces, setWorkspaces] = useState<WorkspacesResponse | null>(null)
   const [workspacesLoaded, setWorkspacesLoaded] = useState(false)
   const [workspaceChanging, setWorkspaceChanging] = useState(false)
   const [branchManifest, setBranchManifest] = useState<WorkspaceManifestSummary | null>(null)
@@ -125,6 +126,9 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       session.versionId ?? "",
       session.workspaceDir ?? "",
       session.createdAt,
+      session.turns.length,
+      session.turns.at(-1)?.events.length ?? 0,
+      session.turns.at(-1)?.events.at(-1)?.type ?? "",
     ].join(":")).join("|"),
     [sortedSessions],
   )
@@ -180,11 +184,11 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, workspaceRefreshNonce])
-  const freecadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
+  const cadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const paraviewHref = "http://10.110.10.11:6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
   const comsolHref = "http://10.110.10.11:6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
-  const activeTool = activePanel === "freecad"
-    ? { label: "FreeCAD", subtitle: t("workspace.tools.freecadSubtitle"), title: t("workspace.tools.freecadTitle"), url: freecadHref }
+  const activeTool = activePanel === "cad"
+    ? { label: "CAD", subtitle: t("workspace.tools.cadSubtitle"), title: t("workspace.tools.cadTitle"), url: cadHref }
     : activePanel === "paraview"
       ? { label: "ParaView", subtitle: t("workspace.tools.paraviewSubtitle"), title: t("workspace.tools.paraviewTitle"), url: paraviewHref }
       : activePanel === "comsol"
@@ -291,12 +295,13 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     })
       .then(data => {
         setBranchManifest(data)
+        reloadSessions().catch(() => {})
         refreshWorkspaceViews()
         refreshManifest()
       })
       .catch(err => setVersionError(err instanceof Error ? err.message : "版本切换失败"))
       .finally(() => setVersionAction(null))
-  }, [activeContext.manifestRoot, activeContext.workspaceId, refreshManifest, refreshWorkspaceViews, versionWorkspaceKey])
+  }, [activeContext.manifestRoot, activeContext.workspaceId, refreshManifest, refreshWorkspaceViews, reloadSessions, versionWorkspaceKey])
 
   const branchVersion = useCallback((baseVersionId: string, label: string) => {
     if ((!versionWorkspaceKey && !activeContext.workspaceId && !activeContext.manifestRoot) || !baseVersionId) return
@@ -311,13 +316,14 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     })
       .then(data => {
         if (data.manifest) setBranchManifest(data.manifest)
+        reloadSessions().catch(() => {})
         refreshWorkspaceViews()
         refreshManifest()
         setVersionListOpen(true)
       })
       .catch(err => setVersionError(err instanceof Error ? err.message : "版本创建失败"))
       .finally(() => setVersionAction(null))
-  }, [activeContext.manifestRoot, activeContext.workspaceId, refreshManifest, refreshWorkspaceViews, versionWorkspaceKey])
+  }, [activeContext.manifestRoot, activeContext.workspaceId, refreshManifest, refreshWorkspaceViews, reloadSessions, versionWorkspaceKey])
 
   const createChildBranch = useCallback((baseVersionId?: string) => {
     if (!baseVersionId) return
@@ -330,11 +336,12 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     branchVersion(parentVersionId, "界面创建的同级版本")
   }, [activeManifestVersion?.parentVersionId, branchVersion])
 
-  const switchWorkspace = useCallback((name: string) => {
+  const switchActiveWorkspace = useCallback((name: string) => {
     setWorkspaceChanging(true)
     setBranchManifest(null)
-    return switchFreecadWorkspace(name)
+    return switchWorkspaceRequest(name)
       .then(() => {
+        reloadSessions().catch(() => {})
         refreshWorkspaceViews()
         refreshManifest()
       })
@@ -342,15 +349,15 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         // Keep the previous workspace visible if the switch is rejected.
       })
       .finally(() => setWorkspaceChanging(false))
-  }, [refreshManifest, refreshWorkspaceViews])
+  }, [refreshManifest, refreshWorkspaceViews, reloadSessions])
 
   const handleSelectWorkspace = useCallback((name: string) => {
     if (name === activeContext.workspaceName) return
 
-    switchWorkspace(name).then(() => {
+    switchActiveWorkspace(name).then(() => {
       handleNew()
     })
-  }, [activeContext.workspaceName, handleNew, switchWorkspace])
+  }, [activeContext.workspaceName, handleNew, switchActiveWorkspace])
 
   const openExternalWindow = useCallback((url: string) => {
     window.open(url, "_blank", "noopener,noreferrer")
@@ -403,7 +410,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     let cancelled = false
     setWorkspacesLoaded(false)
     const loadWorkspaces = () => {
-      fetchFreecadWorkspaces()
+      fetchWorkspaces()
         .then(data => {
           if (!cancelled) setWorkspaces(data)
         })
@@ -463,8 +470,8 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
         ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
       }).toString()}`
-      fetch(`/api/freecad/progress${query}`, { cache: "no-store" })
-        .then(response => response.ok ? response.json() as Promise<FreecadProgressResponse> : null)
+      fetch(`/api/workspace/progress${query}`, { cache: "no-store" })
+        .then(response => response.ok ? response.json() as Promise<WorkspaceProgressResponse> : null)
         .then(data => {
           if (!cancelled) setProgressData(data)
         })
@@ -568,9 +575,9 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
               <div className="wa-tool-panel" role="menu" aria-label={t("workspace.toolsAria")}>
                 <button
                   type="button"
-                  onClick={() => setActivePanel("freecad")}
+                  onClick={() => setActivePanel("cad")}
                 >
-                  FreeCAD <span>CAD</span>
+                  CAD <span>CAD</span>
                 </button>
                 <button
                   type="button"
@@ -821,7 +828,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
               <iframe
                 className="wa-viewer"
                 title={activeTool?.label ?? t("workspace.stage.remoteToolTitle")}
-                src={activeTool?.url ?? freecadHref}
+                src={activeTool?.url ?? cadHref}
               />
             )}
           </div>

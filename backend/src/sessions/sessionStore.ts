@@ -1,7 +1,8 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import { randomBytes } from "node:crypto"
-import { getFreecadWorkspaceRoot } from "./freecadWorkspace.js"
+import { isPathInside } from "../shared/index.js"
+import { getWorkspaceRoot } from "../workspaces/workspaceManager.js"
 
 export const WORKSPACE_CONVERSATION_HISTORY_FILE = "conversation-history.json"
 
@@ -20,11 +21,6 @@ function getTurnId(value: unknown) {
   if (!value || typeof value !== "object") return null
   const id = (value as { id?: unknown }).id
   return typeof id === "string" && id.trim() !== "" ? id.trim() : null
-}
-
-function isPathInside(parent: string, child: string) {
-  const relative = path.relative(parent, child)
-  return relative === "" || (!!relative && !relative.startsWith("..") && !path.isAbsolute(relative))
 }
 
 async function atomicWrite(filePath: string, content: string) {
@@ -79,9 +75,9 @@ function mergeSession(existing: unknown, incoming: unknown) {
 
 async function resolveWorkspaceHistoryPath(workspaceDir: unknown) {
   if (typeof workspaceDir !== "string" || workspaceDir.trim() === "") return null
-  const freecadRoot = path.resolve(await getFreecadWorkspaceRoot())
+  const workspaceRoot = path.resolve(await getWorkspaceRoot())
   const resolvedWorkspaceDir = path.resolve(workspaceDir)
-  if (!isPathInside(freecadRoot, resolvedWorkspaceDir)) return null
+  if (!isPathInside(workspaceRoot, resolvedWorkspaceDir)) return null
   return path.join(resolvedWorkspaceDir, "logs", WORKSPACE_CONVERSATION_HISTORY_FILE)
 }
 
@@ -95,7 +91,7 @@ async function readWorkspaceSessions(filePath: string) {
 }
 
 async function listWorkspaceHistoryFiles() {
-  const freecadRoot = path.resolve(await getFreecadWorkspaceRoot())
+  const workspaceRoot = path.resolve(await getWorkspaceRoot())
   const files: string[] = []
 
   const visit = async (dir: string) => {
@@ -112,7 +108,7 @@ async function listWorkspaceHistoryFiles() {
     }
   }
 
-  await visit(freecadRoot)
+  await visit(workspaceRoot)
   return files
 }
 

@@ -280,7 +280,7 @@ function buildModelLookupUrl({
   if (workspaceId?.trim()) params.set("workspaceId", workspaceId.trim())
   if (versionId?.trim()) params.set("versionId", versionId.trim())
   if (workspaceDir?.trim()) params.set("workspaceDir", workspaceDir.trim())
-  return `/api/freecad/model?${params.toString()}`
+  return `/api/workspace/model?${params.toString()}`
 }
 
 export function SessionModelPreview({

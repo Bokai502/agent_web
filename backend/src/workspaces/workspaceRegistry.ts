@@ -1,13 +1,7 @@
-import { FastifyInstance, FastifyReply } from "fastify"
 import fs from "fs/promises"
 import path from "path"
-import {
-  getFreecadWorkspaceRoot,
-  listFreecadWorkspaces,
-  resolveFreecadWorkspaceDir,
-  setFreecadWorkspace,
-} from "../freecadWorkspace.js"
-import { resolveRunWorkspaceContext } from "../manifest/store.js"
+import { resolveScopedWorkspaceFilePath } from "./workspaceFiles.js"
+import { isNonEmptyString, resolveRequestWorkspaceDir } from "./workspaceQuery.js"
 
 type RegistryIndex = {
   version?: number
@@ -69,33 +63,16 @@ type RenderableModel = {
 }
 
 type ProgressData = NonNullable<Awaited<ReturnType<typeof buildProgressDataFromManifest>>>
-type WorkspaceProgressData = {
-  data: unknown
-  sourcePath: string
-  sourceVersion: string
-  updatedAt: string
-}
 
 type RegistryLocation = {
   registryDir: string
   indexFile: string
 }
 
-type ModelVariant = "original" | "replaced"
-
-type ResolvedQueryWorkspaceContext = {
-  versionId: string | null
-  workspaceDir: string
-  workspaceId: string | null
-}
+export type ModelVariant = "original" | "replaced"
 
 const DEFAULT_ASSEMBLY_BUILDS_DIR = "assembly_builds"
 const DEFAULT_ARTIFACT_REGISTRY_DIR = path.join("logs", "registry")
-const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "geom_component_info.json")
-const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
-const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
-const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
-const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "postprocess", "temperature_field_threejs.json")
 const DEFAULT_GEOMETRY_AFTER_GLB_RELATIVE_PATHS = [
   path.join("01_cad", "geometry_after.glb"),
   path.join("02_geometry_edit", "geometry_after.glb"),
@@ -103,97 +80,15 @@ const DEFAULT_GEOMETRY_AFTER_GLB_RELATIVE_PATHS = [
 const COMPONENT_INFO_ASSEMBLY_STEM = "component_info_assembly"
 const LAYOUT_ASSEMBLY_STEM = "geometry_after"
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim() !== ""
-}
-
-function normalizeModelVariant(value: unknown): ModelVariant {
+export function normalizeModelVariant(value: unknown): ModelVariant {
   return value === "replaced" ? "replaced" : "original"
-}
-
-async function resolveConfiguredWorkspaceDir() {
-  const rootConfigWorkspaceDir = await resolveFreecadWorkspaceDir()
-  return rootConfigWorkspaceDir
-}
-
-function getQueryWorkspaceDir(value: unknown) {
-  return isNonEmptyString(value) ? path.resolve(value) : null
-}
-
-function isPathInside(parent: string, child: string) {
-  const relative = path.relative(parent, child)
-  return relative === "" || (!!relative && !relative.startsWith("..") && !path.isAbsolute(relative))
-}
-
-class WorkspaceQueryError extends Error {
-  statusCode: number
-
-  constructor(message: string, statusCode: number) {
-    super(message)
-    this.name = "WorkspaceQueryError"
-    this.statusCode = statusCode
-  }
-}
-
-function toWorkspaceQueryError(err: unknown, statusCode: number, fallbackMessage: string) {
-  return new WorkspaceQueryError(err instanceof Error ? err.message : fallbackMessage, statusCode)
-}
-
-function replyWithWorkspaceQueryError(reply: FastifyReply, err: unknown, fallbackMessage: string) {
-  if (err instanceof WorkspaceQueryError) {
-    return reply.status(err.statusCode).send({ error: err.message })
-  }
-  return reply.status(500).send({ error: fallbackMessage })
-}
-
-async function resolveRequestWorkspaceDir(workspaceDir?: string | null) {
-  if (!workspaceDir) return await resolveConfiguredWorkspaceDir()
-  const freecadRoot = path.resolve(await getFreecadWorkspaceRoot())
-  const resolvedWorkspaceDir = path.resolve(workspaceDir)
-  if (!isPathInside(freecadRoot, resolvedWorkspaceDir)) {
-    throw new Error("workspaceDir must be under the FreeCAD_data root")
-  }
-  return resolvedWorkspaceDir
-}
-
-async function resolveQueryWorkspaceContext(query: { versionId?: string; workspaceDir?: string; workspaceId?: string }): Promise<ResolvedQueryWorkspaceContext> {
-  const workspaceDir = getQueryWorkspaceDir(query.workspaceDir)
-  const workspaceId = isNonEmptyString(query.workspaceId) ? query.workspaceId.trim() : null
-  const versionId = isNonEmptyString(query.versionId) ? query.versionId.trim() : null
-  if (workspaceId || versionId) {
-    try {
-      const context = await resolveRunWorkspaceContext({ workspaceDir, workspaceId, versionId })
-      if (!context.workspaceDir) throw new Error("workspace version directory is not resolved")
-      return {
-        versionId: context.versionId,
-        workspaceDir: context.workspaceDir,
-        workspaceId: context.workspaceId,
-      }
-    } catch (err) {
-      throw toWorkspaceQueryError(err, 409, "workspace context mismatch")
-    }
-  }
-
-  try {
-    return {
-      versionId: null,
-      workspaceDir: await resolveRequestWorkspaceDir(workspaceDir),
-      workspaceId: null,
-    }
-  } catch (err) {
-    throw toWorkspaceQueryError(err, 400, "invalid workspaceDir")
-  }
-}
-
-async function resolveQueryWorkspaceDir(query: { versionId?: string; workspaceDir?: string; workspaceId?: string }) {
-  return (await resolveQueryWorkspaceContext(query)).workspaceDir
 }
 
 async function resolveRegistryLocations(workspaceDirOverride?: string | null) {
   const workspaceDir = await resolveRequestWorkspaceDir(workspaceDirOverride)
   const assemblyBuildsDir = path.join(workspaceDir, DEFAULT_ASSEMBLY_BUILDS_DIR)
-  const configuredRegistryDir = isNonEmptyString(process.env.FREECAD_ARTIFACT_REGISTRY_DIR)
-    ? path.resolve(process.env.FREECAD_ARTIFACT_REGISTRY_DIR)
+  const configuredRegistryDir = isNonEmptyString(process.env.WORKSPACE_ARTIFACT_REGISTRY_DIR)
+    ? path.resolve(process.env.WORKSPACE_ARTIFACT_REGISTRY_DIR)
     : path.join(workspaceDir, DEFAULT_ARTIFACT_REGISTRY_DIR)
 
   const locations: RegistryLocation[] = [
@@ -268,23 +163,6 @@ function resolveScopedAssemblyArtifactPath(
   return null
 }
 
-function resolveScopedWorkspaceFilePath(filePath: string | null | undefined, workspaceDir: string) {
-  if (!isNonEmptyString(filePath)) return null
-
-  const resolvedPath = path.isAbsolute(filePath)
-    ? path.resolve(filePath)
-    : path.resolve(workspaceDir, filePath)
-  const relativeToWorkspace = path.relative(workspaceDir, resolvedPath)
-  if (
-    relativeToWorkspace === "" ||
-    (!relativeToWorkspace.startsWith("..") && !path.isAbsolute(relativeToWorkspace))
-  ) {
-    return resolvedPath
-  }
-
-  return null
-}
-
 function isGlbPath(filePath: string) {
   return path.extname(filePath).toLowerCase() === ".glb"
 }
@@ -303,7 +181,7 @@ function getAssemblyOutputStem(manifest: RunManifest) {
   if (
     inputFormat === "component_info_assembly" ||
     operationType === "create_component_info_assembly" ||
-    manifest.operation?.tool === "freecad-create-assembly-from-component-info"
+    manifest.operation?.tool === "cad-create-assembly-from-component-info"
   ) {
     return COMPONENT_INFO_ASSEMBLY_STEM
   }
@@ -549,7 +427,7 @@ async function resolveModelFromRegistry(sessionId?: string, runId?: string, vari
   return candidates[0] ?? null
 }
 
-async function resolveModel(
+export async function resolveModel(
   sessionId?: string,
   runId?: string,
   variant: ModelVariant = "original",
@@ -657,7 +535,7 @@ async function buildProgressDataFromManifest(
   }
 }
 
-async function resolveProgressFromLatestSessionRun(sessionId: string, workspaceDirOverride?: string | null) {
+export async function resolveProgressFromLatestSessionRun(sessionId: string, workspaceDirOverride?: string | null) {
   const { locations, workspaceDir, assemblyBuildsDir } = await resolveRegistryLocations(workspaceDirOverride)
 
   for (const location of locations) {
@@ -712,234 +590,4 @@ async function resolveProgressFromLatestSessionRun(sessionId: string, workspaceD
   }
 
   return null
-}
-
-async function readWorkspaceProgress(progressPath: string): Promise<WorkspaceProgressData | null> {
-  const raw = await fs.readFile(progressPath, "utf-8").catch(() => null)
-  if (raw === null) return null
-
-  const stat = await fs.stat(progressPath)
-  return {
-    data: JSON.parse(raw) as unknown,
-    sourcePath: progressPath,
-    sourceVersion: [progressPath, stat.mtimeMs, stat.size].join(":"),
-    updatedAt: stat.mtime.toISOString(),
-  }
-}
-
-export async function freecadRoutes(fastify: FastifyInstance) {
-  fastify.get("/api/freecad/workspaces", async (_req, reply) => {
-    try {
-      reply.header("Cache-Control", "no-cache")
-      return reply.send(await listFreecadWorkspaces())
-    } catch {
-      return reply.status(500).send({ error: "failed to list FreeCAD workspaces" })
-    }
-  })
-
-  fastify.post<{ Body: { name?: unknown } }>("/api/freecad/workspace", async (req, reply) => {
-    try {
-      reply.header("Cache-Control", "no-cache")
-      return reply.send(await setFreecadWorkspace(req.body?.name))
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "failed to set FreeCAD workspace"
-      return reply.status(400).send({ error: message })
-    }
-  })
-
-  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/freecad/component-info", async (req, reply) => {
-    try {
-      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
-      const componentInfoPath = path.join(workspaceDir, DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH)
-      const raw = await fs.readFile(componentInfoPath, "utf-8").catch(() => null)
-
-      if (raw === null) {
-        return reply.status(404).send({ error: "component info data not found" })
-      }
-
-      const stat = await fs.stat(componentInfoPath)
-
-      reply.header("Cache-Control", "no-cache")
-      return reply.send({
-        ...JSON.parse(raw),
-        source_path: componentInfoPath,
-        source_version: [componentInfoPath, stat.mtimeMs, stat.size].join(":"),
-      })
-    } catch (err) {
-      return replyWithWorkspaceQueryError(reply, err, "failed to resolve component info data")
-    }
-  })
-
-  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/freecad/bom", async (req, reply) => {
-    try {
-      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
-      const candidatePaths = [
-        path.join(workspaceDir, DEFAULT_BOM_INFO_RELATIVE_PATH),
-        path.join(workspaceDir, DEFAULT_REAL_BOM_RELATIVE_PATH),
-      ]
-
-      let bomInfoPath: string | null = null
-      let raw: string | null = null
-      for (const candidatePath of candidatePaths) {
-        raw = await fs.readFile(candidatePath, "utf-8").catch(() => null)
-        if (raw !== null) {
-          bomInfoPath = candidatePath
-          break
-        }
-      }
-
-      if (!bomInfoPath || raw === null) {
-        return reply.status(404).send({ error: "BOM data not found" })
-      }
-
-      const stat = await fs.stat(bomInfoPath)
-
-      reply.header("Cache-Control", "no-cache")
-      return reply.send({
-        ...JSON.parse(raw),
-        source_path: bomInfoPath,
-        source_version: [bomInfoPath, stat.mtimeMs, stat.size].join(":"),
-      })
-    } catch (err) {
-      return replyWithWorkspaceQueryError(reply, err, "failed to resolve BOM data")
-    }
-  })
-
-  fastify.get<{ Querystring: { sessionId?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/freecad/progress", async (req, reply) => {
-    try {
-      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
-      const progressPath = path.join(workspaceDir, DEFAULT_PROGRESS_RELATIVE_PATH)
-
-      let workspaceProgress: WorkspaceProgressData | null = null
-      try {
-        workspaceProgress = await readWorkspaceProgress(progressPath)
-      } catch {
-        const stat = await fs.stat(progressPath).catch(() => null)
-        reply.header("Cache-Control", "no-cache")
-        return reply.send({
-          exists: false,
-          data: null,
-          error: "progress json is not valid yet",
-          source_path: progressPath,
-          source_version: stat ? [progressPath, stat.mtimeMs, stat.size].join(":") : null,
-          updated_at: stat?.mtime.toISOString() ?? null,
-        })
-      }
-
-      reply.header("Cache-Control", "no-cache")
-      if (!workspaceProgress) {
-        if (isNonEmptyString(req.query.sessionId)) {
-          const sessionProgress = await resolveProgressFromLatestSessionRun(req.query.sessionId, workspaceDir)
-          if (sessionProgress) {
-            return reply.send({
-              exists: true,
-              data: sessionProgress.data,
-              source_path: sessionProgress.sourcePath,
-              source_version: sessionProgress.sourceVersion,
-            })
-          }
-        }
-        return reply.send({
-          exists: false,
-          data: null,
-          source_path: progressPath,
-          source_version: null,
-        })
-      }
-
-      return reply.send({
-        exists: true,
-        data: workspaceProgress.data,
-        source_path: workspaceProgress.sourcePath,
-        source_version: workspaceProgress.sourceVersion,
-        updated_at: workspaceProgress.updatedAt,
-      })
-    } catch (err) {
-      return replyWithWorkspaceQueryError(reply, err, "failed to resolve freecad progress data")
-    }
-  })
-
-  fastify.get<{ Querystring: { sessionId?: string; runId?: string; variant?: string; glbPath?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>(
-    "/api/freecad/model",
-    async (req, reply) => {
-      try {
-        const variant = normalizeModelVariant(req.query.variant)
-        const workspaceContext = await resolveQueryWorkspaceContext(req.query)
-        const workspaceDir = workspaceContext.workspaceDir
-        const model = await resolveModel(req.query.sessionId, req.query.runId, variant, req.query.glbPath, workspaceDir)
-        if (!model) {
-          return reply.status(404).send({ error: "model not found" })
-        }
-
-        const modelParams = new URLSearchParams({
-          ...(req.query.glbPath ? { glbPath: model.glbPath } : {}),
-          ...(model.sessionId ? { sessionId: model.sessionId } : {}),
-          ...(model.runId ? { runId: model.runId } : {}),
-          ...(workspaceDir ? { workspaceDir } : {}),
-          ...(workspaceContext.workspaceId ? { workspaceId: workspaceContext.workspaceId } : {}),
-          ...(workspaceContext.versionId ? { versionId: workspaceContext.versionId } : {}),
-          variant,
-          v: model.version,
-        })
-        return reply.send({
-          ...model,
-          modelUrl: `/api/freecad/model/file?${modelParams.toString()}`,
-        })
-      } catch (err) {
-        return replyWithWorkspaceQueryError(reply, err, "failed to resolve freecad model")
-      }
-    },
-  )
-
-  fastify.get<{ Querystring: { sessionId?: string; runId?: string; variant?: string; glbPath?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>(
-    "/api/freecad/model/file",
-    async (req, reply) => {
-      try {
-        const workspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
-        const model = await resolveModel(
-          req.query.sessionId,
-          req.query.runId,
-          normalizeModelVariant(req.query.variant),
-          req.query.glbPath,
-          workspaceDir,
-        )
-        if (!model) {
-          return reply.status(404).send({ error: "model not found" })
-        }
-
-        const data = await fs.readFile(model.glbPath)
-        reply.header("Content-Type", "model/gltf-binary")
-        reply.header("Cache-Control", "no-cache")
-        return reply.send(data)
-      } catch (err) {
-        if (err instanceof WorkspaceQueryError) {
-          return reply.status(err.statusCode).send({ error: err.message })
-        }
-        return reply.status(404).send({ error: "glb file not found" })
-      }
-    },
-  )
-
-  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>(
-    "/api/freecad/temperature-field",
-    async (req, reply) => {
-      try {
-        const workspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
-        const fieldPath = resolveScopedWorkspaceFilePath(DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH, workspaceDir)
-        if (!fieldPath) {
-          return reply.status(404).send({ error: "temperature field not found" })
-        }
-
-        const data = JSON.parse(await fs.readFile(fieldPath, "utf-8")) as unknown
-        reply.header("Content-Type", "application/json; charset=utf-8")
-        reply.header("Cache-Control", "no-cache")
-        return reply.send(data)
-      } catch (err) {
-        if (err instanceof WorkspaceQueryError) {
-          return reply.status(err.statusCode).send({ error: err.message })
-        }
-        return reply.status(404).send({ error: "temperature field not found" })
-      }
-    },
-  )
 }
