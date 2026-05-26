@@ -1,0 +1,4 @@
+interface:
+  display_name: "FSW Requirements Extractor"
+  short_description: "Extract CFS_FSW requirements from mission and GNC inputs"
+  default_prompt: "Use $fsw-requirements-extractor to extract CFS_FSW requirements from this mission description."

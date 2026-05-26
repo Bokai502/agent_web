@@ -1,0 +1,4 @@
+interface:
+  display_name: "42 Runtime Plotter"
+  short_description: "Generate standard post-run 42 telemetry plots."
+  default_prompt: "Use $42-runtime-plotter to generate and show the standard post-run 42 telemetry plots from a runtime InOut directory."

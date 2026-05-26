@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import * as THREE from "three/webgpu"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
+import { joinApiPath } from "../app/apiBase"
 import {
   collectComponentRoots,
   resolveComponentLabel,
@@ -28,6 +29,7 @@ const SAMPLE_THUMBNAIL_PIXEL_RATIO = 2
 const SAMPLE_THUMBNAIL_QUALITY = 0.94
 
 interface SessionModelPreviewProps {
+  apiBase?: string
   sessionId: string
   versionId?: string | null
   workspaceDir?: string | null
@@ -271,6 +273,7 @@ function nextFrame() {
 }
 
 function buildModelLookupUrl({
+  apiBase,
   sessionId,
   versionId,
   workspaceDir,
@@ -280,10 +283,11 @@ function buildModelLookupUrl({
   if (workspaceId?.trim()) params.set("workspaceId", workspaceId.trim())
   if (versionId?.trim()) params.set("versionId", versionId.trim())
   if (workspaceDir?.trim()) params.set("workspaceDir", workspaceDir.trim())
-  return `/api/workspace/model?${params.toString()}`
+  return `${joinApiPath(apiBase, "/workspace/model")}?${params.toString()}`
 }
 
 export function SessionModelPreview({
+  apiBase,
   sessionId,
   versionId,
   workspaceDir,
@@ -453,7 +457,7 @@ export function SessionModelPreview({
       const resolvedModel = await fetchResolvedModel(
         {
           autoRefresh: false,
-          lookupUrl: buildModelLookupUrl({ sessionId, versionId, workspaceDir, workspaceId }),
+          lookupUrl: buildModelLookupUrl({ apiBase, sessionId, versionId, workspaceDir, workspaceId }),
           variant: "original",
         },
         controller.signal,
@@ -486,7 +490,7 @@ export function SessionModelPreview({
       controller.abort()
       cleanupPreviewResources()
     }
-  }, [sessionId, shouldLoad, versionId, workspaceDir, workspaceId])
+  }, [apiBase, sessionId, shouldLoad, versionId, workspaceDir, workspaceId])
 
   return (
     <div

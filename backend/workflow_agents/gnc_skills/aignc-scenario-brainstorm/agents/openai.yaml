@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIGNC Scenario Brainstorm"
+  short_description: "Extract and structure AIGNC scenario requirements"
+  default_prompt: "Use $aignc-scenario-brainstorm to analyze this mission description and extract structured AIGNC requirements."

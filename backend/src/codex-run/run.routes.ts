@@ -6,7 +6,8 @@ import { getString } from "../shared/index.js"
 import { initializeWorkspaceProgressForSession } from "../workspaces/workspaceProgressInit.js"
 import { resolveWorkspaceDir } from "../workspaces/workspaceManager.js"
 import { createRun, patchRun, resolveRunWorkspaceContext } from "../manifests/store.js"
-import { readSkillInstructions } from "../system/skills.js"
+import { isGncRequestContext } from "../server/requestContext.js"
+import { getWorkspaceSkillScopes, readScopedSkillInstructions, readSkillInstructions } from "../system/skills.js"
 import { ASK_USER_TAG_START, extractAskUserPayload } from "./askUserProtocol.js"
 import { buildCodexConfig } from "./codexConfig.js"
 import { registerInputFilesRoute } from "./inputFiles.routes.js"
@@ -66,7 +67,8 @@ export async function taskRoutes(
       let eventCount = 0
 
       // Always inject execution context and the agent guide on the first recorded turn.
-      // Explicitly enabled skills are injected on every turn so @skill is a hard trigger.
+      // Public skills are injected for every workspace; workspace requests receive thermal skills,
+      // and GNC requests receive AIGNC skills.
       const runContext = {
         workspaceDir: resolvedWorkspaceContext?.workspaceDir ?? (workspaceContextRequested ? null : await resolveWorkspaceDir().catch(() => null)),
         workspaceId: resolvedWorkspaceContext?.workspaceId ?? requestedWorkspaceId,
@@ -83,9 +85,14 @@ export async function taskRoutes(
           .join("\n\n")
           .trim() || "[input]"
       const injectSessionPrefix = await shouldInjectPromptPrefixForSession(trimmedSessionId, runContext.workspaceDir)
-      const skillInstructions = readSkillInstructions(skillNames)
-      const injectedSkillNames = new Set(skillInstructions.map(skill => skill.name.toLowerCase()))
-      const missingSkillNames = skillNames.filter(name => !injectedSkillNames.has(name.toLowerCase()))
+      const skillScopes = getWorkspaceSkillScopes(isGncRequestContext())
+      const explicitSkillInstructions = readSkillInstructions(skillNames, skillScopes)
+      const scopedSkillInstructions = readScopedSkillInstructions(skillScopes)
+      const explicitSkillNames = new Set(explicitSkillInstructions.map(skill => skill.name.toLowerCase()))
+      const missingSkillNames = skillNames.filter(name => !explicitSkillNames.has(name.toLowerCase()))
+      const skillInstructions = [...scopedSkillInstructions, ...explicitSkillInstructions].filter((skill, index, all) =>
+        all.findIndex(item => item.name.toLowerCase() === skill.name.toLowerCase()) === index
+      )
       if (missingSkillNames.length > 0) {
         return reply.status(400).send({ error: `enabled skill not found: ${missingSkillNames.join(", ")}` })
       }

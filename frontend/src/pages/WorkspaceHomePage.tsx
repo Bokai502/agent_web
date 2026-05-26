@@ -873,12 +873,13 @@ function SampleSessionCard({
 }
 
 interface WorkspaceHomePageProps {
+  apiBase?: string
   homePath?: string
 }
 
-export default function WorkspaceHomePage({ homePath = DEFAULT_HOME_PATH }: WorkspaceHomePageProps) {
+export default function WorkspaceHomePage({ apiBase, homePath = DEFAULT_HOME_PATH }: WorkspaceHomePageProps) {
   const { t } = useTranslation()
-  const workspaceState = useWorkspaceAppState({ homePath })
+  const workspaceState = useWorkspaceAppState({ apiBase, homePath })
   const [historyPage, setHistoryPage] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [deleteError, setDeleteError] = useState("")
@@ -895,7 +896,7 @@ export default function WorkspaceHomePage({ homePath = DEFAULT_HOME_PATH }: Work
   } = workspaceState
 
   if (activeSessionId) {
-    return <WorkspaceAppleContent state={workspaceState} />
+    return <WorkspaceAppleContent apiBase={apiBase} state={workspaceState} />
   }
 
   const historyPageSize = isMobile ? 4 : 5
@@ -944,7 +945,7 @@ export default function WorkspaceHomePage({ homePath = DEFAULT_HOME_PATH }: Work
             </p>
 
             <div className="apple-sample-composer">
-              <AppleTaskComposer onSubmit={handleSubmit} onAbort={abort} running={running} />
+              <AppleTaskComposer apiBase={apiBase} onSubmit={handleSubmit} onAbort={abort} running={running} />
             </div>
 
             <div className="apple-sample-metrics" aria-label={t("home.overviewAria")}>

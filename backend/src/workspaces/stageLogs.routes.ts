@@ -14,8 +14,20 @@ type StageLogEntry = {
   time: string
 }
 
+type ConversationLogEntry = {
+  detail: string
+  id: string
+  raw: unknown
+  source: string
+  status: string
+  time: string
+  title: string
+}
+
 const MAX_FILES = 100
 const MAX_ENTRIES = 300
+const REPORT_RELATIVE_PATH = path.join("reports", "report.md")
+const MARKDOWN_LINK_OR_IMAGE_RE = /(!?\[[^\]]*\]\()([^)\s]+)(\))/gu
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
@@ -147,6 +159,41 @@ function sortEntries(entries: StageLogEntry[]) {
   })
 }
 
+function rewriteReportMarkdownLinks(markdown: string, reportPath: string) {
+  const reportDir = path.dirname(reportPath)
+  return markdown.replace(MARKDOWN_LINK_OR_IMAGE_RE, (_match, prefix: string, link: string, suffix: string) => {
+    if (/^(?:[a-z][a-z0-9+.-]*:|#)/iu.test(link)) return `${prefix}${link}${suffix}`
+    const absolutePath = path.resolve(reportDir, link)
+    const ext = path.extname(absolutePath).toLowerCase()
+    if (![".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"].includes(ext)) return `${prefix}${link}${suffix}`
+    return `${prefix}/api/image?path=${encodeURIComponent(absolutePath)}${suffix}`
+  })
+}
+
+async function addReportEntry(workspaceDir: string, entries: StageLogEntry[]) {
+  const reportPath = path.join(workspaceDir, REPORT_RELATIVE_PATH)
+  const raw = await fs.readFile(reportPath, "utf-8").catch(() => null)
+  if (raw === null) return
+
+  const stat = await fs.stat(reportPath)
+  entries.push({
+    detail: "reports/report.md",
+    fields: {
+      path: path.relative(process.cwd(), reportPath),
+      size_bytes: String(stat.size),
+    },
+    id: `${path.relative(process.cwd(), reportPath)}:report`,
+    raw: {
+      format: "markdown",
+      content: rewriteReportMarkdownLinks(raw, reportPath),
+    },
+    source: path.relative(process.cwd(), reportPath),
+    status: "completed",
+    stage_name: "总结报告",
+    time: stat.mtime.toISOString(),
+  })
+}
+
 export async function stageLogsRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/stages", async (req, reply) => {
     let configuredWorkspaceDir: string
@@ -170,7 +217,43 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
         // Skip malformed or transient log files.
       }
     }
+    await addReportEntry(configuredWorkspaceDir, entries)
 
     return reply.send(sortEntries(entries).slice(0, MAX_ENTRIES))
+  })
+
+  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/conversation", async (req, reply) => {
+    let configuredWorkspaceDir: string
+    try {
+      configuredWorkspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve conversation history workspace")
+    }
+
+    const historyPath = path.join(configuredWorkspaceDir, "logs", "conversation-history.json")
+    const raw = await fs.readFile(historyPath, "utf-8").catch(() => null)
+    if (raw === null) return reply.send([])
+
+    try {
+      const parsed = JSON.parse(raw)
+      const sessions = Array.isArray(parsed) ? parsed : []
+      const stat = await fs.stat(historyPath)
+      const entries: ConversationLogEntry[] = sessions.map((session, index) => {
+        const value = isRecord(session) ? session : {}
+        const turns = Array.isArray(value.turns) ? value.turns : []
+        return {
+          detail: `${turns.length} turn${turns.length === 1 ? "" : "s"}`,
+          id: `conversation:${asString(value.id) ?? index}`,
+          raw: value,
+          source: path.relative(process.cwd(), historyPath),
+          status: "completed",
+          time: typeof value.createdAt === "number" ? new Date(value.createdAt).toISOString() : stat.mtime.toISOString(),
+          title: "历史对话",
+        }
+      })
+      return reply.send(entries)
+    } catch {
+      return reply.send([])
+    }
   })
 }

@@ -33,6 +33,16 @@ export type StageLogEntry = {
   time: string
 }
 
+export type ConversationLogEntry = {
+  detail: string
+  id: string
+  raw: unknown
+  source?: string
+  status: string
+  time: string
+  title: string
+}
+
 function getLatestItemText(events: ThreadEvent[], itemType: "agent_message" | "reasoning") {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index]
@@ -170,8 +180,21 @@ export function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[], t:
   return entries.slice(-80).reverse()
 }
 
-export function getDisplayLogEntries(stageLogs: StageLogEntry[], _runEntries: RunLogEntry[]): RunLogEntry[] {
-  return stageLogs.map(entry => ({
+export function getDisplayLogEntries(stageLogs: StageLogEntry[], conversationLogs: ConversationLogEntry[], _runEntries: RunLogEntry[]): RunLogEntry[] {
+  const conversationEntries = conversationLogs.map(entry => ({
+    detail: entry.detail,
+    id: entry.id,
+    raw: {
+      format: "conversation",
+      content: entry.raw,
+    },
+    source: entry.source,
+    status: entry.status,
+    time: entry.time,
+    title: "历史对话",
+    type: "conversation",
+  }))
+  const stageEntries = stageLogs.map(entry => ({
     detail: entry.detail ?? formatStageLogTime(entry.time),
     fields: entry.fields,
     id: entry.id,
@@ -182,6 +205,7 @@ export function getDisplayLogEntries(stageLogs: StageLogEntry[], _runEntries: Ru
     title: entry.stage_name,
     type: "stage",
   }))
+  return [...conversationEntries, ...stageEntries]
 }
 
 export function getStatusIcon(status: string) {

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"
+import { joinApiPath } from "../app/apiBase"
 import { EMPTY_BOM_INFO, parseBomInfo, type BomInfo } from "../components/bomData"
 
 export type BomWorkspaceContext = {
+  apiBase?: string
   enabled?: boolean
   versionDir?: string | null
   versionId?: string | null
@@ -14,6 +16,7 @@ export function useBomInfo(refreshKey = 0, workspace?: BomWorkspaceContext | str
   const workspaceDir = typeof workspace === "string" ? workspace : workspace?.versionDir
   const workspaceId = typeof workspace === "string" ? null : workspace?.workspaceId
   const versionId = typeof workspace === "string" ? null : workspace?.versionId
+  const apiBase = typeof workspace === "string" ? undefined : workspace?.apiBase
   const enabled = typeof workspace === "string" ? !!workspace : workspace?.enabled ?? !!workspaceDir
 
   useEffect(() => {
@@ -41,7 +44,7 @@ export function useBomInfo(refreshKey = 0, workspace?: BomWorkspaceContext | str
       if (inFlight || controller.signal.aborted) return
       inFlight = true
       if (showLoading) setLoading(true)
-      fetch(`/api/workspace/bom${query}`, {
+      fetch(`${joinApiPath(apiBase, "/workspace/bom")}${query}`, {
         cache: "no-store",
         signal: controller.signal,
       })
@@ -67,7 +70,7 @@ export function useBomInfo(refreshKey = 0, workspace?: BomWorkspaceContext | str
       controller.abort()
       if (intervalId !== null) window.clearInterval(intervalId)
     }
-  }, [enabled, refreshIntervalMs, refreshKey, versionId, workspaceDir, workspaceId])
+  }, [apiBase, enabled, refreshIntervalMs, refreshKey, versionId, workspaceDir, workspaceId])
 
   return { bomInfo, loading }
 }

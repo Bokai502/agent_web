@@ -1,0 +1,4 @@
+interface:
+  display_name: "FreeCAD"
+  short_description: "Run FreeCAD layout CLI workflows"
+  default_prompt: "Use $freecad to inspect runtime/workspace config, build CAD-stage artifacts, validate CAD outputs with screenshots and geometry checks, create real STEP/STP component assemblies, safely move components, and verify STEP/GLB workflow outputs."

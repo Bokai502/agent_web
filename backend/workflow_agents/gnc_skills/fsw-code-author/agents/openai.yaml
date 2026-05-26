@@ -1,0 +1,4 @@
+interface:
+  display_name: "FSW Code Author"
+  short_description: "Implement planned fixed CFS_FSW changes."
+  default_prompt: "Use $fsw-code-author to implement planned fixed CFS_FSW, sidecar optical-link, and related build changes from the architecture package, keep edits bounded to the mapped ownership files, and leave the codebase compiling."

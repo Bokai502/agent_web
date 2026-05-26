@@ -26,6 +26,7 @@ function Router() {
   const isEarth = pathname === '/earth'
   const isHome = pathname === '/' || pathname === '/home'
   const isWorkspace = pathname === '/workspace' || pathname.startsWith('/workspace/')
+  const isGncWorkspace = pathname === '/gnc-workspace' || pathname.startsWith('/gnc-workspace/')
 
   if (isViewer) {
     return (
@@ -55,6 +56,14 @@ function Router() {
     return (
       <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
         <WorkspaceSessionPage homePath="/workspace" />
+      </Suspense>
+    )
+  }
+
+  if (isGncWorkspace) {
+    return (
+      <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
+        <WorkspaceSessionPage apiBase="/api/gnc" homePath="/gnc-workspace" />
       </Suspense>
     )
   }

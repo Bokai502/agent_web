@@ -1,6 +1,7 @@
 import fs from "fs/promises"
 import path from "path"
 import { fileURLToPath } from "url"
+import { getRequestWorkspaceRootOverride } from "../server/requestContext.js"
 
 const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(BACKEND_SRC_DIR, "..", "..", "..", "..")
@@ -50,6 +51,8 @@ function getConfiguredWorkspaceDir(config: RootConfig) {
 }
 
 function getWorkspaceRootFromConfigured(configuredWorkspaceDir: string | null) {
+  const workspaceRootOverride = getRequestWorkspaceRootOverride()
+  if (workspaceRootOverride) return path.resolve(workspaceRootOverride)
   if (!configuredWorkspaceDir) return DEFAULT_WORKSPACE_ROOT
   const parent = path.dirname(configuredWorkspaceDir)
   if (path.basename(parent) === DEFAULT_WORKSPACE_ROOT_NAME) return parent
@@ -180,12 +183,15 @@ export async function getConfiguredWorkspaceDirFromConfig() {
 }
 
 export async function resolveWorkspaceDir() {
+  const workspaceRootOverride = getRequestWorkspaceRootOverride()
+  if (workspaceRootOverride) return path.resolve(workspaceRootOverride)
   return await getConfiguredWorkspaceDirFromConfig() ?? DEFAULT_WORKSPACE_ROOT
 }
 
 export async function listWorkspaces() {
   const config = await readRootConfig().catch(() => ({} as RootConfig))
   const configuredWorkspaceDir = getConfiguredWorkspaceDir(config)
+  const workspaceRootOverride = getRequestWorkspaceRootOverride()
   const effectiveWorkspaceDir = await resolveWorkspaceDir()
   const root = getWorkspaceRootFromConfigured(configuredWorkspaceDir)
   const configuredName = configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
@@ -202,6 +208,17 @@ export async function listWorkspaces() {
   )
   const availableItems = items.filter(item => item.valid)
   availableItems.sort((left, right) => left.name.localeCompare(right.name))
+  if (workspaceRootOverride) {
+    const firstWorkspace = availableItems[0] ?? null
+    return {
+      root,
+      current: firstWorkspace?.path ?? null,
+      currentName: firstWorkspace?.name ?? null,
+      effective: firstWorkspace?.path ?? effectiveWorkspaceDir,
+      envOverride: false,
+      items: availableItems,
+    }
+  }
   const activeWorkspaceItem = versionedWorkspace
     ? availableItems.find(item => item.manifestRoot === versionedWorkspace.rootDir)
     : null
@@ -248,9 +265,10 @@ export async function setWorkspace(name: unknown) {
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new Error("workspace must be under the configured workspace data root")
   }
-  setConfiguredWorkspaceDir(config, workspace.path)
-
-  await writeRootConfig(config)
+  if (!getRequestWorkspaceRootOverride()) {
+    setConfiguredWorkspaceDir(config, workspace.path)
+    await writeRootConfig(config)
+  }
 
   return {
     root,

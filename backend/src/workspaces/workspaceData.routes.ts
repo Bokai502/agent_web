@@ -32,7 +32,14 @@ const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "g
 const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
-const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "postprocess", "temperature_field_threejs.json")
+const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation", "data1.txt")
+
+type TemperaturePoint = {
+  temperature: number
+  x: number
+  y: number
+  z: number
+}
 
 async function readWorkspaceProgress(progressPath: string): Promise<WorkspaceProgressData | null> {
   const raw = await fs.readFile(progressPath, "utf-8").catch(() => null)
@@ -45,6 +52,88 @@ async function readWorkspaceProgress(progressPath: string): Promise<WorkspacePro
     sourceVersion: [progressPath, stat.mtimeMs, stat.size].join(":"),
     updatedAt: stat.mtime.toISOString(),
   }
+}
+
+function parseComsolTemperatureData(data: string, sourcePath: string) {
+  const points: TemperaturePoint[] = []
+
+  for (const line of data.split(/\r?\n/u)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith("%")) continue
+
+    const values = trimmed.split(/[,\s]+/u).map((token) => Number.parseFloat(token))
+    if (values.length < 4 || values.slice(0, 4).some((value) => !Number.isFinite(value))) {
+      continue
+    }
+
+    points.push({
+      x: values[0],
+      y: values[1],
+      z: values[2],
+      temperature: values[3],
+    })
+  }
+
+  if (points.length === 0) {
+    throw new Error("temperature field has no finite COMSOL samples")
+  }
+
+  const tempMin = Math.min(...points.map((point) => point.temperature))
+  const tempMax = Math.max(...points.map((point) => point.temperature))
+
+  return {
+    schema_version: "1.0",
+    format: "threejs_temperature_point_cloud",
+    source: {
+      comsol_data: sourcePath,
+      temperature_array: "T",
+    },
+    units: {
+      position: "m",
+      temperature: "K",
+    },
+    point_count: points.length,
+    bounds: {
+      min: [
+        Math.min(...points.map((point) => point.x)),
+        Math.min(...points.map((point) => point.y)),
+        Math.min(...points.map((point) => point.z)),
+      ],
+      max: [
+        Math.max(...points.map((point) => point.x)),
+        Math.max(...points.map((point) => point.y)),
+        Math.max(...points.map((point) => point.z)),
+      ],
+    },
+    temperature_range_K: {
+      min: tempMin,
+      max: tempMax,
+    },
+    attributes: {
+      position: points.flatMap((point) => [point.x, point.y, point.z]),
+      temperature_K: points.map((point) => point.temperature),
+      color_rgb: points.flatMap((point) => temperatureColor(point.temperature, tempMin, tempMax)),
+    },
+    threejs_hint: {
+      geometry: "THREE.BufferGeometry",
+      position_attribute: "position",
+      color_attribute: "color_rgb",
+      temperature_attribute: "temperature_K",
+      material: "THREE.PointsMaterial({ vertexColors: true })",
+    },
+  }
+}
+
+function temperatureColor(temperature: number, tempMin: number, tempMax: number) {
+  const value = tempMax <= tempMin
+    ? 0
+    : Math.max(0, Math.min(1, (temperature - tempMin) / (tempMax - tempMin)))
+  if (value < 0.5) {
+    const t = value / 0.5
+    return [0, t, 1 - t]
+  }
+  const t = (value - 0.5) / 0.5
+  return [t, 1 - t, 0]
 }
 
 export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
@@ -170,7 +259,7 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ error: "temperature field not found" })
         }
 
-        const data = JSON.parse(await fs.readFile(fieldPath, "utf-8")) as unknown
+        const data = parseComsolTemperatureData(await fs.readFile(fieldPath, "utf-8"), fieldPath)
         reply.header("Content-Type", "application/json; charset=utf-8")
         reply.header("Cache-Control", "no-cache")
         return reply.send(data)

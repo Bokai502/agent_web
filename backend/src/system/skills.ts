@@ -15,8 +15,56 @@ export interface SkillInstruction {
   content: string
 }
 
-const SKILLS_DIR = path.join(os.homedir(), ".codex", "skills")
+export interface SkillsCache {
+  public: Skill[]
+  thermal: Skill[]
+  aignc: Skill[]
+}
+
+type SkillScope = keyof SkillsCache
+
+const GLOBAL_SKILLS_DIR = path.join(os.homedir(), ".codex", "skills")
+const GNC_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "gnc_skills")
+const THERMAL_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "thermal_skills")
 const CACHE_FILE = path.resolve(process.cwd(), "skills.json")
+
+function dedupeExistingRoots(roots: string[]): string[] {
+  const seen = new Set<string>()
+  return roots
+    .map(root => path.resolve(root))
+    .filter(root => {
+      const key = root.toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return fs.existsSync(root)
+    })
+}
+
+function getPublicSkillRoots(): string[] {
+  const extraRoots = (process.env.CODEX_WEB_SKILLS_DIRS ?? "")
+    .split(path.delimiter)
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  return dedupeExistingRoots([GLOBAL_SKILLS_DIR, ...extraRoots])
+}
+
+function getAigncSkillRoots(): string[] {
+  return dedupeExistingRoots([GNC_SKILLS_DIR])
+}
+
+function getThermalSkillRoots(): string[] {
+  return dedupeExistingRoots([THERMAL_SKILLS_DIR])
+}
+
+function getSkillRootsForScopes(scopes: SkillScope[]): string[] {
+  const roots = scopes.flatMap(scope => {
+    if (scope === "public") return getPublicSkillRoots()
+    if (scope === "thermal") return getThermalSkillRoots()
+    return getAigncSkillRoots()
+  })
+  return dedupeExistingRoots(roots)
+}
 
 // 解析 SKILL.md 顶部 YAML frontmatter，只取 name / description 两个字段。
 // 格式: 首行是 `---`，之后 `key: value` 或 `key: "quoted value"`，遇到下一个 `---` 结束。
@@ -69,11 +117,11 @@ function findSkillFiles(root: string, depth: number, acc: { file: string; dirNam
   }
 }
 
-export function scanSkills(): Skill[] {
-  if (!fs.existsSync(SKILLS_DIR)) return []
-
+function scanSkillsFromRoots(roots: string[]): Skill[] {
   const found: { file: string; dirName: string }[] = []
-  findSkillFiles(SKILLS_DIR, 0, found)
+  for (const root of roots) {
+    findSkillFiles(root, 0, found)
+  }
 
   const skills: Skill[] = []
   for (const { file, dirName } of found) {
@@ -92,8 +140,9 @@ export function scanSkills(): Skill[] {
   // 按 name 去重（避免同名 skill 在不同目录都被收录）
   const seen = new Set<string>()
   const deduped = skills.filter(s => {
-    if (seen.has(s.name)) return false
-    seen.add(s.name)
+    const key = s.name.toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
     return true
   })
 
@@ -101,8 +150,16 @@ export function scanSkills(): Skill[] {
   return deduped
 }
 
-export function readSkillInstructions(skillNames: string[]): SkillInstruction[] {
-  if (!fs.existsSync(SKILLS_DIR) || skillNames.length === 0) return []
+export function scanSkills(): SkillsCache {
+  return {
+    public: scanSkillsFromRoots(getPublicSkillRoots()),
+    thermal: scanSkillsFromRoots(getThermalSkillRoots()),
+    aignc: scanSkillsFromRoots(getAigncSkillRoots()),
+  }
+}
+
+export function readSkillInstructions(skillNames: string[], scopes: SkillScope[] = ["public", "thermal", "aignc"]): SkillInstruction[] {
+  if (skillNames.length === 0) return []
 
   const requested = new Set(
     skillNames
@@ -112,7 +169,10 @@ export function readSkillInstructions(skillNames: string[]): SkillInstruction[] 
   if (requested.size === 0) return []
 
   const found: { file: string; dirName: string }[] = []
-  findSkillFiles(SKILLS_DIR, 0, found)
+  const roots = getSkillRootsForScopes(scopes)
+  for (const root of roots) {
+    findSkillFiles(root, 0, found)
+  }
 
   const instructions: SkillInstruction[] = []
   const seen = new Set<string>()
@@ -142,22 +202,104 @@ export function readSkillInstructions(skillNames: string[]): SkillInstruction[] 
   return instructions
 }
 
-export function refreshSkillsCache(logger: Logger): Skill[] {
+function readSkillInstructionsFromRoots(roots: string[]): SkillInstruction[] {
+  const found: { file: string; dirName: string }[] = []
+  for (const root of roots) {
+    findSkillFiles(root, 0, found)
+  }
+
+  const instructions: SkillInstruction[] = []
+  const seen = new Set<string>()
+
+  for (const { file, dirName } of found) {
+    try {
+      const content = fs.readFileSync(file, "utf-8")
+      const fm = parseFrontmatter(content)
+      const name = fm.name || dirName
+      const key = name.toLowerCase()
+
+      if (seen.has(key)) continue
+      seen.add(key)
+
+      instructions.push({
+        name,
+        description: fm.description || "",
+        file,
+        content,
+      })
+    } catch {
+      // 读取失败的 skill 跳过，不阻断整体运行
+    }
+  }
+
+  instructions.sort((a, b) => a.name.localeCompare(b.name))
+  return instructions
+}
+
+export function readPublicSkillInstructions(): SkillInstruction[] {
+  return readSkillInstructionsFromRoots(getPublicSkillRoots())
+}
+
+export function readThermalSkillInstructions(): SkillInstruction[] {
+  return readSkillInstructionsFromRoots(getThermalSkillRoots())
+}
+
+export function readAigncSkillInstructions(): SkillInstruction[] {
+  return readSkillInstructionsFromRoots(getAigncSkillRoots())
+}
+
+export function getWorkspaceSkillScopes(isGncWorkspace: boolean): SkillScope[] {
+  return isGncWorkspace ? ["public", "aignc"] : ["public", "thermal"]
+}
+
+function dedupeInstructionsPreferLater(instructions: SkillInstruction[]): SkillInstruction[] {
+  const byName = new Map<string, SkillInstruction>()
+  for (const skill of instructions) {
+    byName.set(skill.name.toLowerCase(), skill)
+  }
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function readScopedSkillInstructions(scopes: SkillScope[]): SkillInstruction[] {
+  const instructions = scopes.flatMap(scope => {
+    if (scope === "public") return readPublicSkillInstructions()
+    if (scope === "thermal") return readThermalSkillInstructions()
+    return readAigncSkillInstructions()
+  })
+  return dedupeInstructionsPreferLater(instructions)
+}
+
+export function refreshSkillsCache(logger: Logger): SkillsCache {
   const skills = scanSkills()
   try {
     fs.writeFileSync(CACHE_FILE, JSON.stringify(skills, null, 2), "utf-8")
-    logger.info("skills cache refreshed", { count: skills.length, file: CACHE_FILE })
+    logger.info("skills cache refreshed", {
+      aigncCount: skills.aignc.length,
+      file: CACHE_FILE,
+      publicCount: skills.public.length,
+      thermalCount: skills.thermal.length,
+    })
   } catch (err) {
     logger.error("failed to write skills cache", { err, file: CACHE_FILE })
   }
   return skills
 }
 
-export function readSkillsCache(): Skill[] {
+function dedupeSkillsPreferLater(skills: Skill[]): Skill[] {
+  const byName = new Map<string, Skill>()
+  for (const skill of skills) {
+    byName.set(skill.name.toLowerCase(), skill)
+  }
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function readSkillsCache(scopes: SkillScope[] = ["public", "thermal"]): Skill[] {
   try {
     const raw = fs.readFileSync(CACHE_FILE, "utf-8")
     const data = JSON.parse(raw)
-    return Array.isArray(data) ? data as Skill[] : []
+    if (Array.isArray(data)) return data as Skill[]
+    const skills = scopes.flatMap(scope => Array.isArray(data?.[scope]) ? data[scope] as Skill[] : [])
+    return dedupeSkillsPreferLater(skills)
   } catch {
     return []
   }

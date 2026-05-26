@@ -969,6 +969,114 @@ button.wa-run-card.selected {
   line-height: 1.55;
   white-space: pre-wrap;
 }
+.wa-log-raw.only-content {
+  max-height: min(62vh, 720px);
+  margin-top: 0;
+}
+.wa-log-markdown {
+  max-height: min(62vh, 720px);
+  overflow: auto;
+  margin-top: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 16px;
+}
+.wa-log-markdown.only-content {
+  margin-top: 0;
+}
+.wa-log-markdown img {
+  max-height: 420px;
+  object-fit: contain;
+}
+.wa-conversation-log {
+  display: flex;
+  max-height: min(68vh, 780px);
+  flex-direction: column;
+  gap: 18px;
+  overflow: auto;
+  padding: 2px 2px 8px;
+}
+.wa-conversation-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.wa-conversation-user {
+  align-self: flex-end;
+  max-width: min(760px, 78%);
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 12px 16px;
+  color: #1d1d1f;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.wa-conversation-agent {
+  max-width: min(820px, 92%);
+  color: #1d1d1f;
+}
+.wa-conversation-agent-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+  color: #1d1d1f;
+  font-size: 14px;
+}
+.wa-conversation-agent-icon {
+  display: grid;
+  width: 28px;
+  height: 22px;
+  place-items: center;
+  border-radius: 6px;
+  background: #f0f1f2;
+  color: #4f555f;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.wa-conversation-agent .markdown-body {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.wa-conversation-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(820px, 92%);
+  overflow: hidden;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.055);
+  padding: 9px 12px;
+  color: #1d1d1f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+.wa-conversation-shell span {
+  flex: 0 0 auto;
+  color: #8b95a1;
+  font-size: 10px;
+  font-weight: 800;
+}
+.wa-conversation-shell code {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-conversation-shell small {
+  flex: 0 0 auto;
+  color: #7f8790;
+  font-size: 10px;
+  font-weight: 800;
+}
+.wa-conversation-shell small.ok {
+  color: #22a06b;
+}
+.wa-conversation-shell small.bad {
+  color: #e5484d;
+}
 .wa-stage-toolbar {
   position: absolute;
   right: 18px;
@@ -1245,6 +1353,46 @@ button.wa-run-card.selected {
   color: #5d5d62;
   font-size: 12px;
   font-weight: 650;
+}
+.wa-progress-loop {
+  grid-template-columns: minmax(96px, 112px) 1fr 38px;
+  min-height: 42px;
+}
+.wa-progress-loop-main {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.wa-progress-loop-main > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-progress-loop-main small {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.05);
+  color: #6e6e73;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.wa-progress-loop.is-running .wa-bar span { background: #2d6cdf; }
+.wa-progress-loop.is-completed .wa-bar span { background: #22863a; }
+.wa-progress-loop.is-failed .wa-bar span { background: #c93c37; }
+.wa-progress-loop.is-running .wa-progress-loop-main small {
+  background: rgba(45, 108, 223, 0.1);
+  color: #245dbf;
+}
+.wa-progress-loop.is-completed .wa-progress-loop-main small {
+  background: rgba(34, 134, 58, 0.1);
+  color: #1f7434;
+}
+.wa-progress-loop.is-failed .wa-progress-loop-main small {
+  background: rgba(201, 60, 55, 0.1);
+  color: #ad302c;
 }
 .wa-progress-files {
   grid-column: 2 / 4;

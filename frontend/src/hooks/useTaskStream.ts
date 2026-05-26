@@ -1,4 +1,5 @@
 import { useRef, useCallback } from "react"
+import { joinApiPath } from "../app/apiBase"
 import type { CodexInputItem, ThreadEvent } from "../types"
 
 async function getResponseErrorMessage(response: Response) {
@@ -20,7 +21,7 @@ async function getResponseErrorMessage(response: Response) {
   return `请求失败：${response.status}`
 }
 
-export function useCodexStream() {
+export function useCodexStream(apiBase?: string) {
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map())
 
   const run = useCallback(async (
@@ -52,7 +53,7 @@ export function useCodexStream() {
     }
 
     try {
-      const res = await fetch("/api/run", {
+      const res = await fetch(joinApiPath(apiBase, "/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -114,7 +115,7 @@ export function useCodexStream() {
       // 兜底：如果没有收到 turn.completed（网络中断等），仍然结束
       callDoneOnce()
     }
-  }, [])
+  }, [apiBase])
 
   const abort = useCallback((sessionId?: string | null) => {
     if (sessionId) {

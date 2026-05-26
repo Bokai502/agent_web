@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react"
+import { joinApiPath } from "../app/apiBase"
 import type { CodexInputItem } from "../types"
 
 interface AttachedFile {
@@ -19,6 +20,7 @@ interface Skill {
 interface Props {
   onSubmit: (input: string | CodexInputItem[], enabledSkills: string[]) => void
   onAbort: () => void
+  apiBase?: string
   disabled: boolean
   tone?: "default" | "hero" | "landing"
 }
@@ -53,7 +55,7 @@ async function uploadImageInput(file: File): Promise<CodexInputItem> {
   return response.json() as Promise<CodexInputItem>
 }
 
-export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Props) {
+export function TaskInput({ onSubmit, onAbort, apiBase, disabled, tone = "default" }: Props) {
   const [value, setValue] = useState("")
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const [atMenu, setAtMenu] = useState<AtMenuState | null>(null)
@@ -63,11 +65,11 @@ export function TaskInput({ onSubmit, onAbort, disabled, tone = "default" }: Pro
 
   // 启动时拉取 skill 列表
   useEffect(() => {
-    fetch("/api/skills")
+    fetch(joinApiPath(apiBase, "/skills"))
       .then(r => r.ok ? r.json() : [])
       .then(data => { if (Array.isArray(data)) setSkills(data) })
       .catch(() => { /* 后端不可用时静默 */ })
-  }, [])
+  }, [apiBase])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

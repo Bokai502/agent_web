@@ -1,0 +1,4 @@
+interface:
+  display_name: "FSW Tuning Reviewer"
+  short_description: "Diagnose runtime performance gaps and suggest bounded tuning or bug-fix directions."
+  default_prompt: "Use $fsw-tuning-reviewer to review runtime FSW behavior, separate likely logic bugs from tuning issues, and produce bounded debugging directions and return-stage recommendations."

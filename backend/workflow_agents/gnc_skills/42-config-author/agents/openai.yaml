@@ -1,0 +1,4 @@
+interface:
+  display_name: "42 Config Author"
+  short_description: "Generate valid 42 input files from approved scenario facts"
+  default_prompt: "Use $42-config-author to generate 42 configuration files from these approved scenario facts."

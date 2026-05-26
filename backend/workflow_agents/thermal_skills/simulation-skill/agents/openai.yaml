@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simulation Skill"
+  short_description: "Run CAD model thermal simulation"
+  default_prompt: "Use $simulation-skill to check simulation inputs, run local COMSOL thermal simulations with sim_run.py, inspect progress/status, and validate 02_sim artifacts for an existing 00_inputs + 01_cad model."

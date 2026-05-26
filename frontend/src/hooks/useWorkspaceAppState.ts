@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react"
+import { joinApiPath } from "../app/apiBase"
 import { useCodexStream } from "./useTaskStream"
 import type { CodexInputItem, Session, ThreadEvent, Turn } from "../types"
 import { shouldSuppressEvent } from "../utils/codexEventFilter"
@@ -13,6 +14,7 @@ import {
 } from "../app/sessionUtils"
 
 interface WorkspaceAppStateOptions {
+  apiBase?: string
   homePath?: string
 }
 
@@ -53,9 +55,9 @@ function getInputPromptText(input: string | CodexInputItem[]) {
   return input.map(item => item.type === "local_image" ? "[image]" : "").filter(Boolean).join(" ")
 }
 
-async function deleteSessionRequest(sessionId: string) {
-  const deletePath = `/api/sessions/${encodeURIComponent(sessionId)}/delete`
-  const legacyDeletePath = `/api/sessions/${encodeURIComponent(sessionId)}`
+async function deleteSessionRequest(sessionId: string, apiBase?: string) {
+  const deletePath = joinApiPath(apiBase, `/sessions/${encodeURIComponent(sessionId)}/delete`)
+  const legacyDeletePath = joinApiPath(apiBase, `/sessions/${encodeURIComponent(sessionId)}`)
   const apiRequests = [
     { method: "POST", path: deletePath },
     { method: "DELETE", path: legacyDeletePath },
@@ -99,7 +101,7 @@ async function deleteSessionRequest(sessionId: string) {
   throw lastError instanceof Error ? lastError : new Error("delete failed")
 }
 
-export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}) {
+export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOptions = {}) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => getSessionIdFromPath(window.location.pathname, homePath))
   const [currentPrompt, setCurrentPrompt] = useState("")
@@ -120,10 +122,10 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
   const sessionSaveTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const deletedSessionIdsRef = useRef<Set<string>>(new Set())
 
-  const { run, abort } = useCodexStream()
+  const { run, abort } = useCodexStream(apiBase)
 
   const reloadSessions = useCallback(async () => {
-    const serverSessions = await apiLoad()
+    const serverSessions = await apiLoad(apiBase)
     const deletedSessionIds = deletedSessionIdsRef.current
     const nextSessions = deletedSessionIds.size > 0
       ? serverSessions.filter(session => !deletedSessionIds.has(session.id))
@@ -133,7 +135,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     setSessions(nextSessions)
     setSessionsLoaded(true)
     return nextSessions
-  }, [])
+  }, [apiBase])
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId
@@ -206,7 +208,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
 
     const write = () => {
       timers.delete(session.id)
-      fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
+      fetch(joinApiPath(apiBase, `/sessions/${encodeURIComponent(session.id)}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(session),
@@ -221,7 +223,7 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
     }
 
     timers.set(session.id, setTimeout(write, 300))
-  }, [])
+  }, [apiBase])
 
   const deleteSession = useCallback((sessionId: string) => {
     deletedSessionIdsRef.current.add(sessionId)
@@ -230,8 +232,8 @@ export function useWorkspaceAppState({ homePath }: WorkspaceAppStateOptions = {}
       clearTimeout(existingTimer)
       sessionSaveTimersRef.current.delete(sessionId)
     }
-    return deleteSessionRequest(sessionId)
-  }, [])
+    return deleteSessionRequest(sessionId, apiBase)
+  }, [apiBase])
 
   const activeSession = findActiveSession(sessions, activeSessionId)
   const turns: Turn[] = getTurns(activeSession)

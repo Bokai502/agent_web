@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { joinApiPath } from "../app/apiBase"
 import { AppleTaskComposer } from "../components/AppleTaskComposer"
 import { APP_NAVIGATION_EVENT } from "../app/sessionUtils"
 import { createImageUrl } from "../components/bomData"
+import { MarkdownText } from "../components/outputMarkdown"
 import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
 import type { CodexInputItem } from "../types"
@@ -25,14 +27,14 @@ import {
 } from "./workspace/workspaceVersion"
 import {
   formatProgressUpdatedAt,
-  getProgressEntries,
-  getWorkflowProgressEntries,
+  getWorkflowLoopProgressEntries,
   type WorkspaceProgressResponse,
 } from "./workspace/progressUtils"
 import {
   formatStageLogTime,
   getDisplayLogEntries,
   getRunLogEntries,
+  type ConversationLogEntry,
   type RunLogEntry,
   type StageLogEntry,
 } from "./workspace/runLogUtils"
@@ -67,15 +69,96 @@ function getBomPrimaryName(component: { model: string; name: string; nameCn: str
   return getPresentBomText(component.semanticName) || getBomDisplayName(component) || getPresentBomText(component.model)
 }
 
+function getLogMarkdown(raw: unknown) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null
+  const value = raw as Record<string, unknown>
+  return value.format === "markdown" && typeof value.content === "string" ? value.content : null
+}
+
+function getConversationContent(raw: unknown) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null
+  const value = raw as Record<string, unknown>
+  return value.format === "conversation" && value.content && typeof value.content === "object"
+    ? value.content as Record<string, unknown>
+    : null
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value)
+}
+
+function getEventItem(event: unknown) {
+  return isRecord(event) && isRecord(event.item) ? event.item : null
+}
+
+function getItemText(item: Record<string, unknown>) {
+  return typeof item.text === "string" ? item.text : ""
+}
+
+function getCommandPreview(command: string) {
+  return command.replace(/\s+/gu, " ").trim()
+}
+
+function ConversationLogView({ session }: { session: Record<string, unknown> }) {
+  const turns = Array.isArray(session.turns) ? session.turns : []
+  return (
+    <div className="wa-conversation-log">
+      {turns.map((turn, turnIndex) => {
+        const value = isRecord(turn) ? turn : {}
+        const prompt = typeof value.userPrompt === "string" ? value.userPrompt : ""
+        const events = Array.isArray(value.events) ? value.events : []
+        return (
+          <div className="wa-conversation-turn" key={typeof value.id === "string" ? value.id : `turn-${turnIndex}`}>
+            {prompt && <div className="wa-conversation-user">{prompt}</div>}
+            {events.map((event, eventIndex) => {
+              const item = getEventItem(event)
+              if (!item) return null
+              if (item.type === "agent_message") {
+                const text = getItemText(item).trim()
+                if (!text) return null
+                return (
+                  <div className="wa-conversation-agent" key={`${turnIndex}-${eventIndex}`}>
+                    <div className="wa-conversation-agent-head">
+                      <span className="wa-conversation-agent-icon">AI</span>
+                      <strong>AI Agent</strong>
+                    </div>
+                    <MarkdownText text={text} />
+                  </div>
+                )
+              }
+              if (item.type === "command_execution" && typeof item.command === "string") {
+                const status = typeof item.status === "string" ? item.status : "completed"
+                const exitCode = typeof item.exit_code === "number" ? item.exit_code : null
+                return (
+                  <div className="wa-conversation-shell" key={`${turnIndex}-${eventIndex}`}>
+                    <span>› SHELL</span>
+                    <code title={item.command}>{getCommandPreview(item.command)}</code>
+                    <small className={exitCode === 0 ? "ok" : exitCode === null ? "" : "bad"}>
+                      {exitCode === null ? status : `exit ${exitCode}`}
+                    </small>
+                  </div>
+                )
+              }
+              return null
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 interface WorkspaceSessionPageProps {
+  apiBase?: string
   homePath?: string
 }
 
 interface WorkspaceAppleContentProps {
+  apiBase?: string
   state: ReturnType<typeof useWorkspaceAppState>
 }
 
-export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
+export function WorkspaceAppleContent({ apiBase, state }: WorkspaceAppleContentProps) {
   const { i18n, t } = useTranslation()
   const {
     activeSessionId,
@@ -104,6 +187,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
   const [selectedLogId, setSelectedLogId] = useState("")
   const [stageLogs, setStageLogs] = useState<StageLogEntry[]>([])
+  const [conversationLogs, setConversationLogs] = useState<ConversationLogEntry[]>([])
   const [workspaces, setWorkspaces] = useState<WorkspacesResponse | null>(null)
   const [workspacesLoaded, setWorkspacesLoaded] = useState(false)
   const [workspaceChanging, setWorkspaceChanging] = useState(false)
@@ -139,6 +223,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     workspaces,
   })
   const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, {
+    apiBase,
     enabled: !!activeContext.versionDir,
     versionDir: activeContext.versionDir,
     versionId: activeContext.versionId,
@@ -147,8 +232,10 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const activeManifestVersion = useMemo(() => getActiveVersion(branchManifest), [branchManifest])
   const versionTreeRoots = useMemo(() => buildVersionTree(branchManifest), [branchManifest])
   const selectedBom = bomInfo.components.find(component => component.componentId === selectedBomId) ?? bomInfo.components[0]
-  const progressEntries = useMemo(() => getProgressEntries(progressData?.data, t), [progressData, t])
-  const workflowProgressEntries = useMemo(() => getWorkflowProgressEntries(progressEntries, t), [progressEntries, t])
+  const workflowLoopProgressEntries = useMemo(
+    () => getWorkflowLoopProgressEntries(progressData?.data, t),
+    [progressData, t],
+  )
   const currentWorkspaceDir = activeContext.versionDir?.trim() ?? null
   const activeSessionMatchesWorkspace = !!activeSession && (
     currentWorkspaceDir
@@ -170,7 +257,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const visiblePendingAskUser = activeSessionMatchesWorkspace ? pendingAskUser : null
   const visibleRunning = running && runningMatchesWorkspace
   const runLogEntries = useMemo(() => getRunLogEntries(visibleTurns, visibleCurrentEvents, t), [visibleCurrentEvents, t, visibleTurns])
-  const logEntries = useMemo(() => getDisplayLogEntries(stageLogs, runLogEntries), [runLogEntries, stageLogs])
+  const logEntries = useMemo(() => getDisplayLogEntries(stageLogs, conversationLogs, runLogEntries), [conversationLogs, runLogEntries, stageLogs])
   const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
   const hasModelPreview = !!activeContext.versionDir
   const viewerHref = useMemo(() => {
@@ -231,6 +318,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     if (!activeContext.versionDir && activeContext.manifestRoot) {
       fetchWorkspaceManifest({
         initialize: true,
+        apiBase,
         manifestRoot: activeContext.manifestRoot,
         sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
         workspaceId: activeContext.workspaceId,
@@ -289,6 +377,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     setVersionError("")
     checkoutWorkspaceVersion({
       versionId,
+      apiBase,
       workspaceKey: versionWorkspaceKey,
       workspaceId: activeContext.workspaceId,
       workspaceDir: activeContext.manifestRoot,
@@ -310,6 +399,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     branchWorkspaceVersion({
       baseVersionId,
       label,
+      apiBase,
       workspaceKey: versionWorkspaceKey,
       workspaceId: activeContext.workspaceId,
       workspaceDir: activeContext.manifestRoot,
@@ -339,7 +429,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   const switchActiveWorkspace = useCallback((name: string) => {
     setWorkspaceChanging(true)
     setBranchManifest(null)
-    return switchWorkspaceRequest(name)
+    return switchWorkspaceRequest(name, apiBase)
       .then(() => {
         reloadSessions().catch(() => {})
         refreshWorkspaceViews()
@@ -349,7 +439,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         // Keep the previous workspace visible if the switch is rejected.
       })
       .finally(() => setWorkspaceChanging(false))
-  }, [refreshManifest, refreshWorkspaceViews, reloadSessions])
+  }, [apiBase, refreshManifest, refreshWorkspaceViews, reloadSessions])
 
   const handleSelectWorkspace = useCallback((name: string) => {
     if (name === activeContext.workspaceName) return
@@ -410,7 +500,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     let cancelled = false
     setWorkspacesLoaded(false)
     const loadWorkspaces = () => {
-      fetchWorkspaces()
+      fetchWorkspaces(apiBase)
         .then(data => {
           if (!cancelled) setWorkspaces(data)
         })
@@ -426,7 +516,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     return () => {
       cancelled = true
     }
-  }, [workspaceRefreshNonce])
+  }, [apiBase, workspaceRefreshNonce])
 
   useEffect(() => {
     if (!activeContext.manifestRoot) {
@@ -441,6 +531,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       workspaceId: activeContext.workspaceId,
       manifestRoot: activeContext.manifestRoot,
       sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
+      apiBase,
     })
       .then(data => {
         if (!cancelled) setBranchManifest(data)
@@ -455,7 +546,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
     return () => {
       cancelled = true
     }
-  }, [activeContext.manifestRoot, activeContext.sourceWorkspaceDir, activeContext.workspaceId, activeSessionId, manifestRefreshNonce, workspaceRefreshNonce])
+  }, [activeContext.manifestRoot, activeContext.sourceWorkspaceDir, activeContext.workspaceId, activeContext.workspaceKey, activeSessionId, apiBase, manifestRefreshNonce, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
@@ -470,7 +561,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
         ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
       }).toString()}`
-      fetch(`/api/workspace/progress${query}`, { cache: "no-store" })
+      fetch(`${joinApiPath(apiBase, "/workspace/progress")}${query}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<WorkspaceProgressResponse> : null)
         .then(data => {
           if (!cancelled) setProgressData(data)
@@ -486,7 +577,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, progressRefreshNonce, running, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, progressRefreshNonce, running, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
@@ -500,7 +591,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
         ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
         ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
       }).toString()}`
-      fetch(`/api/logs/stages${query}`, { cache: "no-store" })
+      fetch(`${joinApiPath(apiBase, "/logs/stages")}${query}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<StageLogEntry[]> : [])
         .then(data => {
           if (!cancelled) setStageLogs(Array.isArray(data) ? data : [])
@@ -516,7 +607,37 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, workspaceRefreshNonce])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadConversationLogs = () => {
+      if (!activeContext.versionDir) {
+        setConversationLogs([])
+        return
+      }
+      const query = `?${new URLSearchParams({
+        workspaceDir: activeContext.versionDir,
+        ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
+        ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
+      }).toString()}`
+      fetch(`${joinApiPath(apiBase, "/logs/conversation")}${query}`, { cache: "no-store" })
+        .then(response => response.ok ? response.json() as Promise<ConversationLogEntry[]> : [])
+        .then(data => {
+          if (!cancelled) setConversationLogs(Array.isArray(data) ? data : [])
+        })
+        .catch(() => {
+          if (!cancelled) setConversationLogs([])
+        })
+    }
+
+    loadConversationLogs()
+    const intervalId = window.setInterval(loadConversationLogs, 3000)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, workspaceRefreshNonce])
 
   useEffect(() => {
     if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return
@@ -667,8 +788,9 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                 <div className="wa-left-pending">{t("workspace.input.pending")}</div>
               ) : (
                 <AppleTaskComposer
+                  apiBase={apiBase}
                   compact
-                  enableTools={false}
+                  enableTools
                   onSubmit={submitAndRefreshProgress}
                   onAbort={abort}
                   running={visibleRunning}
@@ -795,25 +917,34 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
                   <p>{logEntries.length > 0 ? t("workspace.stage.logSummary", { count: logEntries.length }) : t("workspace.stage.noLogData")}</p>
                   {selectedLog ? (
                     <div className="wa-log-detail-card">
-                      <h3>{selectedLog.title}</h3>
-                      <p>{selectedLog.detail}</p>
-                      <div className="wa-log-detail-grid">
-                        {[
-                          [t("workspace.logFields.status"), selectedLog.status],
-                          [t("workspace.logFields.type"), selectedLog.type],
-                          [t("workspace.logFields.time"), selectedLog.time ? formatStageLogTime(selectedLog.time) : "-"],
-                          [t("workspace.logFields.source"), selectedLog.source ?? "-"],
-                          ["ID", selectedLog.id],
-                          ...Object.entries(selectedLog.fields ?? {}),
-                        ].map(([label, value]) => (
-                          <div className="wa-log-detail-field" key={label}>
-                            <span>{label}</span>
-                            <strong>{value}</strong>
+                      {getLogMarkdown(selectedLog.raw) ? (
+                        <div className="wa-log-markdown only-content">
+                          <MarkdownText text={getLogMarkdown(selectedLog.raw) ?? ""} />
+                        </div>
+                      ) : getConversationContent(selectedLog.raw) ? (
+                        <ConversationLogView session={getConversationContent(selectedLog.raw) ?? {}} />
+                      ) : selectedLog.raw !== undefined ? (
+                        <pre className="wa-log-raw only-content">{JSON.stringify(selectedLog.raw, null, 2)}</pre>
+                      ) : (
+                        <>
+                          <h3>{selectedLog.title}</h3>
+                          <p>{selectedLog.detail}</p>
+                          <div className="wa-log-detail-grid">
+                            {[
+                              [t("workspace.logFields.status"), selectedLog.status],
+                              [t("workspace.logFields.type"), selectedLog.type],
+                              [t("workspace.logFields.time"), selectedLog.time ? formatStageLogTime(selectedLog.time) : "-"],
+                              [t("workspace.logFields.source"), selectedLog.source ?? "-"],
+                              ["ID", selectedLog.id],
+                              ...Object.entries(selectedLog.fields ?? {}),
+                            ].map(([label, value]) => (
+                              <div className="wa-log-detail-field" key={label}>
+                                <span>{label}</span>
+                                <strong>{value}</strong>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                      {selectedLog.raw !== undefined && (
-                        <pre className="wa-log-raw">{JSON.stringify(selectedLog.raw, null, 2)}</pre>
+                        </>
                       )}
                     </div>
                   ) : (
@@ -874,12 +1005,15 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
               <h3>{t("workspace.inspector.progressTitle")}</h3>
               <p>{t("workspace.inspector.updatedAt", { time: formatProgressUpdatedAt(progressData, i18n.language, t) })}</p>
               <div className="wa-progress">
-                {workflowProgressEntries.map(item => (
-                    <div className="wa-progress-item" key={item.key}>
+                {workflowLoopProgressEntries.map(item => (
+                  <div className={`wa-progress-item wa-progress-loop is-${item.status}`} key={item.key}>
+                    <span className="wa-progress-loop-main">
                       <span>{item.label}</span>
-                      <div className="wa-bar"><span style={{ width: `${item.percent}%` }} /></div>
-                      <span>{`${item.percent}%`}</span>
-                    </div>
+                      <small>{item.statusLabel}</small>
+                    </span>
+                    <div className="wa-bar"><span style={{ width: `${item.percent}%` }} /></div>
+                    <span>{`${item.percent}%`}</span>
+                  </div>
                 ))}
               </div>
             </section>
@@ -921,7 +1055,7 @@ export function WorkspaceAppleContent({ state }: WorkspaceAppleContentProps) {
   )
 }
 
-export default function WorkspaceSessionPage({ homePath = WORKSPACE_HOME_PATH }: WorkspaceSessionPageProps) {
-  const state = useWorkspaceAppState({ homePath })
-  return <WorkspaceAppleContent state={state} />
+export default function WorkspaceSessionPage({ apiBase, homePath = WORKSPACE_HOME_PATH }: WorkspaceSessionPageProps) {
+  const state = useWorkspaceAppState({ apiBase, homePath })
+  return <WorkspaceAppleContent apiBase={apiBase} state={state} />
 }

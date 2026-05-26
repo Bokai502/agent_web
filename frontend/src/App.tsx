@@ -1,5 +1,5 @@
-import WorkspaceHomePage from "./pages/WorkspaceHomePage"
+import WorkspaceSessionPage from "./pages/WorkspaceSessionPage"
 
 export default function App() {
-  return <WorkspaceHomePage homePath="/workspace" />
+  return <WorkspaceSessionPage apiBase="/api/gnc" homePath="/gnc-workspace" />
 }

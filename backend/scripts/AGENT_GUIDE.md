@@ -13,27 +13,38 @@ Coordinate planning, CAD generation, thermal simulation, debugging, and reportin
 | Debugger | `config-editor` | Explain failures from concrete artifacts, update the workflow plan, and apply required configuration fixes. | root-cause analysis, Planner suggestions, `00_inputs/config_editor_output.md` |
 | Reviewer | `cad-sim-report-agent` | Review completed `00_inputs`, `01_cad`, and `02_sim` artifacts and write final reports. | `reports` |
 
-## Main Flow
+## Workflow State Machine
 
-1. Run Planner.
-2. Run Executor.
-3. If Executor fails, run the Debug loop.
-4. Run Reviewer only after required execution artifacts exist and validate.
+Start with the selected workspace/version.
 
-## Debug Loop
+1. `Plan`
+   - Run Planner.
+   - Run Config Editor if the plan requires input or configuration updates.
 
-Use the newest failing artifact or error file as the current failure.
+2. `Execute`
+   - Run Executor for CAD and simulation.
+   - If execution succeeds and required artifacts validate, transition to `Review`.
+   - If execution fails, transition to `Debug`.
 
-Repeat up to 3 times:
+3. `Debug`
+   - Use the newest failing artifact or error file as evidence.
+   - Debugger identifies the root cause with concrete file paths.
+   - Debugger produces Planner-facing modification suggestions.
+   - Transition back to `Plan`.
 
-1. Debugger explains the root cause using file paths and evidence.
-2. Debugger gives concrete modification suggestions for Planner.
-3. Planner updates the workflow plan.
-4. Config Editor applies the needed configuration updates and writes `00_inputs/config_editor_output.md`.
-5. Executor reruns from the updated inputs.
-6. Stop the loop when Executor succeeds.
+4. `Review`
+   - Run Reviewer only from existing validated artifacts.
+   - Do not rerun or mutate CAD/simulation state.
 
-If all attempts fail, stop and report the unresolved failure with the latest failing artifact.
+## Retry Policy
+
+- The `Plan -> Execute -> Debug -> Plan` recovery cycle may run at most 3 times.
+- Stop immediately when Executor succeeds and required artifacts validate.
+- If all retry attempts fail, stop and report:
+  - latest failing artifact
+  - root-cause evidence
+  - attempted fixes
+  - remaining blocker
 
 ## Hard Rules
 
@@ -56,6 +67,7 @@ Planner requires:
 Config Editor requires:
 
 - `00_inputs`
+- user goal
 - Planner output or Debugger suggestions
 
 Executor requires:

@@ -1,0 +1,4 @@
+interface:
+  display_name: "42 Build Run Diagnose"
+  short_description: "Run a validated 42 case and classify failures"
+  default_prompt: "Use $42-build-run-diagnose to run this validated 42 case and diagnose whether configuration loading or runtime execution fails."

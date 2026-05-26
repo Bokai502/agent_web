@@ -303,7 +303,7 @@ export default function HomePage() {
           </div>
           <div className="spline-actions">
             <a className="spline-button primary" href="/workspace">{t("landing.actions.workspace")}</a>
-            <a className="spline-button primary" href="http://10.110.34.116:5173/" target="_blank" rel="noreferrer">{t("landing.actions.gnc")}</a>
+            <a className="spline-button primary" href="/gnc-workspace">{t("landing.actions.gnc")}</a>
           </div>
         </aside>
       </section>

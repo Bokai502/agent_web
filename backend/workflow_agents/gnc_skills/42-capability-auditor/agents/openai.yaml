@@ -1,0 +1,4 @@
+interface:
+  display_name: "42 Capability Auditor"
+  short_description: "Check requested scenarios against actual 42 capabilities"
+  default_prompt: "Use $42-capability-auditor to assess whether this requested scenario is supported by 42."

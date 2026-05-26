@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIGNC 42 Orchestrator"
+  short_description: "Coordinate the full AIGNC-to-42 analysis and generation flow"
+  default_prompt: "Use $aignc-42-orchestrator to turn this mission description into an analyzed 42 implementation plan."

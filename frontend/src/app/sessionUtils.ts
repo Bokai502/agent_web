@@ -1,4 +1,5 @@
 import type { AskUserItem, Session, Turn } from "../types"
+import { joinApiPath } from "./apiBase"
 import { HOME_PATH } from "./workspaceConfig"
 
 export const APP_NAVIGATION_EVENT = "codex:navigation"
@@ -21,9 +22,9 @@ export function getPendingAskUser(session: Session | null): AskUserItem | null {
   return null
 }
 
-export async function apiLoad(): Promise<Session[]> {
+export async function apiLoad(apiBase?: string): Promise<Session[]> {
   try {
-    const res = await fetch("/api/sessions")
+    const res = await fetch(joinApiPath(apiBase, "/sessions"))
     if (!res.ok) return []
     const data = await res.json()
     return Array.isArray(data) ? (data as Session[]) : []

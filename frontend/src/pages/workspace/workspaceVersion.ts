@@ -1,3 +1,5 @@
+import { joinApiPath } from "../../app/apiBase"
+
 export type WorkspaceManifestSummary = {
   activeVersionId: string | null
   rootDir?: string
@@ -155,8 +157,8 @@ async function readJsonResponse<T>(response: Response, fallbackMessage: string) 
   return response.json() as Promise<T>
 }
 
-export function fetchWorkspaces() {
-  return fetch("/api/workspace/workspaces", { cache: "no-store" })
+export function fetchWorkspaces(apiBase?: string) {
+  return fetch(joinApiPath(apiBase, "/workspace/workspaces"), { cache: "no-store" })
     .then(response => response.ok ? response.json() as Promise<WorkspacesResponse> : null)
 }
 
@@ -166,7 +168,9 @@ export function fetchWorkspaceManifest({
   manifestRoot,
   sourceWorkspaceDir,
   initialize = false,
+  apiBase,
 }: {
+  apiBase?: string
   initialize?: boolean
   workspaceKey?: string | null
   workspaceId?: string | null
@@ -179,8 +183,8 @@ export function fetchWorkspaceManifest({
   if (sourceWorkspaceDir) params.set("sourceWorkspaceDir", sourceWorkspaceDir)
   if (workspaceKey && !workspaceId) params.set("workspaceKey", workspaceKey)
   const path = workspaceId
-    ? `/api/workspace-index/${encodeURIComponent(workspaceId)}/manifest`
-    : "/api/workspace-manifest"
+    ? joinApiPath(apiBase, `/workspace-index/${encodeURIComponent(workspaceId)}/manifest`)
+    : joinApiPath(apiBase, "/workspace-manifest")
   return fetch(`${path}?${params.toString()}`, { cache: "no-store" })
     .then(response => response.ok ? response.json() as Promise<WorkspaceManifestSummary> : null)
 }
@@ -190,13 +194,15 @@ export function checkoutWorkspaceVersion({
   workspaceKey,
   workspaceId,
   workspaceDir,
+  apiBase,
 }: {
+  apiBase?: string
   versionId: string
   workspaceKey?: string | null
   workspaceId?: string | null
   workspaceDir?: string | null
 }) {
-  return fetch(`/api/versions/${encodeURIComponent(versionId)}/checkout`, {
+  return fetch(joinApiPath(apiBase, `/versions/${encodeURIComponent(versionId)}/checkout`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ workspaceDir, workspaceId, workspaceKey }),
@@ -209,22 +215,24 @@ export function branchWorkspaceVersion({
   workspaceKey,
   workspaceId,
   workspaceDir,
+  apiBase,
 }: {
+  apiBase?: string
   baseVersionId: string
   label: string
   workspaceKey?: string | null
   workspaceId?: string | null
   workspaceDir?: string | null
 }) {
-  return fetch(`/api/versions/${encodeURIComponent(baseVersionId)}/branch`, {
+  return fetch(joinApiPath(apiBase, `/versions/${encodeURIComponent(baseVersionId)}/branch`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ label, workspaceDir, workspaceId, workspaceKey }),
   }).then(response => readJsonResponse<{ manifest?: WorkspaceManifestSummary }>(response, "version branch failed"))
 }
 
-export function switchWorkspace(name: string) {
-  return fetch("/api/workspace/workspace", {
+export function switchWorkspace(name: string, apiBase?: string) {
+  return fetch(joinApiPath(apiBase, "/workspace/workspace"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),

@@ -3,10 +3,12 @@ import cors from "@fastify/cors"
 import { loadConfig } from "./config.js"
 import { createLogger } from "./logger.js"
 import { registerApiRoutes } from "./server/routes.js"
+import { enterRequestContext } from "./server/requestContext.js"
 import { checkCodexEndpoint, refreshSkillsCache } from "./system/index.js"
 
 const config = loadConfig()
 const logger = createLogger(config.logging)
+const GNC_WORKSPACE_ROOT = "/data/lbk/codex_web/data/input_data"
 
 logger.info("backend starting", {
   baseUrl: config.openai.baseUrl,
@@ -22,6 +24,20 @@ const fastify = Fastify({
     level: config.logging.level,
     stream: logger.stream,
   },
+  rewriteUrl(request) {
+    const url = request.url ?? "/"
+    if (url.startsWith("/api/gnc/")) return `/api/${url.slice("/api/gnc/".length)}`
+    return url
+  },
+})
+
+fastify.addHook("onRequest", async (request) => {
+  const originalUrl = request.originalUrl ?? request.raw.url ?? request.url
+  const isGncRequest = originalUrl?.startsWith("/api/gnc/") === true
+  enterRequestContext({
+    isGncRequest,
+    workspaceRootOverride: isGncRequest ? GNC_WORKSPACE_ROOT : undefined,
+  })
 })
 
 await fastify.register(cors, {
