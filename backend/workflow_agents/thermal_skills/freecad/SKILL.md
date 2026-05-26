@@ -7,15 +7,7 @@ description: "FreeCAD CLI/RPC workflow for the current 00_inputs -> 01_cad CAD s
 
 ## Prerequisites
 
-- Use the packaged unified CLI entry point from `/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools` instead of ad hoc Python when a command already exists.
 - Before running a workflow command, call `python -m freecad_cli_tools.cli.main config show --workspace-dir <workspace_dir>` to read the resolved workspace, RPC settings, default input paths, default output paths, and component-info STEP size limit.
-- Open Codex Web provides a request-scoped `workspace_dir` for the selected workspace/version. Treat that value as authoritative.
-- `python -m freecad_cli_tools.cli.main config show` without `--workspace-dir` reports defaults from `/data/lbk/codex_web/config.json` field `freecad.workspaceDir`; this may not match the selected frontend version.
-- Workflow commands such as `python -m freecad_cli_tools.cli.main cad build`, `python -m freecad_cli_tools.cli.main cad validate`, `python -m freecad_cli_tools.cli.main assembly create-from-component-info`, and `python -m freecad_cli_tools.cli.main layout safe-move` accept `--workspace` / `--workspace-dir` as a real command-scoped workspace override.
-- In normal Open Codex Web runs, always pass the selected version workspace explicitly with `--workspace-dir <workspace_dir>`. Version checkout/branch no longer updates `/data/lbk/codex_web/config.json`.
-- `FREECAD_WORKSPACE_DIR` also overrides `/data/lbk/codex_web/config.json` field `freecad.workspaceDir`; use it only when the user explicitly asks for an override. Explicit `--workspace` / `--workspace-dir` has highest priority.
-- Resolve relative input and output paths only from the resolved workspace root reported by `python -m freecad_cli_tools.cli.main config show`.
-- If no workspace is available from `--workspace-dir`, `FREECAD_WORKSPACE_DIR`, or `freecad.workspaceDir`, stop immediately instead of guessing from the current directory, repo root, or skill directory.
 - Expect FreeCAD RPC at the `rpc_host` and `rpc_port` reported by `python -m freecad_cli_tools.cli.main config show`, unless the active workflow command is given explicit `--host` or `--port` overrides. If RPC is unavailable, report the connection problem clearly instead of guessing.
 
 ## Route The Request

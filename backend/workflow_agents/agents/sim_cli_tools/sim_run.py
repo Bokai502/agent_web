@@ -254,23 +254,15 @@ def write_simulation_loop_progress(
     percentage: float,
 ) -> None:
     try:
-        from freecad_cli_tools.cli.progress import (
-            progress_path_for_workspace,
-            read_progress,
-            update_loop_progress,
-            write_progress,
-        )
+        from sim_cli_tools.progress import write_loop_progress
 
-        progress_path = progress_path_for_workspace(workspace_dir)
-        data = read_progress(progress_path)
-        update_loop_progress(
-            data,
+        write_loop_progress(
+            workspace_dir,
             loop_name="simulation",
             status=status,
             completed=completed,
             percentage=percentage,
         )
-        write_progress(progress_path, data)
     except Exception:
         return
 

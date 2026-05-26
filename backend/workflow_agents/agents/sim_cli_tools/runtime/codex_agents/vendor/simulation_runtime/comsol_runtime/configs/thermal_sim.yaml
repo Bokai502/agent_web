@@ -1,7 +1,7 @@
 # 卫星热仿真配置文件
 
 comsol:
-  template_mph_path: "/data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/pipeline_resources/templates/comsol/thermal_template.mph"
+  template_mph_path: "/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/pipeline_resources/templates/comsol/thermal_template.mph"
   component: "comp1"
   geometry: "geom1"
   import_feature: "imp1"

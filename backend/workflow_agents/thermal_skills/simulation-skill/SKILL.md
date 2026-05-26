@@ -11,11 +11,11 @@ Use this skill for model thermal simulation work driven by:
 python -m sim_cli_tools.cli.main
 ```
 
-The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes simulation through analysis outputs under `02_sim`.
+The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes simulation through analysis outputs under `02_sim`. Use `sim-comsol-progress` to inspect live COMSOL progress.
 
 ## Core Rules
 
-- Use `python -m sim_cli_tools.cli.main` as the first-class entry point. The installed `sim-run` wrapper is an alias for the same module. Do not call copied runtime modules directly unless debugging internals.
+- Use `python -m sim_cli_tools.cli.main` as the first-class simulation entry point. The installed `sim-run` wrapper is an alias for the same module. Use `sim-comsol-progress` for COMSOL progress inspection. Do not call copied runtime modules directly unless debugging internals.
 - Resolve the workspace from the Open Codex Web execution context `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`, checkout, and branch do not update `/data/lbk/codex_web/config.json`.
 - Always pass the execution context workspace explicitly with `--workspace-dir <workspace_dir>` for `doctor` and `run`. Do not rely on `config.json`, process `cwd`, or CLI defaults.
 - Before running `run`, inspect the selected workspace by running `--json doctor --workspace-dir <workspace_dir>`. If the reported `workspace_dir` differs from the prompt `workspace_dir`, stop and report the mismatch instead of running simulation into the wrong workspace.
@@ -42,6 +42,7 @@ Show help:
 ```bash
 python -m sim_cli_tools.cli.main --help
 python -m sim_cli_tools.cli.main run --help
+sim-comsol-progress --help
 ```
 
 Check whether inputs are complete:
@@ -103,7 +104,7 @@ This file contains `sample_id`, `stage`, `percent`, `ok`, `updated_at`, and
 for detailed COMSOL status and validation checks, not progress fallback. Or run:
 
 ```bash
-python /data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_skills/sim_cli_tools/comsol_progress.py \
+sim-comsol-progress \
   --workspace-dir <workspace_dir>
 ```
 
@@ -132,7 +133,7 @@ python /data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_ski
   progress files.
 - For real COMSOL progress during `simulation_run`, `sim-run` reads
   `_comsol_work/sim/comsol_progress.json` and maps COMSOL's internal percent
-  into the 0-70 range. Use `comsol_progress.py` only for inspection. Do not use
+  into the 0-70 range. Use `sim-comsol-progress` only for inspection. Do not use
   `_comsol_work/sim/status.json` as a progress fallback.
 - `heartbeat_at` in `_comsol_work/sim/comsol_progress.json` is used to decide
   whether the current `simulation_running` operation is alive. It is not written

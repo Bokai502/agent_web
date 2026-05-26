@@ -26,6 +26,7 @@ classifiers = [
 
 [project.scripts]
 sim-run = "sim_cli_tools.cli.main:main"
+sim-comsol-progress = "sim_cli_tools.cli.comsol_progress:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sim_cli_tools"]

@@ -13,12 +13,12 @@ comsol:
   field_expressions:
     temperature: T
   # local 模式 entry.py 仍会尝试加载该路径做 ping 测; template 由 thermal_sim.yaml 指定, 此处仅占位
-  model_file_path: /data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/pipeline_resources/templates/comsol/thermal_template.mph
+  model_file_path: /data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/pipeline_resources/templates/comsol/thermal_template.mph
   connection:
     mode: local
     local_comsol_home: /usr/local/comsol64/multiphysics
     local_python: /data/conda/envs/autoflowsim-comsol/bin/python
-    local_entry_script: /data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/comsol_runtime/remote/comsol_remote_entry.py
+    local_entry_script: /data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/comsol_runtime/remote/comsol_remote_entry.py
     local_mph_version: "6.4"
     local_mph_port: 2036
     local_timeout_seconds: 900

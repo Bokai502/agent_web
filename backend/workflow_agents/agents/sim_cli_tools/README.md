@@ -96,7 +96,7 @@ sim-run --json run \
 Read COMSOL progress without modifying any progress file:
 
 ```bash
-python /data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools/comsol_progress.py \
+sim-comsol-progress \
   --workspace-dir <workspace_dir>
 ```
 
