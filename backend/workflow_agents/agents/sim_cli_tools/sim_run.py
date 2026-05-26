@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -207,7 +208,8 @@ def handle_run(args: argparse.Namespace) -> int:
             step_name = progress_step_name(step)
             start_simulation_loop_progress(paths["workspace_dir"], step_name)
             with step_logging_context(step_name):
-                execution = step.run(ctx)
+                with comsol_progress_watcher(paths["workspace_dir"], step_name):
+                    execution = step.run(ctx)
                 ctx.append_stage(execution.stage)
                 sync_simulation_loop_progress(paths["workspace_dir"], step_name, execution.stage)
                 if not execution.continue_pipeline:
@@ -228,6 +230,55 @@ def start_simulation_loop_progress(workspace_dir: Path, step_name: str) -> None:
         return
     status, percentage = progress
     write_simulation_loop_progress(workspace_dir, status=status, completed=False, percentage=percentage)
+
+
+class comsol_progress_watcher:
+    def __init__(self, workspace_dir: Path, step_name: str, *, interval_seconds: float = 1.0) -> None:
+        self.workspace_dir = workspace_dir
+        self.step_name = step_name
+        self.interval_seconds = interval_seconds
+        self.stop_event = threading.Event()
+        self.thread: threading.Thread | None = None
+        self.started_at = time.time()
+
+    def __enter__(self) -> "comsol_progress_watcher":
+        if self.step_name != "simulation":
+            return self
+        self.thread = threading.Thread(target=self._run, name="comsol-progress-sync", daemon=True)
+        self.thread.start()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        self.stop_event.set()
+        if self.thread is not None:
+            self.thread.join(timeout=max(1.0, self.interval_seconds + 0.5))
+            self.thread = None
+        self._sync_once()
+
+    def _run(self) -> None:
+        while not self.stop_event.is_set():
+            self._sync_once()
+            self.stop_event.wait(self.interval_seconds)
+
+    def _sync_once(self) -> None:
+        try:
+            from sim_cli_tools.comsol_progress import (
+                default_paths,
+                normalize_comsol_progress,
+                sync_workspace_progress,
+            )
+
+            status_path, progress_path = default_paths(self.workspace_dir)
+            if not progress_path.exists():
+                return
+            if progress_path.stat().st_mtime < self.started_at:
+                return
+            payload = normalize_comsol_progress(status_path=status_path, progress_path=progress_path)
+            if not payload.get("available"):
+                return
+            sync_workspace_progress(self.workspace_dir, payload)
+        except Exception:
+            return
 
 
 def sync_simulation_loop_progress(workspace_dir: Path, step_name: str, stage: dict[str, Any]) -> None:

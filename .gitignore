@@ -21,3 +21,6 @@ cad_sim_agents
 codex_agent
 .codex
 .agents
+
+__pycache__/
+*.py[cod]

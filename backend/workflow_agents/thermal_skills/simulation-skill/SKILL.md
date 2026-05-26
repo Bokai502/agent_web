@@ -11,11 +11,11 @@ Use this skill for model thermal simulation work driven by:
 python -m sim_cli_tools.cli.main
 ```
 
-The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes simulation through analysis outputs under `02_sim`. Use `sim-comsol-progress` to inspect live COMSOL progress.
+The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes simulation through analysis outputs under `02_sim`. During `simulation_run`, `sim-run` runs an internal watcher that syncs live COMSOL progress into `<workspace>/logs/progress.json`. Use `sim-comsol-progress` to inspect or manually resync COMSOL progress.
 
 ## Core Rules
 
-- Use `python -m sim_cli_tools.cli.main` as the first-class simulation entry point. The installed `sim-run` wrapper is an alias for the same module. Use `sim-comsol-progress` for COMSOL progress inspection. Do not call copied runtime modules directly unless debugging internals.
+- Use `python -m sim_cli_tools.cli.main` as the first-class simulation entry point. The installed `sim-run` wrapper is an alias for the same module. Use `sim-comsol-progress` for COMSOL progress inspection or manual resync. Do not call copied runtime modules directly unless debugging internals.
 - Resolve the workspace from the Open Codex Web execution context `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`, checkout, and branch do not update `/data/lbk/codex_web/config.json`.
 - Always pass the execution context workspace explicitly with `--workspace-dir <workspace_dir>` for `doctor` and `run`. Do not rely on `config.json`, process `cwd`, or CLI defaults.
 - Before running `run`, inspect the selected workspace by running `--json doctor --workspace-dir <workspace_dir>`. If the reported `workspace_dir` differs from the prompt `workspace_dir`, stop and report the mismatch instead of running simulation into the wrong workspace.
@@ -108,6 +108,15 @@ sim-comsol-progress \
   --workspace-dir <workspace_dir>
 ```
 
+Manually resync COMSOL progress into workspace progress when recovering or
+debugging a run whose `sim-run` parent process is no longer alive:
+
+```bash
+sim-comsol-progress \
+  --workspace-dir <workspace_dir> \
+  --sync-progress
+```
+
 ## Progress Semantics
 
 - The simulation CLI no longer writes `<workspace>/logs/progress_percentages.json`.
@@ -115,6 +124,11 @@ sim-comsol-progress \
   Do not write this JSON manually and do not call
   `python -m freecad_cli_tools.cli.main progress update` from the skill during a
   normal simulation run.
+- During `simulation_run`, `sim-run` starts an internal COMSOL progress watcher
+  around `SimulationStep.run()`. The watcher reads
+  `<workspace>/02_sim/simulation/_comsol_work/sim/comsol_progress.json` and
+  writes the mapped percentage to `<workspace>/logs/progress.json` about once
+  per second while the parent `sim-run` process is alive.
 - `sim-run` writes stage-specific running status values instead of plain
   `running`:
   - `simulation_running`
@@ -133,8 +147,9 @@ sim-comsol-progress \
   progress files.
 - For real COMSOL progress during `simulation_run`, `sim-run` reads
   `_comsol_work/sim/comsol_progress.json` and maps COMSOL's internal percent
-  into the 0-70 range. Use `sim-comsol-progress` only for inspection. Do not use
-  `_comsol_work/sim/status.json` as a progress fallback.
+  into the 0-70 range. Use `sim-comsol-progress --sync-progress` only for manual
+  recovery when the parent `sim-run` process is gone or automatic sync did not
+  run. Do not use `_comsol_work/sim/status.json` as a progress fallback.
 - `heartbeat_at` in `_comsol_work/sim/comsol_progress.json` is used to decide
   whether the current `simulation_running` operation is alive. It is not written
   separately into `<workspace>/logs/progress.json`.
