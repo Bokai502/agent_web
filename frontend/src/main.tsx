@@ -8,6 +8,8 @@ const ModelViewerPage = lazy(() => import('./pages/ModelViewerPage.tsx'))
 const EarthPage = lazy(() => import('./pages/EarthPage.tsx'))
 const HomePage = lazy(() => import('./pages/HomePage.tsx'))
 const WorkspaceSessionPage = lazy(() => import('./pages/WorkspaceSessionPage.tsx'))
+const GncWorkspacePage = lazy(() => import('./pages/GncWorkspacePage.tsx'))
+const RegionWorkspacePage = lazy(() => import('./pages/RegionWorkspacePage.tsx'))
 
 function Router() {
   const [pathname, setPathname] = useState(window.location.pathname)
@@ -27,6 +29,7 @@ function Router() {
   const isHome = pathname === '/' || pathname === '/home'
   const isWorkspace = pathname === '/workspace' || pathname.startsWith('/workspace/')
   const isGncWorkspace = pathname === '/gnc-workspace' || pathname.startsWith('/gnc-workspace/')
+  const isRegionWorkspace = pathname === '/region-workspace' || pathname.startsWith('/region-workspace/')
 
   if (isViewer) {
     return (
@@ -63,7 +66,15 @@ function Router() {
   if (isGncWorkspace) {
     return (
       <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
-        <WorkspaceSessionPage apiBase="/api/gnc" homePath="/gnc-workspace" />
+        <GncWorkspacePage />
+      </Suspense>
+    )
+  }
+
+  if (isRegionWorkspace) {
+    return (
+      <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
+        <RegionWorkspacePage />
       </Suspense>
     )
   }

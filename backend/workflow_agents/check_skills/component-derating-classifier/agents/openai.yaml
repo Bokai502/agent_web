@@ -1,0 +1,6 @@
+interface:
+  display_name: "Component Derating Classifier"
+  short_description: "匹配降额子类并检查 Excel 降额数据"
+  default_prompt: "Use $component-derating-classifier to classify component derating categories or process this derating Excel file and write JSON results."
+policy:
+  allow_implicit_invocation: true

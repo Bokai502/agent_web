@@ -9,6 +9,7 @@ import { checkCodexEndpoint, refreshSkillsCache } from "./system/index.js"
 const config = loadConfig()
 const logger = createLogger(config.logging)
 const GNC_WORKSPACE_ROOT = "/data/lbk/codex_web/data/input_data"
+const REGION_WORKSPACE_ROOT = "/data/lbk/codex_web/data_jiange"
 
 logger.info("backend starting", {
   baseUrl: config.openai.baseUrl,
@@ -27,6 +28,7 @@ const fastify = Fastify({
   rewriteUrl(request) {
     const url = request.url ?? "/"
     if (url.startsWith("/api/gnc/")) return `/api/${url.slice("/api/gnc/".length)}`
+    if (url.startsWith("/api/region/")) return `/api/${url.slice("/api/region/".length)}`
     return url
   },
 })
@@ -34,9 +36,10 @@ const fastify = Fastify({
 fastify.addHook("onRequest", async (request) => {
   const originalUrl = request.originalUrl ?? request.raw.url ?? request.url
   const isGncRequest = originalUrl?.startsWith("/api/gnc/") === true
+  const isRegionRequest = originalUrl?.startsWith("/api/region/") === true
   enterRequestContext({
-    isGncRequest,
-    workspaceRootOverride: isGncRequest ? GNC_WORKSPACE_ROOT : undefined,
+    isGncRequest: isGncRequest || isRegionRequest,
+    workspaceRootOverride: isGncRequest ? GNC_WORKSPACE_ROOT : isRegionRequest ? REGION_WORKSPACE_ROOT : undefined,
   })
 })
 

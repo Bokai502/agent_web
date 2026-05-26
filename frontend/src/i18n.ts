@@ -214,6 +214,11 @@ export const resources = {
           suggestion: "Optimization suggestions",
           createCad: "Plan update and CAD modeling",
           cadSimReport: "Summary report",
+          gncGenerateConfig: "Generate configuration files",
+          gncGenerateCode: "Generate GNC code",
+          gncSimulationValidation: "Simulation validation",
+          gncTuningOptimization: "Tuning optimization",
+          gncSummaryReport: "Summary report",
           status: {
             completed: "Completed",
             failed: "Failed",
@@ -487,6 +492,11 @@ export const resources = {
           suggestion: "优化建议",
           createCad: "设计与建模",
           cadSimReport: "总结报告",
+          gncGenerateConfig: "生成配置文件",
+          gncGenerateCode: "生成姿轨控代码",
+          gncSimulationValidation: "仿真验证",
+          gncTuningOptimization: "调参优化",
+          gncSummaryReport: "总结报告",
           status: {
             completed: "已完成",
             failed: "失败",

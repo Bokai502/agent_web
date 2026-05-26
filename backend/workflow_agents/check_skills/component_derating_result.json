@@ -1,0 +1,30 @@
+{
+  "schema_version": "3.0",
+  "generated_at": "2026-05-26T08:17:31.017922+00:00",
+  "input": "瓷介电容器",
+  "source_json": "/data/lbk/codex_web/open_codex_web/backend/workflow_agents/check_skills/component-derating-classifier/reference/jiange_full.json",
+  "matched": true,
+  "result": {
+    "元器件大类": "电容器",
+    "元器件子类": "固定陶瓷电容器",
+    "selection_reason": "瓷介电容器通常指陶瓷介质电容器，最接近子类固定陶瓷电容器。",
+    "information": [
+      {
+        "元器件大类": "电容器",
+        "元器件子类": "固定陶瓷电容器",
+        "降额参数": "直流工作电压",
+        "I级降额": "0.50",
+        "II级降额": "0.60",
+        "III级降额混合": "0.70"
+      },
+      {
+        "元器件大类": "电容器",
+        "元器件子类": "固定陶瓷电容器",
+        "降额参数": "最高额定环境温度(℃)",
+        "I级降额": "TAM-10",
+        "II级降额": "TAM-10",
+        "III级降额混合": "TAM-10"
+      }
+    ]
+  }
+}

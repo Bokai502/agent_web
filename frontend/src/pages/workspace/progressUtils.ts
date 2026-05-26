@@ -17,11 +17,25 @@ export type WorkflowLoopProgressEntry = {
   status: "running" | "completed" | "failed" | "pending" | "unknown"
 }
 
-const WORKFLOW_PROGRESS_STAGES = [
+export type WorkflowProgressVariant = "thermal" | "gnc"
+
+const THERMAL_WORKFLOW_PROGRESS_STAGES = [
   { key: "create_cad", labelKey: "workspace.progress.createCad" },
   { key: "simulation", labelKey: "workspace.progress.simulationRun" },
   { key: "cad_sim_report", labelKey: "workspace.progress.cadSimReport" },
 ]
+
+const GNC_WORKFLOW_PROGRESS_STAGES = [
+  { key: "generate_config", labelKey: "workspace.progress.gncGenerateConfig" },
+  { key: "generate_gnc_code", labelKey: "workspace.progress.gncGenerateCode" },
+  { key: "simulation_validation", labelKey: "workspace.progress.gncSimulationValidation" },
+  { key: "tuning_optimization", labelKey: "workspace.progress.gncTuningOptimization" },
+  { key: "summary_report", labelKey: "workspace.progress.gncSummaryReport" },
+]
+
+function getWorkflowProgressStages(variant: WorkflowProgressVariant) {
+  return variant === "gnc" ? GNC_WORKFLOW_PROGRESS_STAGES : THERMAL_WORKFLOW_PROGRESS_STAGES
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -53,12 +67,12 @@ function getStatusLabel(rawStatus: string, fallbackStatus: WorkflowLoopProgressE
   })
 }
 
-export function getWorkflowLoopProgressEntries(data: unknown, t: TFunction): WorkflowLoopProgressEntry[] {
+export function getWorkflowLoopProgressEntries(data: unknown, t: TFunction, variant: WorkflowProgressVariant = "thermal"): WorkflowLoopProgressEntry[] {
   const loops = isRecord(data) && data.schema_version === "loop_progress/1.0" && isRecord(data.loops)
     ? data.loops
     : {}
 
-  return WORKFLOW_PROGRESS_STAGES.map(stage => {
+  return getWorkflowProgressStages(variant).map(stage => {
     const loop = loops[stage.key]
     const loopData = isRecord(loop) ? loop : null
     const completed = loopData?.completed === true

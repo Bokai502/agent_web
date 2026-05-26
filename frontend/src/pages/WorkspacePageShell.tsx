@@ -1,0 +1,514 @@
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { APP_NAVIGATION_EVENT } from "../app/sessionUtils"
+import { useBomInfo } from "../hooks/useBomInfo"
+import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
+import type { CodexInputItem } from "../types"
+import { BomInspectorCard } from "./workspace/BomInspectorCard"
+import { CurrentWorkspaceCard } from "./workspace/CurrentWorkspaceCard"
+import { DeleteSessionDialog } from "./workspace/DeleteSessionDialog"
+import { ProgressCard } from "./workspace/ProgressCard"
+import { WorkspaceLeftPanel } from "./workspace/WorkspaceLeftPanel"
+import { WorkspaceStagePanel } from "./workspace/WorkspaceStagePanel"
+import { WorkspaceTopbar } from "./workspace/WorkspaceTopbar"
+import { getVisibleWorkspaceSessionState } from "./workspace/workspaceSessionVisibility"
+import {
+  fetchWorkspaceManifest,
+  getActiveVersion,
+  resolveWorkspaceVersionContext,
+} from "./workspace/workspaceVersion"
+import type { WorkflowProgressVariant } from "./workspace/progressUtils"
+import type { RunLogEntry } from "./workspace/runLogUtils"
+import { useWorkspaceRuntimeData } from "./workspace/useWorkspaceRuntimeData"
+import { useWorkspaceVersionState } from "./workspace/useWorkspaceVersionState"
+import "./workspace/WorkspaceSessionPage.css"
+
+const WORKSPACE_HOME_PATH = "/workspace"
+const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "02_geometry_edit/geometry_after.glb"
+
+type ViewerComponentMessage = {
+  componentId?: unknown
+  semanticName?: unknown
+  type?: unknown
+}
+
+type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol"
+
+export interface WorkspacePageShellProps {
+  apiBase?: string
+  homePath?: string
+  inspectorExtra?: ReactNode
+  modelViewerUrl?: string
+  progressVariant?: WorkflowProgressVariant
+  showBom?: boolean
+  showModel?: boolean
+  showTools?: boolean
+}
+
+interface WorkspaceAppleContentProps {
+  apiBase?: string
+  inspectorExtra?: ReactNode
+  modelViewerUrl?: string
+  progressVariant?: WorkflowProgressVariant
+  showBom?: boolean
+  showModel?: boolean
+  showTools?: boolean
+  state: ReturnType<typeof useWorkspaceAppState>
+}
+
+export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true, state }: WorkspaceAppleContentProps) {
+  const { i18n, t } = useTranslation()
+  const {
+    activeSessionId,
+    currentEvents,
+    currentPrompt,
+    handleClearActiveSession,
+    handleDelete,
+    handleNew,
+    handleSelectWorkspaceSession,
+    handleStopAskUser,
+    handleSubmit,
+    isMobile: _isMobile,
+    pendingAskUser,
+    reloadSessions,
+    running,
+    runningWorkspace,
+    sessionsLoaded,
+    sortedSessions,
+    turns,
+    abort,
+  } = state
+  const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
+  const [selectedBomId, setSelectedBomId] = useState("")
+  const [activePanel, setActivePanel] = useState<ActivePanel>(showModel ? "model" : "log")
+  const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
+  const [selectedLogId, setSelectedLogId] = useState("")
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+  const [deleteError, setDeleteError] = useState("")
+  const [deletePending, setDeletePending] = useState(false)
+
+  const activeSession = sortedSessions.find(session => session.id === activeSessionId)
+  const sessionWorkspaceSignature = useMemo(
+    () => sortedSessions.map(session => [
+      session.id,
+      session.workspaceId ?? "",
+      session.versionId ?? "",
+      session.workspaceDir ?? "",
+      session.createdAt,
+      session.turns.length,
+      session.turns.at(-1)?.events.length ?? 0,
+      session.turns.at(-1)?.events.at(-1)?.type ?? "",
+    ].join(":")).join("|"),
+    [sortedSessions],
+  )
+  const refreshWorkspaceViews = useCallback(() => {
+    setSelectedBomId("")
+    setSelectedLogId("")
+    setWorkspaceRefreshNonce(value => value + 1)
+    setProgressRefreshNonce(value => value + 1)
+  }, [])
+  const reloadSessionsQuietly = useCallback(() => {
+    reloadSessions().catch(() => {})
+  }, [reloadSessions])
+  const {
+    activeContext,
+    activeManifestVersion,
+    branchManifest,
+    checkoutVersion,
+    createChildBranch,
+    createSiblingBranch,
+    manifestLoading,
+    setBranchManifest,
+    setVersionListOpen,
+    setWorkspaceListOpen,
+    switchActiveWorkspace,
+    versionAction,
+    versionError,
+    versionListOpen,
+    versionTreeRoots,
+    workspaceChanging,
+    workspaceItems,
+    workspaceListOpen,
+    workspaces,
+    workspacesLoaded,
+  } = useWorkspaceVersionState({
+    apiBase,
+    fallbackWorkspaceName: t("workspace.noWorkspace"),
+    manifestRefreshKey: activeSessionId,
+    onRefreshWorkspaceViews: refreshWorkspaceViews,
+    onReloadSessions: reloadSessionsQuietly,
+    workspaceRefreshNonce,
+  })
+  const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, {
+    apiBase,
+    enabled: showBom && !!activeContext.versionDir,
+    versionDir: activeContext.versionDir,
+    versionId: activeContext.versionId,
+    workspaceId: activeContext.workspaceId,
+  })
+  const selectedBom = bomInfo.components.find(component => component.componentId === selectedBomId) ?? bomInfo.components[0]
+  const {
+    activeSessionMatchesWorkspace,
+    visibleCurrentEvents,
+    visibleCurrentPrompt,
+    visiblePendingAskUser,
+    visibleRunning,
+    visibleTurns,
+  } = getVisibleWorkspaceSessionState({
+    activeContext,
+    activeSession,
+    currentEvents,
+    currentPrompt,
+    pendingAskUser,
+    running,
+    runningWorkspace,
+    turns,
+  })
+  const {
+    logEntries,
+    progressData,
+    resetProgressData,
+    workflowLoopProgressEntries,
+  } = useWorkspaceRuntimeData({
+    activeContext,
+    apiBase,
+    progressRefreshNonce,
+    progressVariant,
+    running,
+    t,
+    visibleCurrentEvents,
+    visibleTurns,
+    workspaceRefreshNonce,
+  })
+  const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
+  const externalModelViewerUrl = modelViewerUrl?.trim() ?? ""
+  const hasModelPreview = showModel && (!!externalModelViewerUrl || !!activeContext.versionDir)
+  const viewerHref = useMemo(() => {
+    if (externalModelViewerUrl) return externalModelViewerUrl
+    const params = new URLSearchParams()
+    params.set("glbPath", WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
+    if (activeContext.workspaceKey) params.set("workspaceKey", activeContext.workspaceKey)
+    if (activeContext.workspaceId) params.set("workspaceId", activeContext.workspaceId)
+    if (activeContext.versionId) params.set("versionId", activeContext.versionId)
+    if (activeContext.versionDir) params.set("workspaceDir", activeContext.versionDir)
+    if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
+    const query = params.toString()
+    return query ? `/viewer?${query}` : "/viewer"
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, externalModelViewerUrl, workspaceRefreshNonce])
+  const cadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
+  const paraviewHref = "http://10.110.10.11:6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
+  const comsolHref = "http://10.110.10.11:6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
+  const activeTool = activePanel === "cad"
+    ? { label: "CAD", subtitle: t("workspace.tools.cadSubtitle"), title: t("workspace.tools.cadTitle"), url: cadHref }
+    : activePanel === "paraview"
+      ? { label: "ParaView", subtitle: t("workspace.tools.paraviewSubtitle"), title: t("workspace.tools.paraviewTitle"), url: paraviewHref }
+      : activePanel === "comsol"
+        ? { label: "COMSOL", subtitle: t("workspace.tools.comsolSubtitle"), title: t("workspace.tools.comsolTitle"), url: comsolHref }
+        : null
+  const orderedBomComponents = useMemo(() => {
+    if (!selectedBomId) return bomInfo.components
+    return [...bomInfo.components].sort((left, right) => {
+      if (left.componentId === selectedBomId) return -1
+      if (right.componentId === selectedBomId) return 1
+      return 0
+    })
+  }, [bomInfo.components, selectedBomId])
+
+  const submitAndRefreshProgress = useCallback((input: string | CodexInputItem[], enabledSkills?: string[]) => {
+    resetProgressData()
+    setProgressRefreshNonce(value => value + 1)
+    const submitWithContext = (context: typeof activeContext) => {
+      handleSubmit(input, enabledSkills, {
+        workspaceDir: context.versionDir,
+        workspaceId: context.workspaceId,
+        workspaceName: context.workspaceName,
+        versionId: context.versionId,
+      })
+    }
+
+    if (!activeContext.versionDir && activeContext.manifestRoot) {
+      fetchWorkspaceManifest({
+        initialize: true,
+        apiBase,
+        manifestRoot: activeContext.manifestRoot,
+        sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
+        workspaceId: activeContext.workspaceId,
+        workspaceKey: activeContext.workspaceKey,
+      })
+        .then(data => {
+          if (!data) {
+            submitWithContext(activeContext)
+            return
+          }
+          const activeVersion = getActiveVersion(data)
+          const initializedContext = activeVersion?.workspaceDir
+            ? {
+              ...activeContext,
+              manifestRoot: data.rootDir ?? activeContext.manifestRoot,
+              manifestSessionId: data.sessionId ?? activeContext.manifestSessionId,
+              versionDir: activeVersion.workspaceDir,
+              versionId: activeVersion.id ?? null,
+              workspaceId: data.workspaceId ?? activeContext.workspaceId,
+              workspaceKey: data.workspaceId ?? activeContext.workspaceKey,
+              workspaceRoot: data.rootDir ?? activeContext.workspaceRoot,
+            }
+            : resolveWorkspaceVersionContext({
+              branchManifest: data,
+              fallbackWorkspaceName: activeContext.workspaceName,
+              workspaces,
+            })
+          setBranchManifest(data)
+          refreshWorkspaceViews()
+          submitWithContext(initializedContext)
+        })
+        .catch(() => submitWithContext(activeContext))
+      window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
+      return
+    }
+
+    submitWithContext(activeContext)
+    window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
+  }, [activeContext, handleSubmit, refreshWorkspaceViews, resetProgressData, workspaces])
+
+  const handleSelectLog = useCallback((entry: RunLogEntry) => {
+    setSelectedLogId(entry.id)
+    setActivePanel("log")
+  }, [])
+
+  const handleReturnHome = useCallback(() => {
+    window.history.pushState(null, "", "/home")
+    window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
+  }, [])
+
+  const handleSelectWorkspace = useCallback((name: string) => {
+    if (name === activeContext.workspaceName) return
+
+    switchActiveWorkspace(name).then(() => {
+      handleNew()
+    })
+  }, [activeContext.workspaceName, handleNew, switchActiveWorkspace])
+
+  const openExternalWindow = useCallback((url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer")
+  }, [])
+
+  useEffect(() => {
+    const handleViewerMessage = (event: MessageEvent<ViewerComponentMessage>) => {
+      if (event.origin !== window.location.origin) return
+      if (event.data?.type !== "viewer3d:component-selected") return
+      if (typeof event.data.componentId !== "string") return
+      const semanticName = typeof event.data.semanticName === "string" ? event.data.semanticName : ""
+      const matchedComponent = bomInfo.components.find(component =>
+        component.componentId === event.data.componentId ||
+        (!!semanticName && component.semanticName === semanticName),
+      )
+      setSelectedBomId(matchedComponent?.componentId ?? event.data.componentId)
+    }
+
+    window.addEventListener("message", handleViewerMessage)
+    return () => window.removeEventListener("message", handleViewerMessage)
+  }, [bomInfo.components])
+
+  useEffect(() => {
+    resetProgressData()
+  }, [activeSessionId, resetProgressData])
+
+  useEffect(() => {
+    resetProgressData()
+    setSelectedLogId("")
+    setProgressRefreshNonce(value => value + 1)
+  }, [activeContext.versionDir, activeContext.versionId, resetProgressData])
+
+  useEffect(() => {
+    if (!sessionsLoaded) return
+    if (!workspacesLoaded) return
+    if (!activeContext.versionDir && !activeContext.versionId) {
+      handleClearActiveSession()
+      return
+    }
+    if (!activeContext.versionDir && (!activeContext.workspaceId || !activeContext.versionId)) return
+    handleSelectWorkspaceSession({
+      workspaceDir: activeContext.versionDir,
+      workspaceId: activeContext.workspaceId,
+      workspaceName: activeContext.workspaceName,
+      versionId: activeContext.versionId,
+    })
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, handleClearActiveSession, handleSelectWorkspaceSession, sessionWorkspaceSignature, sessionsLoaded, workspacesLoaded])
+
+  useEffect(() => {
+    if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return
+    setSelectedLogId(logEntries[0]?.id ?? "")
+  }, [logEntries, selectedLogId])
+
+  useEffect(() => {
+    if (!showBom && activePanel === "bom") setActivePanel(showModel ? "model" : "log")
+  }, [activePanel, showBom, showModel])
+
+  useEffect(() => {
+    if (!showModel && activePanel === "model") setActivePanel("log")
+  }, [activePanel, showModel])
+
+  useEffect(() => {
+    if (!showTools && (activePanel === "cad" || activePanel === "paraview" || activePanel === "comsol")) setActivePanel("log")
+  }, [activePanel, showTools])
+
+  const stageTitle = activePanel === "model"
+    ? t("workspace.stage.modelTitle")
+    : activePanel === "bom" && showBom
+      ? t("workspace.stage.bomTitle")
+      : activePanel === "log"
+        ? t("workspace.stage.logTitle")
+      : activeTool?.title ?? t("workspace.stage.toolTitle")
+  const stageSubtitle = activePanel === "model"
+    ? hasModelPreview ? t("workspace.stage.currentModel") : t("workspace.stage.waitingModel")
+    : activePanel === "bom" && showBom
+      ? bomLoading ? t("workspace.stage.loadingBom") : t("workspace.stage.components", { count: bomInfo.totalRecords })
+      : activePanel === "log"
+        ? selectedLog ? selectedLog.title : t("workspace.stage.waitingLog")
+      : activeTool?.subtitle ?? t("workspace.stage.remoteTool")
+
+  return (
+    <div className="workspace-apple">
+      <WorkspaceTopbar
+        activePanel={activePanel}
+        activeSessionMatchesWorkspace={activeSessionMatchesWorkspace}
+        onReturnHome={handleReturnHome}
+        onSelectPanel={setActivePanel}
+        showBom={showBom}
+        showModel={showModel}
+        showTools={showTools}
+        t={t}
+        visibleRunning={visibleRunning}
+      />
+
+      {deleteTarget && (
+        <DeleteSessionDialog
+          deleteError={deleteError}
+          deletePending={deletePending}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            setDeletePending(true)
+            setDeleteError("")
+            try {
+              await handleDelete(deleteTarget.id)
+              setDeleteTarget(null)
+            } catch {
+              setDeleteError(t("home.deleteFailed"))
+            } finally {
+              setDeletePending(false)
+            }
+          }}
+          target={deleteTarget}
+          t={t}
+        />
+      )}
+
+      <main className="wa-workspace">
+        <WorkspaceLeftPanel
+          abort={abort}
+          activeSessionId={activeSessionId}
+          activeSessionTitle={activeSession?.title}
+          apiBase={apiBase}
+          currentEvents={visibleCurrentEvents}
+          currentPrompt={visibleCurrentPrompt}
+          logEntries={logEntries}
+          onSelectLog={handleSelectLog}
+          onStopAskUser={handleStopAskUser}
+          onSubmit={submitAndRefreshProgress}
+          onSubmitAskUser={answer => submitAndRefreshProgress(answer)}
+          pendingAskUser={visiblePendingAskUser}
+          selectedLogId={selectedLogId}
+          t={t}
+          turns={visibleTurns}
+          visibleRunning={visibleRunning}
+        />
+
+        <WorkspaceStagePanel
+          activePanel={activePanel}
+          activeTool={activeTool}
+          bomInfo={bomInfo}
+          bomLoading={bomLoading}
+          cadHref={cadHref}
+          hasModelPreview={hasModelPreview}
+          logEntries={logEntries}
+          onOpenExternalWindow={openExternalWindow}
+          onSelectBom={setSelectedBomId}
+          selectedBom={selectedBom}
+          selectedLog={selectedLog}
+          showBom={showBom}
+          showModel={showModel}
+          showTools={showTools}
+          stageSubtitle={stageSubtitle}
+          stageTitle={stageTitle}
+          t={t}
+          viewerHref={viewerHref}
+          visibleRunning={visibleRunning}
+          visibleTurnsCount={visibleTurns.length}
+        />
+
+        <aside className="wa-panel wa-inspector">
+          <div className="wa-inspector-content">
+            <CurrentWorkspaceCard
+              activeManifestVersion={activeManifestVersion}
+              branchManifest={branchManifest}
+              currentWorkspaceName={activeContext.workspaceName}
+              manifestLoading={manifestLoading}
+              onCheckoutVersion={checkoutVersion}
+              onCreateChildBranch={createChildBranch}
+              onCreateSiblingBranch={createSiblingBranch}
+              onSelectWorkspace={handleSelectWorkspace}
+              onToggleVersionList={() => setVersionListOpen(open => !open)}
+              onToggleWorkspaceList={() => setWorkspaceListOpen(open => !open)}
+              versionAction={versionAction}
+              versionError={versionError}
+              versionListOpen={versionListOpen}
+              versionTreeRoots={versionTreeRoots}
+              workspaceChanging={workspaceChanging}
+              workspaceItems={workspaceItems}
+              workspaceListOpen={workspaceListOpen}
+            />
+
+            <ProgressCard
+              entries={workflowLoopProgressEntries}
+              language={i18n.language}
+              progressData={progressData}
+              t={t}
+            />
+
+            {showBom && (
+              <BomInspectorCard
+                bomInfo={bomInfo}
+                bomLoading={bomLoading}
+                components={orderedBomComponents}
+                onOpenBom={componentId => {
+                  setSelectedBomId(componentId)
+                  setActivePanel("bom")
+                }}
+                selectedBomId={selectedBomId}
+                t={t}
+              />
+            )}
+            {inspectorExtra}
+
+          </div>
+        </aside>
+      </main>
+    </div>
+  )
+}
+
+export default function WorkspacePageShell({ apiBase, homePath = WORKSPACE_HOME_PATH, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true }: WorkspacePageShellProps) {
+  const state = useWorkspaceAppState({ apiBase, homePath })
+  return (
+    <WorkspaceAppleContent
+      apiBase={apiBase}
+      inspectorExtra={inspectorExtra}
+      modelViewerUrl={modelViewerUrl}
+      progressVariant={progressVariant}
+      showBom={showBom}
+      showModel={showModel}
+      showTools={showTools}
+      state={state}
+    />
+  )
+}

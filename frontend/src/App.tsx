@@ -1,5 +1,5 @@
-import WorkspaceSessionPage from "./pages/WorkspaceSessionPage"
+import GncWorkspacePage from "./pages/GncWorkspacePage"
 
 export default function App() {
-  return <WorkspaceSessionPage apiBase="/api/gnc" homePath="/gnc-workspace" />
+  return <GncWorkspacePage />
 }

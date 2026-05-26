@@ -1,0 +1,12 @@
+模块,项目中对应位置,说明
+对话管理,"README.md (line 3)、sessions、Sidebar.tsx","README 明确写了多会话、历史持久化、多轮对话"
+Skill 管理,"skills.ts (line 18)、skills.routes.ts","支持 public / thermal / aignc 三类 skill 扫描和缓存"
+Agent 调度/执行,"run.routes.ts (line 26)、promptPrefix.ts","/api/run 接收任务、注入 workspace/skill/agent guide，并通过 Codex SDK 执行"
+版本管理,"backend/src/README.md (line 11)、version.routes.ts、store.ts","manifests 模块负责 workspace manifests、versions、runs、artifacts 等"
+进度管理,"backend/src/README.md (line 16)、workspaceProgressInit.ts、progressUtils.ts","workspace 模块包含 progress 和 stage logs"
+热仿真设计套件,thermal_skills,"有 planner、config-editor、freecad、simulation-skill、cad-sim-report-agent 等"
+姿轨控套件,gnc_skills,"有 aignc-42-orchestrator、42-build-run-diagnose、fsw-code-author 等"
+支撑层：数据,"workspaces、manifests","workspace、BOM、models、stage logs、manifest/version/run 数据"
+支撑层：核心代码,backend/src/README.md (line 7),"后端按 artifacts / codex-run / manifests / sessions / system / workspaces 分模块"
+支撑层：工具,"freecad/SKILL.md、simulation-skill/SKILL.md、GNC 的 42-* skills","图里的 FreeCAD、COMSOL、ParaView、42 更像通过 skills/CLI 被 Agent 调用"
+Agent 执行层,"AGENT_GUIDE.md (line 16)、run.routes.ts (line 119)","Plan -> Execute -> Debug -> Review 流程对应“理解任务、规划步骤、执行、测试、验证、迭代修复”"

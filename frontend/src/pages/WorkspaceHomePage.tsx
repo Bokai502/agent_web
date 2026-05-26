@@ -15,7 +15,7 @@ import {
 } from "../components/thumbnailCache"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
 import type { Session } from "../types"
-import { WorkspaceAppleContent } from "./WorkspaceSessionPage"
+import { WorkspaceAppleContent } from "./WorkspacePageShell"
 
 const DEFAULT_HOME_PATH = "/workspace"
 const SAMPLE_THUMBNAIL_PIXEL_RATIO = 2
