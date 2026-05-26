@@ -1,0 +1,82 @@
+base_output_dir: /data/lbk/codex_web/FreeCAD_data/v9_data/02_sim/runs
+comsol:
+  export_face_tags:
+  - bottum_data
+  - face_data_0
+  - face_data_1
+  - face_data_2
+  - face_data_3
+  - face_data_4
+  - face_data_5
+  export_volum_tags:
+  - volum_data
+  field_expressions:
+    temperature: T
+  # local 模式 entry.py 仍会尝试加载该路径做 ping 测; template 由 thermal_sim.yaml 指定, 此处仅占位
+  model_file_path: /data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/pipeline_resources/templates/comsol/thermal_template.mph
+  connection:
+    mode: local
+    local_comsol_home: /usr/local/comsol64/multiphysics
+    local_python: /data/conda/envs/autoflowsim-comsol/bin/python
+    local_entry_script: /data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/comsol_runtime/remote/comsol_remote_entry.py
+    local_mph_version: "6.4"
+    local_mph_port: 2036
+    local_timeout_seconds: 900
+dataset:
+  add_timestamp: false
+  base_filename: 'thermal4GNN'
+  custom_suffix: ''
+  include_face_data: false
+  include_parameters: false
+  include_vtu_data: true
+  save_hdf5: true
+  save_matlab: false
+num_samples: 1
+parameters:
+- name: P0
+  type: discrete
+  unit: '[W]'
+  values: [0, 1]
+- name: P1
+  type: discrete
+  unit: '[W]'
+  values: [0, 1]
+- name: P2
+  type: discrete
+  unit: '[W]'
+  values: [0, 1]
+- name: P3
+  type: discrete
+  unit: '[W]'
+  values: [0, 1]
+- name: P4
+  type: discrete
+  unit: '[W]'
+  values: [0, 1]
+- name: P5
+  type: discrete
+  unit: '[W]'
+  values: [0, 1]
+- name: P6
+  type: discrete
+  unit: '[W]'
+  values: [0, 1]
+- name: P7
+  type: discrete
+  unit: '[W]'
+  values: [0, 1]
+- name: R1
+  type: continuous
+  unit: ''
+  values: [60, 70]
+- name: R2
+  type: continuous
+  unit: ''
+  values: [55, 65]
+processing:
+  grid_size: 128
+  interpolation_method: linear
+  num_time_steps: 101
+visualization:
+  gif_fps: 10
+  variable_base_name: 温度

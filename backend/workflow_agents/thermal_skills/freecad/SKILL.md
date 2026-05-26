@@ -7,7 +7,7 @@ description: "FreeCAD CLI/RPC workflow for the current 00_inputs -> 01_cad CAD s
 
 ## Prerequisites
 
-- Use the packaged unified CLI entry point under `/data/lbk/codex_web/freecad_skills/freecad-skill/freecad_cli_tools` instead of ad hoc Python when a command already exists.
+- Use the packaged unified CLI entry point from `/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools` instead of ad hoc Python when a command already exists.
 - Before running a workflow command, call `python -m freecad_cli_tools.cli.main config show --workspace-dir <workspace_dir>` to read the resolved workspace, RPC settings, default input paths, default output paths, and component-info STEP size limit.
 - Open Codex Web provides a request-scoped `workspace_dir` for the selected workspace/version. Treat that value as authoritative.
 - `python -m freecad_cli_tools.cli.main config show` without `--workspace-dir` reports defaults from `/data/lbk/codex_web/config.json` field `freecad.workspaceDir`; this may not match the selected frontend version.

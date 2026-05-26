@@ -103,7 +103,7 @@ This file contains `sample_id`, `stage`, `percent`, `ok`, `updated_at`, and
 for detailed COMSOL status and validation checks, not progress fallback. Or run:
 
 ```bash
-python /data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools/comsol_progress.py \
+python /data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_skills/sim_cli_tools/comsol_progress.py \
   --workspace-dir <workspace_dir>
 ```
 
