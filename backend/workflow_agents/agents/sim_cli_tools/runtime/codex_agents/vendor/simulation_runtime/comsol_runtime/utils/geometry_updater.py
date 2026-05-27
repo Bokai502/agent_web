@@ -30,6 +30,7 @@ class GeometryUpdater:
                                component: str = "comp1",
                                geometry: str = "geom1", 
                                import_feature: str = "imp1",
+                               form_assembly: bool = False,
                                ):
         """更新几何导入节点的文件路径
         
@@ -67,6 +68,13 @@ class GeometryUpdater:
             # 5. 更新文件名
             imp.set("filename", abs_path)
             imp.importData()
+            if form_assembly:
+                fin = geom.feature("fin")
+                fin.label("Form Assembly")
+                fin.set("action", "assembly")
+                fin.set("createpairs", "on")
+                fin.set("pairtype", "identity")
+                fin.set("imprint", "on")
             geom.run()    
             print("✓ 几何更新成功")
             return True

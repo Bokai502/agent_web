@@ -32,7 +32,7 @@ from utils.file_utils import (
     save_yaml,
 )
 from core.selection_updater import SelectionUpdater
-from core.selection_updater_v2 import SelectionUpdaterV2
+from core.selection_updater_v2 import SelectionUpdaterV2, component_mount_face_bounds_from_target_plane
 from core.run_checks import RunChecks
 
 
@@ -44,7 +44,12 @@ _DYNAMIC_SELECTION_PREFIXES = (
     'sel_c_',
     'sel_shell_',
     'fsurf_',
+    'fadj_',
+    'fbox_',
+    'fplate_',
+    'flocal_',
     'fmount_',
+    'ftarget_',
     'radexp_',
     'adj_',
 )
@@ -53,6 +58,10 @@ _DYNAMIC_HT_PREFIXES = (
     'rad_',
     'temp_',
     'thin_',
+    'tc_',
+)
+_DYNAMIC_PAIR_PREFIXES = (
+    'pair_',
 )
 
 
@@ -142,6 +151,9 @@ class RemoteComsolExecutor:
     def _is_generated_ht_feature_tag(self, tag: str) -> bool:
         return tag.startswith(_DYNAMIC_HT_PREFIXES) or self._is_generated_component_tag(tag)
 
+    def _is_generated_pair_tag(self, tag: str) -> bool:
+        return tag.startswith(_DYNAMIC_PAIR_PREFIXES)
+
     def _remove_generated_ht_features(self) -> Dict[str, Any]:
         ht = self.model.java.component('comp1').physics('ht')
         removed: List[str] = []
@@ -195,12 +207,49 @@ class RemoteComsolExecutor:
             'failed_count': len(failed),
         }
 
+    def _remove_generated_pairs(self) -> Dict[str, Any]:
+        pair_root = self.model.java.component('comp1').pair()
+        remove_method = getattr(pair_root, 'remove', None)
+        if not callable(remove_method):
+            return {
+                'removed': [],
+                'removed_count': 0,
+                'failed': [],
+                'failed_count': 0,
+                'note': 'pair.remove() is unavailable; skipped',
+            }
+
+        removed: List[str] = []
+        failed: List[Dict[str, str]] = []
+        for tag in list(pair_root.tags()):
+            tag_str = str(tag)
+            if not self._is_generated_pair_tag(tag_str):
+                continue
+            try:
+                remove_method(tag)
+                removed.append(tag_str)
+            except Exception as exc:
+                failed.append({'tag': tag_str, 'error': f'{type(exc).__name__}: {exc}'})
+
+        return {
+            'removed': removed,
+            'removed_count': len(removed),
+            'failed': failed,
+            'failed_count': len(failed),
+        }
+
     def _cleanup_generated_runtime_nodes(self) -> Dict[str, Any]:
         ht_result = self._remove_generated_ht_features()
+        pair_result = self._remove_generated_pairs()
         selection_result = self._remove_generated_selections()
         return {
-            'ok': ht_result['failed_count'] == 0 and selection_result['failed_count'] == 0,
+            'ok': (
+                ht_result['failed_count'] == 0
+                and pair_result['failed_count'] == 0
+                and selection_result['failed_count'] == 0
+            ),
             'ht_features': ht_result,
+            'pairs': pair_result,
             'selections': selection_result,
         }
 
@@ -365,6 +414,134 @@ class RemoteComsolExecutor:
         print(f"  [v2] mesh: replaced with FreeTet hauto={hauto} (removed {len(removed)} nodes: {removed})")
         return {'removed': removed, 'mesh_type': 'FreeTet', 'hauto': hauto, 'ok': True}
 
+    def _clear_mesh_features(self, mesh) -> List[str]:
+        removed = []
+        for tag in list(mesh.feature().tags()):
+            tag_str = str(tag)
+            try:
+                mesh.feature().remove(tag)
+                removed.append(tag_str)
+            except Exception as e:
+                print(f"    mesh.remove({tag_str}) failed (non-fatal): {e}")
+        return removed
+
+    def _prepare_mesh_mode2_for_v2(self, components: List[Dict[str, Any]], mesh_config: Dict[str, Any]) -> dict:
+        """Experimental hybrid mesh: Sweep for configured component boxes, FreeTet elsewhere.
+
+        All mesh features stay in one COMSOL mesh sequence. Shared boundaries are
+        therefore owned by COMSOL's mesh builder; if Sweep cannot be applied to a
+        component domain, the global FreeTet node remains the fallback.
+        """
+        mode2 = mesh_config.get('mesh_mode2') or {}
+        sweep_kinds = set(mode2.get('sweep_component_kinds') or ['internal'])
+        hauto = int(mesh_config.get('v2_hauto', 3))
+        mesh = self.model.java.component('comp1').mesh('mesh1')
+        removed = self._clear_mesh_features(mesh)
+        result: Dict[str, Any] = {
+            'ok': True,
+            'mesh_type': 'hybrid_mode2',
+            'hauto': hauto,
+            'removed': removed,
+            'mode2': mode2,
+            'structured': {
+                'attempted': 0,
+                'created': 0,
+                'skipped': 0,
+                'failed': [],
+                'sweep_component_kinds': sorted(sweep_kinds),
+                'attempted_by_kind': {},
+                'created_by_kind': {},
+                'skipped_by_kind': {},
+            },
+            'unstructured': {'tag': 'ftet1', 'type': 'FreeTet', 'selection': 'remaining/all domains'},
+            'notes': [
+                'FreeTet is kept as a fallback for shell, cabin wall, and any swept-failed domains.',
+                'Sweep nodes are assigned to existing per-component domain selections for configured component kinds.',
+                'Sweep domain selections are de-duplicated by COMSOL domain entity id before mesh feature creation.',
+            ],
+        }
+
+        try:
+            mesh.feature().create('size1', 'Size')
+            mesh.feature('size1').set('hauto', str(hauto))
+        except Exception as e:
+            result['warnings'] = [f'Creating Size node failed: {type(e).__name__}: {e}']
+            print(f"    Creating Size node failed (non-fatal): {e}")
+
+        swept_domain_ids: set[int] = set()
+        for comp in components:
+            kind = comp.get('kind') or 'unknown'
+            if kind not in sweep_kinds:
+                continue
+            name = comp['name']
+            sweep_tag = f"swe_{name}"
+            domain_ids = self._selection_entity_ids(self.model.java.component('comp1').selection(name))
+            record: Dict[str, Any] = {
+                'component': name,
+                'kind': kind,
+                'tag': sweep_tag,
+                'feature_type': 'Sweep',
+                'selection': name,
+                'domain_ids': domain_ids,
+                'ok': False,
+            }
+            result['structured']['attempted'] += 1
+            result['structured']['attempted_by_kind'][kind] = (
+                result['structured']['attempted_by_kind'].get(kind, 0) + 1
+            )
+            if not domain_ids:
+                record['note'] = 'skipped: component domain selection is empty'
+                result['structured']['skipped'] += 1
+                result['structured']['skipped_by_kind'][kind] = (
+                    result['structured']['skipped_by_kind'].get(kind, 0) + 1
+                )
+                result['structured'].setdefault('skipped_records', []).append(record)
+                continue
+            duplicate_domain_ids = sorted(set(domain_ids) & swept_domain_ids)
+            if duplicate_domain_ids:
+                record['note'] = 'skipped: component selection overlaps earlier Sweep domains'
+                record['duplicate_domain_ids'] = duplicate_domain_ids
+                result['structured']['skipped'] += 1
+                result['structured']['skipped_by_kind'][kind] = (
+                    result['structured']['skipped_by_kind'].get(kind, 0) + 1
+                )
+                result['structured'].setdefault('skipped_records', []).append(record)
+                continue
+            try:
+                mesh.feature().create(sweep_tag, 'Sweep')
+                sweep = mesh.feature(sweep_tag)
+                sweep.selection().named(name)
+                record['ok'] = True
+                swept_domain_ids.update(domain_ids)
+                result['structured']['created'] += 1
+                result['structured']['created_by_kind'][kind] = (
+                    result['structured']['created_by_kind'].get(kind, 0) + 1
+                )
+                result['structured'].setdefault('created_records', []).append(record)
+            except Exception as e:
+                record['error'] = f'{type(e).__name__}: {e}'
+                result['structured']['failed'].append(record)
+                try:
+                    mesh.feature().remove(sweep_tag)
+                except Exception:
+                    pass
+                continue
+
+        try:
+            mesh.feature().create('ftet1', 'FreeTet')
+        except Exception as e:
+            result['ok'] = False
+            result['unstructured']['error'] = f'{type(e).__name__}: {e}'
+            return result
+
+        print(
+            "  [v2] mesh_mode2: "
+            f"Sweep components={result['structured']['created']}/{result['structured']['attempted']} "
+            f"kinds={sorted(sweep_kinds)}, "
+            f"FreeTet fallback hauto={hauto}"
+        )
+        return result
+
     def _build_component_boundary_selection(self, name: str, pos_mm: list, dims_mm: list) -> str:
         comp_sel_root = self.model.java.component('comp1').selection()
         face_sel_tag = f'fsurf_{name}'
@@ -389,39 +566,154 @@ class RemoteComsolExecutor:
         pos_mm: list,
         dims_mm: list,
         mount_face: Dict[str, Any],
+        component_mount_face: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """为组件创建“贴装那一侧”的单一边界 Selection."""
+        """为组件创建“贴装那一侧”的单一边界 Selection.
+
+        component_mount_face_id/local_* 描述的是组件自身语义面，不一定等同于装配
+        后的全局 xmin/xmax/ymin/...。这里用目标安装面的全局平面，反推组件 bbox
+        上最接近该平面的那一侧，作为真实热交界面。
+        """
         comp_sel_root = self.model.java.component('comp1').selection()
+        adj_tag = f'fadj_{name}'
+        box_tag = f'fbox_{name}'
         face_sel_tag = f'fmount_{name}'
         existing_sel_tags = {str(t) for t in comp_sel_root.tags()}
+        if adj_tag not in existing_sel_tags:
+            comp_sel_root.create(adj_tag, 'Adjacent')
+        adj_sel = self.model.java.component('comp1').selection(adj_tag)
+        adj_sel.label(f'fadj:{name}')
+        adj_sel.set('entitydim', '3')
+        adj_sel.set('input', [name])
+        adj_sel.set('outputdim', '2')
+
+        existing_sel_tags = {str(t) for t in comp_sel_root.tags()}
+        if box_tag not in existing_sel_tags:
+            comp_sel_root.create(box_tag, 'Box')
+        box_sel = self.model.java.component('comp1').selection(box_tag)
+        box_sel.label(f'fbox:{name}')
+        box_sel.set('entitydim', '2')
+        box_sel.set('condition', 'allvertices')
+
+        bounds = component_mount_face_bounds_from_target_plane(pos_mm, dims_mm, mount_face, eps_mm=1.0)
+
+        box_sel.set('xmin', f'{bounds[0][0]}[mm]')
+        box_sel.set('xmax', f'{bounds[0][1]}[mm]')
+        box_sel.set('ymin', f'{bounds[1][0]}[mm]')
+        box_sel.set('ymax', f'{bounds[1][1]}[mm]')
+        box_sel.set('zmin', f'{bounds[2][0]}[mm]')
+        box_sel.set('zmax', f'{bounds[2][1]}[mm]')
+
+        existing_sel_tags = {str(t) for t in comp_sel_root.tags()}
         if face_sel_tag not in existing_sel_tags:
-            comp_sel_root.create(face_sel_tag, 'Box')
+            comp_sel_root.create(face_sel_tag, 'Intersection')
         fsel = self.model.java.component('comp1').selection(face_sel_tag)
         fsel.label(f'fmount:{name}')
         fsel.set('entitydim', '2')
-        fsel.set('condition', 'allvertices')
-
-        bounds = [
-            [float(pos_mm[0]), float(pos_mm[0]) + float(dims_mm[0])],
-            [float(pos_mm[1]), float(pos_mm[1]) + float(dims_mm[1])],
-            [float(pos_mm[2]), float(pos_mm[2]) + float(dims_mm[2])],
-        ]
-        axis = int(mount_face['plane_axis'])
-        normal_sign = int(mount_face['normal_sign'])
-        side = str(mount_face.get('side', 'inner'))
-        axis_size = bounds[axis][1] - bounds[axis][0]
-        eps_mm = min(0.25, max(0.05, axis_size / 4.0))
-        boundary_is_min = (normal_sign > 0) if side == 'outer' else (normal_sign < 0)
-        plane_value = bounds[axis][0] if boundary_is_min else bounds[axis][1]
-        bounds[axis] = [plane_value - eps_mm, plane_value + eps_mm]
-
-        fsel.set('xmin', f'{bounds[0][0]}[mm]')
-        fsel.set('xmax', f'{bounds[0][1]}[mm]')
-        fsel.set('ymin', f'{bounds[1][0]}[mm]')
-        fsel.set('ymax', f'{bounds[1][1]}[mm]')
-        fsel.set('zmin', f'{bounds[2][0]}[mm]')
-        fsel.set('zmax', f'{bounds[2][1]}[mm]')
+        fsel.set('input', [adj_tag, box_tag])
         return face_sel_tag
+
+    def _build_component_target_boundary_selection(
+        self,
+        name: str,
+        comp_mount_bnd_sel_tag: str,
+        face_sel_tag: str,
+    ) -> str:
+        """Create a local target boundary for one component contact pair."""
+        comp_sel_root = self.model.java.component('comp1').selection()
+        local_face_tag = f'flocal_{name}'
+        target_tag = f'ftarget_{name}'
+        box_tag = f'fbox_{name}'
+
+        existing_sel_tags = {str(t) for t in comp_sel_root.tags()}
+        if local_face_tag not in existing_sel_tags:
+            comp_sel_root.create(local_face_tag, 'Intersection')
+        local_sel = self.model.java.component('comp1').selection(local_face_tag)
+        local_sel.label(f'flocal:{name}')
+        local_sel.set('entitydim', '2')
+        local_sel.set('input', [box_tag, face_sel_tag])
+
+        existing_sel_tags = {str(t) for t in comp_sel_root.tags()}
+        if target_tag not in existing_sel_tags:
+            comp_sel_root.create(target_tag, 'Difference')
+        target_sel = self.model.java.component('comp1').selection(target_tag)
+        target_sel.label(f'ftarget:{name}')
+        target_sel.set('entitydim', '2')
+        target_sel.set('add', [local_face_tag])
+        target_sel.set('subtract', [comp_mount_bnd_sel_tag])
+        return target_tag
+
+    def _build_non_component_boundary_selection(
+        self,
+        components_data: list,
+        outer_shell: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Create a boundary selection for the imported shell/non-component domain.
+
+        In v2 assembly geometry, install face box selections often pick the
+        component-side mounting faces, not the shell-side face. The shell body is
+        recovered as all domains inside the model bbox minus every component
+        domain, then converted to adjacent boundaries.
+        """
+        comp_sel_root = self.model.java.component('comp1').selection()
+        all_tag = 'shell_domain_box'
+        shell_tag = 'shell_domain'
+        bnd_tag = 'shell_boundary'
+
+        bbox = (outer_shell or {}).get('outer_bbox', {}) if isinstance(outer_shell, dict) else {}
+        bmin = bbox.get('min') if isinstance(bbox, dict) else None
+        bmax = bbox.get('max') if isinstance(bbox, dict) else None
+        if not (isinstance(bmin, list) and isinstance(bmax, list) and len(bmin) == 3 and len(bmax) == 3):
+            bmin = [-10000.0, -10000.0, -10000.0]
+            bmax = [10000.0, 10000.0, 10000.0]
+        pad_mm = 20.0
+
+        existing = {str(t) for t in comp_sel_root.tags()}
+        if all_tag not in existing:
+            comp_sel_root.create(all_tag, 'Box')
+        all_sel = self.model.java.component('comp1').selection(all_tag)
+        all_sel.label('shell:all_domain_box')
+        all_sel.set('entitydim', '3')
+        all_sel.set('condition', 'intersects')
+        all_sel.set('xmin', f'{float(bmin[0]) - pad_mm}[mm]')
+        all_sel.set('xmax', f'{float(bmax[0]) + pad_mm}[mm]')
+        all_sel.set('ymin', f'{float(bmin[1]) - pad_mm}[mm]')
+        all_sel.set('ymax', f'{float(bmax[1]) + pad_mm}[mm]')
+        all_sel.set('zmin', f'{float(bmin[2]) - pad_mm}[mm]')
+        all_sel.set('zmax', f'{float(bmax[2]) + pad_mm}[mm]')
+
+        component_tags = [
+            comp['name']
+            for comp in components_data
+            if comp.get('name') in {str(t) for t in comp_sel_root.tags()}
+        ]
+        existing = {str(t) for t in comp_sel_root.tags()}
+        if shell_tag not in existing:
+            comp_sel_root.create(shell_tag, 'Difference')
+        shell_sel = self.model.java.component('comp1').selection(shell_tag)
+        shell_sel.label('shell:domain')
+        shell_sel.set('entitydim', '3')
+        shell_sel.set('add', [all_tag])
+        shell_sel.set('subtract', component_tags)
+
+        existing = {str(t) for t in comp_sel_root.tags()}
+        if bnd_tag not in existing:
+            comp_sel_root.create(bnd_tag, 'Adjacent')
+        bnd_sel = self.model.java.component('comp1').selection(bnd_tag)
+        bnd_sel.label('shell:boundary')
+        bnd_sel.set('entitydim', '3')
+        bnd_sel.set('input', [shell_tag])
+        bnd_sel.set('outputdim', '2')
+
+        domain_ids = self._selection_entity_ids(shell_sel)
+        boundary_ids = self._selection_entity_ids(bnd_sel)
+        return {
+            'domain_selection': shell_tag,
+            'boundary_selection': bnd_tag,
+            'domain_ids': domain_ids,
+            'boundary_ids': boundary_ids,
+            'component_domain_count': len(component_tags),
+        }
 
     def _apply_radiator_surface_to_ambient_v2(
         self,
@@ -487,8 +779,7 @@ class RemoteComsolExecutor:
                 if bc_type == 'temperature':
                     feat.set('T0', f'{ambient_temp_k}[K]')
                 else:
-                    feat.set('epsilon_rad', str(emissivity))
-                    feat.set('Tamb', f'{ambient_temp_k}[K]')
+                    self._set_surface_to_ambient_radiation(feat, emissivity, ambient_temp_k)
                 applied += 1
                 details.append({
                     'name': name,
@@ -518,10 +809,7 @@ class RemoteComsolExecutor:
         from core.selection_updater_v2 import _safe_tag
 
         shell_face_bc = (boundary_conditions or {}).get('shell_faces', {})
-        bc_type = shell_face_bc.get('type', 'radiation')
-        if bc_type not in {'radiation', 'temperature'}:
-            return {'applied': 0, 'skipped': 0, 'details': [], 'note': 'shell_faces.type is not radiation or temperature'}
-
+        bc_type = 'radiation'
         emissivity = float(shell_face_bc.get('emissivity', 0.8))
         ambient_temp_k = float(shell_face_bc.get('ambient_temp', 300.0))
         ht = self.model.java.component('comp1').physics('ht')
@@ -529,10 +817,11 @@ class RemoteComsolExecutor:
         details = []
 
         for face_id, face in install_faces.items():
-            if face.get('belongs_to') != 'outer_shell' or face.get('side') != 'outer':
+            owner = face.get('belongs_to') or face.get('owner_id') or ''
+            if not str(owner).endswith('outer_shell') or face.get('side') != 'outer':
                 continue
             sel_tag = f"sel_f_{_safe_tag(face_id)}"
-            rad_tag = f"temp_shell_{_safe_tag(face_id)}" if bc_type == 'temperature' else f"rad_shell_{_safe_tag(face_id)}"
+            rad_tag = f"rad_shell_{_safe_tag(face_id)}"
             try:
                 entities = self._selection_entity_ids(self.model.java.component('comp1').selection(sel_tag))
                 if not entities:
@@ -540,16 +829,11 @@ class RemoteComsolExecutor:
 
                 ht_tags = {str(t) for t in ht.feature().tags()}
                 if rad_tag not in ht_tags:
-                    feature_type = 'TemperatureBoundary' if bc_type == 'temperature' else 'SurfaceToAmbientRadiation'
-                    ht.create(rad_tag, feature_type, 2)
+                    ht.create(rad_tag, 'SurfaceToAmbientRadiation', 2)
                 feat = ht.feature(rad_tag)
                 feat.label(f'rad:shell:{face_id}')
                 feat.selection().named(sel_tag)
-                if bc_type == 'temperature':
-                    feat.set('T0', f'{ambient_temp_k}[K]')
-                else:
-                    feat.set('epsilon_rad', str(emissivity))
-                    feat.set('Tamb', f'{ambient_temp_k}[K]')
+                self._set_surface_to_ambient_radiation(feat, emissivity, ambient_temp_k)
                 applied += 1
                 details.append({
                     'face_id': face_id,
@@ -568,6 +852,16 @@ class RemoteComsolExecutor:
 
         print(f"  [v2] shell SurfaceToAmbientRadiation: applied={applied}, skipped={skipped}")
         return {'applied': applied, 'skipped': skipped, 'details': details}
+
+    def _set_surface_to_ambient_radiation(self, feature: Any, emissivity: float, ambient_temp_k: float) -> None:
+        """Set SurfaceToAmbientRadiation to explicit emissivity instead of material lookup."""
+        for source_key in ('epsilon_rad_mat', 'epsilon_mat'):
+            try:
+                feature.set(source_key, 'userdef')
+            except Exception:
+                pass
+        feature.set('epsilon_rad', str(emissivity))
+        feature.set('Tamb', f'{ambient_temp_k}[K]')
 
     def _set_heat_transfer_initial_temperature_v2(
         self,
@@ -614,45 +908,61 @@ class RemoteComsolExecutor:
             print(f"  [v2] fallback material failed: {type(e).__name__}: {e}")
             return {'ok': False, 'tag': tag, 'error': f'{type(e).__name__}: {e}'}
 
-    def _apply_contact_resistance_v2(self, components_data: list, install_faces: dict) -> dict:
-        """为每个 v2 组件添加组件底面接触热阻 (COMSOL Thin Layer)."""
+    def _apply_contact_resistance_v2(
+        self,
+        components_data: list,
+        install_faces: dict,
+        outer_shell: Optional[Dict[str, Any]] = None,
+    ) -> dict:
+        """为每个 v2 组件添加组件底面热接触.
+
+        舱板安装侧在 STEP 导入后的几何实体层面通常仍是一张大面，不能通过
+        Selection Difference 切出每个组件的局部补丁面。因此这里创建手工
+        Identity pair: source=舱板整张安装面, destination=组件安装面；
+        PairThermalContact 再显式绑定这些 pair。
+        """
         from core.selection_updater_v2 import _safe_tag
 
         ht = self.model.java.component('comp1').physics('ht')
         comp_sel_root = self.model.java.component('comp1').selection()
         applied, skipped = 0, 0
         details = []
+        contact_pairs: List[str] = []
+        shell_boundary = self._build_non_component_boundary_selection(components_data, outer_shell)
+        shell_boundary_sel_tag = shell_boundary['boundary_selection']
 
         for comp in components_data:
             name = comp['name']
-            if comp.get('kind') in {'external', 'radiator'}:
-                skipped += 1
-                details.append({
-                    'name': name,
-                    'R': comp.get('thermal_interface', {}).get('contact_resistance'),
-                    'ok': False,
-                    'note': 'skipped: external/radiator uses exposed-surface radiation without ThinLayer',
-                })
-                continue
+            record: Dict[str, Any] = {
+                'name': name,
+                'R': None,
+                'ok': False,
+                'note': 'not processed',
+            }
 
-            ti = comp.get('thermal_interface', {})
-            R = ti.get('contact_resistance')
+            try:
+                ti = comp.get('thermal_interface', {})
+                R_raw = ti.get('contact_resistance')
+                record['R'] = R_raw
+                R = float(R_raw) if R_raw is not None else None
+            except (TypeError, ValueError):
+                R = None
             mount_face_id = comp.get('mount_face_id')
+            component_mount_face = comp.get('component_mount_face')
             pos_mm = comp.get('pos_mm')
             dims_mm = comp.get('dims_mm')
             mount_face = install_faces.get(mount_face_id) if mount_face_id else None
 
-            record: Dict[str, Any] = {'name': name, 'R': R, 'ok': False, 'note': ''}
-
             if R is None or R <= 0 or not mount_face_id or not pos_mm or not dims_mm or not mount_face:
                 record['note'] = 'skipped: R<=0 or missing mount_face_id/install_face/bbox'
-                skipped += 1
                 details.append(record)
                 continue
 
             face_sel_tag = f"sel_f_{_safe_tag(mount_face_id)}"
-            comp_mount_bnd_sel_tag = self._build_component_mount_boundary_selection(name, pos_mm, dims_mm, mount_face)
-            thin_tag = f"thin_{name}"
+            comp_mount_bnd_sel_tag = self._build_component_mount_boundary_selection(
+                name, pos_mm, dims_mm, mount_face, component_mount_face
+            )
+            pair_tag = f"pair_{name}"
             adj_tag = f"adj_{name}"
 
             try:
@@ -662,36 +972,131 @@ class RemoteComsolExecutor:
                 adj_sel = self.model.java.component('comp1').selection(adj_tag)
                 adj_sel.label(f"adj:{name}")
                 adj_sel.set('entitydim', '2')
-                adj_sel.set('input', [comp_mount_bnd_sel_tag, face_sel_tag])
+                adj_sel.set('input', [comp_mount_bnd_sel_tag, shell_boundary_sel_tag])
                 adj_entities = self._selection_entity_ids(adj_sel)
-                if not adj_entities:
-                    raise RuntimeError('contact boundary intersection selection is empty')
 
-                ht_tags = {str(t) for t in ht.feature().tags()}
-                if thin_tag not in ht_tags:
-                    ht.create(thin_tag, 'ThinLayer', 2)
-                thin = ht.feature(thin_tag)
-                thin.label(thin_tag)
-                thin.selection().named(adj_tag)
-                thin.set('ThermalResistanceType', 'ThermalResistance')
-                thin.set('R_s', f'{R}[m^2*K/W]')
+                comp_mount_entities = self._selection_entity_ids(
+                    self.model.java.component('comp1').selection(comp_mount_bnd_sel_tag)
+                )
+                plate_face_entities = self._selection_entity_ids(
+                    self.model.java.component('comp1').selection(shell_boundary_sel_tag)
+                )
+                if not comp_mount_entities or not plate_face_entities:
+                    raise RuntimeError('contact pair source/destination selection is empty')
+                overlap_entities = sorted(set(plate_face_entities) & set(comp_mount_entities))
+                source_destination_same = sorted(plate_face_entities) == sorted(comp_mount_entities)
+
+                pair_root = self.model.java.component('comp1').pair()
+                pair_tags = {str(t) for t in pair_root.tags()}
+                if pair_tag not in pair_tags:
+                    pair_root.create(pair_tag, 'Identity', 'geom1')
+                pair = self.model.java.component('comp1').pair(pair_tag)
+                pair.label(f'pair:{name}')
+                pair.source().named(shell_boundary_sel_tag)
+                pair.destination().named(comp_mount_bnd_sel_tag)
+                try:
+                    pair.searchMethod('direct')
+                except Exception:
+                    pass
+                try:
+                    pair.manualDist(True)
+                    pair.searchDist('10[mm]')
+                except Exception:
+                    pass
 
                 record['ok'] = True
                 record['selection'] = adj_tag
+                record['pair'] = pair_tag
+                record['pair_type'] = 'Identity'
+                record['contact_mode'] = 'identity_pair_shell_boundary_source'
+                record['source_selection'] = shell_boundary_sel_tag
+                record['raw_plate_selection'] = face_sel_tag
+                record['destination_selection'] = comp_mount_bnd_sel_tag
+                record['source_boundary_count'] = len(plate_face_entities)
+                record['destination_boundary_count'] = len(comp_mount_entities)
+                record['source_boundary_ids'] = plate_face_entities
+                record['destination_boundary_ids'] = comp_mount_entities
+                record['source_destination_overlap_ids'] = overlap_entities
+                record['source_destination_same_entities'] = source_destination_same
+                record['feature'] = None
+                record['feature_type'] = None
                 record['boundary_count'] = len(adj_entities)
-                record['note'] = f'R_s={R:.4g} K·m²/W'
+                record['pair_selection'] = None
+                record['layer_conductance_W_m2K'] = 1.0 / R
+                record['note'] = (
+                    f'Identity pair created; shared PairThermalContact '
+                    f'Req={R:.4g} K·m²/W'
+                )
                 applied += 1
-                print(f"    ✓ {name}: contact R_s={R:.4g} K·m²/W on {mount_face_id}")
+                contact_pairs.append(pair_tag)
+                print(f"    ✓ {name}: IdentityPair {pair_tag}: {shell_boundary_sel_tag} -> {comp_mount_bnd_sel_tag}")
 
             except Exception as e:
                 record['note'] = f'skipped: {type(e).__name__}: {e}'
-                skipped += 1
                 print(f"    ✗ {name}: contact R 失败 ({type(e).__name__}): {e}")
 
             details.append(record)
 
+        applied = sum(1 for record in details if record.get('ok'))
+        skipped = len(details) - applied
+        shared_contact: Dict[str, Any] = {
+            'ok': False,
+            'feature': 'tc_all_contact_pairs',
+            'feature_type': 'PairThermalContact',
+            'pair_selection': 'list',
+            'pair_count': len(contact_pairs),
+            'pairs': contact_pairs,
+        }
+        if contact_pairs:
+            try:
+                contact_tag = 'tc_all_contact_pairs'
+                ht_tags = {str(t) for t in ht.feature().tags()}
+                if contact_tag not in ht_tags:
+                    ht.create(contact_tag, 'PairThermalContact', 2)
+                contact = ht.feature(contact_tag)
+                contact.label('tc:all_contact_pairs')
+                contact.set('pairSelection', 'list')
+                contact.set('pairs', contact_pairs)
+                contact.set('ContactModel', 'EquThinLayer')
+                req_values = sorted({
+                    float(record['R'])
+                    for record in details
+                    if record.get('ok') and record.get('R') is not None
+                })
+                if len(req_values) == 1:
+                    req = req_values[0]
+                    heq = 1.0 / req
+                    contact.set('Req', f'{req}[K*m^2/W]')
+                    shared_contact['Req'] = req
+                    shared_contact['heq_W_m2K'] = heq
+                    shared_contact['ok'] = True
+                    shared_contact['note'] = (
+                        f'One PairThermalContact applied to listed Identity pairs, '
+                        f'Req={req:.4g} K·m²/W'
+                    )
+                    for record in details:
+                        if record.get('ok'):
+                            record['feature'] = contact_tag
+                            record['feature_type'] = 'PairThermalContact'
+                            record['pair_selection'] = 'list'
+                else:
+                    shared_contact['note'] = f'skipped: contact pairs have nonuniform Req values: {req_values}'
+            except Exception as e:
+                shared_contact['note'] = f'failed: {type(e).__name__}: {e}'
+
+        mode_counts: Dict[str, int] = {}
+        for record in details:
+            mode = str(record.get('contact_mode') or 'skipped')
+            mode_counts[mode] = mode_counts.get(mode, 0) + 1
         print(f"  [v2] 接触热阻: applied={applied}, skipped={skipped}")
-        return {'applied': applied, 'skipped': skipped, 'details': details}
+        return {
+            'applied': applied,
+            'skipped': skipped,
+            'mode_counts': mode_counts,
+            'shared_pair_thermal_contact': shared_contact,
+            'shell_boundary_source': shell_boundary,
+            'details': details,
+        }
 
     def _clear_existing_heat_sources(self) -> int:
         ht = self.model.java.component('comp1').physics('ht')
@@ -901,6 +1306,10 @@ class RemoteComsolExecutor:
                 raise RuntimeError('mph复制失败')
             self.load_model(str(work_mph))
 
+            sample_yaml = sample_dir / 'sample.yaml'
+            schema_version = detect_schema_version(sample_yaml)
+            status['schema_version'] = schema_version
+
             set_stage('update_geometry')
             geom_file = sample_dir / 'geom' / 'geometry.step'
             updater = GeometryUpdater(config)
@@ -910,6 +1319,7 @@ class RemoteComsolExecutor:
                 config.geometry.component,
                 config.geometry.geometry,
                 config.geometry.import_feature,
+                form_assembly=schema_version.startswith('2'),
             ):
                 raise RuntimeError('几何更新失败')
 
@@ -920,9 +1330,6 @@ class RemoteComsolExecutor:
                 raise RuntimeError(f"几何检查失败: {geom_check['message']}")
 
             geom_json = sample_dir / 'geom' / 'geom.json'
-            sample_yaml = sample_dir / 'sample.yaml'
-            schema_version = detect_schema_version(sample_yaml)
-            status['schema_version'] = schema_version
             self._write_sample_status(status_json, status)
 
             set_stage('cleanup_template')
@@ -941,7 +1348,7 @@ class RemoteComsolExecutor:
                 sel_updater = SelectionUpdaterV2(self.model)
                 comp_sel_result = sel_updater.create_component_box_selections(components)
                 face_sel_result = sel_updater.create_install_face_selections(
-                    meta_v2['install_faces'], eps_mm=1.0,
+                    meta_v2['install_faces'], eps_mm=1.0, outer_shell=meta_v2.get('outer_shell'),
                 )
                 wall_sel_result = sel_updater.create_wall_box_selections(
                     meta_v2['cabin_walls'], inflate_mm=0.2,
@@ -1047,10 +1454,12 @@ class RemoteComsolExecutor:
             # v2: 散热面 SurfaceToAmbient BC + 组件级接触热阻
             if schema_version.startswith('2'):
                 set_stage('apply_radiator_bc')
-                rad_result = self._apply_radiator_surface_to_ambient_v2(
-                    meta_v2['components'], meta_v2['install_faces'], boundary_conditions
-                )
-                status['checks']['radiators'] = rad_result
+                status['checks']['radiators'] = {
+                    'applied': 0,
+                    'skipped': 0,
+                    'details': [],
+                    'note': 'external component surface radiation disabled; only large outer shell faces are radiating to ambient',
+                }
                 shell_rad_result = self._apply_shell_surface_to_ambient_v2(
                     meta_v2['install_faces'], boundary_conditions
                 )
@@ -1058,7 +1467,7 @@ class RemoteComsolExecutor:
                 self._write_sample_status(status_json, status)
                 set_stage('apply_contact_resistance')
                 cr_result = self._apply_contact_resistance_v2(
-                    meta_v2['components'], meta_v2['install_faces']
+                    meta_v2['components'], meta_v2['install_faces'], meta_v2.get('outer_shell')
                 )
                 status['checks']['contact_resistance'] = cr_result
                 init_result = self._set_heat_transfer_initial_temperature_v2(boundary_conditions)
@@ -1067,9 +1476,17 @@ class RemoteComsolExecutor:
 
             if schema_version.startswith('2'):
                 set_stage('prepare_mesh')
-                mesh_result = self._prepare_mesh_for_v2(
-                    hauto=int(mesh_config.get('v2_hauto', 3))
-                )
+                mesh_mode2 = mesh_config.get('mesh_mode2') or {}
+                if mesh_mode2.get('enabled'):
+                    mesh_result = self._prepare_mesh_mode2_for_v2(components, mesh_config)
+                    if not mesh_result.get('ok') and mesh_mode2.get('fallback_to_freetet', True):
+                        mesh_result['fallback'] = self._prepare_mesh_for_v2(
+                            hauto=int(mesh_config.get('v2_hauto', 3))
+                        )
+                else:
+                    mesh_result = self._prepare_mesh_for_v2(
+                        hauto=int(mesh_config.get('v2_hauto', 3))
+                    )
                 status['checks']['mesh_switch'] = mesh_result
                 self._write_sample_status(status_json, status)
                 self._save_model_snapshot(work_mph, status, 'pre_solve')

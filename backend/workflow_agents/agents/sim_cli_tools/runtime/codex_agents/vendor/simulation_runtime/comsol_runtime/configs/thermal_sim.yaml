@@ -1,7 +1,7 @@
 # 卫星热仿真配置文件
 
 comsol:
-  template_mph_path: "/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/runtime/codex_agents/vendor/simulation_runtime/pipeline_resources/templates/comsol/thermal_template.mph"
+  template_mph_path: "../pipeline_resources/templates/comsol/thermal_template.mph"
   component: "comp1"
   geometry: "geom1"
   import_feature: "imp1"
@@ -27,13 +27,22 @@ thermal_sim:
   # v2 端到端测试使用较粗 FreeTet，避免冒烟测试在求解阶段长时间卡住。
   mesh:
     v2_hauto: 5
+    # Optional experimental mode. Disabled by default so existing runs keep the
+    # proven all-domain FreeTet mesh. When enabled, the runtime tries Sweep
+    # mesh nodes on internal rectangular component selections and keeps FreeTet
+    # for the remaining shell/external/cabin geometry.
+    mesh_mode2:
+      enabled: false
+      internal_structured: swept
+      external_unstructured: freetet
+      fallback_to_freetet: true
 
   # 边界条件配置（可选，用于后续扩展）
   boundary_conditions:
     shell_faces:
-      type: "temperature"
+      type: "radiation"
       emissivity: 0.8
-      ambient_temp: 3  # K
+      ambient_temp: 100  # K
 
 # 数据集路径配置
 dataset:
