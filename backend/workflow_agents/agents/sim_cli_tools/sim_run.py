@@ -491,16 +491,23 @@ def ensure_sample_yaml(geometry_dir: Path, input_dir: Path, sample_yaml: Path, s
 
 
 def sample_document(sample_id: str, seed: int, simulation_input: dict[str, Any], geom: dict[str, Any]) -> dict[str, Any]:
+    contact_resistance_override = os.environ.get("SIM_CONTACT_RESISTANCE_OVERRIDE")
     components = {}
     for component in simulation_input.get("components", []):
         component_id = component["component_id"]
+        contact_resistance = component.get("contact_resistance")
+        if contact_resistance_override:
+            contact_resistance = float(contact_resistance_override)
         components[component_id] = {
             "bbox": component["bbox"],
             "power": component.get("power_W", 0.0),
             "category": component.get("category", ""),
             "kind": component.get("kind", ""),
             "mount_face_id": component.get("mount_face_id"),
-            "thermal_interface": {"contact_resistance": component.get("contact_resistance")},
+            "component_mount_face_id": component.get("component_mount_face_id"),
+            "component_mount_face": component.get("component_mount_face"),
+            "alignment": component.get("alignment", {}),
+            "thermal_interface": {"contact_resistance": contact_resistance},
         }
     outer_shell = geom.get("outer_shell", {})
     return {

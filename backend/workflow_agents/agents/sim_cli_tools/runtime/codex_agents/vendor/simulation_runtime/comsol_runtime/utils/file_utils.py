@@ -183,6 +183,9 @@ def load_layout_meta_v2(sample_yaml_path: Path) -> Dict[str, Any]:
             "category": cdata.get("category", ""),
             "kind": cdata.get("kind", "internal"),
             "mount_face_id": cdata.get("mount_face_id"),
+            "component_mount_face_id": cdata.get("component_mount_face_id"),
+            "component_mount_face": cdata.get("component_mount_face"),
+            "alignment": cdata.get("alignment", {}),
             "thermal_surface": cdata.get("thermal_surface", {}),
             "thermal_interface": cdata.get("thermal_interface", {}),
         })

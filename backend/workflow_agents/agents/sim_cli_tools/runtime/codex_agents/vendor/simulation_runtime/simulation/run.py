@@ -214,7 +214,11 @@ def _run_comsol_local(
 
     thermal_cfg = _read_yaml(Path(config["thermal_sim_config"]))
     connection_cfg = _read_yaml(Path(config["comsol_connection_config"]))
-    template_mph = Path(thermal_cfg["comsol"]["template_mph_path"])
+    comsol_runtime_root = Path(config["comsol_runtime_root"]).resolve()
+    template_mph = _resolve_runtime_path(
+        thermal_cfg["comsol"]["template_mph_path"],
+        base=comsol_runtime_root,
+    )
     export_tags = thermal_cfg["thermal_sim"].get("export_tags", [])
     export_volum_tags = thermal_cfg["thermal_sim"].get("export_volum_tags", [])
     mesh = thermal_cfg["thermal_sim"].get("mesh", {})
@@ -279,6 +283,7 @@ def _run_comsol_local(
     write_json(output_dir / "field_samples.json", field_samples)
     write_json(output_dir / "tensors.json", tensors)
     component_face_temperature_path: Path | None = None
+    interface_temperature_diagnostics_path: Path | None = None
     try:
         component_face_temperature_path = write_component_face_temperature(
             simulation_input=simulation_input,
@@ -288,6 +293,15 @@ def _run_comsol_local(
         )
     except Exception as exc:
         result.warnings.append(f"failed to write component_face_temperature.json: {exc}")
+    try:
+        interface_temperature_diagnostics_path = write_interface_temperature_diagnostics(
+            simulation_input=simulation_input,
+            simulation_input_path=simulation_input_path,
+            native_vtu_path=output_dir / "native.vtu",
+            output_path=output_dir / "interface_temperature_diagnostics.json",
+        )
+    except Exception as exc:
+        result.warnings.append(f"failed to write interface_temperature_diagnostics.json: {exc}")
     manifest = {
         "schema_version": "1.0",
         "simulation_id": f"sim_{output_dir.parent.name}",
@@ -308,6 +322,7 @@ def _run_comsol_local(
             "data1_txt": "data1.txt",
             "tensors_json": "tensors.json",
             "component_face_temperature_json": "component_face_temperature.json",
+            "interface_temperature_diagnostics_json": "interface_temperature_diagnostics.json",
         },
         "checks": {
             "status_ok": status.get("ok") is True,
@@ -336,6 +351,8 @@ def _run_comsol_local(
     )
     if component_face_temperature_path is not None:
         result.outputs["component_face_temperature"] = component_face_temperature_path
+    if interface_temperature_diagnostics_path is not None:
+        result.outputs["interface_temperature_diagnostics"] = interface_temperature_diagnostics_path
     result.checks = reports
     return result.finish("completed")
 
@@ -496,8 +513,11 @@ def _run_comsol_entry(
     workspace_dir: Path | None = None,
 ) -> dict[str, Any]:
     local_python = str(connection.get("local_python", "/data/conda/envs/autoflowsim-comsol/bin/python"))
-    entry_script = Path(config.get("local_entry_script") or connection.get("local_entry_script"))
-    comsol_runtime_root = Path(config.get("comsol_runtime_root", entry_script.parents[1]))
+    comsol_runtime_root = Path(config.get("comsol_runtime_root", Path.cwd())).resolve()
+    entry_script = _resolve_runtime_path(
+        config.get("local_entry_script") or connection.get("local_entry_script"),
+        base=comsol_runtime_root,
+    )
     env = os.environ.copy()
     comsol_home = str(connection.get("local_comsol_home", "/usr/local/comsol64/multiphysics"))
     env["COMSOL_HOME"] = comsol_home
@@ -774,6 +794,157 @@ def write_component_face_temperature(
     return write_json(output_path, payload)
 
 
+def write_interface_temperature_diagnostics(
+    *,
+    simulation_input: Mapping[str, Any],
+    simulation_input_path: Path,
+    native_vtu_path: Path,
+    output_path: Path,
+    temperature_array: str | None = None,
+    offset_m: float = 0.003,
+    in_plane_padding_m: float = 0.002,
+) -> Path:
+    points, temperatures, resolved_array = _read_ascii_vtu_points_and_temperature(
+        native_vtu_path,
+        preferred_array=temperature_array,
+    )
+    bbox_ranges: list[tuple[list[float], list[float]]] = []
+    for component in simulation_input.get("components", []):
+        if not isinstance(component, Mapping):
+            continue
+        bbox = component.get("bbox")
+        if not isinstance(bbox, Mapping):
+            continue
+        bbox_min = [float(value) / 1000.0 for value in bbox.get("min", [])]
+        bbox_max = [float(value) / 1000.0 for value in bbox.get("max", [])]
+        if len(bbox_min) == 3 and len(bbox_max) == 3:
+            bbox_ranges.append((bbox_min, bbox_max))
+    coordinate_scale = _infer_vtu_coordinate_scale_to_m(points, bbox_ranges)
+    if coordinate_scale != 1.0:
+        points = [
+            (point[0] * coordinate_scale, point[1] * coordinate_scale, point[2] * coordinate_scale)
+            for point in points
+        ]
+
+    install_faces = {}
+    raw_install_faces = simulation_input.get("install_faces", [])
+    if isinstance(raw_install_faces, Mapping):
+        install_faces = {
+            str(face_id): face
+            for face_id, face in raw_install_faces.items()
+            if isinstance(face, Mapping)
+        }
+    else:
+        install_faces = {
+            str(face.get("id") or face.get("face_id")): face
+            for face in raw_install_faces
+            if isinstance(face, Mapping) and (face.get("id") is not None or face.get("face_id") is not None)
+        }
+    components = []
+    for component in simulation_input.get("components", []):
+        if not isinstance(component, Mapping):
+            continue
+        bbox = component.get("bbox")
+        if not isinstance(bbox, Mapping):
+            continue
+        bbox_min = [float(value) / 1000.0 for value in bbox.get("min", [])]
+        bbox_max = [float(value) / 1000.0 for value in bbox.get("max", [])]
+        if len(bbox_min) != 3 or len(bbox_max) != 3:
+            continue
+        mount_face = install_faces.get(str(component.get("mount_face_id")))
+        if not mount_face:
+            continue
+        axis = int(mount_face["plane_axis"])
+        plane_m = float(mount_face["plane_value"]) / 1000.0
+        normal_sign = int(mount_face.get("normal_sign", 1))
+        in_plane_axes = [item for item in (0, 1, 2) if item != axis]
+        component_side_m = plane_m + normal_sign * offset_m
+        shell_side_m = plane_m - normal_sign * offset_m
+        components.append(
+            {
+                "component_id": component.get("component_id"),
+                "kind": component.get("kind"),
+                "category": component.get("category"),
+                "mount_face_id": component.get("mount_face_id"),
+                "axis": ("x", "y", "z")[axis],
+                "plane_m": plane_m,
+                "normal_sign": normal_sign,
+                "offset_m": offset_m,
+                "component_side": _nearest_temperature_in_interface_patch(
+                    points,
+                    temperatures,
+                    axis=axis,
+                    plane_m=component_side_m,
+                    in_plane_axes=in_plane_axes,
+                    bbox_min=bbox_min,
+                    bbox_max=bbox_max,
+                    in_plane_padding_m=in_plane_padding_m,
+                ),
+                "shell_side": _nearest_temperature_in_interface_patch(
+                    points,
+                    temperatures,
+                    axis=axis,
+                    plane_m=shell_side_m,
+                    in_plane_axes=in_plane_axes,
+                    bbox_min=bbox_min,
+                    bbox_max=bbox_max,
+                    in_plane_padding_m=in_plane_padding_m,
+                ),
+            }
+        )
+
+    payload = {
+        "schema_version": "1.0",
+        "source": {
+            "simulation_input": str(simulation_input_path),
+            "native_vtu": str(native_vtu_path),
+            "temperature_array": resolved_array,
+        },
+        "method": {
+            "description": "Nearest VTU point temperatures in each component mount patch, sampled on both sides of the installation plane.",
+            "coordinate_units": "m",
+            "temperature_units": "K",
+            "vtu_coordinate_scale_to_m": coordinate_scale,
+            "offset_m": offset_m,
+            "in_plane_padding_m": in_plane_padding_m,
+        },
+        "components": components,
+    }
+    return write_json(output_path, payload)
+
+
+def _nearest_temperature_in_interface_patch(
+    points: list[tuple[float, float, float]],
+    temperatures: list[float],
+    *,
+    axis: int,
+    plane_m: float,
+    in_plane_axes: list[int],
+    bbox_min: list[float],
+    bbox_max: list[float],
+    in_plane_padding_m: float,
+) -> dict[str, Any]:
+    candidates: list[tuple[float, float]] = []
+    for point, temperature in zip(points, temperatures):
+        if all(
+            bbox_min[other_axis] - in_plane_padding_m
+            <= point[other_axis]
+            <= bbox_max[other_axis] + in_plane_padding_m
+            for other_axis in in_plane_axes
+        ):
+            candidates.append((abs(point[axis] - plane_m), temperature))
+    if not candidates:
+        return {"sample_count": 0, "nearest_distance_m": None, "temperature_K": None}
+    distance, temperature = min(candidates, key=lambda item: item[0])
+    nearby = [value for dist, value in candidates if dist <= distance + 1e-9]
+    return {
+        "sample_count": len(candidates),
+        "nearest_distance_m": distance,
+        "temperature_K": sum(nearby) / len(nearby),
+        "nearest_point_count": len(nearby),
+    }
+
+
 def _read_ascii_vtu_points_and_temperature(
     native_vtu_path: Path,
     *,
@@ -892,6 +1063,13 @@ def _component_face_temperature_stats(
 
 def _read_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def _resolve_runtime_path(value: Any, *, base: Path) -> Path:
+    path = Path(str(value)).expanduser()
+    if path.is_absolute():
+        return path
+    return (base / path).resolve()
 
 
 def build_mock_field_samples(simulation_input: Mapping[str, Any]) -> dict[str, Any]:
