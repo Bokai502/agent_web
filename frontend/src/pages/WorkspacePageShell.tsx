@@ -354,8 +354,9 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   useEffect(() => {
     if (!sessionsLoaded) return
     if (!workspacesLoaded) return
+    if (manifestLoading) return
     if (!activeContext.versionDir && !activeContext.versionId) {
-      handleClearActiveSession()
+      if (workspaceItems.length === 0) handleClearActiveSession()
       return
     }
     if (!activeContext.versionDir && (!activeContext.workspaceId || !activeContext.versionId)) return
@@ -365,7 +366,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       workspaceName: activeContext.workspaceName,
       versionId: activeContext.versionId,
     })
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, handleClearActiveSession, handleSelectWorkspaceSession, sessionWorkspaceSignature, sessionsLoaded, workspacesLoaded])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, handleClearActiveSession, handleSelectWorkspaceSession, manifestLoading, sessionWorkspaceSignature, sessionsLoaded, workspaceItems.length, workspacesLoaded])
 
   useEffect(() => {
     if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return

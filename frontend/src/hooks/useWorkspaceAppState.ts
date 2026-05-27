@@ -26,7 +26,8 @@ export type SessionWorkspace = {
 }
 
 function normalizeWorkspaceDir(workspaceDir?: string | null) {
-  return workspaceDir?.trim() || null
+  const normalized = workspaceDir?.trim().replace(/[\\/]+$/u, "")
+  return normalized || null
 }
 
 function normalizeId(value?: string | null) {

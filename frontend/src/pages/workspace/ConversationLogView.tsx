@@ -16,10 +16,10 @@ function getCommandPreview(command: string) {
   return command.replace(/\s+/gu, " ").trim()
 }
 
-export function ConversationLogView({ session }: { session: Record<string, unknown> }) {
+function ConversationSessionView({ session }: { session: Record<string, unknown> }) {
   const turns = Array.isArray(session.turns) ? session.turns : []
   return (
-    <div className="wa-conversation-log">
+    <>
       {turns.map((turn, turnIndex) => {
         const value = isRecord(turn) ? turn : {}
         const prompt = typeof value.userPrompt === "string" ? value.userPrompt : ""
@@ -61,6 +61,27 @@ export function ConversationLogView({ session }: { session: Record<string, unkno
           </div>
         )
       })}
+    </>
+  )
+}
+
+export function ConversationLogView({ session }: { session: Record<string, unknown> }) {
+  const sessions = Array.isArray(session.sessions)
+    ? session.sessions.filter(isRecord)
+    : [session]
+  return (
+    <div className="wa-conversation-log">
+      {sessions.map((item, index) => (
+        <section className="wa-conversation-session" key={typeof item.id === "string" ? item.id : `session-${index}`}>
+          {sessions.length > 1 && (
+            <div className="wa-conversation-session-head">
+              <strong>{typeof item.title === "string" ? item.title : `Session ${index + 1}`}</strong>
+              <span>{Array.isArray(item.turns) ? `${item.turns.length} turns` : "0 turns"}</span>
+            </div>
+          )}
+          <ConversationSessionView session={item} />
+        </section>
+      ))}
     </div>
   )
 }

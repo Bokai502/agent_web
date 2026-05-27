@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next"
+import { APP_NAVIGATION_EVENT } from "../../app/sessionUtils"
 
 type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
 
@@ -27,6 +28,11 @@ export function WorkspaceTopbar({
   t,
   visibleRunning,
 }: WorkspaceTopbarProps) {
+  const navigateTo = (path: string) => {
+    window.history.pushState(null, "", path)
+    window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
+  }
+
   return (
     <header className="wa-topbar">
       <div className="wa-topbar-inner">
@@ -34,6 +40,12 @@ export function WorkspaceTopbar({
           <button type="button" className="wa-back-button" aria-label={t("workspace.backAria")} onClick={onReturnHome}>
             <span>‹</span>
             <span>{t("common.home")}</span>
+          </button>
+          <button type="button" className="wa-route-button" onClick={() => navigateTo("/workspace")}>
+            卫星热设计
+          </button>
+          <button type="button" className="wa-route-button" onClick={() => navigateTo("/gnc-workspace")}>
+            卫星姿轨控
           </button>
         </div>
         <div className="wa-tabs" aria-label={t("workspace.tabsAria")}>

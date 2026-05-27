@@ -56,7 +56,7 @@ export function WorkspaceLeftPanel({
         <div className="wa-left-section-header">
           <div>
             <strong>{t("workspace.input.title")}</strong>
-            <span>{activeSessionTitle || (activeSessionId ? t("workspace.input.session", { id: activeSessionId }) : t("workspace.input.newTask"))}</span>
+            <span>{activeSessionTitle ? `当前会话：${activeSessionTitle}` : activeSessionId ? t("workspace.input.session", { id: activeSessionId }) : t("workspace.input.newTask")}</span>
           </div>
         </div>
         <div className="wa-left-input-body">

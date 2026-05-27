@@ -238,19 +238,21 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
       const parsed = JSON.parse(raw)
       const sessions = Array.isArray(parsed) ? parsed : []
       const stat = await fs.stat(historyPath)
-      const entries: ConversationLogEntry[] = sessions.map((session, index) => {
+      const turnCount = sessions.reduce((count, session) => {
         const value = isRecord(session) ? session : {}
-        const turns = Array.isArray(value.turns) ? value.turns : []
-        return {
-          detail: `${turns.length} turn${turns.length === 1 ? "" : "s"}`,
-          id: `conversation:${asString(value.id) ?? index}`,
-          raw: value,
-          source: path.relative(process.cwd(), historyPath),
-          status: "completed",
-          time: typeof value.createdAt === "number" ? new Date(value.createdAt).toISOString() : stat.mtime.toISOString(),
-          title: "历史对话",
-        }
-      })
+        return count + (Array.isArray(value.turns) ? value.turns.length : 0)
+      }, 0)
+      const entries: ConversationLogEntry[] = [{
+        detail: `${sessions.length} session${sessions.length === 1 ? "" : "s"} · ${turnCount} turn${turnCount === 1 ? "" : "s"}`,
+        id: "conversation:history",
+        raw: {
+          sessions,
+        },
+        source: path.relative(process.cwd(), historyPath),
+        status: "completed",
+        time: stat.mtime.toISOString(),
+        title: "历史对话",
+      }]
       return reply.send(entries)
     } catch {
       return reply.send([])

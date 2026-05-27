@@ -3,9 +3,10 @@ import type { WorkspaceVersionContext } from "./workspaceVersion"
 
 export function sessionMatchesWorkspace(session: Session | null | undefined, activeContext: WorkspaceVersionContext) {
   if (!session) return false
-  const currentWorkspaceDir = activeContext.versionDir?.trim() ?? null
+  const currentWorkspaceDir = activeContext.versionDir?.trim().replace(/[\\/]+$/u, "") ?? null
+  const sessionWorkspaceDir = session.workspaceDir?.trim().replace(/[\\/]+$/u, "") ?? null
   return currentWorkspaceDir
-    ? session.workspaceDir?.trim() === currentWorkspaceDir
+    ? sessionWorkspaceDir === currentWorkspaceDir
     : !!activeContext.workspaceId && !!activeContext.versionId &&
       session.workspaceId === activeContext.workspaceId &&
       session.versionId === activeContext.versionId

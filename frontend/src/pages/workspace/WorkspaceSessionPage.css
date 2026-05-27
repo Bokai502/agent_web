@@ -30,7 +30,8 @@
   align-items: center;
   gap: 14px;
 }
-.wa-back-button {
+.wa-back-button,
+.wa-route-button {
   display: inline-flex;
   height: 36px;
   align-items: center;
@@ -45,7 +46,11 @@
   font-size: 12px;
   font-weight: 700;
 }
-.wa-back-button:hover { background: rgba(255, 255, 255, 0.9); color: #1d1d1f; }
+.wa-route-button {
+  padding: 0 13px;
+}
+.wa-back-button:hover,
+.wa-route-button:hover { background: rgba(255, 255, 255, 0.9); color: #1d1d1f; }
 .wa-back-button span:first-child {
   display: grid;
   width: 24px;
@@ -1024,6 +1029,37 @@ button.wa-run-card.selected {
   flex-direction: column;
   gap: 14px;
 }
+.wa-conversation-session {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.wa-conversation-session + .wa-conversation-session {
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+  padding-top: 16px;
+}
+.wa-conversation-session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.045);
+  padding: 10px 12px;
+}
+.wa-conversation-session-head strong {
+  overflow: hidden;
+  color: #1d1d1f;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-conversation-session-head span {
+  flex: 0 0 auto;
+  color: #6e6e73;
+  font-size: 11px;
+  font-weight: 800;
+}
 .wa-conversation-user {
   align-self: flex-end;
   max-width: min(760px, 78%);
@@ -1172,6 +1208,11 @@ button.wa-run-card.selected {
   padding-right: 2px;
 }
 .wa-info-card h3 { margin: 0; font-size: 16px; line-height: 1.2; }
+.wa-left-stack > .wa-info-card h3 {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
 .wa-info-card p { margin: 9px 0 0; color: #6e6e73; font-size: 13px; line-height: 1.5; }
 .wa-version-card-header {
   display: flex;
@@ -1210,9 +1251,8 @@ button.wa-run-card.selected {
 .wa-current-context span {
   display: block;
   color: #8d8d92;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
-  text-transform: uppercase;
 }
 .wa-current-context strong {
   display: block;
@@ -1220,7 +1260,8 @@ button.wa-run-card.selected {
   max-width: calc(100% - 22px);
   margin-top: 6px;
   color: #1d1d1f;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 800;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;

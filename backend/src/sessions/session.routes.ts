@@ -29,6 +29,18 @@ function getTurnId(value: unknown) {
   return typeof id === "string" && id.trim() !== "" ? id.trim() : null
 }
 
+function getEventCount(value: unknown) {
+  if (!value || typeof value !== "object") return 0
+  const events = (value as { events?: unknown }).events
+  return Array.isArray(events) ? events.length : 0
+}
+
+function mergeTurn(existing: unknown, incoming: unknown) {
+  if (!existing || typeof existing !== "object") return incoming
+  if (!incoming || typeof incoming !== "object") return existing
+  return getEventCount(incoming) >= getEventCount(existing) ? incoming : existing
+}
+
 function mergeTurns(existing: unknown, incoming: unknown) {
   const result: unknown[] = []
   const indexById = new Map<string, number>()
@@ -47,7 +59,7 @@ function mergeTurns(existing: unknown, incoming: unknown) {
       return
     }
 
-    result[existingIndex] = turn
+    result[existingIndex] = mergeTurn(result[existingIndex], turn)
   }
 
   if (Array.isArray(existing)) {
