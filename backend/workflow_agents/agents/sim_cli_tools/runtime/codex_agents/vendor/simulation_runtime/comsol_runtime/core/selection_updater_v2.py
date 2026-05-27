@@ -31,6 +31,31 @@ def _safe_tag(s: str) -> str:
     return "".join(out)
 
 
+def component_mount_face_bounds_from_target_plane(
+    pos_mm: List[float],
+    dims_mm: List[float],
+    mount_face: Dict[str, Any],
+    eps_mm: float = 1.0,
+) -> List[List[float]]:
+    """计算组件实际热交界面的 Box Selection 边界.
+
+    component_mount_face_id/local_* 描述的是组件自身语义面，不直接等于装配后的
+    全局坐标方向。实际热交界面由目标安装面的全局 plane_axis/plane_value 决定:
+    取组件 bbox 在该轴上离目标平面最近的一侧。
+    """
+    bounds = [
+        [float(pos_mm[0]), float(pos_mm[0]) + float(dims_mm[0])],
+        [float(pos_mm[1]), float(pos_mm[1]) + float(dims_mm[1])],
+        [float(pos_mm[2]), float(pos_mm[2]) + float(dims_mm[2])],
+    ]
+    axis = int(mount_face["plane_axis"])
+    target_plane = float(mount_face["plane_value"])
+    lower, upper = bounds[axis]
+    plane_value = lower if abs(lower - target_plane) <= abs(upper - target_plane) else upper
+    bounds[axis] = [plane_value - eps_mm, plane_value + eps_mm]
+    return bounds
+
+
 # ============================================================
 # SelectionUpdaterV2
 # ============================================================
@@ -87,6 +112,7 @@ class SelectionUpdaterV2:
         self,
         install_faces: Dict[str, Dict[str, Any]],
         eps_mm: float = 1.0,
+        outer_shell: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """把 sample.yaml 的 install_faces 注册表逐面转成 Named Box Selection (entitydim=2).
 
@@ -109,15 +135,7 @@ class SelectionUpdaterV2:
 
             plane_axis = int(face["plane_axis"])
             plane_value = float(face["plane_value"])
-            extents = face.get("extents_xyz", [0.0, 0.0, 0.0])
-            center = face.get("center_xyz", [0.0, 0.0, 0.0])
-            half = [float(extents[i]) / 2.0 for i in range(3)]
-            c = [float(center[i]) for i in range(3)]
-
-            # 默认值: 全部从 center ± half 展开
-            bounds = [[c[i] - half[i], c[i] + half[i]] for i in range(3)]
-            # 法向轴 → 薄层
-            bounds[plane_axis] = [plane_value - eps_mm, plane_value + eps_mm]
+            bounds = self._install_face_bounds(face, plane_axis, plane_value, eps_mm, outer_shell)
 
             try:
                 self._upsert_box_selection(
@@ -141,6 +159,31 @@ class SelectionUpdaterV2:
             "tags": success_tags,
             "failed_tags": failed_tags,
         }
+
+    def _install_face_bounds(
+        self,
+        face: Dict[str, Any],
+        plane_axis: int,
+        plane_value: float,
+        eps_mm: float,
+        outer_shell: Optional[Dict[str, Any]] = None,
+    ) -> List[List[float]]:
+        extents = face.get("extents_xyz")
+        center = face.get("center_xyz")
+        if isinstance(extents, list) and isinstance(center, list) and len(extents) == 3 and len(center) == 3:
+            half = [float(extents[i]) / 2.0 for i in range(3)]
+            c = [float(center[i]) for i in range(3)]
+            bounds = [[c[i] - half[i], c[i] + half[i]] for i in range(3)]
+        else:
+            bbox = (outer_shell or {}).get("outer_bbox", {})
+            bmin = bbox.get("min")
+            bmax = bbox.get("max")
+            if isinstance(bmin, list) and isinstance(bmax, list) and len(bmin) == 3 and len(bmax) == 3:
+                bounds = [[float(bmin[i]), float(bmax[i])] for i in range(3)]
+            else:
+                bounds = [[0.0, 0.0] for _ in range(3)]
+        bounds[plane_axis] = [plane_value - eps_mm, plane_value + eps_mm]
+        return bounds
 
     # -------- 墙体 Selection (entitydim=3) --------
     def create_wall_box_selections(

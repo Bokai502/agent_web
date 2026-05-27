@@ -660,6 +660,7 @@ export async function registerExistingArtifacts(versionId: string, body: Record<
     "02_sim/simulation/status.json",
     "02_sim/simulation/simulation_manifest.json",
     "02_sim/simulation/native.vtu",
+    "02_sim/simulation/interface_temperature_diagnostics.json",
     "02_sim/analysis/metrics_summary.json",
     "02_sim/analysis/anomaly_candidates.json",
     "02_sim/analysis/diagnosis.json",
