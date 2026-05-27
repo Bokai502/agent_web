@@ -1,51 +1,117 @@
 ---
 name: component-derating-classifier
-description: Use this skill when a user provides either an electronic component name or a derating Excel path. For a component name, compare it with unique 元器件子类 values from reference/jiange_full.json and write one subclass result. For an Excel path, parse each 元器件名称, match subclasses, write a classification JSON, run the jiange_agent.py validation logic, and write a final JSON result.
+description: Classify electronic components and check Table 5 derating data. Use for component names, derating XLSX files, or existing derating JSON files. For XLSX input, generate an AI mapping, then run deterministic numeric checks with scripts/analyze_xlsx.py.
 ---
 
 # Component Derating Classifier
 
-## Data Source
+Run commands from this skill directory unless the user gives another working directory.
 
-Use this JSON data source:
+## Files
 
-`reference/jiange_full.json`
+- `reference/jiange_full.json`: allowed component categories, subclasses, standard derating parameters, and derating factors.
+- `reference/rules.md`: derating check rules.
+- `scripts/xlsx_to_json.py`: converts Table 5 XLSX files to JSON.
+- `scripts/analyze_xlsx.py`: applies an AI mapping and performs deterministic numeric checks.
+- `scripts/write_selected_subclass.py`: writes reference rows for one selected subclass.
 
-Run commands from the skill root directory unless a user explicitly provides another working directory.
+## Route
 
-## Required Workflow
-
-If the user input is a file path ending in `.xlsx`, use the Excel workflow. Otherwise use the single-component workflow.
+- `.xlsx` path: use the Excel workflow.
+- Existing derating `.json`: generate or reuse an AI mapping, then run/check deterministically where possible.
+- Component name only: use the single-component workflow.
 
 ## Excel Workflow
 
-Use this when the user provides an Excel input path such as `inputs_data/00_inputs/降额test1.xlsx`.
-
-Run from the skill root:
+### 1. Convert The Table
 
 ```bash
-python scripts/process_input_xlsx.py "输入文件.xlsx" --output-dir outputs
+python scripts/xlsx_to_json.py "input.xlsx" -o outputs/input_table.json
 ```
 
-The script:
+Expected Table 5 shape:
 
-- parses each row in the derating Excel table and extracts `元器件名称`
-- matches each component to one `元器件大类 / 元器件子类`
-- writes `*_classification.json`
-- uses `scripts/jiange_agent.py` rule-checking logic to validate derating values
-- writes `*_jiange_result.json`
+- row 1: title
+- rows 2-3: two-level headers
+- row 4 onward: data
 
-`scripts/process_input_xlsx.py` can read simple `.xlsx` files even when `openpyxl` is unavailable, via the XML fallback in `scripts/jiange_agent.py`.
+Important normalized fields:
 
-Always report both JSON paths and the summary in the final result JSON.
+- `元器件名称`
+- `型号规格_规格`
+- `降额参数`
+- `参数值_额定`
+- `参数值_允许`
+- `参数值_实际`
+- `降额因子_规定`
+- `降额因子_实际`
+- `降额等级`
+
+### 2. Generate The AI Mapping
+
+Read `outputs/input_table.json` and `reference/jiange_full.json`. For each unique component name, choose exactly one valid `元器件子类`. For each submitted `降额参数`, choose the matching standard `降额参数` for that selected subclass.
+
+Write `outputs/input_ai_mapping.json`:
+
+```json
+{
+  "schema_version": "1.0",
+  "components": [
+    {
+      "元器件名称": "瓷介电容器",
+      "元器件大类": "电容器",
+      "元器件子类": "固定陶瓷电容器",
+      "confidence": "high",
+      "match_method": "ai",
+      "selection_reason": "名称包含瓷介电容器。"
+    }
+  ],
+  "parameter_matches": [
+    {
+      "元器件名称": "瓷介电容器",
+      "降额参数": "工作电压",
+      "标准参数": "直流工作电压",
+      "selection_reason": "电容工作电压对应直流工作电压。"
+    }
+  ]
+}
+```
+
+AI mapping rules:
+
+- Do not invent categories, subclasses, or standard parameters.
+- Prefer the most specific subclass implied by component name, model, function, or load type.
+- Use `全类型` only when it is the best valid subclass for a broad component.
+- Match parameters by meaning, not exact text only. For example, `工作电压` may map to `直流工作电压`, `电源电压`, or `输入电压` depending on the subclass.
+- Omit uncertain parameter matches; the checker will mark them for review.
+
+### 3. Run Deterministic Checks
+
+```bash
+python scripts/analyze_xlsx.py "input.xlsx" --ai-mapping outputs/input_ai_mapping.json
+```
+
+The script writes:
+
+- `outputs/input_table.json`
+- `outputs/input_classification.json`
+- `outputs/input_check_result.json`
+
+The checker handles:
+
+- I-level derating check
+- required derating factor vs. standard factor
+- `allowed value = rated value * required derating factor`
+- `actual value <= allowed value`
+- `actual derating factor <= required derating factor`
+- temperature-related actual value must not exceed `85 deg C`
+- summary and row-level issue output
 
 ## Single-Component Workflow
 
-Do not use a script to judge the component category. Judge directly from the user's component name and the unique subclass list extracted from JSON.
+Use this when the input is only a component name.
 
-### Step 1: Extract Unique Subclasses
-
-Run `rg` against the JSON data source to list all `元器件子类` values, then deduplicate them:
+1. List valid subclasses:
 
 ```bash
 rg -o '"元器件子类": "[^"]+"' reference/jiange_full.json \
@@ -53,64 +119,27 @@ rg -o '"元器件子类": "[^"]+"' reference/jiange_full.json \
   | sort -u
 ```
 
-### Step 2: Choose One Subclass
+2. Choose exactly one valid subclass using the same AI mapping rules above.
 
-Compare the user's component name with the extracted subclass names and choose exactly one most similar `元器件子类`.
-
-Selection rules:
-
-- Final output must contain only one result. Do not output multiple candidates.
-- Prefer the most specific subclass implied by the component name, part number, function, or load type.
-- If the input is broad and a matching `全类型` subclass exists, choose `全类型`.
-- If the input is broad and no `全类型` exists, still choose the closest single subclass and note the uncertainty in `selection_reason`.
-- Do not invent subclasses. The selected subclass must appear in the Step 1 output.
-
-After selecting the subclass, find its 大类 from the JSON:
-
-```bash
-SELECTED_SUBCLASS='模拟电路-放大器'
-rg -n -C 2 "\"元器件子类\": \"$SELECTED_SUBCLASS\"" reference/jiange_full.json
-```
-
-### Step 3: Write The Selected Subclass Information
-
-Write a JSON file containing all rows whose `元器件子类` equals the selected subclass. The output must contain one selected subclass result only.
-
-Use `scripts/write_selected_subclass.py` after Step 2 has already selected the subclass. This script only writes the selected subclass information; it does not classify or choose the subclass.
+3. Write the selected subclass reference rows:
 
 ```bash
 python scripts/write_selected_subclass.py \
   --component-name "用户输入的元器件名称" \
   --subclass "选择的元器件子类" \
-  --reason "简短说明为什么该子类最相似" \
+  --reason "简短说明为什么选择该子类" \
   --output component_derating_result.json
 ```
 
-## Output Schema
+## Reporting
 
-The final UTF-8 JSON must contain one `result` object:
+For XLSX analysis, report:
 
-```json
-{
-  "schema_version": "3.0",
-  "input": "用户输入的元器件名称",
-  "source_json": "reference/jiange_full.json",
-  "matched": true,
-  "result": {
-    "元器件大类": "集成电路",
-    "元器件子类": "模拟电路-放大器",
-    "selection_reason": "运放通常对应放大器类模拟电路。",
-    "information": []
-  }
-}
-```
+- `*_table.json`
+- `*_ai_mapping.json`
+- `*_classification.json`
+- `*_check_result.json`
+- final summary counts from `*_check_result.json`
+- any unmatched components or omitted parameter matches that require review
 
-## Examples
-
-- `LM358 运放` -> `模拟电路-放大器`
-- `LM393 比较器` -> `模拟电路-比较器`
-- `钽电容` -> `钽电解电容器`
-- `AWG22 导线` -> `单根导线(AWG22)`
-- `连接器` -> `全类型`
-
-Always report the output JSON path and the one selected subclass. Also report the 大类 found from the selected rows.
+For single-component classification, report the output JSON path, selected `元器件大类`, selected `元器件子类`, and reason.
