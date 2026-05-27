@@ -526,6 +526,7 @@ export default function WorkspacePageShell({ apiBase, enableGncConfig = false, h
   const state = useWorkspaceAppState({ apiBase, homePath })
   return (
     <WorkspaceAppleContent
+      key={`${apiBase ?? ""}:${homePath}`}
       apiBase={apiBase}
       enableGncConfig={enableGncConfig}
       inspectorExtra={inspectorExtra}
