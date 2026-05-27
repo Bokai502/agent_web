@@ -1,0 +1,257 @@
+.gnc-editor-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+  padding: 18px;
+  color: #f4f7fb;
+  background: linear-gradient(180deg, #07111b, #0b1624 52%, #101a29);
+}
+
+.gnc-editor-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(145, 176, 214, 0.18);
+  border-radius: 12px;
+  background: rgba(17, 29, 45, 0.92);
+}
+
+.gnc-editor-top div:first-child {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.gnc-editor-top span,
+.gnc-editor-preview span {
+  color: #79e0c2;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.gnc-editor-top strong,
+.gnc-editor-preview strong {
+  color: #fff;
+  font-size: 18px;
+}
+
+.gnc-editor-top small {
+  overflow-wrap: anywhere;
+  color: #94a9c6;
+  font-size: 12px;
+}
+
+.gnc-editor-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.gnc-editor-actions button {
+  height: 36px;
+  border: 1px solid rgba(145, 176, 214, 0.22);
+  border-radius: 8px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #eef5ff;
+  cursor: pointer;
+  font: 700 13px/1 inherit;
+}
+
+.gnc-editor-actions .primary {
+  border-color: transparent;
+  background: #377cf6;
+  color: #fff;
+}
+
+.gnc-editor-status {
+  padding: 9px 12px;
+  border: 1px solid rgba(121, 224, 194, 0.2);
+  border-radius: 8px;
+  background: rgba(121, 224, 194, 0.08);
+  color: #d8f7ef;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.gnc-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.gnc-editor-card,
+.gnc-editor-preview {
+  border: 1px solid rgba(145, 176, 214, 0.16);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(21, 34, 52, 0.95), rgba(14, 24, 38, 0.98));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  padding: 16px;
+}
+
+.gnc-editor-card-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.gnc-editor-card-head strong {
+  color: #fff;
+  font-size: 16px;
+}
+
+.gnc-editor-card-head span {
+  overflow-wrap: anywhere;
+  color: #94a9c6;
+  font-size: 12px;
+}
+
+.gnc-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gnc-editor-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.gnc-editor-field.wide {
+  grid-column: 1 / -1;
+}
+
+.gnc-editor-field > span,
+.gnc-editor-toggle > span {
+  color: #9fb4d2;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.gnc-editor-field input,
+.gnc-editor-field select,
+.gnc-editor-toolbar select,
+.gnc-vector-grid input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid rgba(145, 176, 214, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #edf5ff;
+  font: 650 13px/1.2 inherit;
+  outline: none;
+  padding: 0 10px;
+}
+
+.gnc-editor-field select,
+.gnc-editor-toolbar select {
+  color-scheme: dark;
+}
+
+.gnc-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.gnc-editor-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  border: 1px solid rgba(145, 176, 214, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 9px 10px;
+}
+
+.gnc-editor-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #4c8dff;
+}
+
+.gnc-vector-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gnc-vector-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.gnc-vector-grid label span {
+  color: #7890af;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.gnc-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.gnc-editor-toolbar select {
+  width: min(220px, 100%);
+}
+
+.gnc-editor-preview {
+  display: grid;
+  gap: 12px;
+}
+
+.gnc-editor-preview div {
+  display: grid;
+  gap: 5px;
+}
+
+.gnc-editor-preview pre {
+  max-height: 420px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid rgba(145, 176, 214, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #dce9ff;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 14px;
+}
+
+.gnc-editor-empty {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  border: 1px solid rgba(145, 176, 214, 0.16);
+  border-radius: 12px;
+  color: #dce9ff;
+  background: rgba(17, 29, 45, 0.92);
+}
+
+.gnc-editor-empty.small {
+  min-height: 120px;
+}
+
+@media (max-width: 1100px) {
+  .gnc-editor-grid,
+  .gnc-form-grid,
+  .gnc-toggle-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gnc-editor-top {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

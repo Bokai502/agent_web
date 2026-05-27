@@ -8,6 +8,7 @@ import { BomInspectorCard } from "./workspace/BomInspectorCard"
 import { CurrentWorkspaceCard } from "./workspace/CurrentWorkspaceCard"
 import { DeleteSessionDialog } from "./workspace/DeleteSessionDialog"
 import { ProgressCard } from "./workspace/ProgressCard"
+import { RunLogPanel } from "./workspace/RunLogPanel"
 import { WorkspaceLeftPanel } from "./workspace/WorkspaceLeftPanel"
 import { WorkspaceStagePanel } from "./workspace/WorkspaceStagePanel"
 import { WorkspaceTopbar } from "./workspace/WorkspaceTopbar"
@@ -32,10 +33,11 @@ type ViewerComponentMessage = {
   type?: unknown
 }
 
-type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol"
+type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
 
 export interface WorkspacePageShellProps {
   apiBase?: string
+  enableGncConfig?: boolean
   homePath?: string
   inspectorExtra?: ReactNode
   modelViewerUrl?: string
@@ -47,6 +49,7 @@ export interface WorkspacePageShellProps {
 
 interface WorkspaceAppleContentProps {
   apiBase?: string
+  enableGncConfig?: boolean
   inspectorExtra?: ReactNode
   modelViewerUrl?: string
   progressVariant?: WorkflowProgressVariant
@@ -56,7 +59,7 @@ interface WorkspaceAppleContentProps {
   state: ReturnType<typeof useWorkspaceAppState>
 }
 
-export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true, state }: WorkspaceAppleContentProps) {
+export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true, state }: WorkspaceAppleContentProps) {
   const { i18n, t } = useTranslation()
   const {
     activeSessionId,
@@ -213,7 +216,6 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
       return 0
     })
   }, [bomInfo.components, selectedBomId])
-
   const submitAndRefreshProgress = useCallback((input: string | CodexInputItem[], enabledSkills?: string[]) => {
     resetProgressData()
     setProgressRefreshNonce(value => value + 1)
@@ -288,6 +290,36 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
     })
   }, [activeContext.workspaceName, handleNew, switchActiveWorkspace])
 
+  const currentWorkspaceCard = (
+    <CurrentWorkspaceCard
+      activeManifestVersion={activeManifestVersion}
+      branchManifest={branchManifest}
+      currentWorkspaceName={activeContext.workspaceName}
+      manifestLoading={manifestLoading}
+      onCheckoutVersion={checkoutVersion}
+      onCreateChildBranch={createChildBranch}
+      onCreateSiblingBranch={createSiblingBranch}
+      onSelectWorkspace={handleSelectWorkspace}
+      onToggleVersionList={() => setVersionListOpen(open => !open)}
+      onToggleWorkspaceList={() => setWorkspaceListOpen(open => !open)}
+      versionAction={versionAction}
+      versionError={versionError}
+      versionListOpen={versionListOpen}
+      versionTreeRoots={versionTreeRoots}
+      workspaceChanging={workspaceChanging}
+      workspaceItems={workspaceItems}
+      workspaceListOpen={workspaceListOpen}
+    />
+  )
+  const progressCard = (
+    <ProgressCard
+      entries={workflowLoopProgressEntries}
+      language={i18n.language}
+      progressData={progressData}
+      t={t}
+    />
+  )
+
   const openExternalWindow = useCallback((url: string) => {
     window.open(url, "_blank", "noopener,noreferrer")
   }, [])
@@ -349,7 +381,7 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
   }, [activePanel, showModel])
 
   useEffect(() => {
-    if (!showTools && (activePanel === "cad" || activePanel === "paraview" || activePanel === "comsol")) setActivePanel("log")
+    if (!showTools && (activePanel === "cad" || activePanel === "paraview" || activePanel === "comsol" || activePanel === "gnc-config")) setActivePanel("log")
   }, [activePanel, showTools])
 
   const stageTitle = activePanel === "model"
@@ -358,20 +390,25 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
       ? t("workspace.stage.bomTitle")
       : activePanel === "log"
         ? t("workspace.stage.logTitle")
-      : activeTool?.title ?? t("workspace.stage.toolTitle")
+      : activePanel === "gnc-config"
+        ? "GNC Config"
+        : activeTool?.title ?? t("workspace.stage.toolTitle")
   const stageSubtitle = activePanel === "model"
     ? hasModelPreview ? t("workspace.stage.currentModel") : t("workspace.stage.waitingModel")
     : activePanel === "bom" && showBom
       ? bomLoading ? t("workspace.stage.loadingBom") : t("workspace.stage.components", { count: bomInfo.totalRecords })
       : activePanel === "log"
         ? selectedLog ? selectedLog.title : t("workspace.stage.waitingLog")
-      : activeTool?.subtitle ?? t("workspace.stage.remoteTool")
+      : activePanel === "gnc-config"
+        ? "Read and update 42 config files in workspaceDir/00_inputs"
+        : activeTool?.subtitle ?? t("workspace.stage.remoteTool")
 
   return (
     <div className="workspace-apple">
       <WorkspaceTopbar
         activePanel={activePanel}
         activeSessionMatchesWorkspace={activeSessionMatchesWorkspace}
+        enableGncConfig={enableGncConfig}
         onReturnHome={handleReturnHome}
         onSelectPanel={setActivePanel}
         showBom={showBom}
@@ -411,6 +448,7 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
           apiBase={apiBase}
           currentEvents={visibleCurrentEvents}
           currentPrompt={visibleCurrentPrompt}
+          layoutVariant={enableGncConfig ? "gnc" : "default"}
           logEntries={logEntries}
           onSelectLog={handleSelectLog}
           onStopAskUser={handleStopAskUser}
@@ -418,14 +456,18 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
           onSubmitAskUser={answer => submitAndRefreshProgress(answer)}
           pendingAskUser={visiblePendingAskUser}
           selectedLogId={selectedLogId}
+          showRunLog={false}
           t={t}
+          topContent={currentWorkspaceCard}
           turns={visibleTurns}
           visibleRunning={visibleRunning}
         />
 
         <WorkspaceStagePanel
           activePanel={activePanel}
+          activeContext={activeContext}
           activeTool={activeTool}
+          apiBase={apiBase}
           bomInfo={bomInfo}
           bomLoading={bomLoading}
           cadHref={cadHref}
@@ -447,32 +489,14 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
         />
 
         <aside className="wa-panel wa-inspector">
-          <div className="wa-inspector-content">
-            <CurrentWorkspaceCard
-              activeManifestVersion={activeManifestVersion}
-              branchManifest={branchManifest}
-              currentWorkspaceName={activeContext.workspaceName}
-              manifestLoading={manifestLoading}
-              onCheckoutVersion={checkoutVersion}
-              onCreateChildBranch={createChildBranch}
-              onCreateSiblingBranch={createSiblingBranch}
-              onSelectWorkspace={handleSelectWorkspace}
-              onToggleVersionList={() => setVersionListOpen(open => !open)}
-              onToggleWorkspaceList={() => setWorkspaceListOpen(open => !open)}
-              versionAction={versionAction}
-              versionError={versionError}
-              versionListOpen={versionListOpen}
-              versionTreeRoots={versionTreeRoots}
-              workspaceChanging={workspaceChanging}
-              workspaceItems={workspaceItems}
-              workspaceListOpen={workspaceListOpen}
-            />
+          <div className="wa-inspector-content workspace-right-layout">
+            {progressCard}
 
-            <ProgressCard
-              entries={workflowLoopProgressEntries}
-              language={i18n.language}
-              progressData={progressData}
-              t={t}
+            <RunLogPanel
+              entries={logEntries}
+              onSelect={handleSelectLog}
+              selectedLogId={selectedLogId}
+              variant="info"
             />
 
             {showBom && (
@@ -497,11 +521,12 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
   )
 }
 
-export default function WorkspacePageShell({ apiBase, homePath = WORKSPACE_HOME_PATH, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true }: WorkspacePageShellProps) {
+export default function WorkspacePageShell({ apiBase, enableGncConfig = false, homePath = WORKSPACE_HOME_PATH, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true }: WorkspacePageShellProps) {
   const state = useWorkspaceAppState({ apiBase, homePath })
   return (
     <WorkspaceAppleContent
       apiBase={apiBase}
+      enableGncConfig={enableGncConfig}
       inspectorExtra={inspectorExtra}
       modelViewerUrl={modelViewerUrl}
       progressVariant={progressVariant}

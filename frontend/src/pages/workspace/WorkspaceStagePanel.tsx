@@ -1,10 +1,12 @@
 import type { TFunction } from "i18next"
+import { GncConfigEditor } from "../../../gnc_config/GncConfigEditor"
 import type { BomComponent, BomInfo } from "../../components/bomData"
 import { BomStagePanel } from "./BomStagePanel"
 import { LogStagePanel } from "./LogStagePanel"
 import type { RunLogEntry } from "./runLogUtils"
+import type { WorkspaceVersionContext } from "./workspaceVersion"
 
-type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol"
+type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
 
 type ActiveTool = {
   label: string
@@ -15,7 +17,9 @@ type ActiveTool = {
 
 type WorkspaceStagePanelProps = {
   activePanel: ActivePanel
+  activeContext: WorkspaceVersionContext
   activeTool: ActiveTool
+  apiBase?: string
   bomInfo: BomInfo
   bomLoading: boolean
   cadHref: string
@@ -38,7 +42,9 @@ type WorkspaceStagePanelProps = {
 
 export function WorkspaceStagePanel({
   activePanel,
+  activeContext,
   activeTool,
+  apiBase,
   bomInfo,
   bomLoading,
   cadHref,
@@ -81,7 +87,9 @@ export function WorkspaceStagePanel({
             </button>
           </div>
         )}
-        {showModel && activePanel === "model" ? (
+        {activePanel === "gnc-config" && showTools ? (
+          <GncConfigEditor activeContext={activeContext} apiBase={apiBase} />
+        ) : showModel && activePanel === "model" ? (
           hasModelPreview ? (
             <iframe className="wa-viewer" title={t("workspace.stage.modelTitle")} src={viewerHref} />
           ) : (

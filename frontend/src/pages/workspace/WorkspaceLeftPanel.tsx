@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { TFunction } from "i18next"
 import { AppleTaskComposer } from "../../components/AppleTaskComposer"
 import type { AskUserItem, CodexInputItem, ThreadEvent, Turn } from "../../types"
@@ -12,6 +13,7 @@ type WorkspaceLeftPanelProps = {
   apiBase?: string
   currentEvents: ThreadEvent[]
   currentPrompt: string
+  layoutVariant?: "default" | "gnc"
   logEntries: RunLogEntry[]
   onSelectLog: (entry: RunLogEntry) => void
   onStopAskUser: () => void
@@ -19,7 +21,9 @@ type WorkspaceLeftPanelProps = {
   onSubmitAskUser: (answer: string) => void
   pendingAskUser: AskUserItem | null
   selectedLogId: string
+  showRunLog?: boolean
   t: TFunction
+  topContent?: ReactNode
   turns: Turn[]
   visibleRunning: boolean
 }
@@ -31,6 +35,7 @@ export function WorkspaceLeftPanel({
   apiBase,
   currentEvents,
   currentPrompt,
+  layoutVariant = "default",
   logEntries,
   onSelectLog,
   onStopAskUser,
@@ -38,12 +43,15 @@ export function WorkspaceLeftPanel({
   onSubmitAskUser,
   pendingAskUser,
   selectedLogId,
+  showRunLog = true,
   t,
+  topContent,
   turns,
   visibleRunning,
 }: WorkspaceLeftPanelProps) {
   return (
-    <aside className="wa-panel wa-chat wa-left-stack">
+    <aside className={`wa-panel wa-chat wa-left-stack${layoutVariant === "gnc" ? " gnc-left-layout" : ""}`}>
+      {topContent}
       <section className="wa-left-section wa-left-input">
         <div className="wa-left-section-header">
           <div>
@@ -77,7 +85,7 @@ export function WorkspaceLeftPanel({
         turns={turns}
       />
 
-      <RunLogPanel entries={logEntries} onSelect={onSelectLog} selectedLogId={selectedLogId} />
+      {showRunLog && <RunLogPanel entries={logEntries} onSelect={onSelectLog} selectedLogId={selectedLogId} />}
     </aside>
   )
 }

@@ -1,10 +1,11 @@
 import type { TFunction } from "i18next"
 
-type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol"
+type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
 
 type WorkspaceTopbarProps = {
   activePanel: ActivePanel
   activeSessionMatchesWorkspace: boolean
+  enableGncConfig?: boolean
   onReturnHome: () => void
   onSelectPanel: (panel: ActivePanel) => void
   showBom: boolean
@@ -17,6 +18,7 @@ type WorkspaceTopbarProps = {
 export function WorkspaceTopbar({
   activePanel,
   activeSessionMatchesWorkspace,
+  enableGncConfig = false,
   onReturnHome,
   onSelectPanel,
   showBom,
@@ -60,7 +62,16 @@ export function WorkspaceTopbar({
               {t("workspace.tabs.model")}
             </button>
           )}
-          {showTools && (
+          {enableGncConfig && (
+            <button
+              type="button"
+              className={activePanel === "gnc-config" ? "active" : undefined}
+              onClick={() => onSelectPanel("gnc-config")}
+            >
+              配置文件
+            </button>
+          )}
+          {showTools && !enableGncConfig && (
             <div className="wa-tool-menu">
               <button type="button">{t("workspace.tabs.tools")} ▾</button>
               <div className="wa-tool-panel" role="menu" aria-label={t("workspace.toolsAria")}>
