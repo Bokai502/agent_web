@@ -57,9 +57,21 @@ function getLatestItemText(events: ThreadEvent[], itemType: "agent_message" | "r
   return ""
 }
 
+function getTerminalMessage(events: ThreadEvent[]) {
+  const terminal = [...events].reverse().find(event =>
+    event.type === "turn.completed" ||
+    event.type === "turn.failed" ||
+    event.type === "error"
+  )
+  if (!terminal) return ""
+  if (terminal.type === "turn.failed") return terminal.error.message
+  if (terminal.type === "error") return terminal.message
+  return ""
+}
+
 export function buildAgentSummaries(turns: Turn[], currentPrompt: string, currentEvents: ThreadEvent[]): AgentSummary[] {
   const summaries = turns.map((turn, index) => ({
-    answer: getLatestItemText(turn.events, "agent_message"),
+    answer: getLatestItemText(turn.events, "agent_message") || getTerminalMessage(turn.events),
     id: turn.id,
     isCurrent: false,
     prompt: turn.userPrompt,

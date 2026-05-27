@@ -120,3 +120,7 @@ export async function completeRunSessionTurn({
     })
   }
 }
+
+export async function persistRunSessionTurn(args: Parameters<typeof completeRunSessionTurn>[0]) {
+  await completeRunSessionTurn(args)
+}

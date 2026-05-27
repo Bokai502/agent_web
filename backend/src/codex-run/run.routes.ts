@@ -13,7 +13,7 @@ import { buildCodexConfig } from "./codexConfig.js"
 import { registerInputFilesRoute } from "./inputFiles.routes.js"
 import { buildSdkInput, readAgentGuide, shouldInjectPromptPrefixForSession } from "./promptPrefix.js"
 import { getInputTextLength, normalizeRunInput, summarizeInput } from "./runInput.js"
-import { completeRunSessionTurn, ensureRunSession } from "./runSessionStore.js"
+import { completeRunSessionTurn, ensureRunSession, persistRunSessionTurn } from "./runSessionStore.js"
 import { elapsedMs, hasPersistableTerminalEvent, summarizeCodexEvent } from "./runTelemetry.js"
 import type { RunRequestBody } from "./runTypes.js"
 
@@ -105,6 +105,47 @@ export async function taskRoutes(
       const streamedEvents: unknown[] = []
       let resolvedThreadId = runContext.threadId
       let manifestRunId: string | null = null
+      let lastPersistedEventCount = 0
+      let lastPersistedAt = 0
+
+      const hasTerminalEvent = () => streamedEvents.some(event =>
+        event && typeof event === "object" &&
+        ["turn.completed", "turn.failed", "error"].includes(String((event as { type?: unknown }).type ?? ""))
+      )
+
+      const appendTerminalIfMissing = (message: string) => {
+        if (streamedEvents.length === 0 || hasTerminalEvent()) return
+        streamedEvents.push({
+          type: "turn.failed",
+          error: {
+            message,
+          },
+        })
+      }
+
+      const persistLiveTurn = async (force = false) => {
+        if (streamedEvents.length === 0) return
+        const now = Date.now()
+        if (!force && streamedEvents.length === lastPersistedEventCount) return
+        if (!force && now - lastPersistedAt < 1000) return
+        lastPersistedEventCount = streamedEvents.length
+        lastPersistedAt = now
+        await persistRunSessionTurn({
+          events: streamedEvents,
+          prompt: promptTextForHistory,
+          sessionId: trimmedSessionId,
+          threadId: resolvedThreadId,
+          turnId: trimmedTurnId,
+          versionId: runContext.versionId,
+          workspaceDir: runContext.workspaceDir,
+          workspaceId: runContext.workspaceId,
+          workspaceName: requestedWorkspaceName,
+        }).catch(err => logger.error("run session live persist failed", {
+          err,
+          sessionId: trimmedSessionId,
+          turnId: trimmedTurnId,
+        }))
+      }
 
       await ensureRunSession({
         prompt: promptTextForHistory,
@@ -230,6 +271,9 @@ export async function taskRoutes(
         for await (const event of streamed.events) {
           if (abort.signal.aborted) break
           streamedEvents.push(event)
+          if (event.type === "thread.started" && typeof event.thread_id === "string") {
+            resolvedThreadId = event.thread_id
+          }
           const now = process.hrtime.bigint()
           eventCount += 1
           logger.info("codex run event", {
@@ -284,9 +328,7 @@ export async function taskRoutes(
           }
 
           reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
-          if (event.type === "thread.started" && typeof event.thread_id === "string") {
-            resolvedThreadId = event.thread_id
-          }
+          await persistLiveTurn()
         }
       } catch (err) {
         if (!abort.signal.aborted) {
@@ -312,8 +354,10 @@ export async function taskRoutes(
           )
         }
       } finally {
-        const shouldPersistRun = streamedEvents.length > 0 &&
-          (!abort.signal.aborted || hasPersistableTerminalEvent(streamedEvents))
+        if (abort.signal.aborted) {
+          appendTerminalIfMissing("运行连接已中断，已保存中断前的对话事件。")
+        }
+        const shouldPersistRun = streamedEvents.length > 0
         const terminalStatus = abort.signal.aborted
           ? "cancelled"
           : streamedEvents.some(event => event && typeof event === "object" && (event as { type?: unknown }).type === "turn.failed")
