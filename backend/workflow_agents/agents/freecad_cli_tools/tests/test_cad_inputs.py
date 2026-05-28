@@ -159,6 +159,41 @@ def test_build_cad_stage_inputs_writes_expected_outputs(tmp_path: Path) -> None:
     assert channels["mask"].shape == (4, 4, 4)
 
 
+def test_grid_inputs_include_components_outside_outer_shell_bbox(tmp_path: Path) -> None:
+    _, real_bom_path, layout_path, geom_path = write_inputs(tmp_path)
+    geom = json.loads(geom_path.read_text(encoding="utf-8"))
+    geom["components"]["R_001_external"] = {
+        "id": "R_001_external",
+        "component_id": "R001",
+        "semantic_name": "Radiator",
+        "kind": "external",
+        "category": "thermal",
+        "shape": "box",
+        "dims": [20.0, 20.0, 25.0],
+        "position": [-10.0, -10.0, 55.0],
+        "bbox": {"min": [-10.0, -10.0, 55.0], "max": [10.0, 10.0, 80.0]},
+        "mass": 0.2,
+        "power": 0.0,
+    }
+    geom_path.write_text(json.dumps(geom), encoding="utf-8")
+    output_dir = tmp_path / "01_cad"
+
+    build_cad_stage_inputs(
+        real_bom_path=real_bom_path,
+        layout_topology_path=layout_path,
+        geom_path=geom_path,
+        output_dir=output_dir,
+        grid_shape=(4, 4, 4),
+    )
+
+    coord = np.loadtxt(output_dir / "comsol_inputs" / "coord.txt")
+    assert coord[:, 2].max() == 0.08
+
+    cad_agent_output = json.loads((output_dir / "cad_agent_output.json").read_text())
+    assert cad_agent_output["checks"]["grid_bbox_max"] == [55.0, 55.0, 80.0]
+    assert cad_agent_output["checks"]["grid_component_bbox_count"] == 2
+
+
 def test_validate_cad_build_merges_report_into_cad_agent_output(tmp_path: Path) -> None:
     _, real_bom_path, layout_path, geom_path = write_inputs(tmp_path)
     output_dir = tmp_path / "01_cad"
