@@ -82,7 +82,11 @@ Resource controls:
 - A single run lock is written to `02_sim/.run.lock`. A second run against the same output directory exits before starting COMSOL.
 - If a previous process died and left a stale lock, rerun with `--force`; active PIDs are still blocked.
 - COMSOL uses `--mph-port 32036` by default instead of the common `2036`. If that port is busy, the runtime chooses the next free port and starts a private mphserver for the run.
-- COMSOL/ParaView GUI loaders are enabled by default after successful simulation, and the CLI waits for the launcher commands by default. Add `--no-open-tools` for headless runs or `--async-open-tools` for detached launcher startup.
+- In Open Codex Web/agent runs, pass `--async-open-tools` so COMSOL/ParaView
+  GUI loaders start through the background/detached launcher flow after a
+  successful simulation. Add `--no-open-tools` for headless runs. Omit
+  `--async-open-tools` only for manual CLI runs that explicitly need to wait
+  for launcher completion.
 - Do not use `/usr/local/bin/start-comsol-remote` for GUI loading. The legacy launcher targets `DISPLAY=:3` / VNC `5903` and can break the shared noVNC port `6082`. COMSOL GUI loading is managed by `external_tool_launchers.py` on `DISPLAY=:32`, VNC `5932`, noVNC `6082`.
 
 Example controlled COMSOL run:
@@ -91,7 +95,8 @@ Example controlled COMSOL run:
 sim-run --json run \
   --workspace-dir <workspace_dir> \
   --mph-port 32036 \
-  --quiet
+  --quiet \
+  --async-open-tools
 ```
 
 Read COMSOL progress without modifying any progress file:
