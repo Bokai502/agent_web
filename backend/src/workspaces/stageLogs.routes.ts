@@ -26,7 +26,20 @@ type ConversationLogEntry = {
 
 const MAX_FILES = 100
 const MAX_ENTRIES = 300
-const REPORT_RELATIVE_PATH = path.join("reports", "report.md")
+const MARKDOWN_REPORTS = [
+  {
+    detail: "reports/report.md",
+    idSuffix: "report",
+    relativePath: path.join("reports", "report.md"),
+    title: "总结报告",
+  },
+  {
+    detail: "reports/modifications.md",
+    idSuffix: "modifications",
+    relativePath: path.join("reports", "modifications.md"),
+    title: "修改建议",
+  },
+]
 const MARKDOWN_LINK_OR_IMAGE_RE = /(!?\[[^\]]*\]\()([^)\s]+)(\))/gu
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -170,28 +183,38 @@ function rewriteReportMarkdownLinks(markdown: string, reportPath: string) {
   })
 }
 
-async function addReportEntry(workspaceDir: string, entries: StageLogEntry[]) {
-  const reportPath = path.join(workspaceDir, REPORT_RELATIVE_PATH)
+async function addMarkdownReportEntry(
+  workspaceDir: string,
+  report: typeof MARKDOWN_REPORTS[number],
+  entries: StageLogEntry[],
+) {
+  const reportPath = path.join(workspaceDir, report.relativePath)
   const raw = await fs.readFile(reportPath, "utf-8").catch(() => null)
   if (raw === null) return
 
   const stat = await fs.stat(reportPath)
   entries.push({
-    detail: "reports/report.md",
+    detail: report.detail,
     fields: {
       path: path.relative(process.cwd(), reportPath),
       size_bytes: String(stat.size),
     },
-    id: `${path.relative(process.cwd(), reportPath)}:report`,
+    id: `${path.relative(process.cwd(), reportPath)}:${report.idSuffix}`,
     raw: {
       format: "markdown",
       content: rewriteReportMarkdownLinks(raw, reportPath),
     },
     source: path.relative(process.cwd(), reportPath),
     status: "completed",
-    stage_name: "总结报告",
+    stage_name: report.title,
     time: stat.mtime.toISOString(),
   })
+}
+
+async function addMarkdownReportEntries(workspaceDir: string, entries: StageLogEntry[]) {
+  for (const report of MARKDOWN_REPORTS) {
+    await addMarkdownReportEntry(workspaceDir, report, entries)
+  }
 }
 
 export async function stageLogsRoutes(fastify: FastifyInstance) {
@@ -217,7 +240,7 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
         // Skip malformed or transient log files.
       }
     }
-    await addReportEntry(configuredWorkspaceDir, entries)
+    await addMarkdownReportEntries(configuredWorkspaceDir, entries)
 
     return reply.send(sortEntries(entries).slice(0, MAX_ENTRIES))
   })
