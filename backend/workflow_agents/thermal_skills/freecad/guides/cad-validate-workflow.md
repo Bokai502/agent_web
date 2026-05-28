@@ -1,6 +1,6 @@
 # FreeCAD: CAD Validate Workflow
 
-Validate the CAD-stage bundle in the configured workspace. The CLI entry point
+Validate the CAD-stage bundle in the Open Codex Web execution-context workspace. The CLI entry point
 is `python -m freecad_cli_tools.cli.main cad validate`.
 
 Use this workflow when the user asks whether a CAD build is correct, wants
@@ -10,13 +10,18 @@ checks, screenshot capture, or wants validation results written into
 
 ## Core Rules
 
-- Use `python -m freecad_cli_tools.cli.main config show` first to inspect the configured workspace,
-  default inputs, CAD output directory, and RPC host/port.
-- The workspace source of truth is `/data/lbk/codex_web/config.json` field
-  `freecad.workspaceDir`. Deprecated `--workspace`, `FREECAD_WORKSPACE_DIR`,
-  and `WORKSPACE_DIR` values must not be used to switch datasets.
-- Default validation inputs are `./00_inputs` and `./01_cad` under the
-  configured workspace.
+- Resolve the workspace from the Open Codex Web execution context
+  `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`,
+  checkout, and branch do not update `/data/lbk/codex_web/config.json`.
+- Always pass the execution context workspace explicitly with
+  `--workspace-dir <workspace_dir>` for `config show`, `cad validate`, and any
+  progress updates. Do not rely on `config.json`, process `cwd`, or CLI
+  defaults during Open Codex Web runs.
+- `/data/lbk/codex_web/config.json` field `freecad.workspaceDir`,
+  `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
+  non-Web/manual CLI use.
+- Default validation inputs are `<workspace>/00_inputs` and
+  `<workspace>/01_cad`.
 - The validation report is merged into
   `./01_cad/cad_agent_output.json` under the `validation` key.
 - Screenshot metadata is written only to the top-level `screenshot` key in
@@ -26,11 +31,13 @@ checks, screenshot capture, or wants validation results written into
 ## Command Pattern
 
 ```bash
-python -m freecad_cli_tools.cli.main config show
+python -m freecad_cli_tools.cli.main config show \
+  --workspace-dir <workspace_dir>
 ```
 
 ```bash
-python -m freecad_cli_tools.cli.main cad validate
+python -m freecad_cli_tools.cli.main cad validate \
+  --workspace-dir <workspace_dir>
 ```
 
 Use `--strict` only when the caller wants a nonzero exit status for validation
@@ -50,7 +57,7 @@ The validator checks:
 
 ## Screenshot Outputs
 
-By default these files are written under `<configured workspace>/01_cad`:
+By default these files are written under `<workspace>/01_cad`:
 
 - `freecad_screenshot_top.png`
 - `freecad_screenshot_bottom.png`

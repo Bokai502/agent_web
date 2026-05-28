@@ -88,22 +88,29 @@ For each candidate component from `real_bom.items`:
 
 ## Command Pattern
 
-Read resolved defaults first. The workspace source of truth is
-`/data/lbk/codex_web/config.json` field `freecad.workspaceDir`; deprecated
-`--workspace`, `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` values must not be
-used to switch datasets.
+Resolve the workspace from the Open Codex Web execution context `workspace_dir`.
+Workspace/version selection is request-scoped; `/api/run`, checkout, and branch
+do not update `/data/lbk/codex_web/config.json`. Always pass the execution
+context workspace explicitly with `--workspace-dir <workspace_dir>` for
+`config show` and `assembly create-from-component-info`. Do not rely on
+`config.json`, process `cwd`, or CLI defaults during Open Codex Web runs.
+`/data/lbk/codex_web/config.json` field `freecad.workspaceDir`,
+`FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
+non-Web/manual CLI use.
 
 ```bash
-python -m freecad_cli_tools.cli.main config show
+python -m freecad_cli_tools.cli.main config show \
+  --workspace-dir <workspace_dir>
 ```
 
 ```bash
 python -m freecad_cli_tools.cli.main assembly create-from-component-info \
+  --workspace-dir <workspace_dir> \
   --doc-name DirectAssembly
 ```
 
 Use explicit `--real-bom`, `--layout-topology`, and `--geom` only when you need
-to override individual files inside or outside the configured workspace.
+to override individual files inside or outside the execution-context workspace.
 
 ## Output Files
 
@@ -111,12 +118,12 @@ Note: this command can be slow when it imports real STEP/STP CAD assets and
 exports STEP/GLB files. Be patient and wait for the progress log or final
 artifacts before assuming the build has stalled.
 
-The command writes CAD artifacts under the configured workspace reported by
-`python -m freecad_cli_tools.cli.main config show`:
+The command writes CAD artifacts under the execution-context workspace reported
+by `python -m freecad_cli_tools.cli.main config show --workspace-dir <workspace_dir>`:
 
-- STEP: `<configured workspace>/01_cad/component_info_assembly.step`
-- GLB: `<configured workspace>/01_cad/component_info_assembly.glb`
-- Progress JSON: `<configured workspace>/logs/progress_percentages.json`
+- STEP: `<workspace>/01_cad/component_info_assembly.step`
+- GLB: `<workspace>/01_cad/component_info_assembly.glb`
+- Progress JSON: `<workspace>/logs/progress_percentages.json`
 
 If `--output` is provided, it only selects the output directory or parent path.
 The exported filenames still remain `component_info_assembly.step` and

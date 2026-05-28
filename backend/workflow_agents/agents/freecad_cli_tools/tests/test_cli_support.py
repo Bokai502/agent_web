@@ -285,6 +285,18 @@ def test_extract_output_payload_accepts_message_without_marker_when_json_present
     assert payload == [{"name": "Doc1"}]
 
 
+def test_extract_output_payload_accepts_stdout_from_rpc_server() -> None:
+    payload = extract_output_payload(
+        {
+            "success": True,
+            "stdout": 'FreeCAD log line\n{"success": true, "document": "Doc"}\n',
+            "stderr": "",
+        }
+    )
+
+    assert payload == {"success": True, "document": "Doc"}
+
+
 def test_runtime_directory_getters_honor_environment_overrides(monkeypatch, tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     write_runtime_config(monkeypatch, tmp_path, {"workspaceDir": str(workspace)})

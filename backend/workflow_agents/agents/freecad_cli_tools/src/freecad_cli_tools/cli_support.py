@@ -132,20 +132,31 @@ def extract_output_payload(result: dict) -> dict:
                 continue
         raise json.JSONDecodeError("No JSON payload found", text, 0)
 
-    message = result.get("message", "")
-    if OUTPUT_MARKER not in message:
-        if not result.get("success"):
-            raise RuntimeError(describe_rpc_failure(result))
-        try:
-            return parse_payload_text(message)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Unexpected RPC response: {message}") from exc
+    message = str(result.get("message") or "")
+    stdout = str(result.get("stdout") or "")
+    response_text = message or stdout
+    if not result.get("success"):
+        raise RuntimeError(describe_rpc_failure(result))
 
-    payload = message.split(OUTPUT_MARKER, 1)[1].strip()
-    try:
-        return parse_payload_text(payload)
-    except json.JSONDecodeError:
-        return parse_payload_text(message)
+    for text in (message, stdout):
+        if not text:
+            continue
+        if OUTPUT_MARKER in text:
+            payload = text.split(OUTPUT_MARKER, 1)[1].strip()
+            try:
+                return parse_payload_text(payload)
+            except json.JSONDecodeError:
+                pass
+        try:
+            return parse_payload_text(text)
+        except json.JSONDecodeError:
+            continue
+
+    raise RuntimeError(f"Unexpected RPC response: {response_text}") from json.JSONDecodeError(
+        "No JSON payload found",
+        response_text,
+        0,
+    )
 
 
 def execute_script_payload(host: str, port: int, code: str) -> dict:
