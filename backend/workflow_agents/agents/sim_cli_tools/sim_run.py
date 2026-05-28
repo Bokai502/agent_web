@@ -132,6 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.set_defaults(open_external_tools=True)
     run.add_argument("--open-tools", dest="open_external_tools", action="store_true", help="Open COMSOL/ParaView GUI tools after simulation. Enabled by default.")
     run.add_argument("--no-open-tools", dest="open_external_tools", action="store_false", help="Do not open COMSOL/ParaView GUI tools after simulation.")
+    run.add_argument("--async-open-tools", dest="open_external_tools_async", action="store_true", help="Start COMSOL/ParaView GUI loaders asynchronously instead of waiting for launcher completion.")
     run.add_argument("--force", action="store_true", help="Ignore a stale run lock after verifying the recorded PID is not alive.")
     run.add_argument("--quiet", action="store_true")
     run.set_defaults(handler=handle_run)
@@ -197,6 +198,7 @@ def handle_run(args: argparse.Namespace) -> int:
             simulation_backend=args.simulation_backend,
             mph_port=int(args.mph_port) if args.mph_port else None,
             open_external_tools=bool(args.open_external_tools),
+            open_external_tools_async=bool(args.open_external_tools_async),
         )
         configure_logging(run_root=config.run_root, log_file=paths["workspace_dir"] / "logs" / "pipeline.log", quiet=bool(args.quiet))
         write_run_state(paths["output_dir"], args)
@@ -407,6 +409,7 @@ def write_run_state(output_dir: Path, args: argparse.Namespace) -> None:
             "simulation_backend": args.simulation_backend,
             "mph_port": int(args.mph_port) if args.mph_port else None,
             "open_external_tools": bool(args.open_external_tools),
+            "open_external_tools_async": bool(args.open_external_tools_async),
             "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         },
     )
