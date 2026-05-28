@@ -319,9 +319,7 @@ def write_grid_inputs(
     channels_path: Path,
     grid_shape: tuple[int, int, int],
 ) -> dict[str, Any]:
-    outer_bbox = geom.get("outer_shell", {}).get("outer_bbox")
-    bbox_min = _vector3(outer_bbox.get("min"), "outer_shell.outer_bbox.min")
-    bbox_max = _vector3(outer_bbox.get("max"), "outer_shell.outer_bbox.max")
+    bbox_min, bbox_max, component_bbox_count = _sampling_bbox(geom)
     nx, ny, nz = grid_shape
     xs = np.linspace(bbox_min[0], bbox_max[0], nx)
     ys = np.linspace(bbox_min[1], bbox_max[1], ny)
@@ -354,6 +352,11 @@ def write_grid_inputs(
         "total_voxels": int(mask.size),
         "total_power_W": float(power.sum()),
         "total_mass_kg": float(mass.sum()),
+        "grid_bbox_min": bbox_min,
+        "grid_bbox_max": bbox_max,
+        "grid_bbox_units": "mm",
+        "grid_bbox_source": "outer_shell.outer_bbox+geom.components.bbox",
+        "grid_component_bbox_count": component_bbox_count,
     }
 
 
@@ -404,6 +407,26 @@ def _component_bbox(component: dict[str, Any]) -> dict[str, list[float]]:
     position = _vector3(component.get("position"), "component.position")
     dims = _vector3(component.get("dims"), "component.dims")
     return {"min": position, "max": [position[index] + dims[index] for index in range(3)]}
+
+
+def _sampling_bbox(geom: dict[str, Any]) -> tuple[list[float], list[float], int]:
+    outer_bbox = geom.get("outer_shell", {}).get("outer_bbox")
+    if not isinstance(outer_bbox, dict):
+        raise ValueError("geom.outer_shell.outer_bbox must be a JSON object.")
+    bbox_min = _vector3(outer_bbox.get("min"), "outer_shell.outer_bbox.min")
+    bbox_max = _vector3(outer_bbox.get("max"), "outer_shell.outer_bbox.max")
+
+    component_bbox_count = 0
+    for component in (geom.get("components") or {}).values():
+        if not isinstance(component, dict):
+            continue
+        component_bbox = _component_bbox(component)
+        component_bbox_count += 1
+        for axis in range(3):
+            bbox_min[axis] = min(bbox_min[axis], component_bbox["min"][axis])
+            bbox_max[axis] = max(bbox_max[axis], component_bbox["max"][axis])
+
+    return bbox_min, bbox_max, component_bbox_count
 
 
 def _mount_face_by_id(bom_item: dict[str, Any], component_mount_face_id: Any) -> dict[str, Any]:
