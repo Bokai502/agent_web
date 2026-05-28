@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { joinApiPath } from "../app/apiBase"
 import { APP_NAVIGATION_EVENT } from "../app/sessionUtils"
 import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
@@ -26,6 +27,7 @@ import "./workspace/WorkspaceSessionPage.css"
 
 const WORKSPACE_HOME_PATH = "/workspace"
 const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "02_geometry_edit/geometry_after.glb"
+const NOVNC_URL_PARAMS = "vnc.html?autoconnect=true&resize=scale&path=websockify"
 
 type ViewerComponentMessage = {
   componentId?: unknown
@@ -91,6 +93,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   const [deletePending, setDeletePending] = useState(false)
 
   const activeSession = sortedSessions.find(session => session.id === activeSessionId)
+  const remoteToolHost = typeof window !== "undefined" ? window.location.hostname : "localhost"
   const sessionWorkspaceSignature = useMemo(
     () => sortedSessions.map(session => [
       session.id,
@@ -198,9 +201,9 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, externalModelViewerUrl, workspaceRefreshNonce])
-  const cadHref = "http://10.110.10.11:7080/vnc.html?autoconnect=true&resize=scale&path=websockify"
-  const paraviewHref = "http://10.110.10.11:6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
-  const comsolHref = "http://10.110.10.11:6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
+  const cadHref = `http://${remoteToolHost}:6080/${NOVNC_URL_PARAMS}`
+  const paraviewHref = `http://${remoteToolHost}:6081/${NOVNC_URL_PARAMS}`
+  const comsolHref = `http://${remoteToolHost}:6082/${NOVNC_URL_PARAMS}`
   const activeTool = activePanel === "cad"
     ? { label: "CAD", subtitle: t("workspace.tools.cadSubtitle"), title: t("workspace.tools.cadTitle"), url: cadHref }
     : activePanel === "paraview"
@@ -384,6 +387,20 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   useEffect(() => {
     if (!showTools && (activePanel === "cad" || activePanel === "paraview" || activePanel === "comsol" || activePanel === "gnc-config")) setActivePanel("log")
   }, [activePanel, showTools])
+
+  useEffect(() => {
+    if (!showTools) return
+
+    fetch(joinApiPath(apiBase, "/remote-tools/ensure-desktops"), { method: "POST" })
+      .then(response => {
+        if (!response.ok) {
+          console.warn("Failed to ensure remote desktop mappings", response.status)
+        }
+      })
+      .catch(error => {
+        console.warn("Failed to ensure remote desktop mappings", error)
+      })
+  }, [apiBase, showTools])
 
   const stageTitle = activePanel === "model"
     ? t("workspace.stage.modelTitle")

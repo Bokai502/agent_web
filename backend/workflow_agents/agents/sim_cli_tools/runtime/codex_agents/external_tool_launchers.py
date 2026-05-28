@@ -10,6 +10,7 @@ from typing import Any
 DEFAULT_COMSOL_LAUNCHER = Path("/usr/local/bin/start-comsol-remote")
 DEFAULT_PARAVIEW_LAUNCHER = Path("/usr/local/bin/start-paraview-remote")
 PARAVIEW_DISPLAY = ":2"
+COMSOL_REMOTE_DISPLAY = ":32"
 
 
 def load_simulation_outputs_in_remote_tools(
@@ -36,6 +37,7 @@ def load_simulation_outputs_in_remote_tools(
             [str(comsol_launcher), "-open", str(work_mph)],
             launcher=comsol_launcher,
             data_file=work_mph,
+            before_launch=_stop_existing_comsol_gui,
         ),
         "paraview": _launch_if_ready(
             [
@@ -58,6 +60,7 @@ def _launch_if_ready(
     launcher: Path,
     data_file: Path,
     existing_process_policy: Any | None = None,
+    before_launch: Any | None = None,
 ) -> dict[str, Any]:
     if not data_file.exists():
         return {
@@ -84,6 +87,9 @@ def _launch_if_ready(
             "data_file": str(data_file),
             "command": command,
         }
+    prelaunch_result = None
+    if before_launch is not None:
+        prelaunch_result = before_launch()
     try:
         process = subprocess.Popen(
             command,
@@ -106,7 +112,69 @@ def _launch_if_ready(
         "launcher": str(launcher),
         "data_file": str(data_file),
         "command": command,
+        **({"prelaunch": prelaunch_result} if prelaunch_result is not None else {}),
     }
+
+
+def _stop_existing_comsol_gui() -> dict[str, Any]:
+    """Stop only the remote COMSOL GUI client before opening the latest MPH file.
+
+    This deliberately avoids broad `pkill comsol` behavior so private mphserver
+    processes and active simulation workers are left alone.
+    """
+    killed: list[int] = []
+    errors: list[str] = []
+
+    try:
+        completed = subprocess.run(
+            ["pgrep", "-f", r"(^|/)(comsol|comsollauncher)( |$)"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        return {"status": "prelaunch_check_failed", "pids": killed, "errors": [f"pgrep: {exc}"]}
+
+    for line in completed.stdout.splitlines():
+        try:
+            pid = int(line.strip())
+        except ValueError:
+            continue
+        if pid == os.getpid() or pid in killed:
+            continue
+        display = _read_process_display(pid)
+        if display != COMSOL_REMOTE_DISPLAY:
+            continue
+        try:
+            os.kill(pid, 15)
+            killed.append(pid)
+        except ProcessLookupError:
+            continue
+        except OSError as exc:
+            errors.append(f"kill {pid}: {exc}")
+
+    if killed:
+        try:
+            subprocess.run(["sleep", "2"], check=False)
+        except OSError:
+            pass
+
+    return {
+        "status": "stopped_existing_gui" if killed else "no_existing_gui",
+        "pids": killed,
+        **({"errors": errors} if errors else {}),
+    }
+
+
+def _read_process_display(pid: int) -> str | None:
+    try:
+        raw = Path(f"/proc/{pid}/environ").read_bytes()
+    except OSError:
+        return None
+    for item in raw.split(b"\0"):
+        if item.startswith(b"DISPLAY="):
+            return item.split(b"=", 1)[1].decode("utf-8", errors="replace")
+    return None
 
 
 def _existing_paraview_policy() -> dict[str, Any] | None:
