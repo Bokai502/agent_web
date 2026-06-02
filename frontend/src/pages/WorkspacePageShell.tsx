@@ -8,6 +8,7 @@ import type { CodexInputItem } from "../types"
 import { BomInspectorCard } from "./workspace/BomInspectorCard"
 import { CurrentWorkspaceCard } from "./workspace/CurrentWorkspaceCard"
 import { DeleteSessionDialog } from "./workspace/DeleteSessionDialog"
+import { GeneratedFilesTreeCard } from "./workspace/GeneratedFilesTreeCard"
 import { ProgressCard } from "./workspace/ProgressCard"
 import { RunLogPanel } from "./workspace/RunLogPanel"
 import { WorkspaceLeftPanel } from "./workspace/WorkspaceLeftPanel"
@@ -530,6 +531,12 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
                 t={t}
               />
             )}
+            {enableGncConfig && (
+              <GeneratedFilesTreeCard
+                activeContext={activeContext}
+                apiBase={apiBase}
+              />
+            )}
             {inspectorExtra}
 
           </div>
@@ -543,6 +550,7 @@ export default function WorkspacePageShell({ apiBase, enableGncConfig = false, h
   const state = useWorkspaceAppState({ apiBase, homePath })
   return (
     <WorkspaceAppleContent
+      key={`${apiBase ?? ""}:${homePath}`}
       apiBase={apiBase}
       enableGncConfig={enableGncConfig}
       inspectorExtra={inspectorExtra}

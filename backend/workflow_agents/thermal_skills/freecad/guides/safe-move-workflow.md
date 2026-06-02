@@ -14,7 +14,7 @@ optionally syncs/export CAD artifacts.
 
 - Prefer the layout-dataset branch. Use `python -m freecad_cli_tools.cli.main layout safe-move`;
   by default it reads `./00_inputs/layout_topology.json` and `./00_inputs/geom.json`
-  from the configured workspace. Pass `--layout-topology` and `--geom` only
+  from the execution-context workspace. Pass `--layout-topology` and `--geom` only
   when intentionally overriding those input files.
 - A move is always constrained to the current installation surface. Only the four
   in-plane directions of that surface are valid movement directions.
@@ -101,13 +101,19 @@ Collect these before running a move:
 
 ## Command Patterns
 
-Read resolved defaults first. The workspace source of truth is
-`/data/lbk/codex_web/config.json` field `freecad.workspaceDir`; deprecated
-`--workspace`, `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` values must not be
-used to switch datasets.
+Resolve the workspace from the Open Codex Web execution context `workspace_dir`.
+Workspace/version selection is request-scoped; `/api/run`, checkout, and branch
+do not update `/data/lbk/codex_web/config.json`. Always pass the execution
+context workspace explicitly with `--workspace-dir <workspace_dir>` for
+`config show`, `layout safe-move`, progress updates, and follow-up validation.
+Do not rely on `config.json`, process `cwd`, or CLI defaults during Open Codex
+Web runs. `/data/lbk/codex_web/config.json` field `freecad.workspaceDir`,
+`FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
+non-Web/manual CLI use.
 
 ```bash
-python -m freecad_cli_tools.cli.main config show
+python -m freecad_cli_tools.cli.main config show \
+  --workspace-dir <workspace_dir>
 ```
 
 ### Move On Current Face
@@ -117,6 +123,7 @@ surface.
 
 ```bash
 python -m freecad_cli_tools.cli.main layout safe-move \
+  --workspace-dir <workspace_dir> \
   --component P022 \
   --move 20 0 0
 ```
@@ -132,6 +139,7 @@ component to another box/envelope surface.
 
 ```bash
 python -m freecad_cli_tools.cli.main layout safe-move \
+  --workspace-dir <workspace_dir> \
   --component P022 \
   --install-face 10 \
   --move 20 0 0
@@ -147,6 +155,7 @@ Use this when FreeCAD is not running or the user only wants an updated dataset.
 
 ```bash
 python -m freecad_cli_tools.cli.main layout safe-move \
+  --workspace-dir <workspace_dir> \
   --component P022 \
   --move 20 0 0 \
   --no-sync-cad
@@ -168,7 +177,7 @@ FreeCAD document, STEP, or GLB.
    rotate the component so the original component contact face is used on the
    new target face.
 8. Check whether the requested vector lies in the target face plane.
-9. Run `python -m freecad_cli_tools.cli.main layout safe-move` with the dataset paths.
+9. Run `python -m freecad_cli_tools.cli.main layout safe-move --workspace-dir <workspace_dir>` with the dataset paths.
 10. Write the updated normalized result into the non-destructive output dataset files.
 11. CAD artifacts are updated by default. Include `--doc-name` only when the
    active FreeCAD document is not `LayoutAssembly`, and optionally include
@@ -199,8 +208,9 @@ FreeCAD document, STEP, or GLB.
 - `glb_path`: updated GLB path unless `--no-sync-cad` is used
 - `progress_percentages`: grouped progress percentages
 - `progress_json_path`: JSON log path under
-  `<configured workspace>/logs/progress_percentages.json`; use
-  `python -m freecad_cli_tools.cli.main config show` to read the configured workspace root before running
+  `<workspace>/logs/progress_percentages.json`; use
+  `python -m freecad_cli_tools.cli.main config show --workspace-dir <workspace_dir>`
+  to inspect the resolved workspace root before running
   the move command
 - progress log `output_files`: produced `layout_topology`, `geom`, `step`, and
   `glb` paths with existence checks

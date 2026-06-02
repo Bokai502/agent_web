@@ -5,11 +5,10 @@ export function sessionMatchesWorkspace(session: Session | null | undefined, act
   if (!session) return false
   const currentWorkspaceDir = activeContext.versionDir?.trim().replace(/[\\/]+$/u, "") ?? null
   const sessionWorkspaceDir = session.workspaceDir?.trim().replace(/[\\/]+$/u, "") ?? null
-  return currentWorkspaceDir
-    ? sessionWorkspaceDir === currentWorkspaceDir
-    : !!activeContext.workspaceId && !!activeContext.versionId &&
-      session.workspaceId === activeContext.workspaceId &&
-      session.versionId === activeContext.versionId
+  if (currentWorkspaceDir && sessionWorkspaceDir === currentWorkspaceDir) return true
+  return !!activeContext.workspaceId && !!activeContext.versionId &&
+    session.workspaceId === activeContext.workspaceId &&
+    session.versionId === activeContext.versionId
 }
 
 export function getVisibleWorkspaceSessionState({

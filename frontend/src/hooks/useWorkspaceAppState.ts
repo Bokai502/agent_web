@@ -177,6 +177,18 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
   }, [])
 
   useEffect(() => {
+    if (runningSessionIdRef.current) return
+    const nextSessionId = getSessionIdFromPath(window.location.pathname, homePath)
+    setActiveSessionId(nextSessionId)
+    activeSessionIdRef.current = nextSessionId
+    setCurrentPrompt("")
+    setCurrentEvents([])
+    currentEventsRef.current = []
+    currentPromptRef.current = ""
+    currentTurnIdRef.current = null
+  }, [apiBase, homePath])
+
+  useEffect(() => {
     reloadSessions().catch(() => {
       hasLoadedSessionsRef.current = true
       setSessionsLoaded(true)
@@ -289,15 +301,16 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     const versionId = normalizeId(workspace.versionId)
     if (!workspaceDir && (!workspaceId || !versionId)) return
 
-    const activeSession = sessionsRef.current.find(session => session.id === activeSessionIdRef.current) ?? null
+    const activeSession = sessions.find(session => session.id === activeSessionId) ?? null
     if (isSameWorkspaceContext(activeSession, workspace)) return
 
-    const matchingSession = [...sessionsRef.current]
+    const matchingSession = [...sessions]
       .filter(session => {
+        if (workspaceDir && normalizeWorkspaceDir(session.workspaceDir) === workspaceDir) return true
         if (workspaceId && versionId) {
           return normalizeId(session.workspaceId) === workspaceId && normalizeId(session.versionId) === versionId
         }
-        return normalizeWorkspaceDir(session.workspaceDir) === workspaceDir
+        return false
       })
       .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null
 
@@ -311,7 +324,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     activeSessionIdRef.current = nextSessionId
     updateBrowserPath(nextSessionId, false, homePath)
     if (!runningSessionIdRef.current) resetLiveTurn()
-  }, [homePath, resetLiveTurn])
+  }, [activeSessionId, homePath, resetLiveTurn, sessions])
 
   const handleAssignSessionWorkspace = useCallback((id: string, workspace: SessionWorkspace) => {
     setSessions(prev => prev.map(session => {

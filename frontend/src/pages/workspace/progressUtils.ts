@@ -26,11 +26,13 @@ const THERMAL_WORKFLOW_PROGRESS_STAGES = [
 ]
 
 const GNC_WORKFLOW_PROGRESS_STAGES = [
-  { key: "generate_config", labelKey: "workspace.progress.gncGenerateConfig" },
-  { key: "generate_gnc_code", labelKey: "workspace.progress.gncGenerateCode" },
-  { key: "simulation_validation", labelKey: "workspace.progress.gncSimulationValidation" },
-  { key: "tuning_optimization", labelKey: "workspace.progress.gncTuningOptimization" },
-  { key: "summary_report", labelKey: "workspace.progress.gncSummaryReport" },
+  { key: "requirement_analysis", labelKey: "workspace.progress.gncRequirementAnalysis" },
+  { key: "architecture_generation", labelKey: "workspace.progress.gncArchitectureGeneration" },
+  { key: "parameter_configuration", labelKey: "workspace.progress.gncParameterConfiguration" },
+  { key: "control_law_design", labelKey: "workspace.progress.gncControlLawDesign" },
+  { key: "simulation_plan", labelKey: "workspace.progress.gncSimulationPlan" },
+  { key: "verification_plan", labelKey: "workspace.progress.gncVerificationPlan" },
+  { key: "document_generation", labelKey: "workspace.progress.gncDocumentGeneration" },
 ]
 
 function getWorkflowProgressStages(variant: WorkflowProgressVariant) {

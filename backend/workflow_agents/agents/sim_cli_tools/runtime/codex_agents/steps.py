@@ -29,7 +29,10 @@ class SimulationStep:
                 self.simulation_config(ctx.config, ctx.paths, geometry_step_path),
             )
         if result.status == "completed" and ctx.config.open_external_tools:
-            loader_result = load_simulation_outputs_in_remote_tools(ctx.paths["simulation"])
+            loader_result = load_simulation_outputs_in_remote_tools(
+                ctx.paths["simulation"],
+                async_launch=ctx.config.open_external_tools_async,
+            )
             if not hasattr(result, "checks"):
                 result.checks = {}
             if not hasattr(result, "warnings"):

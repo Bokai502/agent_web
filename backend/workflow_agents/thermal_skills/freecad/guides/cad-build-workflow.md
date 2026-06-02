@@ -1,6 +1,6 @@
 # FreeCAD: CAD Build Workflow
 
-Build the CAD-stage bundle from the configured workspace:
+Build the CAD-stage bundle from the Open Codex Web execution-context workspace:
 
 - `00_inputs/real_bom.json`
 - `00_inputs/layout_topology.json`
@@ -12,13 +12,18 @@ STEP/GLB, and updates progress.
 
 ## Core Rules
 
-- Use `python -m freecad_cli_tools.cli.main config show` first to inspect the configured workspace,
-  default inputs, RPC host/port, output directory, and progress paths.
-- The workspace source of truth is `/data/lbk/codex_web/config.json` field
-  `freecad.workspaceDir`. Deprecated `--workspace`, `FREECAD_WORKSPACE_DIR`,
-  and `WORKSPACE_DIR` values must not be used to switch datasets.
-- Default inputs are under `./00_inputs` in the configured workspace.
-- Default outputs are under `./01_cad` in the configured workspace.
+- Resolve the workspace from the Open Codex Web execution context
+  `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`,
+  checkout, and branch do not update `/data/lbk/codex_web/config.json`.
+- Always pass the execution context workspace explicitly with
+  `--workspace-dir <workspace_dir>` for `config show`, `cad build`, progress
+  updates, and follow-up validation. Do not rely on `config.json`, process
+  `cwd`, or CLI defaults during Open Codex Web runs.
+- `/data/lbk/codex_web/config.json` field `freecad.workspaceDir`,
+  `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
+  non-Web/manual CLI use.
+- Default inputs are under `<workspace>/00_inputs`.
+- Default outputs are under `<workspace>/01_cad`.
 - The command must not write root-level `01_cad/coord.txt` or
   `01_cad/channels_input.npz`; COMSOL input files belong under
   `01_cad/comsol_inputs`.
@@ -26,11 +31,13 @@ STEP/GLB, and updates progress.
 ## Command Pattern
 
 ```bash
-python -m freecad_cli_tools.cli.main config show
+python -m freecad_cli_tools.cli.main config show \
+  --workspace-dir <workspace_dir>
 ```
 
 ```bash
-python -m freecad_cli_tools.cli.main cad build
+python -m freecad_cli_tools.cli.main cad build \
+  --workspace-dir <workspace_dir>
 ```
 
 Use explicit `--real-bom`, `--layout-topology`, `--geom`, `--input-dir`, or
@@ -39,7 +46,7 @@ directories.
 
 ## Output Files
 
-Check these outputs under `<configured workspace>/01_cad`:
+Check these outputs under `<workspace>/01_cad`:
 
 - `geometry_after.step`
 - `geometry_after.glb`
@@ -54,7 +61,7 @@ Check these outputs under `<configured workspace>/01_cad`:
 
 The command also updates:
 
-- `<configured workspace>/logs/progress_percentages.json`
+- `<workspace>/logs/progress_percentages.json`
 - artifact registry records when registry IDs are supplied
 
 ## Output Fields To Check

@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify"
 import fs from "fs/promises"
 import path from "path"
+import { isPathInside } from "../shared/index.js"
 import { resolveProgressFromLatestSessionRun } from "./workspaceRegistry.js"
 import { resolveScopedWorkspaceFilePath } from "./workspaceFiles.js"
 import {
@@ -21,6 +22,10 @@ type WorkspaceProgressQuery = WorkspaceQuery & {
   sessionId?: string
 }
 
+type WorkspaceFilesQuery = WorkspaceQuery & {
+  relativePath?: string
+}
+
 type WorkspaceProgressData = {
   data: unknown
   sourcePath: string
@@ -33,6 +38,7 @@ const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_inf
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
 const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation", "data1.txt")
+const MAX_FILE_TREE_ENTRIES = 500
 
 type TemperaturePoint = {
   temperature: number
@@ -51,6 +57,59 @@ async function readWorkspaceProgress(progressPath: string): Promise<WorkspacePro
     sourcePath: progressPath,
     sourceVersion: [progressPath, stat.mtimeMs, stat.size].join(":"),
     updatedAt: stat.mtime.toISOString(),
+  }
+}
+
+function normalizeRelativeDirectory(value: unknown) {
+  if (typeof value !== "string") return ""
+  const trimmed = value.trim()
+  if (!trimmed || trimmed === "." || trimmed === "/") return ""
+  return trimmed.replace(/\\/gu, "/").replace(/^\/+/u, "").replace(/\/+$/u, "")
+}
+
+function formatRelativePath(workspaceDir: string, fullPath: string) {
+  return path.relative(workspaceDir, fullPath).split(path.sep).join("/")
+}
+
+async function readWorkspaceDirectoryEntries(workspaceDir: string, relativePath: unknown) {
+  const normalizedRelativePath = normalizeRelativeDirectory(relativePath)
+  const targetDir = path.resolve(workspaceDir, normalizedRelativePath)
+  if (!isPathInside(path.resolve(workspaceDir), targetDir)) {
+    throw new WorkspaceQueryError("relativePath must stay inside workspaceDir", 400)
+  }
+
+  const stat = await fs.stat(targetDir).catch(() => null)
+  if (!stat?.isDirectory()) {
+    throw new WorkspaceQueryError("directory not found", 404)
+  }
+
+  const dirents = await fs.readdir(targetDir, { withFileTypes: true })
+  const entries = await Promise.all(dirents
+    .filter(dirent => !dirent.name.startsWith("."))
+    .slice(0, MAX_FILE_TREE_ENTRIES)
+    .map(async dirent => {
+      const fullPath = path.join(targetDir, dirent.name)
+      const entryStat = await fs.stat(fullPath).catch(() => null)
+      const type = dirent.isDirectory() ? "directory" : "file"
+      return {
+        name: dirent.name,
+        relativePath: formatRelativePath(workspaceDir, fullPath),
+        type,
+        ...(type === "file" ? { size: entryStat?.size ?? 0 } : {}),
+        mtimeMs: entryStat?.mtimeMs ?? 0,
+      }
+    }))
+
+  entries.sort((left, right) => {
+    if (left.type !== right.type) return left.type === "directory" ? -1 : 1
+    return left.name.localeCompare(right.name, "zh-CN", { numeric: true })
+  })
+
+  return {
+    entries,
+    relativePath: normalizedRelativePath,
+    truncated: dirents.length > MAX_FILE_TREE_ENTRIES,
+    workspaceDir,
   }
 }
 
@@ -137,6 +196,16 @@ function temperatureColor(temperature: number, tempMin: number, tempMax: number)
 }
 
 export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
+  fastify.get<{ Querystring: WorkspaceFilesQuery }>("/api/workspace/files/tree", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await readWorkspaceDirectoryEntries(workspaceDir, req.query.relativePath))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve workspace files")
+    }
+  })
+
   fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/component-info", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)

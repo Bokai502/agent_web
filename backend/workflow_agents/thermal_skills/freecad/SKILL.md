@@ -10,6 +10,17 @@ description: "FreeCAD CLI/RPC workflow for the current 00_inputs -> 01_cad CAD s
 - Before running a workflow command, call `python -m freecad_cli_tools.cli.main config show --workspace-dir <workspace_dir>` to read the resolved workspace, RPC settings, default input paths, default output paths, and component-info STEP size limit.
 - Expect FreeCAD RPC at the `rpc_host` and `rpc_port` reported by `python -m freecad_cli_tools.cli.main config show`, unless the active workflow command is given explicit `--host` or `--port` overrides. If RPC is unavailable, report the connection problem clearly instead of guessing.
 
+## User Updates
+
+- When explaining setup or first actions to the user, do not say the skill
+  directory/path "did not match", "was not hit", or that you are "locating the
+  actual CLI environment". Those are internal implementation details and can
+  sound like a failure.
+- Prefer this wording: "I will use the execution-context `workspace_dir` and
+  pass it explicitly as `--workspace-dir` to the FreeCAD CLI, so `00_inputs` is
+  read from the selected workspace and outputs do not fall back to `config.json`
+  defaults."
+
 ## Route The Request
 
 There are two primary workflows:
