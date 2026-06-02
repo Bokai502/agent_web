@@ -5,7 +5,8 @@ import { spawn } from "node:child_process"
 import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
-import { runVoiceTextWithCodex } from "./task.js"
+import { runAgentTurn } from "../codex-run/agentOrchestrator.js"
+import { RunRequestError } from "../codex-run/codexTurn.js"
 
 type CommandResult = {
   stdout: string
@@ -33,7 +34,15 @@ type WhisperStage = {
 }
 
 type CodexTextBody = {
+  enabledSkills?: unknown
+  sessionId?: unknown
   text?: unknown
+  threadId?: unknown
+  turnId?: unknown
+  versionId?: unknown
+  workspaceDir?: unknown
+  workspaceId?: unknown
+  workspaceName?: unknown
 }
 
 function commandExists(command: string) {
@@ -137,6 +146,15 @@ async function resolveWhisperBin() {
 
 function elapsedMs(startedAt: bigint) {
   return Number(process.hrtime.bigint() - startedAt) / 1_000_000
+}
+
+function getOptionalString(value: unknown) {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null
+}
+
+function getEnabledSkills(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === "string" && item.trim() !== "").map(item => item.trim())
 }
 
 export async function whisperRoutes(fastify: FastifyInstance, { config, logger }: { config: AppConfig; logger: Logger }) {
@@ -329,12 +347,36 @@ export async function whisperRoutes(fastify: FastifyInstance, { config, logger }
     }
 
     try {
-      const codexTask = await runVoiceTextWithCodex(text, { config, logger, requestId })
+      const managed = await runAgentTurn({
+        body: {
+          enabledSkills: getEnabledSkills(req.body?.enabledSkills),
+          prompt: text,
+          sessionId: getOptionalString(req.body?.sessionId),
+          threadId: getOptionalString(req.body?.threadId),
+          turnId: getOptionalString(req.body?.turnId),
+          versionId: getOptionalString(req.body?.versionId),
+          workspaceDir: getOptionalString(req.body?.workspaceDir),
+          workspaceId: getOptionalString(req.body?.workspaceId),
+          workspaceName: getOptionalString(req.body?.workspaceName),
+        },
+        inputType: "voice",
+      }, { config, logger, requestId })
       return reply.send({
-        codexResponse: codexTask.responseText,
-        elapsedMs: Number(codexTask.elapsedMs.toFixed(2)),
+        codexResponse: managed.spokenSummary || managed.summary,
+        elapsedMs: Number(elapsedMs(requestStartedAt).toFixed(2)),
+        managedRunId: managed.managedRunId,
+        routing: managed.routing,
+        sessionId: managed.sessionId,
+        spokenSummary: managed.spokenSummary,
+        status: managed.status,
+        summary: managed.summary,
+        threadId: managed.threadId,
+        turnId: managed.turnId,
+        workspaceDir: managed.workspaceDir,
+        workspaceId: managed.workspaceId,
       })
     } catch (err) {
+      if (err instanceof RunRequestError) return reply.status(err.statusCode).send({ error: err.message })
       logger.error("whisper codex request failed", {
         requestId,
         err,

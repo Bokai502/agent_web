@@ -33,6 +33,9 @@ type LatestConversationText = {
 
 const MAX_FILES = 100
 const MAX_ENTRIES = 300
+const DEFAULT_CONVERSATION_SESSION_LIMIT = 4
+const DEFAULT_CONVERSATION_TURN_LIMIT = 40
+const DEFAULT_CONVERSATION_EVENT_LIMIT = 120
 const MARKDOWN_REPORTS = [
   {
     detail: "reports/report.md",
@@ -67,6 +70,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+function parsePositiveInt(value: unknown, fallback: number, max: number) {
+  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : NaN
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return Math.min(parsed, max)
 }
 
 function getTime(value: Record<string, unknown>, fallbackTime: string) {
@@ -221,6 +230,45 @@ function sortEntries(entries: StageLogEntry[]) {
   })
 }
 
+function countConversationTurns(sessions: unknown[]) {
+  return sessions.reduce<number>((count, session) => {
+    const value = isRecord(session) ? session : {}
+    return count + (Array.isArray(value.turns) ? value.turns.length : 0)
+  }, 0)
+}
+
+function trimConversationSessions(
+  sessions: unknown[],
+  {
+    eventLimit,
+    sessionLimit,
+    turnLimit,
+  }: {
+    eventLimit: number
+    sessionLimit: number
+    turnLimit: number
+  },
+) {
+  return sessions
+    .filter(isRecord)
+    .slice(-sessionLimit)
+    .map(session => {
+      const turns = Array.isArray(session.turns)
+        ? session.turns
+            .filter(isRecord)
+            .slice(-turnLimit)
+            .map(turn => ({
+              ...turn,
+              events: Array.isArray(turn.events) ? turn.events.slice(-eventLimit) : [],
+            }))
+        : []
+      return {
+        ...session,
+        turns,
+      }
+    })
+}
+
 function rewriteReportMarkdownLinks(markdown: string, reportPath: string) {
   const reportDir = path.dirname(reportPath)
   return markdown.replace(MARKDOWN_LINK_OR_IMAGE_RE, (_match, prefix: string, link: string, suffix: string) => {
@@ -267,7 +315,7 @@ async function addMarkdownReportEntries(workspaceDir: string, entries: StageLogE
 }
 
 export async function stageLogsRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/stages", async (req, reply) => {
+  fastify.get<{ Querystring: { limit?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/stages", async (req, reply) => {
     let configuredWorkspaceDir: string
     try {
       configuredWorkspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
@@ -291,10 +339,20 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
     }
     await addMarkdownReportEntries(configuredWorkspaceDir, entries)
 
-    return reply.send(sortEntries(entries).slice(0, MAX_ENTRIES))
+    const limit = parsePositiveInt(req.query.limit, MAX_ENTRIES, MAX_ENTRIES)
+    return reply.send(sortEntries(entries).slice(0, limit))
   })
 
-  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/conversation", async (req, reply) => {
+  fastify.get<{
+    Querystring: {
+      eventLimit?: string
+      sessionLimit?: string
+      turnLimit?: string
+      versionId?: string
+      workspaceDir?: string
+      workspaceId?: string
+    }
+  }>("/api/logs/conversation", async (req, reply) => {
     let configuredWorkspaceDir: string
     try {
       configuredWorkspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
@@ -310,15 +368,17 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
       const parsed = JSON.parse(raw)
       const sessions = Array.isArray(parsed) ? parsed : []
       const stat = await fs.stat(historyPath)
-      const turnCount = sessions.reduce((count, session) => {
-        const value = isRecord(session) ? session : {}
-        return count + (Array.isArray(value.turns) ? value.turns.length : 0)
-      }, 0)
+      const turnCount = countConversationTurns(sessions)
+      const trimmedSessions = trimConversationSessions(sessions, {
+        eventLimit: parsePositiveInt(req.query.eventLimit, DEFAULT_CONVERSATION_EVENT_LIMIT, 500),
+        sessionLimit: parsePositiveInt(req.query.sessionLimit, DEFAULT_CONVERSATION_SESSION_LIMIT, 25),
+        turnLimit: parsePositiveInt(req.query.turnLimit, DEFAULT_CONVERSATION_TURN_LIMIT, 200),
+      })
       const entries: ConversationLogEntry[] = [{
         detail: `${sessions.length} session${sessions.length === 1 ? "" : "s"} · ${turnCount} turn${turnCount === 1 ? "" : "s"}`,
         id: "conversation:history",
         raw: {
-          sessions,
+          sessions: trimmedSessions,
         },
         source: path.relative(process.cwd(), historyPath),
         status: "completed",

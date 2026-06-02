@@ -167,11 +167,8 @@ from observed data and name relevant files/components when possible.
 
 After running the CLI, report back in this order:
 
-1. Output paths for `report.md`, `modifications.md`, and `summary.json`.
-2. Progress path `<workspace>/logs/progress.json` and final `cad_sim_report`
-   status.
-3. Pipeline/simulation status from `summary.status`.
-4. CAD component and validation counts from `summary.cad`.
-5. Thermal image/temperature coverage from `summary.thermal`.
-6. Important limitations, especially missing artifacts or narrow sample
+1. Pipeline/simulation status from `summary.status`.
+2. CAD component and validation counts from `summary.cad`.
+3. Thermal image/temperature coverage from `summary.thermal`.
+4. Important limitations, especially missing artifacts or narrow sample
    coverage.

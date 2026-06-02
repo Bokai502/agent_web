@@ -10,6 +10,8 @@ type FileTreeEntry = {
   type: "directory" | "file"
 }
 
+export type GeneratedFileTreeEntry = FileTreeEntry
+
 type FileTreeResponse = {
   entries?: FileTreeEntry[]
   relativePath?: string
@@ -20,16 +22,11 @@ type FileTreeResponse = {
 type GeneratedFilesTreeCardProps = {
   activeContext: WorkspaceVersionContext
   apiBase?: string
+  onSelectFile?: (entry: GeneratedFileTreeEntry) => void
+  selectedFilePath?: string
 }
 
 const ROOT_PATH = ""
-
-function formatFileSize(value?: number) {
-  if (!value || value < 0) return ""
-  if (value < 1024) return `${value} B`
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`
-}
 
 function formatWorkspacePath(value?: string | null) {
   if (!value) return "等待工作区"
@@ -48,7 +45,7 @@ function buildWorkspaceQuery(context: Pick<WorkspaceVersionContext, "versionDir"
   return `?${params.toString()}`
 }
 
-export function GeneratedFilesTreeCard({ activeContext, apiBase }: GeneratedFilesTreeCardProps) {
+export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, selectedFilePath }: GeneratedFilesTreeCardProps) {
   const versionDir = activeContext.versionDir
   const workspaceId = activeContext.workspaceId
   const versionId = activeContext.versionId
@@ -127,15 +124,21 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase }: GeneratedFile
       <div className="wa-file-tree-node" key={entry.relativePath}>
         <button
           type="button"
-          className={`wa-file-tree-row${isDirectory ? " is-directory" : " is-file"}`}
-          disabled={!isDirectory}
-          onClick={() => isDirectory && toggleDirectory(entry.relativePath)}
+          className={`wa-file-tree-row${isDirectory ? " is-directory" : " is-file"}${selectedFilePath === entry.relativePath ? " selected" : ""}`}
+          disabled={!isDirectory && !onSelectFile}
+          onClick={() => {
+            if (isDirectory) {
+              toggleDirectory(entry.relativePath)
+              return
+            }
+            onSelectFile?.(entry)
+          }}
           style={{ paddingLeft: `${10 + depth * 14}px` }}
           title={entry.relativePath}
         >
           <span className="wa-file-tree-icon">{isDirectory ? (isExpanded ? "▾" : "▸") : "·"}</span>
           <span className="wa-file-tree-name">{entry.name}</span>
-          {isLoading ? <small>刷新中</small> : !isDirectory && <small>{formatFileSize(entry.size)}</small>}
+          {isLoading && <small>刷新中</small>}
         </button>
         {isDirectory && isExpanded && (
           <div className="wa-file-tree-children">

@@ -11,7 +11,7 @@ const WorkspaceSessionPage = lazy(() => import('./pages/WorkspaceSessionPage.tsx
 const GncWorkspacePage = lazy(() => import('./pages/GncWorkspacePage.tsx'))
 const RegionWorkspacePage = lazy(() => import('./pages/RegionWorkspacePage.tsx'))
 const SplineBotPage = lazy(() => import('./pages/SplineBotPage.tsx'))
-const WhisperPage = lazy(() => import('./pages/WhisperPage.tsx'))
+const AgentPage = lazy(() => import('./pages/AgentPage.tsx'))
 const V3Page = lazy(() => import('./pages/V3Page.tsx'))
 
 function Router() {
@@ -34,7 +34,7 @@ function Router() {
   const isGncWorkspace = pathname === '/gnc-workspace' || pathname.startsWith('/gnc-workspace/')
   const isRegionWorkspace = pathname === '/region-workspace' || pathname.startsWith('/region-workspace/')
   const isSplineBot = pathname === '/spline'
-  const isWhisper = pathname === '/whisper'
+  const isAgent = pathname === '/agent'
   const isV3 = pathname === '/v3'
 
   if (isViewer) {
@@ -93,10 +93,10 @@ function Router() {
     )
   }
 
-  if (isWhisper) {
+  if (isAgent) {
     return (
       <Suspense fallback={<div style={{ background: '#f7f8fb', width: '100vw', height: '100vh' }} />}>
-        <WhisperPage />
+        <AgentPage />
       </Suspense>
     )
   }

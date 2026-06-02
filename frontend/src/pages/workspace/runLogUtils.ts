@@ -121,25 +121,6 @@ export function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[], t:
     const done = event.type === "item.completed"
     const item = event.item
     if (item.type === "command_execution") {
-      const command = item.command.split("\n")[0] ?? item.command
-      upsertEntry({
-        detail: done ? `exit ${item.exit_code ?? "-"}` : item.status,
-        fields: {
-          command: item.command,
-          exit_code: item.exit_code == null ? "-" : String(item.exit_code),
-          output_chars: String(item.aggregated_output.length),
-        },
-        id: item.id,
-        raw: {
-          command: item.command,
-          output: item.aggregated_output,
-          status: item.status,
-          exit_code: item.exit_code ?? null,
-        },
-        status: item.status,
-        title: command,
-        type: "shell",
-      })
       return
     }
     if (item.type === "file_change") {

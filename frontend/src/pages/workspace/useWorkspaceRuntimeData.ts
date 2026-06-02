@@ -15,6 +15,12 @@ import {
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 import type { ThreadEvent, Turn } from "../../types"
 
+const MAX_STAGE_LOG_ENTRIES = 120
+const MAX_CONVERSATION_LOG_ENTRIES = 8
+const CONVERSATION_SESSION_LIMIT = 4
+const CONVERSATION_TURN_LIMIT = 40
+const CONVERSATION_EVENT_LIMIT = 120
+
 type RuntimeDataArgs = {
   activeContext: WorkspaceVersionContext
   apiBase?: string
@@ -38,6 +44,15 @@ function buildWorkspaceQuery(activeContext: WorkspaceVersionContext, sessionId?:
   }).toString()}`
 }
 
+function appendQueryParams(query: string, params: Record<string, string | number>) {
+  const searchParams = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query)
+  for (const [key, value] of Object.entries(params)) {
+    searchParams.set(key, String(value))
+  }
+  const value = searchParams.toString()
+  return value ? `?${value}` : ""
+}
+
 export function useWorkspaceRuntimeData({
   activeContext,
   apiBase,
@@ -57,18 +72,25 @@ export function useWorkspaceRuntimeData({
 
   useEffect(() => {
     let cancelled = false
+    let controller: AbortController | null = null
 
     const loadProgress = () => {
       if (!activeContext.versionDir) {
         setProgressData(null)
         return
       }
-      fetch(`${joinApiPath(apiBase, "/workspace/progress")}${buildWorkspaceQuery(activeContext, sessionId)}`, { cache: "no-store" })
+      controller?.abort()
+      controller = new AbortController()
+      fetch(`${joinApiPath(apiBase, "/workspace/progress")}${buildWorkspaceQuery(activeContext, sessionId)}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      })
         .then(response => response.ok ? response.json() as Promise<WorkspaceProgressResponse> : null)
         .then(data => {
           if (!cancelled) setProgressData(data)
         })
-        .catch(() => {
+        .catch(err => {
+          if (err instanceof DOMException && err.name === "AbortError") return
           if (!cancelled) setProgressData(null)
         })
     }
@@ -77,23 +99,32 @@ export function useWorkspaceRuntimeData({
     const intervalId = window.setInterval(loadProgress, running ? 500 : 3000)
     return () => {
       cancelled = true
+      controller?.abort()
       window.clearInterval(intervalId)
     }
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, progressRefreshNonce, running, sessionId, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
+    let controller: AbortController | null = null
     const loadStageLogs = () => {
       if (!activeContext.versionDir) {
         setStageLogs([])
         return
       }
-      fetch(`${joinApiPath(apiBase, "/logs/stages")}${buildWorkspaceQuery(activeContext)}`, { cache: "no-store" })
+      controller?.abort()
+      controller = new AbortController()
+      const query = appendQueryParams(buildWorkspaceQuery(activeContext), { limit: MAX_STAGE_LOG_ENTRIES })
+      fetch(`${joinApiPath(apiBase, "/logs/stages")}${query}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      })
         .then(response => response.ok ? response.json() as Promise<StageLogEntry[]> : [])
         .then(data => {
-          if (!cancelled) setStageLogs(Array.isArray(data) ? data : [])
+          if (!cancelled) setStageLogs(Array.isArray(data) ? data.slice(-MAX_STAGE_LOG_ENTRIES) : [])
         })
-        .catch(() => {
+        .catch(err => {
+          if (err instanceof DOMException && err.name === "AbortError") return
           if (!cancelled) setStageLogs([])
         })
     }
@@ -102,23 +133,36 @@ export function useWorkspaceRuntimeData({
     const intervalId = window.setInterval(loadStageLogs, 3000)
     return () => {
       cancelled = true
+      controller?.abort()
       window.clearInterval(intervalId)
     }
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
+    let controller: AbortController | null = null
     const loadConversationLogs = () => {
       if (!activeContext.versionDir) {
         setConversationLogs([])
         return
       }
-      fetch(`${joinApiPath(apiBase, "/logs/conversation")}${buildWorkspaceQuery(activeContext)}`, { cache: "no-store" })
+      controller?.abort()
+      controller = new AbortController()
+      const query = appendQueryParams(buildWorkspaceQuery(activeContext), {
+        eventLimit: CONVERSATION_EVENT_LIMIT,
+        sessionLimit: CONVERSATION_SESSION_LIMIT,
+        turnLimit: CONVERSATION_TURN_LIMIT,
+      })
+      fetch(`${joinApiPath(apiBase, "/logs/conversation")}${query}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      })
         .then(response => response.ok ? response.json() as Promise<ConversationLogEntry[]> : [])
         .then(data => {
-          if (!cancelled) setConversationLogs(Array.isArray(data) ? data : [])
+          if (!cancelled) setConversationLogs(Array.isArray(data) ? data.slice(-MAX_CONVERSATION_LOG_ENTRIES) : [])
         })
-        .catch(() => {
+        .catch(err => {
+          if (err instanceof DOMException && err.name === "AbortError") return
           if (!cancelled) setConversationLogs([])
         })
     }
@@ -127,6 +171,7 @@ export function useWorkspaceRuntimeData({
     const intervalId = window.setInterval(loadConversationLogs, 3000)
     return () => {
       cancelled = true
+      controller?.abort()
       window.clearInterval(intervalId)
     }
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, workspaceRefreshNonce])
@@ -139,6 +184,7 @@ export function useWorkspaceRuntimeData({
   )
 
   return {
+    conversationLogs,
     logEntries,
     progressData,
     resetProgressData,

@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify"
 import type { Logger } from "../logger.js"
+import { ASK_USER_TAG_START, extractAskUserPayload } from "../codex-run/askUserProtocol.js"
 import { initializeWorkspaceProgressForSession } from "../workspaces/workspaceProgressInit.js"
 import {
   findWorkspaceSession,
@@ -10,6 +11,7 @@ import {
 } from "./sessionStore.js"
 
 type SessionLike = {
+  createdAt?: unknown
   id?: unknown
   threadId?: unknown
   turns?: unknown
@@ -19,8 +21,24 @@ type SessionLike = {
   workspaceName?: unknown
 }
 
+type AgentMessage = {
+  createdAt: number | null
+  id: string
+  itemId: string
+  role: "assistant"
+  sequence: number
+  sessionId: string
+  status: "final"
+  text: string
+  turnId: string
+}
+
 function getSessionId(value: unknown) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value)
 }
 
 function getTurnId(value: unknown) {
@@ -70,6 +88,44 @@ function mergeTurns(existing: unknown, incoming: unknown) {
   }
 
   return result
+}
+
+function getFinalAgentMessages(session: unknown, sessionId: string, turnId: string): AgentMessage[] {
+  if (!isRecord(session)) return []
+
+  const turns = Array.isArray(session.turns) ? session.turns : []
+  const turn = turns.find(item => getTurnId(item) === turnId)
+  if (!isRecord(turn) || !Array.isArray(turn.events)) return []
+
+  const createdAt = typeof session.createdAt === "number" ? session.createdAt : null
+  const messages: AgentMessage[] = []
+
+  turn.events.forEach((event, eventIndex) => {
+    if (!isRecord(event) || event.type !== "item.completed" || !isRecord(event.item)) return
+    if (event.item.type !== "agent_message") return
+
+    const rawText = typeof event.item.text === "string" ? event.item.text.trim() : ""
+    if (!rawText) return
+    if (extractAskUserPayload(rawText) || ASK_USER_TAG_START.test(rawText)) return
+
+    const itemId = typeof event.item.id === "string" && event.item.id.trim() !== ""
+      ? event.item.id.trim()
+      : `event:${eventIndex}`
+
+    messages.push({
+      createdAt,
+      id: `${sessionId}:${turnId}:${itemId}`,
+      itemId,
+      role: "assistant",
+      sequence: eventIndex,
+      sessionId,
+      status: "final",
+      text: rawText,
+      turnId,
+    })
+  })
+
+  return messages
 }
 
 function mergeSession(existing: unknown, incoming: unknown) {
@@ -131,6 +187,28 @@ export async function sessionRoutes(
   fastify: FastifyInstance,
   { logger }: { logger: Logger }
 ) {
+  // GET /api/agent/messages — 按 session + turn 读取最终 agent 消息，供语音播放使用
+  fastify.get<{ Querystring: { sessionId?: string; turnId?: string } }>(
+    "/api/agent/messages",
+    async (req, reply) => {
+      const sessionId = getSessionId(req.query.sessionId)
+      const turnId = getSessionId(req.query.turnId)
+      if (!sessionId || !turnId) {
+        return reply.status(400).send({ error: "sessionId and turnId are required" })
+      }
+
+      try {
+        const session = await findWorkspaceSession(sessionId)
+        return reply.send({
+          messages: getFinalAgentMessages(session, sessionId, turnId),
+        })
+      } catch (err) {
+        logger.error("agent messages read failed", { err, sessionId, turnId })
+        return reply.status(500).send({ error: "internal error, see backend log" })
+      }
+    }
+  )
+
   // GET /api/sessions — 读取所有 sessions
   fastify.get("/api/sessions", async (_req, reply) => {
     try {

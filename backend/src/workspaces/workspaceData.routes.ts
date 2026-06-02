@@ -26,6 +26,22 @@ type WorkspaceFilesQuery = WorkspaceQuery & {
   relativePath?: string
 }
 
+type WorkspaceFileContentQuery = WorkspaceFilesQuery
+
+const TEXT_FILE_EXTENSIONS = new Set([
+  ".cfg",
+  ".csv",
+  ".ini",
+  ".json",
+  ".log",
+  ".md",
+  ".py",
+  ".txt",
+  ".xml",
+  ".yaml",
+  ".yml",
+])
+
 type WorkspaceProgressData = {
   data: unknown
   sourcePath: string
@@ -46,6 +62,7 @@ const THERMAL_DB_JSON_RELATIVE_PATH = path.join(
   "热仿真数据库.json",
 )
 const MAX_FILE_TREE_ENTRIES = 500
+const MAX_FILE_PREVIEW_BYTES = 1024 * 1024
 
 type TemperaturePoint = {
   temperature: number
@@ -132,6 +149,87 @@ async function readWorkspaceDirectoryEntries(workspaceDir: string, relativePath:
     relativePath: normalizedRelativePath,
     truncated: dirents.length > MAX_FILE_TREE_ENTRIES,
     workspaceDir,
+  }
+}
+
+function normalizeRelativeFile(value: unknown) {
+  if (typeof value !== "string") {
+    throw new WorkspaceQueryError("relativePath is required", 400)
+  }
+  const trimmed = value.trim()
+  if (!trimmed || trimmed === "." || trimmed === "/") {
+    throw new WorkspaceQueryError("relativePath is required", 400)
+  }
+  return trimmed.replace(/\\/gu, "/").replace(/^\/+/u, "").replace(/\/+$/u, "")
+}
+
+async function readWorkspaceFileContent(workspaceDir: string, relativePath: unknown) {
+  const normalizedRelativePath = normalizeRelativeFile(relativePath)
+  const targetPath = path.resolve(workspaceDir, normalizedRelativePath)
+  if (!isPathInside(path.resolve(workspaceDir), targetPath)) {
+    throw new WorkspaceQueryError("relativePath must stay inside workspaceDir", 400)
+  }
+
+  const stat = await fs.stat(targetPath).catch(() => null)
+  if (!stat?.isFile()) {
+    throw new WorkspaceQueryError("file not found", 404)
+  }
+
+  const extension = path.extname(targetPath).toLowerCase()
+  const mimeType = extension === ".md"
+    ? "text/markdown"
+    : extension === ".json"
+      ? "application/json"
+      : extension === ".png"
+        ? "image/png"
+        : extension === ".jpg" || extension === ".jpeg"
+          ? "image/jpeg"
+          : extension === ".webp"
+            ? "image/webp"
+            : extension === ".gif"
+              ? "image/gif"
+              : TEXT_FILE_EXTENSIONS.has(extension)
+                ? "text/plain"
+                : "application/octet-stream"
+  const isImage = mimeType.startsWith("image/")
+  const isText = mimeType.startsWith("text/") || mimeType === "application/json"
+
+  if (isImage) {
+    const data = await fs.readFile(targetPath)
+    return {
+      contentBase64: data.toString("base64"),
+      encoding: "base64",
+      mimeType,
+      mtimeMs: stat.mtimeMs,
+      name: path.basename(targetPath),
+      relativePath: normalizedRelativePath,
+      size: stat.size,
+      type: "image",
+    }
+  }
+
+  if (isText && stat.size <= MAX_FILE_PREVIEW_BYTES) {
+    return {
+      content: await fs.readFile(targetPath, "utf-8"),
+      encoding: "utf-8",
+      mimeType,
+      mtimeMs: stat.mtimeMs,
+      name: path.basename(targetPath),
+      relativePath: normalizedRelativePath,
+      size: stat.size,
+      type: "text",
+    }
+  }
+
+  return {
+    mimeType,
+    mtimeMs: stat.mtimeMs,
+    name: path.basename(targetPath),
+    previewable: false,
+    reason: stat.size > MAX_FILE_PREVIEW_BYTES ? "file too large for preview" : "binary file preview is not supported",
+    relativePath: normalizedRelativePath,
+    size: stat.size,
+    type: "binary",
   }
 }
 
@@ -463,6 +561,16 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
       return reply.send(await readWorkspaceDirectoryEntries(workspaceDir, req.query.relativePath))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to resolve workspace files")
+    }
+  })
+
+  fastify.get<{ Querystring: WorkspaceFileContentQuery }>("/api/workspace/files/content", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await readWorkspaceFileContent(workspaceDir, req.query.relativePath))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve workspace file")
     }
   })
 
