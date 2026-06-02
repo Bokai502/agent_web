@@ -18,11 +18,14 @@ def load_simulation_outputs_in_remote_tools(
     *,
     comsol_launcher: Path = DEFAULT_COMSOL_LAUNCHER,
     paraview_launcher: Path = DEFAULT_PARAVIEW_LAUNCHER,
+    async_launch: bool = False,
 ) -> dict[str, Any]:
     """Launch remote COMSOL and ParaView sessions for simulation outputs.
 
     The launchers are expected to detach or return quickly. This helper starts
-    them asynchronously so the pipeline does not block on GUI sessions.
+    them asynchronously so the pipeline does not block on GUI sessions. The
+    async_launch flag is accepted for CLI compatibility; this launcher path is
+    always asynchronous.
     """
     simulation_dir = Path(simulation_dir)
     work_mph = simulation_dir / "work.mph"

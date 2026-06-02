@@ -24,8 +24,18 @@ type ConversationLogEntry = {
   title: string
 }
 
+type LatestConversationText = {
+  id: string
+  source: string
+  text: string
+  time: string
+}
+
 const MAX_FILES = 100
 const MAX_ENTRIES = 300
+const DEFAULT_CONVERSATION_SESSION_LIMIT = 4
+const DEFAULT_CONVERSATION_TURN_LIMIT = 40
+const DEFAULT_CONVERSATION_EVENT_LIMIT = 120
 const MARKDOWN_REPORTS = [
   {
     detail: "reports/report.md",
@@ -39,6 +49,18 @@ const MARKDOWN_REPORTS = [
     relativePath: path.join("reports", "modifications.md"),
     title: "修改建议",
   },
+  {
+    detail: "reports/cad_sim_report/report.md",
+    idSuffix: "cad-sim-report",
+    relativePath: path.join("reports", "cad_sim_report", "report.md"),
+    title: "CAD/仿真报告",
+  },
+  {
+    detail: "reports/cad_sim_report/modifications.md",
+    idSuffix: "cad-sim-modifications",
+    relativePath: path.join("reports", "cad_sim_report", "modifications.md"),
+    title: "CAD/仿真修改建议",
+  },
 ]
 const MARKDOWN_LINK_OR_IMAGE_RE = /(!?\[[^\]]*\]\()([^)\s]+)(\))/gu
 
@@ -48,6 +70,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+function parsePositiveInt(value: unknown, fallback: number, max: number) {
+  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : NaN
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return Math.min(parsed, max)
 }
 
 function getTime(value: Record<string, unknown>, fallbackTime: string) {
@@ -143,6 +171,36 @@ function collectStageEntries(value: unknown, source: string, fallbackTime: strin
   if (isRecord(value)) addStageEntry(value, source, fallbackTime, entries)
 }
 
+function findLatestConversationText(sessions: unknown[], source: string, fallbackTime: string): LatestConversationText | null {
+  for (let sessionIndex = sessions.length - 1; sessionIndex >= 0; sessionIndex -= 1) {
+    const session = sessions[sessionIndex]
+    if (!isRecord(session) || !Array.isArray(session.turns)) continue
+
+    for (let turnIndex = session.turns.length - 1; turnIndex >= 0; turnIndex -= 1) {
+      const turn = session.turns[turnIndex]
+      if (!isRecord(turn) || !Array.isArray(turn.events)) continue
+
+      for (let eventIndex = turn.events.length - 1; eventIndex >= 0; eventIndex -= 1) {
+        const event = turn.events[eventIndex]
+        if (!isRecord(event) || !isRecord(event.item)) continue
+        const text = asString(event.item.text)
+        if (!text) continue
+        const itemId = asString(event.item.id) ?? `event-${eventIndex}`
+        const turnId = asString(turn.id) ?? `turn-${turnIndex}`
+        const sessionId = asString(session.id) ?? `session-${sessionIndex}`
+        return {
+          id: `${sessionId}:${turnId}:${itemId}`,
+          source,
+          text,
+          time: getTime(event, fallbackTime),
+        }
+      }
+    }
+  }
+
+  return null
+}
+
 async function listTopLevelJsonFiles(dir: string): Promise<string[]> {
   let dirents: Array<{ isDirectory(): boolean; isFile(): boolean; name: string }>
   try {
@@ -170,6 +228,45 @@ function sortEntries(entries: StageLogEntry[]) {
     if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) return rightTime - leftTime
     return right.id.localeCompare(left.id)
   })
+}
+
+function countConversationTurns(sessions: unknown[]) {
+  return sessions.reduce<number>((count, session) => {
+    const value = isRecord(session) ? session : {}
+    return count + (Array.isArray(value.turns) ? value.turns.length : 0)
+  }, 0)
+}
+
+function trimConversationSessions(
+  sessions: unknown[],
+  {
+    eventLimit,
+    sessionLimit,
+    turnLimit,
+  }: {
+    eventLimit: number
+    sessionLimit: number
+    turnLimit: number
+  },
+) {
+  return sessions
+    .filter(isRecord)
+    .slice(-sessionLimit)
+    .map(session => {
+      const turns = Array.isArray(session.turns)
+        ? session.turns
+            .filter(isRecord)
+            .slice(-turnLimit)
+            .map(turn => ({
+              ...turn,
+              events: Array.isArray(turn.events) ? turn.events.slice(-eventLimit) : [],
+            }))
+        : []
+      return {
+        ...session,
+        turns,
+      }
+    })
 }
 
 function rewriteReportMarkdownLinks(markdown: string, reportPath: string) {
@@ -218,7 +315,7 @@ async function addMarkdownReportEntries(workspaceDir: string, entries: StageLogE
 }
 
 export async function stageLogsRoutes(fastify: FastifyInstance) {
-  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/stages", async (req, reply) => {
+  fastify.get<{ Querystring: { limit?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/stages", async (req, reply) => {
     let configuredWorkspaceDir: string
     try {
       configuredWorkspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
@@ -242,10 +339,20 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
     }
     await addMarkdownReportEntries(configuredWorkspaceDir, entries)
 
-    return reply.send(sortEntries(entries).slice(0, MAX_ENTRIES))
+    const limit = parsePositiveInt(req.query.limit, MAX_ENTRIES, MAX_ENTRIES)
+    return reply.send(sortEntries(entries).slice(0, limit))
   })
 
-  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/conversation", async (req, reply) => {
+  fastify.get<{
+    Querystring: {
+      eventLimit?: string
+      sessionLimit?: string
+      turnLimit?: string
+      versionId?: string
+      workspaceDir?: string
+      workspaceId?: string
+    }
+  }>("/api/logs/conversation", async (req, reply) => {
     let configuredWorkspaceDir: string
     try {
       configuredWorkspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
@@ -261,15 +368,17 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
       const parsed = JSON.parse(raw)
       const sessions = Array.isArray(parsed) ? parsed : []
       const stat = await fs.stat(historyPath)
-      const turnCount = sessions.reduce((count, session) => {
-        const value = isRecord(session) ? session : {}
-        return count + (Array.isArray(value.turns) ? value.turns.length : 0)
-      }, 0)
+      const turnCount = countConversationTurns(sessions)
+      const trimmedSessions = trimConversationSessions(sessions, {
+        eventLimit: parsePositiveInt(req.query.eventLimit, DEFAULT_CONVERSATION_EVENT_LIMIT, 500),
+        sessionLimit: parsePositiveInt(req.query.sessionLimit, DEFAULT_CONVERSATION_SESSION_LIMIT, 25),
+        turnLimit: parsePositiveInt(req.query.turnLimit, DEFAULT_CONVERSATION_TURN_LIMIT, 200),
+      })
       const entries: ConversationLogEntry[] = [{
         detail: `${sessions.length} session${sessions.length === 1 ? "" : "s"} · ${turnCount} turn${turnCount === 1 ? "" : "s"}`,
         id: "conversation:history",
         raw: {
-          sessions,
+          sessions: trimmedSessions,
         },
         source: path.relative(process.cwd(), historyPath),
         status: "completed",
@@ -279,6 +388,33 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
       return reply.send(entries)
     } catch {
       return reply.send([])
+    }
+  })
+
+  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/conversation/latest", async (req, reply) => {
+    let configuredWorkspaceDir: string
+    try {
+      configuredWorkspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve conversation history workspace")
+    }
+
+    const historyPath = path.join(configuredWorkspaceDir, "logs", "conversation-history.json")
+    const raw = await fs.readFile(historyPath, "utf-8").catch(() => null)
+    if (raw === null) return reply.send({ text: null })
+
+    try {
+      const parsed = JSON.parse(raw)
+      const sessions = Array.isArray(parsed) ? parsed : []
+      const stat = await fs.stat(historyPath)
+      const latest = findLatestConversationText(
+        sessions,
+        path.relative(process.cwd(), historyPath),
+        stat.mtime.toISOString(),
+      )
+      return reply.send(latest ?? { text: null })
+    } catch {
+      return reply.send({ text: null })
     }
   })
 }

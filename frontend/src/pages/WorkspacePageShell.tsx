@@ -29,6 +29,7 @@ import "./workspace/WorkspaceSessionPage.css"
 const WORKSPACE_HOME_PATH = "/workspace"
 const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "02_geometry_edit/geometry_after.glb"
 const NOVNC_URL_PARAMS = "vnc.html?autoconnect=true&resize=scale&path=websockify"
+const WORKSPACE_PANEL_PARAM_VALUES = ["bom", "log", "model", "cad", "paraview", "comsol", "gnc-config"] as const
 
 type ViewerComponentMessage = {
   componentId?: unknown
@@ -37,6 +38,13 @@ type ViewerComponentMessage = {
 }
 
 type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
+
+function getInitialWorkspacePanel(showModel: boolean): ActivePanel {
+  if (typeof window === "undefined") return showModel ? "model" : "log"
+  const panel = new URLSearchParams(window.location.search).get("panel")
+  if (WORKSPACE_PANEL_PARAM_VALUES.some(value => value === panel)) return panel as ActivePanel
+  return showModel ? "model" : "log"
+}
 
 export interface WorkspacePageShellProps {
   apiBase?: string
@@ -86,7 +94,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   } = state
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
   const [selectedBomId, setSelectedBomId] = useState("")
-  const [activePanel, setActivePanel] = useState<ActivePanel>(showModel ? "model" : "log")
+  const [activePanel, setActivePanel] = useState<ActivePanel>(() => getInitialWorkspacePanel(showModel))
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
   const [selectedLogId, setSelectedLogId] = useState("")
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
@@ -186,6 +194,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     visibleCurrentEvents,
     visibleTurns,
     workspaceRefreshNonce,
+    sessionId: activeSessionId,
   })
   const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
   const externalModelViewerUrl = modelViewerUrl?.trim() ?? ""

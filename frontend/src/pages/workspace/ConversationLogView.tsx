@@ -1,5 +1,9 @@
 import { MarkdownText } from "../../components/outputMarkdown"
 
+const MAX_RENDERED_SESSIONS = 4
+const MAX_RENDERED_TURNS = 40
+const MAX_RENDERED_EVENTS = 120
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
 }
@@ -17,13 +21,13 @@ function getCommandPreview(command: string) {
 }
 
 function ConversationSessionView({ session }: { session: Record<string, unknown> }) {
-  const turns = Array.isArray(session.turns) ? session.turns : []
+  const turns = Array.isArray(session.turns) ? session.turns.slice(-MAX_RENDERED_TURNS) : []
   return (
     <>
       {turns.map((turn, turnIndex) => {
         const value = isRecord(turn) ? turn : {}
         const prompt = typeof value.userPrompt === "string" ? value.userPrompt : ""
-        const events = Array.isArray(value.events) ? value.events : []
+        const events = Array.isArray(value.events) ? value.events.slice(-MAX_RENDERED_EVENTS) : []
         return (
           <div className="wa-conversation-turn" key={typeof value.id === "string" ? value.id : `turn-${turnIndex}`}>
             {prompt && <div className="wa-conversation-user">{prompt}</div>}
@@ -67,7 +71,7 @@ function ConversationSessionView({ session }: { session: Record<string, unknown>
 
 export function ConversationLogView({ session }: { session: Record<string, unknown> }) {
   const sessions = Array.isArray(session.sessions)
-    ? session.sessions.filter(isRecord)
+    ? session.sessions.filter(isRecord).slice(-MAX_RENDERED_SESSIONS)
     : [session]
   return (
     <div className="wa-conversation-log">

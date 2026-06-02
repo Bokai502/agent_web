@@ -4,6 +4,7 @@ import { getStatusIcon } from "./runLogUtils"
 
 type RunLogPanelProps = {
   entries: RunLogEntry[]
+  maxEntries?: number
   variant?: "left" | "info"
   onSelect: (entry: RunLogEntry) => void
   selectedLogId: string
@@ -11,11 +12,13 @@ type RunLogPanelProps = {
 
 export function RunLogPanel({
   entries,
+  maxEntries,
   onSelect,
   selectedLogId,
   variant = "left",
 }: RunLogPanelProps) {
   const { t } = useTranslation()
+  const visibleEntries = typeof maxEntries === "number" ? entries.slice(0, maxEntries) : entries
   const content = (
     <>
       <div className="wa-left-section-header">
@@ -25,10 +28,10 @@ export function RunLogPanel({
         </div>
       </div>
       <div className="wa-run-feed">
-        {entries.length === 0 ? (
+        {visibleEntries.length === 0 ? (
           <div className="wa-left-empty">{t("workspace.logs.empty")}</div>
         ) : (
-          entries.map(entry => (
+          visibleEntries.map(entry => (
             <button
               type="button"
               className={`wa-run-card${entry.id === selectedLogId ? " selected" : ""}`}

@@ -107,6 +107,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => getSessionIdFromPath(window.location.pathname, homePath))
   const [currentPrompt, setCurrentPrompt] = useState("")
   const [currentEvents, setCurrentEvents] = useState<ThreadEvent[]>([])
+  const [lastCompletedTurnId, setLastCompletedTurnId] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1100)
@@ -166,6 +167,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
       setCurrentEvents([])
       currentEventsRef.current = []
       currentTurnIdRef.current = null
+      setLastCompletedTurnId(null)
     }
 
     window.addEventListener("popstate", handlePopState)
@@ -186,6 +188,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     currentEventsRef.current = []
     currentPromptRef.current = ""
     currentTurnIdRef.current = null
+    setLastCompletedTurnId(null)
   }, [apiBase, homePath])
 
   useEffect(() => {
@@ -266,6 +269,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     }
     setActiveSessionId(null)
     activeSessionIdRef.current = null
+    setLastCompletedTurnId(null)
     updateBrowserPath(null, false, homePath)
     if (!runningSessionIdRef.current) resetLiveTurn()
   }, [homePath, resetLiveTurn])
@@ -278,6 +282,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     if (activeSessionIdRef.current !== null) {
       setActiveSessionId(null)
       activeSessionIdRef.current = null
+      setLastCompletedTurnId(null)
       updateBrowserPath(null, false, homePath)
     }
     if (!runningSessionIdRef.current) resetLiveTurn()
@@ -291,6 +296,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     }
     setActiveSessionId(id)
     activeSessionIdRef.current = id
+    setLastCompletedTurnId(null)
     updateBrowserPath(id, false, homePath)
     resetLiveTurn()
   }, [homePath, resetLiveTurn, running])
@@ -322,6 +328,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     const nextSessionId = matchingSession?.id ?? null
     setActiveSessionId(nextSessionId)
     activeSessionIdRef.current = nextSessionId
+    setLastCompletedTurnId(null)
     updateBrowserPath(nextSessionId, false, homePath)
     if (!runningSessionIdRef.current) resetLiveTurn()
   }, [activeSessionId, homePath, resetLiveTurn, sessions])
@@ -356,6 +363,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
       }
       setActiveSessionId(null)
       activeSessionIdRef.current = null
+      setLastCompletedTurnId(null)
       updateBrowserPath(null, false, homePath)
       resetLiveTurn()
     }
@@ -442,6 +450,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     }))
     setCurrentPrompt(prompt)
     setCurrentEvents([])
+    setLastCompletedTurnId(null)
     currentEventsRef.current = []
     currentPromptRef.current = prompt
     currentTurnIdRef.current = turnIdForRun
@@ -590,6 +599,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
         if (runningSessionIdRef.current === sid) {
           setActiveSessionId(sid)
           activeSessionIdRef.current = sid
+          setLastCompletedTurnId(turnIdForRun)
           resetLiveTurn()
           runningSessionIdRef.current = null
           runningWorkspaceRef.current = null
@@ -604,6 +614,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     activeSessionId,
     currentEvents,
     currentPrompt,
+    currentTurnId: currentTurnIdRef.current,
     handleDelete,
     handleClearActiveSession,
     handleNew,
@@ -614,6 +625,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
     handleSubmit,
     isMobile,
     pendingAskUser,
+    lastCompletedTurnId,
     running,
     runningSessionId: runningSessionIdRef.current,
     runningWorkspace: runningWorkspaceRef.current,

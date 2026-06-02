@@ -10,6 +10,9 @@ const HomePage = lazy(() => import('./pages/HomePage.tsx'))
 const WorkspaceSessionPage = lazy(() => import('./pages/WorkspaceSessionPage.tsx'))
 const GncWorkspacePage = lazy(() => import('./pages/GncWorkspacePage.tsx'))
 const RegionWorkspacePage = lazy(() => import('./pages/RegionWorkspacePage.tsx'))
+const SplineBotPage = lazy(() => import('./pages/SplineBotPage.tsx'))
+const AgentPage = lazy(() => import('./pages/AgentPage.tsx'))
+const V3Page = lazy(() => import('./pages/V3Page.tsx'))
 
 function Router() {
   const [pathname, setPathname] = useState(window.location.pathname)
@@ -30,6 +33,9 @@ function Router() {
   const isWorkspace = pathname === '/workspace' || pathname.startsWith('/workspace/')
   const isGncWorkspace = pathname === '/gnc-workspace' || pathname.startsWith('/gnc-workspace/')
   const isRegionWorkspace = pathname === '/region-workspace' || pathname.startsWith('/region-workspace/')
+  const isSplineBot = pathname === '/spline'
+  const isAgent = pathname === '/agent'
+  const isV3 = pathname === '/v3'
 
   if (isViewer) {
     return (
@@ -75,6 +81,30 @@ function Router() {
     return (
       <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
         <RegionWorkspacePage />
+      </Suspense>
+    )
+  }
+
+  if (isSplineBot) {
+    return (
+      <Suspense fallback={<div style={{ background: '#000', width: '100vw', height: '100vh' }} />}>
+        <SplineBotPage />
+      </Suspense>
+    )
+  }
+
+  if (isAgent) {
+    return (
+      <Suspense fallback={<div style={{ background: '#f7f8fb', width: '100vw', height: '100vh' }} />}>
+        <AgentPage />
+      </Suspense>
+    )
+  }
+
+  if (isV3) {
+    return (
+      <Suspense fallback={<div style={{ background: '#000', width: '100vw', height: '100vh' }} />}>
+        <V3Page />
       </Suspense>
     )
   }

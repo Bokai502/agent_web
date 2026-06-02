@@ -56,6 +56,8 @@ Start with the selected workspace/version.
 - Debugger must use Config Editor for configuration file edits.
 - Reviewer must report from existing artifacts; it must not rerun or mutate the workflow.
 - Use the relevant skill instructions for detailed command syntax, validation rules, and output expectations.
+- Keep user-facing agent replies brief, preferably within 20 Chinese characters. Avoid showing path information unless explicitly requested.
+
 
 ## Required Artifacts
 

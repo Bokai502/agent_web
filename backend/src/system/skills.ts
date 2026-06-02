@@ -21,11 +21,12 @@ export interface SkillsCache {
   aignc: Skill[]
 }
 
-type SkillScope = keyof SkillsCache
+export type SkillScope = keyof SkillsCache
 
 const GLOBAL_SKILLS_DIR = path.join(os.homedir(), ".codex", "skills")
 const GNC_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "gnc_skills")
 const THERMAL_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "thermal_skills")
+const ROUTING_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "routing_skills")
 const CACHE_FILE = path.resolve(process.cwd(), "skills.json")
 
 function dedupeExistingRoots(roots: string[]): string[] {
@@ -267,6 +268,11 @@ export function readScopedSkillInstructions(scopes: SkillScope[]): SkillInstruct
     return readAigncSkillInstructions()
   })
   return dedupeInstructionsPreferLater(instructions)
+}
+
+export function readRoutingSkillInstruction(name: string): SkillInstruction | null {
+  return readSkillInstructionsFromRoots(dedupeExistingRoots([ROUTING_SKILLS_DIR]))
+    .find(skill => skill.name.toLowerCase() === name.trim().toLowerCase()) ?? null
 }
 
 export function refreshSkillsCache(logger: Logger): SkillsCache {

@@ -860,9 +860,10 @@ button.wa-run-card.selected {
 }
 .wa-bom-detail-card {
   border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 22px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
   padding: 18px;
+  min-width: 0;
 }
 .wa-bom-detail-card img {
   display: block;
@@ -875,6 +876,7 @@ button.wa-run-card.selected {
   margin: 0;
   font-size: 22px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 .wa-bom-detail-fields {
   display: grid;
@@ -883,7 +885,8 @@ button.wa-run-card.selected {
   margin-top: 16px;
 }
 .wa-bom-field {
-  border-radius: 14px;
+  min-width: 0;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.035);
   padding: 11px 12px;
 }
@@ -899,6 +902,9 @@ button.wa-run-card.selected {
   color: #1d1d1f;
   font-size: 13px;
   line-height: 1.35;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .wa-bom-stage-grid button {
   min-height: 96px;
