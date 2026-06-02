@@ -4,7 +4,7 @@ import { readRoutingSkillInstruction, type SkillScope } from "../system/skills.j
 import { normalizeRunInput } from "./runInput.js"
 import type { RunRequestBody } from "./runTypes.js"
 
-export type RoutedIntent = "thermal" | "gnc" | "general"
+export type RoutedIntent = "thermal" | "gnc" | "check" | "general"
 export type ManagedSkill = "task-runner" | "progress-summarizer"
 
 export type IntentRoutingResult = {
@@ -36,11 +36,24 @@ function isThermalWorkspace(body: RunRequestBody) {
   return /thermal|热仿真|热设计|ws_thermal/u.test(fields)
 }
 
+function looksLikeCheckRequest(text: string) {
+  return /降额|derating|check|检查|校验|审查|符合性|xlsx|元器件/u.test(text)
+}
+
 function looksLikeProgressQuestion(text: string) {
   return /进度|状态|完成|结束|怎么样|到哪|当前任务|刚才|上一个|previous|progress|status|finished|summary/u.test(text)
 }
 
 function fallbackRouting(body?: RunRequestBody, userInput = ""): IntentRoutingResult {
+  if (looksLikeCheckRequest(userInput) && !looksLikeProgressQuestion(userInput)) {
+    return {
+      intent: "check",
+      managedSkills: ["task-runner"],
+      selectedSkills: ["component-derating-classifier"],
+      skillScopes: ["public", "check"],
+      source: "fallback",
+    }
+  }
   if (body && isThermalWorkspace(body) && !looksLikeProgressQuestion(userInput)) {
     return {
       intent: "thermal",
@@ -66,11 +79,12 @@ function uniqueSkills(skills: string[]) {
 function normalizeSkillScopes(value: unknown): SkillScope[] | null {
   if (!Array.isArray(value)) return null
   const scopes = value.filter((item): item is SkillScope =>
-    item === "public" || item === "thermal" || item === "aignc"
+    item === "public" || item === "thermal" || item === "aignc" || item === "check"
   )
   if (scopes.length !== value.length || !scopes.includes("public")) return null
   const uniqueScopes = [...new Set(scopes)]
-  if (uniqueScopes.includes("thermal") && uniqueScopes.includes("aignc")) return null
+  const domainScopeCount = Number(uniqueScopes.includes("thermal")) + Number(uniqueScopes.includes("aignc")) + Number(uniqueScopes.includes("check"))
+  if (domainScopeCount > 1) return null
   if (uniqueScopes.length > 2) return null
   return uniqueScopes
 }
@@ -78,6 +92,7 @@ function normalizeSkillScopes(value: unknown): SkillScope[] | null {
 function getIntentFromScopes(scopes: SkillScope[]): RoutedIntent {
   if (scopes.includes("thermal")) return "thermal"
   if (scopes.includes("aignc")) return "gnc"
+  if (scopes.includes("check")) return "check"
   return "general"
 }
 
@@ -272,7 +287,7 @@ export async function routeManagedRunIntent(
 
   const fallback = fallbackRouting(body, userInput)
   logger.info("managed run intent routed", {
-    fallbackReason: fallback.intent === "thermal" ? "thermal-workspace" : "general-default",
+    fallbackReason: fallback.intent === "thermal" ? "thermal-workspace" : fallback.intent === "check" ? "check-request" : "general-default",
     intent: fallback.intent,
     model: INTENT_ROUTER_MODEL,
     managedSkills: fallback.managedSkills,

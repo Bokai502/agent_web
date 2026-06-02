@@ -68,6 +68,17 @@ export async function resolveQueryWorkspaceContext(query: { versionId?: string; 
         workspaceId: context.workspaceId,
       }
     } catch (err) {
+      if (workspaceDir) {
+        try {
+          return {
+            versionId,
+            workspaceDir: await resolveRequestWorkspaceDir(workspaceDir),
+            workspaceId,
+          }
+        } catch {
+          // Keep the manifest error when the explicit workspaceDir is not usable either.
+        }
+      }
       throw toWorkspaceQueryError(err, 409, "workspace context mismatch")
     }
   }

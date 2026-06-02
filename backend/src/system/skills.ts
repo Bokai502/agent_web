@@ -19,6 +19,7 @@ export interface SkillsCache {
   public: Skill[]
   thermal: Skill[]
   aignc: Skill[]
+  check: Skill[]
 }
 
 export type SkillScope = keyof SkillsCache
@@ -26,6 +27,7 @@ export type SkillScope = keyof SkillsCache
 const GLOBAL_SKILLS_DIR = path.join(os.homedir(), ".codex", "skills")
 const GNC_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "gnc_skills")
 const THERMAL_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "thermal_skills")
+const CHECK_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "check_skills")
 const ROUTING_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "routing_skills")
 const CACHE_FILE = path.resolve(process.cwd(), "skills.json")
 
@@ -58,11 +60,16 @@ function getThermalSkillRoots(): string[] {
   return dedupeExistingRoots([THERMAL_SKILLS_DIR])
 }
 
+function getCheckSkillRoots(): string[] {
+  return dedupeExistingRoots([CHECK_SKILLS_DIR])
+}
+
 function getSkillRootsForScopes(scopes: SkillScope[]): string[] {
   const roots = scopes.flatMap(scope => {
     if (scope === "public") return getPublicSkillRoots()
     if (scope === "thermal") return getThermalSkillRoots()
-    return getAigncSkillRoots()
+    if (scope === "aignc") return getAigncSkillRoots()
+    return getCheckSkillRoots()
   })
   return dedupeExistingRoots(roots)
 }
@@ -156,10 +163,11 @@ export function scanSkills(): SkillsCache {
     public: scanSkillsFromRoots(getPublicSkillRoots()),
     thermal: scanSkillsFromRoots(getThermalSkillRoots()),
     aignc: scanSkillsFromRoots(getAigncSkillRoots()),
+    check: scanSkillsFromRoots(getCheckSkillRoots()),
   }
 }
 
-export function readSkillInstructions(skillNames: string[], scopes: SkillScope[] = ["public", "thermal", "aignc"]): SkillInstruction[] {
+export function readSkillInstructions(skillNames: string[], scopes: SkillScope[] = ["public", "thermal", "aignc", "check"]): SkillInstruction[] {
   if (skillNames.length === 0) return []
 
   const requested = new Set(
@@ -249,8 +257,16 @@ export function readAigncSkillInstructions(): SkillInstruction[] {
   return readSkillInstructionsFromRoots(getAigncSkillRoots())
 }
 
+export function readCheckSkillInstructions(): SkillInstruction[] {
+  return readSkillInstructionsFromRoots(getCheckSkillRoots())
+}
+
 export function getWorkspaceSkillScopes(isGncWorkspace: boolean): SkillScope[] {
   return isGncWorkspace ? ["public", "aignc"] : ["public", "thermal"]
+}
+
+export function getWorkspaceAvailableSkillScopes(isGncWorkspace: boolean): SkillScope[] {
+  return [...getWorkspaceSkillScopes(isGncWorkspace), "check"]
 }
 
 function dedupeInstructionsPreferLater(instructions: SkillInstruction[]): SkillInstruction[] {
@@ -265,7 +281,8 @@ export function readScopedSkillInstructions(scopes: SkillScope[]): SkillInstruct
   const instructions = scopes.flatMap(scope => {
     if (scope === "public") return readPublicSkillInstructions()
     if (scope === "thermal") return readThermalSkillInstructions()
-    return readAigncSkillInstructions()
+    if (scope === "aignc") return readAigncSkillInstructions()
+    return readCheckSkillInstructions()
   })
   return dedupeInstructionsPreferLater(instructions)
 }
@@ -281,6 +298,7 @@ export function refreshSkillsCache(logger: Logger): SkillsCache {
     fs.writeFileSync(CACHE_FILE, JSON.stringify(skills, null, 2), "utf-8")
     logger.info("skills cache refreshed", {
       aigncCount: skills.aignc.length,
+      checkCount: skills.check.length,
       file: CACHE_FILE,
       publicCount: skills.public.length,
       thermalCount: skills.thermal.length,

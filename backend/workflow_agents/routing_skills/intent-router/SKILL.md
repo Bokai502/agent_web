@@ -1,6 +1,6 @@
 ---
 name: intent-router
-description: Classify a user's natural-language request before workflow execution as satellite thermal design/simulation, satellite GNC/ADCS/42/FSW, or a general task. Use this only for routing; it must return strict JSON and must not perform the task itself.
+description: Classify a user's natural-language request before workflow execution as satellite thermal design/simulation, satellite GNC/ADCS/42/FSW, component derating/check work, or a general task. Use this only for routing; it must return strict JSON and must not perform the task itself.
 ---
 
 # Intent Router
@@ -30,6 +30,7 @@ Allowed `skillScopes` values:
 
 - `["public", "thermal"]`
 - `["public", "aignc"]`
+- `["public", "check"]`
 - `["public"]`
 
 Allowed `selectedSkills` values are skill names from the selected scope. Return
@@ -44,6 +45,7 @@ set of skills that can handle the request:
 - 42 configuration generation: `42-config-author`, then `42-config-validator`
 - 42 runtime: `42-build-run-diagnose`, optionally `42-runtime-plotter`
 - FSW planning/code/review: `fsw-requirements-extractor`, `fsw-architecture-planner`, `fsw-code-author`, `fsw-tuning-reviewer`
+- Component derating classification/check: `component-derating-classifier`
 
 ## Classification
 
@@ -70,10 +72,12 @@ Choose `gnc` for satellite guidance, navigation, control, ADCS, 42, or FSW reque
 - 42 simulator configuration, runtime diagnosis, plots, tuning
 - FSW requirements, architecture, implementation, control-law debugging
 
+Choose `check` for component derating classification, Table 5 XLSX checks, 元器件降额检查, derating factor compliance, or requests that ask to classify a component into a derating subclass.
+
 Choose `general` for everything else, including:
 
 - weather, chat, translation, explanations unrelated to the engineering workflows
 - general programming or documentation requests
-- ambiguous requests without a clear satellite thermal or GNC execution target
+- ambiguous requests without a clear satellite thermal, GNC, or component check execution target
 
-If a request contains both thermal and GNC work, choose the dominant explicit task. If the user asks to compare or coordinate both, choose `general` unless they clearly ask to execute one workflow first.
+If a request contains multiple workflow domains, choose the dominant explicit task. If the user asks to compare or coordinate multiple domains, choose `general` unless they clearly ask to execute one workflow first.

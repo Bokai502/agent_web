@@ -10,21 +10,23 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
+from progress_utils import update_loop_progress
 from xlsx_to_json import convert_xlsx_to_json
 
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_REFERENCE = SKILL_DIR / "reference" / "jiange_full.json"
 DEFAULT_RULES = SKILL_DIR / "reference" / "rules.md"
-DEFAULT_OUTPUT_DIR = SKILL_DIR / "outputs"
+DEFAULT_OUTPUT_SUBDIR = Path("check_outputs") / "component-derating-classifier"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Analyze a component derating XLSX file.")
     parser.add_argument("xlsx_path", type=Path, help="Input .xlsx file path.")
+    parser.add_argument("--workspace-dir", type=Path, help="Workspace root for relative input, mapping, and output paths.")
     parser.add_argument("--reference", type=Path, default=DEFAULT_REFERENCE)
     parser.add_argument("--rules", type=Path, default=DEFAULT_RULES)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--output-dir", type=Path, help="Output directory. Relative paths are resolved against --workspace-dir when provided.")
     parser.add_argument(
         "--ai-mapping",
         type=Path,
@@ -34,6 +36,21 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     return parser.parse_args()
+
+
+def resolve_path(path: Path, workspace_dir: Path | None = None) -> Path:
+    expanded = path.expanduser()
+    if expanded.is_absolute():
+        return expanded.resolve()
+    if workspace_dir is not None:
+        return (workspace_dir / expanded).resolve()
+    return expanded.resolve()
+
+
+def default_output_dir(workspace_dir: Path | None) -> Path:
+    if workspace_dir is not None:
+        return workspace_dir / DEFAULT_OUTPUT_SUBDIR
+    return Path.cwd() / DEFAULT_OUTPUT_SUBDIR
 
 
 def normalize(value) -> str:
@@ -63,6 +80,7 @@ def load_ai_mapping(path: Path | None) -> dict:
     if path is None:
         return {
             "enabled": False,
+            "completeness": None,
             "components": {},
             "parameters": {},
             "global_parameters": {},
@@ -97,32 +115,36 @@ def load_ai_mapping(path: Path | None) -> dict:
 
     return {
         "enabled": True,
+        "completeness": payload.get("parameter_completeness") if isinstance(payload.get("parameter_completeness"), dict) else None,
         "components": components,
         "parameters": parameters,
         "global_parameters": global_parameters,
     }
 
 
-def rows_for_subclass(reference_rows: list[dict], subclass: str) -> list[dict]:
-    return [row for row in reference_rows if row.get("元器件子类") == subclass]
+def rows_for_component_type(reference_rows: list[dict], category: str | None, subclass: str) -> list[dict]:
+    if not category:
+        return []
+    return [
+        row
+        for row in reference_rows
+        if row.get("元器件大类") == category and row.get("元器件子类") == subclass
+    ]
 
 
 def classify_component(name: str, reference_rows: list[dict], ai_mapping: dict) -> dict:
-    subclasses = {row.get("元器件子类") for row in reference_rows}
+    component_types = {(row.get("元器件大类"), row.get("元器件子类")) for row in reference_rows}
     mapped = ai_mapping["components"].get(name)
 
-    if mapped and mapped.get("元器件子类") in subclasses:
+    if mapped and (mapped.get("元器件大类"), mapped.get("元器件子类")) in component_types:
         subclass = mapped["元器件子类"]
-        info = rows_for_subclass(reference_rows, subclass)
+        category = mapped.get("元器件大类")
+        info = rows_for_component_type(reference_rows, category, subclass)
         categories = sorted({row.get("元器件大类") for row in info if row.get("元器件大类")})
         return {
             "matched": True,
-            "元器件大类": mapped.get("元器件大类")
-            or (categories[0] if len(categories) == 1 else categories),
+            "元器件大类": category or (categories[0] if len(categories) == 1 else categories),
             "元器件子类": subclass,
-            "confidence": mapped.get("confidence", "medium"),
-            "match_method": mapped.get("match_method", "ai"),
-            "selection_reason": mapped.get("selection_reason", "AI selected this subclass."),
             "information": info,
         }
 
@@ -131,9 +153,6 @@ def classify_component(name: str, reference_rows: list[dict], ai_mapping: dict) 
             "matched": False,
             "元器件大类": mapped.get("元器件大类"),
             "元器件子类": mapped.get("元器件子类"),
-            "confidence": mapped.get("confidence", "low"),
-            "match_method": "invalid_ai_mapping",
-            "selection_reason": "AI mapping selected a subclass that is not present in reference/jiange_full.json.",
             "information": [],
         }
 
@@ -141,9 +160,6 @@ def classify_component(name: str, reference_rows: list[dict], ai_mapping: dict) 
         "matched": False,
         "元器件大类": None,
         "元器件子类": None,
-        "confidence": "low",
-        "match_method": "unmatched",
-        "selection_reason": "未找到可靠的元器件子类匹配。",
         "information": [],
     }
 
@@ -173,6 +189,37 @@ def find_standard(row: dict, classification: dict, ai_mapping: dict) -> dict | N
             return candidate
 
     return None
+
+
+def build_component_decisions(table_rows: list[dict], classifications: dict[str, dict], ai_mapping: dict) -> list[dict]:
+    decisions: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for row in table_rows:
+        component_name = str(row.get("元器件名称") or "")
+        parameter = str(row.get("降额参数") or "")
+        key = (component_name, normalize(parameter))
+        if key in seen:
+            continue
+        seen.add(key)
+        classification = classifications.get(component_name, {})
+        standard = find_standard(row, classification, ai_mapping) if classification.get("matched") else None
+        if not classification.get("matched"):
+            status = "unmatched_component"
+        elif standard:
+            status = "matched"
+        else:
+            status = "unmatched_parameter"
+        decisions.append({
+            "元器件名称": component_name,
+            "型号规格": row.get("型号规格_规格"),
+            "输入降额参数": parameter,
+            "大类": classification.get("元器件大类") or "未找到",
+            "子类": classification.get("元器件子类") or "未找到",
+            "标准降额参数": standard.get("降额参数") if standard else "未找到",
+            "I级额定降额值": standard.get("I级降额") if standard else "N/A",
+            "status": status,
+        })
+    return decisions
 
 
 def check_row(row: dict, excel_row: int, classification: dict, ai_mapping: dict) -> dict:
@@ -244,7 +291,6 @@ def check_row(row: dict, excel_row: int, classification: dict, ai_mapping: dict)
         **row,
         "元器件大类": classification.get("元器件大类"),
         "元器件子类": classification.get("元器件子类"),
-        "分类方式": classification.get("match_method"),
         "标准参数": standard.get("降额参数") if standard else None,
         "标准I级降额": standard.get("I级降额") if standard else None,
         "计算允许值": expected_allowed,
@@ -256,11 +302,12 @@ def check_row(row: dict, excel_row: int, classification: dict, ai_mapping: dict)
 
 def main() -> int:
     args = parse_args()
-    xlsx_path = args.xlsx_path.expanduser().resolve()
-    reference_path = args.reference.expanduser().resolve()
-    rules_path = args.rules.expanduser().resolve()
-    ai_mapping_path = args.ai_mapping.expanduser().resolve() if args.ai_mapping else None
-    output_dir = args.output_dir.expanduser().resolve()
+    workspace_dir = args.workspace_dir.expanduser().resolve() if args.workspace_dir else None
+    xlsx_path = resolve_path(args.xlsx_path, workspace_dir)
+    reference_path = resolve_path(args.reference)
+    rules_path = resolve_path(args.rules)
+    ai_mapping_path = resolve_path(args.ai_mapping, workspace_dir) if args.ai_mapping else None
+    output_dir = resolve_path(args.output_dir, workspace_dir) if args.output_dir else default_output_dir(workspace_dir).resolve()
 
     for required_path, label in [
         (xlsx_path, "input XLSX"),
@@ -277,9 +324,38 @@ def main() -> int:
     stem = xlsx_path.stem
     table_path = output_dir / f"{stem}_table.json"
     classification_path = output_dir / f"{stem}_classification.json"
+    decisions_path = output_dir / f"{stem}_component_decisions.json"
     result_path = output_dir / f"{stem}_check_result.json"
 
+    update_loop_progress(
+        workspace_dir,
+        loop_name="check_convert_table",
+        status="table_conversion_running",
+        completed=False,
+        percentage=10.0,
+    )
     table = convert_xlsx_to_json(xlsx_path, table_path)
+    update_loop_progress(
+        workspace_dir,
+        loop_name="check_convert_table",
+        status="table_conversion_completed",
+        completed=True,
+        percentage=100.0,
+    )
+    update_loop_progress(
+        workspace_dir,
+        loop_name="check_ai_mapping",
+        status="ai_mapping_completed" if ai_mapping_path else "ai_mapping_missing",
+        completed=True,
+        percentage=100.0,
+    )
+    update_loop_progress(
+        workspace_dir,
+        loop_name="check_rule_analysis",
+        status="rule_analysis_running",
+        completed=False,
+        percentage=20.0,
+    )
     reference_rows = load_reference(reference_path)
     ai_mapping = load_ai_mapping(ai_mapping_path)
 
@@ -308,6 +384,7 @@ def main() -> int:
         check_row(row, excel_row, classifications[str(row.get("元器件名称") or "")], ai_mapping)
         for excel_row, row in enumerate(table["data"], start=4)
     ]
+    component_decisions = build_component_decisions(table["data"], classifications, ai_mapping)
 
     class_counts = Counter(
         (str(component.get("元器件大类")), str(component.get("元器件子类")))
@@ -320,6 +397,7 @@ def main() -> int:
         "input_xlsx": str(xlsx_path),
         "source_json": str(reference_path),
         "ai_mapping_json": str(ai_mapping_path) if ai_mapping_path else None,
+        "parameter_completeness": ai_mapping.get("completeness"),
         "summary": {
             "total_rows": table["row_count"],
             "unique_component_names": len(groups),
@@ -336,6 +414,23 @@ def main() -> int:
         json.dumps(classification_payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    decisions_payload = {
+        "schema_version": "1.0",
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "input_xlsx": str(xlsx_path),
+        "table_json": str(table_path),
+        "classification_json": str(classification_path),
+        "ai_mapping_json": str(ai_mapping_path) if ai_mapping_path else None,
+        "summary": {
+            "decision_count": len(component_decisions),
+            **dict(Counter(decision["status"] for decision in component_decisions)),
+        },
+        "decisions": component_decisions,
+    }
+    decisions_path.write_text(
+        json.dumps(decisions_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     summary = Counter(row["符合性"] for row in checked_rows)
     issue_counts = Counter(issue for row in checked_rows for issue in row["问题"])
@@ -350,9 +445,11 @@ def main() -> int:
         "input_xlsx": str(xlsx_path),
         "table_json": str(table_path),
         "classification_json": str(classification_path),
+        "component_decisions_json": str(decisions_path),
         "standard_json": str(reference_path),
         "rules_md": str(rules_path),
         "ai_mapping_json": str(ai_mapping_path) if ai_mapping_path else None,
+        "parameter_completeness": ai_mapping.get("completeness"),
         "summary": {"total_rows": len(checked_rows), **dict(summary)},
         "issue_counts": dict(issue_counts),
         "unmatched_components": unmatched_components,
@@ -362,9 +459,17 @@ def main() -> int:
         json.dumps(result_payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    update_loop_progress(
+        workspace_dir,
+        loop_name="check_rule_analysis",
+        status="rule_analysis_completed",
+        completed=True,
+        percentage=100.0,
+    )
 
     print(table_path)
     print(classification_path)
+    print(decisions_path)
     print(result_path)
     print(json.dumps(result_payload["summary"], ensure_ascii=False))
     return 0

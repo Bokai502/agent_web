@@ -5,7 +5,7 @@ import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { getWorkspaceManifestSnapshotByLocator } from "../manifests/store.js"
 import { findWorkspaceSession } from "../sessions/sessionStore.js"
-import { readRoutingSkillInstruction } from "../system/skills.js"
+import { readRoutingSkillInstruction, type SkillScope } from "../system/skills.js"
 import { resolveProgressFromLatestSessionRun } from "../workspaces/workspaceRegistry.js"
 import { buildCodexConfig } from "./codexConfig.js"
 import { executeCodexTurn, prepareCodexTurn, type RunCodexTurnResult } from "./codexTurn.js"
@@ -82,6 +82,7 @@ const managedRunStatuses = new Map<string, ManagedRunStatusResponse>()
 const managedRunStatusExpiries = new Map<string, number>()
 const managedRunEventBacklog = new Map<string, ManagedRunEvent[]>()
 const managedRunEventSubscribers = new Map<string, Set<(event: ManagedRunEvent) => void>>()
+const managedRunAbortControllers = new Map<string, AbortController>()
 const managedSessionStates = new Map<string, ManagedSessionState>()
 const managedSessionStateExpiries = new Map<string, number>()
 const MANAGED_RUN_STATUS_TTL_MS = 1000 * 60 * 60
@@ -1042,6 +1043,118 @@ export async function getManagedRunStatus(managedRunId: string) {
   return managedRunStatuses.get(managedRunId) ?? await readPersistedManagedRunStatus(managedRunId)
 }
 
+export async function cancelManagedRunAndSummarize(
+  managedRunId: string,
+  { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
+) {
+  const latestStatus = await getManagedRunStatus(managedRunId)
+  if (!latestStatus) return null
+
+  const abort = managedRunAbortControllers.get(managedRunId)
+  if (abort) {
+    abort.abort()
+    managedRunAbortControllers.delete(managedRunId)
+  }
+
+  if (latestStatus.status !== "running") return latestStatus
+
+  const session = await findWorkspaceSession(latestStatus.sessionId, latestStatus.workspaceDir).catch(() => null)
+  const progressRecord = latestStatus.workspaceDir
+    ? await resolveProgressFromLatestSessionRun(latestStatus.sessionId, latestStatus.workspaceDir).catch(() => null)
+    : null
+  const progress = progressRecord?.data ?? null
+  const latestMessage = getLatestSessionAgentMessage(session)
+  const artifacts = getProgressOutputFiles(progress)
+  const spokenSummary = await answerProgressQuestion({
+    artifacts,
+    body: {
+      prompt: "请总结当前已停止任务已经完成的进度和结果。",
+      sessionId: latestStatus.sessionId,
+      threadId: latestStatus.threadId,
+      turnId: latestStatus.turnId,
+      workspaceDir: latestStatus.workspaceDir,
+      workspaceId: latestStatus.workspaceId,
+    },
+    config,
+    latestStatus,
+    logger,
+    manifest: null,
+    progress,
+    requestId: `${requestId ?? "request"}:${managedRunId}:cancel-summary`,
+    session,
+  }) || buildFastProgressSummary({ latestMessage, latestStatus, progress })
+  const cancelledStatus: ManagedRunStatusResponse = {
+    ...latestStatus,
+    spokenSummary,
+    status: "cancelled",
+    summary: spokenSummary,
+  }
+  rememberManagedRunStatus(cancelledStatus, logger)
+  logger.info("managed run cancelled and summarized", {
+    managedRunId,
+    requestId,
+    sessionId: latestStatus.sessionId,
+    workspaceDir: latestStatus.workspaceDir,
+  })
+  return cancelledStatus
+}
+
+export async function summarizeManagedProgress(
+  body: RunRequestBody,
+  { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
+) {
+  const sessionId = getOptionalString(body.sessionId)
+  const workspaceDir = getOptionalString(body.workspaceDir)
+  const workspaceId = getOptionalString(body.workspaceId)
+  const turnId = getOptionalString(body.turnId) ?? makeManagedTurnId()
+  const latestStatus = await getLatestManagedStatusForSession(sessionId, workspaceDir)
+  const progressRecord = sessionId && workspaceDir
+    ? await resolveProgressFromLatestSessionRun(sessionId, workspaceDir).catch(() => null)
+    : null
+  const progress = progressRecord?.data ?? null
+  const latestSession = sessionId ? await findWorkspaceSession(sessionId, workspaceDir).catch(() => null) : null
+  const latestMessage = getLatestSessionAgentMessage(latestSession)
+  const artifacts = getProgressOutputFiles(progress)
+  const manifest = workspaceId || workspaceDir
+    ? await getWorkspaceManifestSnapshotByLocator({
+      sessionId: workspaceId ?? sessionId ?? "workspace",
+      workspaceDir,
+    }).catch(() => null)
+    : null
+  const spokenSummary = await answerProgressQuestion({
+    artifacts,
+    body,
+    config,
+    latestStatus,
+    logger,
+    manifest,
+    progress,
+    requestId: `${requestId ?? "request"}:managed-progress-summary`,
+    session: latestSession,
+  }) || buildFastProgressSummary({ latestMessage, latestStatus, progress })
+
+  return {
+    artifacts,
+    eventCounts: {},
+    issues: latestStatus?.error ? [latestStatus.error] : [],
+    managedRunId: makeManagedRunId(),
+    manifestRun: manifest && typeof manifest === "object" && Array.isArray((manifest as { runs?: unknown }).runs)
+      ? (manifest as { runs: unknown[] }).runs.slice(-1)[0] ?? null
+      : null,
+    progress,
+    routing: { selectedSkills: ["progress-summarizer"], skillScopes: ["public"] as SkillScope[] },
+    sessionId: sessionId ?? "",
+    sessionTurn: null,
+    spokenSummary,
+    status: latestStatus?.status === "running" ? "partial" as const : latestStatus?.status ?? "partial" as const,
+    summary: spokenSummary,
+    threadId: latestStatus?.threadId ?? getOptionalString(body.threadId),
+    turnId,
+    workspaceDir,
+    workspaceId,
+  }
+}
+
 export function subscribeManagedRunStatus(
   managedRunId: string,
   subscriber: (event: ManagedRunEvent) => void,
@@ -1165,6 +1278,7 @@ export async function runAgentTurn(
   })
 
   const abort = new AbortController()
+  managedRunAbortControllers.set(managedRunId, abort)
   const spokenSummary = MANAGED_START_SUMMARY
   rememberManagedRunStatus({
     managedRunId,
@@ -1205,6 +1319,7 @@ export async function runAgentTurn(
   void (async () => {
     try {
       const result = await executeCodexTurn(prepared, { signal: abort.signal })
+      managedRunAbortControllers.delete(managedRunId)
       const summary = await buildManagedSummary(result, {
         config,
         logger,
@@ -1237,6 +1352,8 @@ export async function runAgentTurn(
         turnId: prepared.runContext.turnId,
       })
     } catch (err) {
+      managedRunAbortControllers.delete(managedRunId)
+      if (abort.signal.aborted) return
       const errorSummary = "任务执行失败，请查看详情。"
       rememberManagedRunStatus({
         error: err instanceof Error ? err.message : "managed dispatch background run failed",

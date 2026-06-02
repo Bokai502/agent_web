@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
-import { getManagedRunEvents, getManagedRunStatus, runAgentTurn, subscribeManagedRunStatus, type ManagedRunEvent } from "./agentOrchestrator.js"
+import { cancelManagedRunAndSummarize, getManagedRunEvents, getManagedRunStatus, runAgentTurn, subscribeManagedRunStatus, summarizeManagedProgress, type ManagedRunEvent } from "./agentOrchestrator.js"
 import { RunRequestError } from "./codexTurn.js"
 import type { RunRequestBody } from "./runTypes.js"
 
@@ -13,6 +13,34 @@ export async function managedRunRoutes(
     const status = await getManagedRunStatus(req.params.managedRunId)
     if (!status) return reply.status(404).send({ error: "managed run not found" })
     return reply.send(status)
+  })
+
+  fastify.post<{ Params: { managedRunId: string } }>("/api/run/managed/cancel/:managedRunId", async (req, reply) => {
+    try {
+      const status = await cancelManagedRunAndSummarize(req.params.managedRunId, {
+        config,
+        logger,
+        requestId: String(req.id),
+      })
+      if (!status) return reply.status(404).send({ error: "managed run not found" })
+      return reply.send(status)
+    } catch (err) {
+      logger.error("managed run cancel failed", { err, managedRunId: req.params.managedRunId, requestId: req.id })
+      return reply.status(500).send({ error: "failed to cancel managed run" })
+    }
+  })
+
+  fastify.post<{ Body: RunRequestBody }>("/api/run/managed/summarize", async (req, reply) => {
+    try {
+      return reply.send(await summarizeManagedProgress(req.body, {
+        config,
+        logger,
+        requestId: String(req.id),
+      }))
+    } catch (err) {
+      logger.error("managed progress summarize failed", { err, requestId: req.id })
+      return reply.status(500).send({ error: "failed to summarize managed progress" })
+    }
   })
 
   fastify.get<{ Params: { managedRunId: string } }>("/api/run/managed/events/:managedRunId", async (req, reply) => {

@@ -6,7 +6,9 @@ type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gn
 type WorkspaceTopbarProps = {
   activePanel: ActivePanel
   activeSessionMatchesWorkspace: boolean
+  stopSummaryPending?: boolean
   enableGncConfig?: boolean
+  onStopAndSummarize?: () => void
   onReturnHome: () => void
   onSelectPanel: (panel: ActivePanel) => void
   showBom: boolean
@@ -19,7 +21,9 @@ type WorkspaceTopbarProps = {
 export function WorkspaceTopbar({
   activePanel,
   activeSessionMatchesWorkspace,
+  stopSummaryPending = false,
   enableGncConfig = false,
+  onStopAndSummarize,
   onReturnHome,
   onSelectPanel,
   showBom,
@@ -100,9 +104,23 @@ export function WorkspaceTopbar({
             </div>
           )}
         </div>
-        <div className="wa-status-pill">
-          <span className="wa-status-dot" />
-          {visibleRunning ? t("workspace.status.running") : activeSessionMatchesWorkspace ? t("workspace.status.loaded") : t("workspace.status.waiting")}
+        <div className="wa-status-group">
+          {activeSessionMatchesWorkspace && !visibleRunning && onStopAndSummarize && (
+            <button
+              type="button"
+              className="wa-stop-summary-button"
+              disabled={stopSummaryPending}
+              onClick={onStopAndSummarize}
+              title="停止当前 Codex 进程并生成语音总结"
+            >
+              <span aria-hidden="true" />
+              {stopSummaryPending ? "总结中" : "停止"}
+            </button>
+          )}
+          <div className="wa-status-pill">
+            <span className="wa-status-dot" />
+            {visibleRunning ? t("workspace.status.running") : activeSessionMatchesWorkspace ? t("workspace.status.loaded") : t("workspace.status.waiting")}
+          </div>
         </div>
       </div>
     </header>

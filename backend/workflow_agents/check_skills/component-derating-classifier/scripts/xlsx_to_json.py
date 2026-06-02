@@ -16,8 +16,11 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
+from progress_utils import update_loop_progress
+
 
 NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+FILL_DOWN_COLUMNS = {"序号", "元器件名称", "型号规格_规格", "生产厂商_生产单位"}
 
 
 def col_index(cell_ref: str) -> int:
@@ -150,10 +153,22 @@ def convert_xlsx_to_json(xlsx_path: Path, json_path: Path) -> dict:
     columns = build_columns(header_top, header_sub, max_cols)
 
     records = []
+    fill_down_values: dict[str, object] = {}
+    fill_down_counts: dict[str, int] = {}
     for row in rows[3:]:
         if not any(value is not None and value != "" for value in row):
             continue
-        records.append({columns[i]: row[i] for i in range(max_cols)})
+        record = {columns[i]: row[i] for i in range(max_cols)}
+        for column in FILL_DOWN_COLUMNS:
+            if column not in record:
+                continue
+            value = record.get(column)
+            if value is not None and value != "":
+                fill_down_values[column] = value
+            elif column in fill_down_values:
+                record[column] = fill_down_values[column]
+                fill_down_counts[column] = fill_down_counts.get(column, 0) + 1
+        records.append(record)
 
     payload = {
         "source": str(xlsx_path),
@@ -162,6 +177,8 @@ def convert_xlsx_to_json(xlsx_path: Path, json_path: Path) -> dict:
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "row_count": len(records),
         "columns": columns,
+        "fill_down_columns": sorted(FILL_DOWN_COLUMNS),
+        "fill_down_counts": fill_down_counts,
         "data": records,
     }
 
@@ -169,9 +186,19 @@ def convert_xlsx_to_json(xlsx_path: Path, json_path: Path) -> dict:
     return payload
 
 
+def resolve_path(path: Path, workspace_dir: Path | None = None) -> Path:
+    expanded = path.expanduser()
+    if expanded.is_absolute():
+        return expanded.resolve()
+    if workspace_dir is not None:
+        return (workspace_dir / expanded).resolve()
+    return expanded.resolve()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Convert an XLSX table to JSON.")
     parser.add_argument("xlsx_path", type=Path, help="Input .xlsx file path")
+    parser.add_argument("--workspace-dir", type=Path, help="Workspace root for relative input and output paths.")
     parser.add_argument(
         "-o",
         "--output",
@@ -180,14 +207,30 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    xlsx_path = args.xlsx_path.expanduser().resolve()
+    workspace_dir = args.workspace_dir.expanduser().resolve() if args.workspace_dir else None
+    xlsx_path = resolve_path(args.xlsx_path, workspace_dir)
     if not xlsx_path.exists():
         parser.error(f"Input file does not exist: {xlsx_path}")
     if xlsx_path.suffix.lower() != ".xlsx":
         parser.error(f"Input file must be .xlsx: {xlsx_path}")
 
-    json_path = args.output.expanduser().resolve() if args.output else xlsx_path.with_suffix(".json")
+    json_path = resolve_path(args.output, workspace_dir) if args.output else xlsx_path.with_suffix(".json")
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    update_loop_progress(
+        workspace_dir,
+        loop_name="check_convert_table",
+        status="table_conversion_running",
+        completed=False,
+        percentage=10.0,
+    )
     payload = convert_xlsx_to_json(xlsx_path, json_path)
+    update_loop_progress(
+        workspace_dir,
+        loop_name="check_convert_table",
+        status="table_conversion_completed",
+        completed=True,
+        percentage=100.0,
+    )
 
     print(json_path)
     print(f"rows: {payload['row_count']}")

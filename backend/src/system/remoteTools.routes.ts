@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify"
 import type { Logger } from "../logger.js"
 
 const DESKTOP_LAUNCHER = "/usr/local/bin/start-remote-cad-desktop"
+const COMSOL_LAUNCHER = "/usr/local/bin/start-comsol-remote"
 const REMOTE_DESKTOP_TOOLS = ["freecad", "paraview", "comsol"] as const
 
 type RemoteDesktopTool = typeof REMOTE_DESKTOP_TOOLS[number]
@@ -19,10 +20,12 @@ type LauncherResult = {
 }
 
 function runLauncher(tool: RemoteDesktopTool): Promise<LauncherResult> {
-  const command = [DESKTOP_LAUNCHER, tool, "start"]
+  const executable = tool === "comsol" ? COMSOL_LAUNCHER : DESKTOP_LAUNCHER
+  const args = tool === "comsol" ? [] : [tool, "start"]
+  const command = [executable, ...args]
 
   return new Promise(resolve => {
-    const child = spawn(DESKTOP_LAUNCHER, [tool, "start"], {
+    const child = spawn(executable, args, {
       stdio: ["ignore", "pipe", "pipe"],
     })
     const stdoutChunks: Buffer[] = []
