@@ -21,7 +21,7 @@ const WHISPER_BIN_CANDIDATES = [
   path.join(BACKEND_ROOT, "whisper_cpp", "whisper.cpp", "build", "bin", "whisper-cli"),
   path.join(BACKEND_ROOT, "whisper_cpp", "whisper.cpp", "build", "bin", "main"),
 ]
-const DEFAULT_MODEL_PATH = path.join(BACKEND_ROOT, "whisper_cpp", "models", "ggml-large-v3-turbo.bin")
+const DEFAULT_MODEL_PATH = "/data/llm_models/Whisper/ggml-large-v3-turbo.bin"
 const DEFAULT_FFMPEG_BIN = "ffmpeg"
 const DEFAULT_CUDA_VISIBLE_DEVICES = "1"
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024

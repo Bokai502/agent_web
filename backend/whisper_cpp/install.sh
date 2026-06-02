@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WHISPER_DIR="${SCRIPT_DIR}/whisper.cpp"
-MODELS_DIR="${SCRIPT_DIR}/models"
+MODELS_DIR="${WHISPER_MODELS_DIR:-/data/llm_models/Whisper}"
 MODEL_FILE="${MODELS_DIR}/ggml-large-v3-turbo.bin"
 MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin"
 
