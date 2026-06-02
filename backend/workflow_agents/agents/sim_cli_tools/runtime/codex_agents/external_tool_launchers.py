@@ -50,7 +50,6 @@ def load_simulation_outputs_in_remote_tools(
             ],
             launcher=paraview_launcher,
             data_file=native_vtu,
-            existing_process_policy=_existing_paraview_policy,
         ),
     }
     result["ok"] = all(item.get("status") in {"launched", "skipped"} for item in (result["comsol"], result["paraview"]))
@@ -180,59 +179,38 @@ def _read_process_display(pid: int) -> str | None:
     return None
 
 
-def _existing_paraview_policy() -> dict[str, Any] | None:
-    if not _has_existing_paraview_process():
-        return None
-    return {
-        "status": "skipped",
-        "reason": "existing_process_no_ipc",
-        "message": (
-            "A ParaView GUI process is already running. The current remote launcher "
-            "does not expose a stable IPC/RPC endpoint that can load a new file into "
-            "that existing GUI process, so the pipeline did not start another ParaView."
-        ),
-    }
-
-
-def _has_existing_paraview_process() -> bool:
-    try:
-        completed = subprocess.run(
-            ["pgrep", "-f", "(^|/)paraview( |$)"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-    except OSError:
-        return False
-    current_pid = os.getpid()
-    for line in completed.stdout.splitlines():
-        try:
-            pid = int(line.strip())
-        except ValueError:
-            continue
-        if pid != current_pid:
-            return True
-    return False
-
 def _write_paraview_startup_script(script_path: Path, native_vtu: Path) -> None:
     script_path.write_text(
         f"""from paraview.simple import *
 
 vtu = XMLUnstructuredGridReader(FileName=[{str(native_vtu)!r}])
+UpdatePipeline(proxy=vtu)
 view = GetActiveViewOrCreate('RenderView')
 view.ViewSize = [1600, 1000]
 display = Show(vtu, view)
 display.Representation = 'Surface With Edges'
 
-try:
-    ColorBy(display, ('POINTS', 'T'))
-    display.RescaleTransferFunctionToDataRange(True, False)
-except Exception:
-    try:
-        ColorBy(display, ('CELLS', 'T'))
-        display.RescaleTransferFunctionToDataRange(True, False)
-    except Exception:
-        pass
+def _array_names(attributes):
+    if attributes is None:
+        return []
+    return [attributes.GetArray(i).Name for i in range(attributes.GetNumberOfArrays())]
+
+point_arrays = _array_names(vtu.PointData)
+cell_arrays = _array_names(vtu.CellData)
+for candidate in ('T', 'Color'):
+    if candidate in point_arrays:
+        ColorBy(display, ('POINTS', candidate))
+        break
+    if candidate in cell_arrays:
+        ColorBy(display, ('CELLS', candidate))
+        break
+else:
+    if point_arrays:
+        ColorBy(display, ('POINTS', point_arrays[0]))
+    elif cell_arrays:
+        ColorBy(display, ('CELLS', cell_arrays[0]))
+
+display.RescaleTransferFunctionToDataRange(True, False)
 
 view.Background = [1.0, 1.0, 1.0]
 ResetCamera(view)
