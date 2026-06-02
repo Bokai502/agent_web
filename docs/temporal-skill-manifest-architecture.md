@@ -834,7 +834,7 @@ v0005_candidate_b/
 
 因为这些文件位于不同 candidate workspace，不会互相覆盖。
 
-并发候选运行时不要共享 active workspace，也不要让多个候选都写当前 `/data/lbk/codex_web/FreeCAD_data/v9_data` 这种单一路径。正确方式是：
+并发候选运行时不要共享 active workspace，也不要让多个候选都写当前 `/data/lbk/codex_web/data/input_data/v9_data` 这种单一路径。正确方式是：
 
 ```text
 base version workspace 只读
@@ -1116,7 +1116,7 @@ mean_penalty = min(10, mean_deviation_K / (allowed_span_K / 2) * 10)
 
 ### 当前 v9_data 示例
 
-当前 `/data/lbk/codex_web/FreeCAD_data/v9_data/02_sim/analysis/metrics_summary.json` 中：
+当前 `/data/lbk/codex_web/data/input_data/v9_data/02_sim/analysis/metrics_summary.json` 中：
 
 ```json
 {

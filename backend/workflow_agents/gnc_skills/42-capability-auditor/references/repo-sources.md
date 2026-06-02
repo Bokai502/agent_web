@@ -36,15 +36,14 @@ Consult `knowledge/42/details/` only when the verdict depends on a concrete file
 ## Intended outputs
 
 - `42_capability_assessment.md`
-- `capability_assessment.json`
+- `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`
 
 ## Optical payload implementation references
 
 Use these when the task includes inter-satellite optical links, `FSM`, focal-plane camera, or DWS-like payload behavior:
 
-- `Development/OpticalPayloadDraft/OpticalLinkReusableReference.md`
-- `Development/OpticalPayloadDraft/OpticalLinkAcquisitionWorkflow.md`
+- `bridge/mission_bypass/knowledge_base/README.md`
 - `bridge/mission_bypass/Source/AcOpticalPayload.c`
 - `bridge/mission_bypass/Source/AcOpticalLink.c`
 - `bridge/mission_bypass/Include/AcOpticalPayload.h`
-- `fsw/overlay/Source/AcControl.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcControl.c`

@@ -1,4 +1,4 @@
-base_output_dir: /data/lbk/codex_web/FreeCAD_data/v9_data/02_sim/runs
+base_output_dir: /data/lbk/codex_web/data/input_data/v9_data/02_sim/runs
 comsol:
   export_face_tags:
   - bottum_data

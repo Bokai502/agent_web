@@ -1,6 +1,6 @@
 ---
 name: aignc-design-closure-auditor
-description: Audit whether mission-design inputs and user-confirmed assumptions were carried through the full AIGNC-for-42 workflow correctly, completely, and with the right level of evidence. Use when Codex must independently compare design documents, scenario facts, capability decisions, 42 configuration files, validation artifacts, FSW requirement and architecture packages, code-implementation reports, and runtime evidence, then decide whether the case is closed or must be routed back to an earlier AIGNC stage for rework.
+description: Audit whether mission-design inputs, the user-frozen GNC interface contract, and user-confirmed assumptions were carried through the full AIGNC-for-42 workflow correctly, completely, and with the right level of evidence. Use when Codex must independently compare design documents, scenario facts, capability decisions, 42 configuration files, validation artifacts, FSW requirement and architecture artifact bundles, code-implementation reports, and runtime evidence, then decide whether the workspace workflow is complete or must be routed back to an earlier AIGNC stage for rework.
 ---
 
 # AIGNC Design Closure Auditor
@@ -40,13 +40,13 @@ Use this skill when the user asks questions like:
 
 Use it after any staged AIGNC run, especially when these artifacts exist:
 
-- `scenario_facts.json`
-- `42_capability_assessment.md` or `capability_assessment.json`
-- `04_config/`
-- `05_fsw_requirements/`
-- `06_fsw_architecture/`
-- `07_fsw_implementation/`
-- `08_run/run_report.md` and `run_summary.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- `workspace_dir/AIGNC_Workflow/03_capability/42_capability_assessment.md` or `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`
+- `workspace_dir/AIGNC_Workflow/04_config/`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/` including `gnc_interface_contract.md`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/` including `gnc_interface_contract_trace.md`
+- `workspace_dir/AIGNC_Workflow/07_fsw_implementation/`
+- `workspace_dir/AIGNC_Workflow/08_run/run_report.md` and `workspace_dir/AIGNC_Workflow/08_run/run_summary.json`
 
 Do not use this skill as the first scenario-authoring step. It is an audit stage, not a replacement for `aignc-scenario-brainstorm` or the normal orchestrator.
 
@@ -72,7 +72,7 @@ When delegation is available:
 - use `fork_context: true` only when the sub-agent must inherit the full current thread context
 - otherwise pass only the minimum structured inputs:
   - the skill itself
-  - the case root
+  - the workspace_dir
   - the design document or extracted text
   - the exact requested audit outputs
 - the sub-agent must not modify code or configuration files
@@ -84,7 +84,7 @@ Recommended spawn shape:
 Spawn one independent audit sub-agent with this skill and ask it to:
 - read the design inputs
 - compare them against staged AIGNC artifacts
-- produce `design_closure_audit.md`, `design_closure_audit.json`, and `rework_route.json`
+- produce `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.md`, `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.json`, and `workspace_dir/AIGNC_Workflow/10_reports/rework_route.json`
 - classify every gap by earliest return stage
 - avoid making code or config edits itself
 ```
@@ -93,14 +93,14 @@ Do not delegate code or config rewrites to this audit sub-agent. Its role is ind
 
 ## Required Local Context
 
-Read `references/repo-sources.md` first.
+Read `skills/aignc-design-closure-auditor/references/repo-sources.md` first.
 
-Workspace-local case layout and writable-boundary rules are governed by `WORKSPACE_RULES_FOR_AI.md` at the current workspace root.
+Workspace-local directory layout and writable-boundary rules are governed by `AGENT.md` at the current workspace root.
 
-If a case folder is available, run:
+If a version workspace is available, run:
 
-```powershell
-python scripts/collect_case_inventory.py --case-root <case-root>
+```bash
+python3 skills/aignc-design-closure-auditor/scripts/collect_case_inventory.py --workspace-dir <workspace_dir>
 ```
 
 Use the inventory only as a starting point. It does not replace reading the actual files that support or fail the audit claim.
@@ -114,14 +114,14 @@ Complete these in order:
 3. Compare the ledger against staged AIGNC artifacts.
 4. Classify each item by closure status and evidence strength.
 5. Route every unresolved or failed item back to the earliest correct AIGNC stage.
-6. Produce the audit package.
+6. Produce the audit artifact bundle.
 
 ## 1. Identify The Authoritative Design-Input Package
 
 Use the strongest available inputs in this order:
 
-1. user-confirmed facts in the conversation or structured scenario files
-2. structured scenario artifacts such as `scenario_facts.json`
+1. user-confirmed facts in the conversation and `workspace_dir/AIGNC_Workflow/05_fsw_requirements/gnc_interface_contract.md` when it has `Status: Frozen_By_User`
+2. structured scenario artifacts such as `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
 3. the original design document text or extracted notes
 4. explicit deferred assumptions recorded by earlier AIGNC stages
 
@@ -130,6 +130,7 @@ Separate:
 - `documented requirements`
 - `user-confirmed overrides`
 - `engineering assumptions added during AIGNC`
+- `user-frozen GNC interface-contract commitments`
 
 Never merge them silently.
 
@@ -154,6 +155,11 @@ Create a ledger that covers, at minimum:
   - thruster presence or absence
 - control mode set
 - mode transition conditions
+- coordinate/state semantics from the frozen GNC interface contract
+- guidance target semantics from the frozen GNC interface contract
+- sensor-validity and environment-visibility semantics from the frozen GNC interface contract
+- mode timer/dwell semantics from the frozen GNC interface contract
+- actuator allocation semantics from the frozen GNC interface contract
 - control-style constraints
   - magnetic-only detumble
   - wheel-based inertial control
@@ -176,9 +182,9 @@ Check each requirement against the correct stage artifact, not just the nearest 
 
 Use:
 
-- `02_scenario/`
-- top-level `scenario_facts.json`
-- `open_questions.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/`
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json`
 
 Ask:
 
@@ -189,9 +195,9 @@ Ask:
 
 Use:
 
-- `03_capability/`
-- `42_capability_assessment.md`
-- `capability_assessment.json`
+- `workspace_dir/AIGNC_Workflow/03_capability/`
+- `workspace_dir/AIGNC_Workflow/03_capability/42_capability_assessment.md`
+- `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`
 
 Ask:
 
@@ -202,7 +208,7 @@ Ask:
 
 Use:
 
-- `04_config/`
+- `workspace_dir/AIGNC_Workflow/04_config/`
 - generated spacecraft, orbit, and input files
 
 Ask:
@@ -215,9 +221,9 @@ Ask:
 
 Use:
 
-- `04_config/validation/`
-- `requirements_trace.md`
-- `config_validation_report.md`
+- `workspace_dir/AIGNC_Workflow/04_config/validation/`
+- `workspace_dir/AIGNC_Workflow/04_config/validation/requirements_trace.md`
+- `workspace_dir/AIGNC_Workflow/04_config/validation/config_validation_report.md`
 
 Ask:
 
@@ -228,22 +234,25 @@ Ask:
 
 Use:
 
-- `05_fsw_requirements/`
-- `06_fsw_architecture/`
-- optional `07_fsw_implementation/`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/` including `gnc_interface_contract.md`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/` including `gnc_interface_contract_trace.md`
+- optional `workspace_dir/AIGNC_Workflow/07_fsw_implementation/`
 
 Ask:
 
-- did the FSW package encode the intended modes, sensors, actuators, and switching rules?
+- did the FSW artifact bundle encode the intended modes, sensors, actuators, and switching rules?
 - were performance requirements translated into acceptance targets or only mentioned?
+- was the GNC interface contract template-complete, fully populated, and explicitly confirmed by the user before implementation?
+- did architecture planning map every frozen contract commitment to source ownership or verification evidence?
+- did implementation and runtime evidence preserve the frozen coordinate, target, sensor-validity, environment-visibility, mode-timer, and actuator-role semantics?
 
 ### Implementation And Runtime
 
 Use:
 
-- `fsw_code_author_report.md`
-- `run_report.md`
-- `run_summary.json`
+- `workspace_dir/AIGNC_Workflow/07_fsw_implementation/fsw_code_author_report.md`
+- `workspace_dir/AIGNC_Workflow/08_run/run_report.md`
+- `workspace_dir/AIGNC_Workflow/08_run/run_summary.json`
 - runtime telemetry and plots
 
 Ask:
@@ -289,7 +298,7 @@ For every non-closed item, return the earliest correct rework stage:
 - `42-config-validator`
   - configuration exists but trace or static closure is incomplete
 - `fsw-requirements-extractor`
-  - mission logic or acceptance requirement never entered the FSW requirement package
+  - mission logic or acceptance requirement never entered the FSW requirement artifact bundle
 - `fsw-architecture-planner`
   - requirement entered FSW requirements but was not mapped to implementation boundaries
 - `fsw-code-author`
@@ -310,9 +319,13 @@ When multiple failures exist, report:
 
 Produce:
 
-- `design_closure_audit.md`
-- `design_closure_audit.json`
-- `rework_route.json`
+- `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.md`
+- `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.json`
+- `workspace_dir/AIGNC_Workflow/10_reports/rework_route.json`
+
+Write these outputs under `workspace_dir/AIGNC_Workflow/10_reports/` unless the user explicitly names another audit-output location. Append step-level status entries to `workspace_dir/AIGNC_Workflow/workflow_log.md` when this skill starts, after inventory collection, authoritative-input selection, requirement-ledger creation, each major closure-evidence comparison group, closure classification, rework-route decision, audit artifact writing, and final audit artifact bundle emission. Entries must use stage `10_reports`, current skill `aignc-design-closure-auditor`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
+Structured progress must also be updated in `workspace_dir/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `workspace_dir/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+
 
 The markdown report must include:
 
@@ -359,9 +372,9 @@ Fix any issue before returning.
 ## Resources
 
 ### scripts/
-- `scripts/collect_case_inventory.py`
-  - build a deterministic inventory of expected AIGNC artifacts under a case root before the agent begins deeper file reading
+- `skills/aignc-design-closure-auditor/scripts/collect_case_inventory.py`
+  - build a deterministic inventory of expected AIGNC artifacts under a workspace_dir before the agent begins deeper file reading
 
 ### references/
-- `references/repo-sources.md`
+- `skills/aignc-design-closure-auditor/references/repo-sources.md`
   - default artifact map and stage-to-file lookup for this audit skill

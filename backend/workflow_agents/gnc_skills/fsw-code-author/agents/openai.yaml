@@ -1,4 +1,4 @@
 interface:
   display_name: "FSW Code Author"
-  short_description: "Implement planned fixed CFS_FSW changes."
-  default_prompt: "Use $fsw-code-author to implement planned fixed CFS_FSW, sidecar optical-link, and related build changes from the architecture package, keep edits bounded to the mapped ownership files, and leave the codebase compiling."
+  short_description: "Implement planned complete CFS_FSW GNC changes."
+  default_prompt: "Use $fsw-code-author to implement planned complete CFS_FSW GNC changes from the architecture artifact bundle, consuming file_change_map ownership groups and keeping edits bounded to mapped files."

@@ -28,7 +28,28 @@ function getInputText(body: RunRequestBody) {
     .trim()
 }
 
-function fallbackRouting(): IntentRoutingResult {
+function isThermalWorkspace(body: RunRequestBody) {
+  const fields = [body.workspaceName, body.workspaceId, body.workspaceDir]
+    .filter((value): value is string => typeof value === "string" && value.trim() !== "")
+    .join("\n")
+    .toLowerCase()
+  return /thermal|热仿真|热设计|ws_thermal/u.test(fields)
+}
+
+function looksLikeProgressQuestion(text: string) {
+  return /进度|状态|完成|结束|怎么样|到哪|当前任务|刚才|上一个|previous|progress|status|finished|summary/u.test(text)
+}
+
+function fallbackRouting(body?: RunRequestBody, userInput = ""): IntentRoutingResult {
+  if (body && isThermalWorkspace(body) && !looksLikeProgressQuestion(userInput)) {
+    return {
+      intent: "thermal",
+      managedSkills: ["task-runner"],
+      selectedSkills: ["planner", "config-editor", "freecad", "simulation-skill"],
+      skillScopes: ["public", "thermal"],
+      source: "fallback",
+    }
+  }
   return {
     intent: "general",
     managedSkills: ["task-runner"],
@@ -206,10 +227,10 @@ export async function routeManagedRunIntent(
   { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
 ): Promise<IntentRoutingResult> {
   const userInput = getInputText(body)
-  if (!userInput) return fallbackRouting()
+  if (!userInput) return fallbackRouting(body, userInput)
 
   const skill = readRoutingSkillInstruction("intent-router")
-  if (!skill) return fallbackRouting()
+  if (!skill) return fallbackRouting(body, userInput)
 
   try {
     const abort = new AbortController()
@@ -249,8 +270,9 @@ export async function routeManagedRunIntent(
     logger.warn("managed run intent routing fallback", { err, requestId })
   }
 
-  const fallback = fallbackRouting()
+  const fallback = fallbackRouting(body, userInput)
   logger.info("managed run intent routed", {
+    fallbackReason: fallback.intent === "thermal" ? "thermal-workspace" : "general-default",
     intent: fallback.intent,
     model: INTENT_ROUTER_MODEL,
     managedSkills: fallback.managedSkills,

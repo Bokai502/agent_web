@@ -1,6 +1,6 @@
 ---
 name: aignc-42-orchestrator
-description: Coordinate the end-to-end AIGNC workflow for 42 by routing scenario analysis, capability auditing, configuration generation, fixed CFS_FSW requirements extraction, FSW architecture planning, code implementation, runtime diagnosis, standard post-run plotting, and the iterative FSW tuning-review loop back into fsw-code-author.
+description: Coordinate the end-to-end AIGNC workflow for 42 by routing scenario analysis, capability auditing, configuration generation, static validation, configuration build/load/run smoke testing, fixed CFS_FSW requirements extraction, user-confirmed GNC interface-contract freezing, FSW architecture planning, code implementation, optional downstream FSW review when explicitly requested, and mandatory design-closure auditing before any case is declared complete.
 ---
 
 # AIGNC 42 Orchestrator
@@ -17,6 +17,16 @@ Do not generate 42 configuration files, write source code, or make capability cl
 
 <HARD-GATE>
 When `open_questions.json.must_confirm` contains configuration-blocking questions, keep routing back to `aignc-scenario-brainstorm`. Do not advance to capability audit or configuration generation until those questions are answered or explicitly deferred by the user.
+</HARD-GATE>
+
+
+<HARD-GATE>
+For the FSW branch, do not route to `fsw-architecture-planner` or `fsw-code-author` until `workspace_dir/AIGNC_Workflow/05_fsw_requirements/gnc_interface_contract.md` exists, was created from the required template in `fsw-requirements-extractor/references/gnc_interface_contract_template.md`, has all mission-relevant semantic fields fully populated, has `Status: Frozen_By_User`, and has no required `TBD`, `Unknown`, blank, unresolved-alternative, or `Pending` confirmation entries for the requested behavior. The agent may draft the contract, but must not mark it frozen without explicit user confirmation in the conversation.
+</HARD-GATE>
+
+
+<HARD-GATE>
+Do not declare an AIGNC-for-42 workspace workflow complete or closed until `aignc-design-closure-auditor` has produced `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.md`, `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.json`, and `workspace_dir/AIGNC_Workflow/10_reports/rework_route.json`. If the closure audit reports rework, route to the earliest indicated failed stage instead of claiming closure.
 </HARD-GATE>
 
 ## When to Use
@@ -36,14 +46,18 @@ Possible inputs include:
 
 - raw mission descriptions
 - task documents
-- partial case files
-- prior stage artifacts such as `scenario_facts.json`, `open_questions.json`, `capability_assessment.json`, `fsw_requirement_spec.md`, `fsw_architecture_plan.md`, `fsw_code_author_report.md`, or `run_summary.json`
+- partial workspace configuration files
+- prior stage artifacts such as `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`, `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json`, `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`, `workspace_dir/AIGNC_Workflow/05_fsw_requirements/fsw_requirement_spec.md`, `workspace_dir/AIGNC_Workflow/05_fsw_requirements/gnc_interface_contract.md`, `workspace_dir/AIGNC_Workflow/06_fsw_architecture/fsw_architecture_plan.md`, `workspace_dir/AIGNC_Workflow/07_fsw_implementation/fsw_code_author_report.md`, `workspace_dir/AIGNC_Workflow/08_run/run_summary.json`, or `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.json`
 
 ## Required Local Context
 
-Read `references/repo-sources.md` first.
+Read `skills/aignc-42-orchestrator/references/repo-sources.md` first.
 
-Workspace-local case layout and writable-boundary rules are governed by `WORKSPACE_RULES_FOR_AI.md` at the current workspace root.
+Workspace-local directory layout and writable-boundary rules are governed by `AGENT.md` at the current workspace root.
+
+All AI workflow stage artifacts must be located under `workspace_dir/AIGNC_Workflow/`, including `01_inputs/`, `02_scenario/`, `03_capability/`, `04_config/`, `05_fsw_requirements/`, `06_fsw_architecture/`, `07_fsw_implementation/`, `08_run/`, `09_*`, and `10_reports/`. Final validated runtime configuration is synchronized to `workspace_dir/00_inputs/Config/`; real build and simulation execution are under `workspace_dir/02_sim/42_run/`.
+
+Maintain `workspace_dir/AIGNC_Workflow/workflow_log.md` as the design-process status log. At orchestration start, after each internal checklist step, after every routing or stage-gate action, when blocked, and at handoff/completion, append a numbered entry with timestamp, stage id, current skill, step id or step name, status, concise description, key input artifacts checked, key output artifacts written or updated, and next action or handoff target when known. Do not store chain-of-thought; log only externally useful workflow state, evidence, decisions, blockers, and handoff facts.
 
 Default knowledge scope:
 
@@ -76,11 +90,15 @@ Classify the request as one of:
 - structured scenario, not yet audited
 - audited scenario, not yet configured
 - simulation configuration path complete, but FSW requirements not yet structured
-- structured FSW requirements, not yet architecture-planned
-- architecture-planned FSW package, not yet implemented
-- implemented FSW package, not yet runtime-diagnosed
-- runtime-diagnosed FSW package with unresolved performance issues
-- tuning-reviewed FSW package ready for another implementation iteration
+- structured FSW requirements, not yet user-confirmed by a frozen GNC interface contract
+- structured FSW requirements with `gnc_interface_contract.md` frozen by the user, not yet architecture-planned
+- architecture-planned FSW artifact bundle, not yet implemented
+- implemented FSW artifact bundle, not yet build/load/run smoke-tested
+- runtime smoke-tested artifact bundle with user-requested FSW behavior review
+- runtime evidence and reports ready, not yet design-closure audited
+- design-closure audit passed, workspace workflow ready to close
+- design-closure audit found gaps and must route to an earlier stage
+- reviewed FSW artifact bundle ready for another implementation iteration
 - blocked pending user clarification
 
 ### 2. Route to the minimum next leaf skill
@@ -90,15 +108,19 @@ Use the smallest valid next step:
 - raw scenario -> `aignc-scenario-brainstorm`
 - structured scenario -> `42-capability-auditor`
 - audited and configuration-supported request -> `42-config-author`
-- generated configuration package needing static checks -> `42-config-validator`
-- statically validated package needing optional runtime proof -> `42-build-run-diagnose`
+- generated configuration artifact bundle needing static checks -> `42-config-validator`
+- statically validated artifact bundle needing optional configuration build/load/run smoke test -> `42-build-run-diagnose`
 - fixed `CFS_FSW` behavior request -> `fsw-requirements-extractor`
-- structured FSW requirements -> `fsw-architecture-planner`
-- architecture package ready for implementation -> `fsw-code-author`
-- implemented FSW package needing execution proof -> `42-build-run-diagnose`
-- runtime evidence needing standard telemetry figures -> `42-runtime-plotter`
-- runtime evidence showing performance or behavior problems -> `fsw-tuning-reviewer`
-- tuning-review package recommending local implementation changes -> `fsw-code-author`
+- structured FSW requirements without a frozen user-confirmed `gnc_interface_contract.md` -> stop for user confirmation or route back to `fsw-requirements-extractor` to draft/repair the contract
+- structured FSW requirements with `gnc_interface_contract.md` status `Frozen_By_User` -> `fsw-architecture-planner`
+- architecture artifact bundle ready for implementation and still consistent with the frozen contract -> `fsw-code-author`
+- implemented FSW artifact bundle needing compile/load/run smoke test -> `42-build-run-diagnose`
+- runtime evidence needing optional standard telemetry figures -> `42-runtime-plotter`
+- user explicitly requests FSW behavior or performance review from runtime evidence -> `fsw-tuning-reviewer`
+- tuning-review artifact bundle recommending local implementation changes -> `fsw-code-author`
+- runtime evidence plus report artifact bundle ready for final closure -> `aignc-design-closure-auditor`
+- closure audit passes with no rework route -> declare workspace workflow closed
+- closure audit reports rework -> route to the earliest failed stage named in `rework_route.json`
 
 ### 3. Enforce stage gates
 
@@ -108,20 +130,41 @@ Do not allow downstream generation when upstream blockers remain. Typical gates:
 - unresolved configuration-critical `must_confirm` questions block capability audit unless the audit can explicitly evaluate the missing item as unknown
 - unresolved `blocking_questions` block capability closure
 - static configuration validation closes the requirements/configuration stage
-- runtime proof is optional and must not be treated as a prerequisite for completing requirements analysis
+- configuration build/load/run smoke testing is optional and must not be treated as a prerequisite for completing requirements analysis
+- `42-build-run-diagnose` pass/fail is based only on build success, 42 load/parser success, normal run completion, and basic output presence; it must not judge behavior or performance
 - missing structured FSW requirements block implementation planning
-- unresolved `blocking_architecture_questions.json` entries block `fsw-code-author`
+- missing, non-template, incomplete, non-frozen, or user-unconfirmed `workspace_dir/AIGNC_Workflow/05_fsw_requirements/gnc_interface_contract.md` blocks FSW architecture planning and FSW code implementation
+- a `gnc_interface_contract.md` containing required `TBD`, `Unknown`, blank semantic fields, unresolved alternatives, `Pending` confirmations, or unresolved coordinate/sensor/environment/mode-timer/actuator/control/guidance/verification semantics blocks FSW architecture planning until repaired and re-confirmed by the user
+- unresolved `workspace_dir/AIGNC_Workflow/06_fsw_architecture/blocking_architecture_questions.json` entries block `fsw-code-author`
 - missing architecture artifacts block FSW code implementation
-- missing implementation artifacts block FSW runtime diagnosis
-- missing runtime `InOut/` evidence blocks standard post-run plotting
-- runtime performance review requires runtime evidence artifacts such as `run_report.md` and `run_summary.json`
-- tuning-driven reimplementation requires `fsw_tuning_review.md` or `fsw_tuning_hypotheses.json`
+- missing implementation artifacts block implementation smoke testing
+- missing runtime `InOut/` evidence blocks optional standard post-run plotting
+- FSW behavior/performance review requires an explicit user request plus runtime evidence artifacts such as `workspace_dir/AIGNC_Workflow/08_run/run_report.md` and `workspace_dir/AIGNC_Workflow/08_run/run_summary.json`
+- tuning-driven reimplementation requires `workspace_dir/AIGNC_Workflow/09_tuning_review/fsw_tuning_review.md` or `workspace_dir/AIGNC_Workflow/09_tuning_review/fsw_tuning_hypotheses.json`
+- final workspace workflow closure requires `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.md`, `workspace_dir/AIGNC_Workflow/10_reports/design_closure_audit.json`, and `workspace_dir/AIGNC_Workflow/10_reports/rework_route.json` from `aignc-design-closure-auditor`
+- a closure audit with any required rework blocks final closure and must route to the earliest failed stage recorded in `rework_route.json`
 
 ### 4. Normalize handoff artifacts
 
 Ensure each stage leaves behind artifacts the next stage can consume. If an artifact is missing or structurally weak, route back to the stage that should repair it instead of guessing.
 
-### 5. Report the next action clearly
+### 5. Update workflow status log
+
+Append to `workspace_dir/AIGNC_Workflow/workflow_log.md` whenever orchestration starts, identifies a current stage, checks upstream artifacts, completes a gate check, routes to a leaf skill, receives a leaf-stage result, becomes blocked, or changes the recommended next stage. Use numbered entries consistent with the workflow directories, for example `02_scenario`, `03_capability`, `04_config`, `05_fsw_requirements`, `06_fsw_architecture`, `07_fsw_implementation`, `08_run`, `09_tuning_review`, and `10_reports`.
+
+Each entry must include:
+
+- `timestamp`
+- `stage`
+- `current_skill`
+- `step_id` or `step_name`
+- `status`
+- `description`
+- `inputs_checked`
+- `outputs_updated`
+- `next_action`
+
+### 6. Report the next action clearly
 
 Always make explicit:
 
@@ -135,7 +178,7 @@ If the workflow is in clarification, the next action must be exactly one user-fa
 
 ## Output Contract
 
-Produce a concise workflow status summary, optionally as `workflow_status.md`, containing:
+Produce a concise workflow status summary, optionally as `workspace_dir/AIGNC_Workflow/workflow_status.md`, containing:
 
 1. current stage
 2. available artifacts
@@ -168,20 +211,26 @@ Do not:
 
 For the FSW branch, the orchestrator must preserve this handoff dependency explicitly:
 
-- `fsw-code-author` input is the upstream architecture package from `fsw-architecture-planner`
-  - `fsw_architecture_plan.md`
-  - `file_change_map.json`
-  - `blocking_architecture_questions.json`
-  - `truth_model_extension_boundary.json`
+- `fsw-code-author` input is the upstream architecture artifact bundle from `fsw-architecture-planner`, plus the user-frozen GNC interface contract that the architecture artifact bundle mapped
+  - `workspace_dir/AIGNC_Workflow/05_fsw_requirements/gnc_interface_contract.md` with `Status: Frozen_By_User`
+  - `workspace_dir/AIGNC_Workflow/06_fsw_architecture/fsw_architecture_plan.md`
+  - `workspace_dir/AIGNC_Workflow/06_fsw_architecture/file_change_map.json`
+  - `workspace_dir/AIGNC_Workflow/06_fsw_architecture/blocking_architecture_questions.json`
+  - `workspace_dir/AIGNC_Workflow/06_fsw_architecture/truth_model_extension_boundary.json`
 
-Do not route into `fsw-code-author` before those artifacts exist.
+Do not route into `fsw-code-author` before those artifacts exist and remain consistent with the frozen `gnc_interface_contract.md`.
 
-For the post-run FSW loop, the orchestrator must preserve this iterative dependency explicitly:
+For optional post-run FSW review, the orchestrator must preserve this dependency explicitly:
 
-- `fsw-tuning-reviewer` consumes runtime evidence after `42-build-run-diagnose`
-- `42-runtime-plotter` is the standard post-run figure generator once runtime `InOut/` data exists
-- when the review points to local implementation or tuning issues, the next route is back to `fsw-code-author`
+- `42-build-run-diagnose` only verifies that the configuration builds, loads, parses, runs to normal completion, and emits basic outputs; a run pass is not a behavior or performance verdict
+- `42-runtime-plotter` is optional evidence generation once runtime `InOut/` data exists
+- route to `fsw-tuning-reviewer` only when the user explicitly asks to analyze FSW behavior/performance from runtime evidence
+- when that review points to local implementation or tuning issues, the next route is back to `fsw-code-author`
 - only route back to `fsw-architecture-planner` when the review identifies an architecture gap rather than a local implementation problem
+
+## Final Closure Dependency
+
+Before reporting that an AIGNC-for-42 workspace workflow is complete, the orchestrator must route through `aignc-design-closure-auditor` after runtime evidence and the final report artifact bundle exist. The closure auditor is the only stage that may decide whether the workspace workflow is complete or must return to an earlier AIGNC stage for rework. A design report, runtime plots, or successful 42 run is not by itself a closure verdict.
 
 ## Success Criteria
 
@@ -191,3 +240,6 @@ This skill is successful when:
 2. the next skill decision is minimal and justified
 3. blockers stop the pipeline early instead of leaking into generation
 4. artifacts remain traceable across stages
+5. final closure is withheld until `aignc-design-closure-auditor` produces a pass/no-rework audit artifact bundle
+
+Structured progress must also be updated in `workspace_dir/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `workspace_dir/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.

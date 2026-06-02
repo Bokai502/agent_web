@@ -6,24 +6,26 @@ Use this reference as the entry map for `fsw-code-author`.
 
 - `knowledge/skills/fsw-code-author-spec.md`
 
-## Upstream architecture package
+## Upstream architecture artifact bundle
 
-- `cases/<mission>/06_fsw_architecture/fsw_architecture_plan.md`
-- `cases/<mission>/06_fsw_architecture/file_change_map.json`
-- `cases/<mission>/06_fsw_architecture/blocking_architecture_questions.json`
-- `cases/<mission>/06_fsw_architecture/truth_model_extension_boundary.json`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/fsw_architecture_plan.md`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/file_change_map.json`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/blocking_architecture_questions.json`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/truth_model_extension_boundary.json`
 
-## Upstream extracted FSW package
+`file_change_map.json` is the implementation source of truth and must be consumed by ownership group, not only by filename. Expected groups include `mode_ownership`, `transition_ownership`, `pass_criteria_ownership`, `sensor_interface_ownership`, `actuator_interface_ownership`, `control_target_ownership`, `guidance_rate_ownership`, `target_frame_ownership`, `target_attitude_ownership`, `target_vector_or_los_ownership`, `command_output_ownership`, and `extension_boundary_items`. If a requested implementation depends on a missing or vague group, return to `fsw-architecture-planner` instead of inventing the mapping.
 
-- `cases/<mission>/05_fsw_requirements/fsw_requirement_spec.md`
-- `cases/<mission>/05_fsw_requirements/mode_table.json`
-- `cases/<mission>/05_fsw_requirements/sensor_actuator_contract.json`
+## Upstream extracted FSW artifact bundle
+
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/fsw_requirement_spec.md`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/mode_table.json`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/sensor_actuator_contract.json`
 
 ## Recommended supporting case artifacts
 
-- `cases/<mission>/02_scenario/scenario_facts.json`
-- `cases/<mission>/03_capability/capability_assessment.json`
-- `cases/<mission>/04_config/generated_config_manifest.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`
+- `workspace_dir/AIGNC_Workflow/04_config/generated_config_manifest.json`
 
 ## Primary 42 knowledge
 
@@ -34,28 +36,30 @@ Use this reference as the entry map for `fsw-code-author`.
 
 ## Default implementation files
 
-- `fsw/overlay/Source/AcSensors.c`
-- `fsw/overlay/Source/AcControl.c`
-- `fsw/overlay/Source/AcMode.c`
-- `fsw/overlay/Source/AcStateMachine.c`
-- `fsw/overlay/Source/AcActuators.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcSensors.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcControl.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcMode.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcStateMachine.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcActuators.c`
 
 ## Sidecar optical-link implementation files
 
 - `bridge/mission_bypass/Source/AcOpticalPayload.c`
 - `bridge/mission_bypass/Source/AcOpticalLink.c`
 - `bridge/mission_bypass/Include/AcOpticalPayload.h`
-- `fsw/overlay/Include/AcFswModules.h`
+- `workspace_dir/00_inputs/FSW/ADCS/include/AcFswModules.h`
 
 ## Native 42 files only when explicitly in scope
 
-- `sim/42_baseline/Source/42init.c`
-- `sim/42_baseline/Source/42sensors.c`
-- `sim/42_baseline/Source/42joints.c`
-- `sim/42_baseline/Include/42types.h`
+- `42/Source/42init.c`
+- `42/Source/42sensors.c`
+- `42/Source/42joints.c`
+- `42/Include/42types.h`
 
 ## Intended outputs
 
 - code changes in owned files
-- `fsw_code_author_report.md`
-- `fsw_change_set.json`
+- `workspace_dir/AIGNC_Workflow/07_fsw_implementation/fsw_code_author_report.md`
+- `workspace_dir/AIGNC_Workflow/07_fsw_implementation/fsw_change_set.json`
+
+The report and JSON must identify implemented ownership groups, deferred ownership groups, files touched per ownership group, compile status, and unresolved items.

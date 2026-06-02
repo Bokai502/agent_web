@@ -88,7 +88,7 @@ describe("OutputLog markdown rendering", () => {
             item: {
               id: "cmd-1",
               type: "command_execution",
-              command: ["/bin/bash -lc 'freecad-create-assembly --input", "/data/lbk/codex_web/FreeCAD_data/sample.yaml --doc-name", "SampleYamlAssembly'"].join("\n"),
+              command: ["/bin/bash -lc 'freecad-create-assembly --input", "/data/lbk/codex_web/data/input_data/sample.yaml --doc-name", "SampleYamlAssembly'"].join("\n"),
               aggregated_output: "freecad-get-view",
               exit_code: 0,
               status: "completed",
@@ -109,7 +109,7 @@ describe("OutputLog markdown rendering", () => {
       textOverflow: "ellipsis",
       color: "var(--code-text)",
     })
-    expect(screen.queryByText("/data/lbk/codex_web/FreeCAD_data/sample.yaml --doc-name")).not.toBeInTheDocument()
+    expect(screen.queryByText("/data/lbk/codex_web/data/input_data/sample.yaml --doc-name")).not.toBeInTheDocument()
     expect(summaryLine.closest("div")).toHaveStyle({
       background: "var(--code-bg)",
       border: "1px solid var(--border)",

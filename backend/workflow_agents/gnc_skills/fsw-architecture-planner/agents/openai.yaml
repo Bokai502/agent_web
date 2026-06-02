@@ -1,4 +1,4 @@
 interface:
   display_name: "FSW Architecture Planner"
-  short_description: "Map fixed CFS_FSW requirements to code architecture."
-  default_prompt: "Use $fsw-architecture-planner to map extracted fixed CFS_FSW requirements onto concrete 42 source files, interfaces, blockers, and truth-model extension boundaries before code generation."
+  short_description: "Map complete CFS_FSW GNC requirements to code architecture."
+  default_prompt: "Use $fsw-architecture-planner to map extracted complete CFS_FSW GNC requirements, including modes, transitions, interfaces, control targets, and pass criteria, onto concrete source files and blockers."
