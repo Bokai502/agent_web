@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { joinApiPath } from '../app/apiBase'
 import { useBomInfo } from '../hooks/useBomInfo'
 import { useWorkspaceAppState } from '../hooks/useWorkspaceAppState'
-import { formatProgressUpdatedAt } from './workspace/progressUtils'
+import { formatProgressUpdatedAt, type WorkflowProgressVariant } from './workspace/progressUtils'
 import { useWorkspaceRuntimeData } from './workspace/useWorkspaceRuntimeData'
 import { useWorkspaceVersionState } from './workspace/useWorkspaceVersionState'
 import {
@@ -18,7 +19,7 @@ import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar } from './agent/AgentTopbar'
 import { AgentVoiceExchange } from './agent/AgentVoiceExchange'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
-import { dispatchManagedCodex, getManagedCodexStatus, subscribeManagedCodexStatus, type ManagedRunStatusResponse } from './agent/managedRun'
+import { dispatchManagedCodex, getManagedCodexStatus, subscribeManagedCodexStatus, summarizeManagedCodex, type ManagedRunStatusResponse } from './agent/managedRun'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -45,6 +46,7 @@ export default function AgentPage() {
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
   const [managedVoiceRunning, setManagedVoiceRunning] = useState(false)
+  const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [selectedBomId, setSelectedBomId] = useState('')
   const [selectedLogId, setSelectedLogId] = useState('')
   const managedPollTokenRef = useRef(0)
@@ -122,6 +124,16 @@ export default function AgentPage() {
     paraview: `http://${remoteToolHost}:6081/${NOVNC_URL_PARAMS}`,
     comsol: `http://${remoteToolHost}:6082/${NOVNC_URL_PARAMS}`,
   }), [remoteToolHost])
+  const progressVariant = useMemo<WorkflowProgressVariant>(() => {
+    const marker = [
+      activeContext.workspaceId,
+      activeContext.workspaceKey,
+      activeContext.versionDir,
+    ].filter(Boolean).join("\n").toLowerCase()
+    if (/derating|降额|check/.test(marker)) return "check"
+    if (/gnc|aignc|adcs|region/.test(marker)) return "gnc"
+    return "thermal"
+  }, [activeContext.versionDir, activeContext.workspaceId, activeContext.workspaceKey])
   const {
     handleSelectFile,
     selectedFileError,
@@ -277,6 +289,38 @@ export default function AgentPage() {
       setManagedVoiceRunning(false)
     }
   }, [activeContext, refreshWorkspaceViews, showSpeechText, speakText, versionState, workspaceAppState, workspaces])
+
+  const handleStopAndSummarize = useCallback(async () => {
+    const sessionId = workspaceAppState.activeSessionId
+    if (stopSummaryPending) return
+    setStopSummaryPending(true)
+    workspaceAppState.abort(sessionId)
+    try {
+      const result = await summarizeManagedCodex({
+        input: '请总结当前或刚才停止的 Codex 任务已经完成的进度和结果。',
+        sessionId,
+        threadId: activeSession?.threadId ?? null,
+        workspace: {
+          workspaceDir: activeContext.versionDir,
+          workspaceId: activeContext.workspaceId,
+          workspaceName: activeContext.workspaceName,
+          versionId: activeContext.versionId,
+        },
+      })
+      const speechText = result.spokenSummary || result.summary || '任务已停止，当前进度已总结。'
+      showSpeechText(speechText)
+      void speakText(speechText, `agent-stop-summary:${sessionId ?? 'workspace'}:${Date.now()}`)
+      await workspaceAppState.reloadSessions().catch(() => null)
+      setProgressRefreshNonce(value => value + 1)
+      refreshWorkspaceViews()
+    } catch {
+      const fallback = '任务已停止，但总结生成失败。'
+      showSpeechText(fallback)
+      void speakText(fallback, `agent-stop-summary-error:${sessionId ?? 'workspace'}:${Date.now()}`)
+    } finally {
+      setStopSummaryPending(false)
+    }
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, refreshWorkspaceViews, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
   const {
     error,
     startRecording,
@@ -297,7 +341,7 @@ export default function AgentPage() {
   } = useWorkspaceRuntimeData({
     activeContext,
     progressRefreshNonce,
-    progressVariant: 'thermal',
+    progressVariant,
     running: visibleRunning || managedVoiceRunning || state === 'thinking' || state === 'transcribing',
     t,
     visibleCurrentEvents,
@@ -318,6 +362,20 @@ export default function AgentPage() {
       setProgressRefreshNonce(value => value + 1)
     }
   }, [state])
+
+  useEffect(() => {
+    if (activeView !== 'tools') return
+
+    fetch(joinApiPath(undefined, '/remote-tools/ensure-desktops'), { method: 'POST' })
+      .then(response => {
+        if (!response.ok) {
+          console.warn('Failed to ensure remote desktop mappings', response.status)
+        }
+      })
+      .catch(error => {
+        console.warn('Failed to ensure remote desktop mappings', error)
+      })
+  }, [activeView])
 
   useEffect(() => {
     if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return
@@ -398,6 +456,18 @@ export default function AgentPage() {
       />
       {conversationPanelOpen ? (
         <AgentConversationPopover
+          actions={(
+            <button
+              type="button"
+              className="agent-stop-summary-button"
+              disabled={stopSummaryPending}
+              onClick={handleStopAndSummarize}
+              title="停止当前 Codex 进程并生成语音总结"
+            >
+              <span aria-hidden="true" />
+              {stopSummaryPending ? '总结中' : '停止'}
+            </button>
+          )}
           conversationLogs={conversationLogs}
           onClose={() => setConversationPanelOpen(false)}
           title="历史对话"
@@ -450,6 +520,7 @@ export default function AgentPage() {
           workspaceChanging={workspaceChanging}
           workspaceItems={workspaceItems}
           workspaceListOpen={workspaceListOpen}
+          workspaceRefreshNonce={workspaceRefreshNonce}
         />
 
         <AgentVoiceExchange

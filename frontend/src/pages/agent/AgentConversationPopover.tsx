@@ -1,13 +1,16 @@
 import { ConversationLogView } from '../workspace/ConversationLogView'
 import type { ConversationLogEntry } from '../workspace/runLogUtils'
+import type { ReactNode } from 'react'
 
 type AgentConversationPopoverProps = {
+  actions?: ReactNode
   conversationLogs: ConversationLogEntry[]
   onClose: () => void
   title: string
 }
 
 export function AgentConversationPopover({
+  actions,
   conversationLogs,
   onClose,
   title,
@@ -24,7 +27,10 @@ export function AgentConversationPopover({
           <strong>{title}</strong>
           <span>{conversationEntry?.detail ?? 'logs/conversation-history.json'}</span>
         </div>
-        <button type="button" aria-label="关闭历史对话" onClick={onClose}>x</button>
+        <div className="agent-conversation-header-actions">
+          {actions}
+          <button type="button" className="agent-conversation-close" aria-label="关闭历史对话" onClick={onClose}>x</button>
+        </div>
       </header>
       {historyContent ? (
         <ConversationLogView session={historyContent} />

@@ -182,6 +182,94 @@ http://192.168.x.x:5174
 
 ---
 
+## CAD 与热仿真远程工具
+
+本项目的 CAD 与热仿真流程依赖本机 GUI 工具的远程桌面展示。当前约定如下：
+
+| 工具 | DISPLAY | VNC | noVNC | 说明 |
+|------|---------|-----|-------|------|
+| FreeCAD | `:1` | `5901` | `6080` | CAD 构建和校验通过 GUI FreeCAD MCP RPC `9877` 执行 |
+| ParaView | `:2` | `5902` | `6081` | 热仿真 `native.vtu` 结果展示 |
+| COMSOL | `:32` | `5932` | `6082` | 热仿真 `work.mph` 结果展示 |
+
+远程工具统一启动脚本：
+
+```bash
+/data/lbk/codex_web/open_codex_web/start_remote_gui_tools.sh start
+/data/lbk/codex_web/open_codex_web/start_remote_gui_tools.sh status
+/data/lbk/codex_web/open_codex_web/start_remote_gui_tools.sh restart
+```
+
+Agent 页面触发远程桌面时会调用 `/usr/local/bin/start-remote-cad-desktop <tool> start`。该入口已改为幂等启动：`start` 只补齐缺失的 `Xvfb`、`x11vnc`、noVNC 组件，不会因为已有 GUI 进程而关闭当前 `6080/6081/6082` 会话；只有 `stop` 或 `restart` 才会主动关闭会话。
+
+### FreeCAD CAD 构建
+
+CAD 构建必须使用 GUI FreeCAD 的 MCP RPC，不使用 `freecadcmd`、headless RPC 或其他替代进程。正常状态下：
+
+- `6080` 返回 noVNC 页面。
+- `5901` 返回 VNC 握手 `RFB 003.008`。
+- `9877` 由 GUI `freecad` 进程监听。
+- 进程列表中不应有 `freecadcmd`。
+
+常用检查：
+
+```bash
+ss -ltnp '( sport = :6080 or sport = :5901 or sport = :9877 )'
+curl -I --max-time 3 http://127.0.0.1:6080/vnc.html
+timeout 2 bash -lc 'exec 3<>/dev/tcp/127.0.0.1/5901; dd bs=12 count=1 <&3 2>/dev/null | od -An -tc'
+ps -eo pid=,ppid=,user=,comm=,args= | awk '($0 ~ /freecadcmd/) || ($0 ~ /freecad/) || ($0 ~ /FreeCAD/) || ($0 ~ /9877/) {print}'
+```
+
+如果 `9877` 被其他进程占用过，FreeCAD MCP 插件可能只在 GUI 启动时自动尝试一次，失败后不会自动重试。处理方式是先释放 `9877`，再只重启 GUI FreeCAD，让 MCP 插件重新监听 `9877`；不要启动 `freecadcmd`。
+
+示例构建命令：
+
+```bash
+PYTHONPATH=/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools/src \
+FREECAD_RPC_HOST=localhost \
+FREECAD_RPC_PORT=9877 \
+python3 -m freecad_cli_tools.cli.main cad build \
+  --workspace-dir /data/lbk/codex_web/data/input_data/workspaces/ws_thermal/versions/v0007
+```
+
+`v0007` 验证结果：`cad build` 成功，输出 `01_cad/geometry_after.step`、`01_cad/geometry_after.glb` 和 `01_cad/cad_agent_output.json`。
+
+### 热仿真流程
+
+热仿真使用 `sim-run`，从工作区的 `00_inputs` 与 `01_cad` 生成并运行 `02_sim`：
+
+```bash
+PYTHONPATH=/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/src:/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/runtime \
+python3 -m sim_cli_tools.cli.main --json doctor \
+  --workspace-dir /data/lbk/codex_web/data/input_data/workspaces/ws_thermal/versions/v0007
+```
+
+完整运行示例：
+
+```bash
+PYTHONPATH=/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/src:/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/runtime \
+python3 -m sim_cli_tools.cli.main --json run \
+  --workspace-dir /data/lbk/codex_web/data/input_data/workspaces/ws_thermal/versions/v0007 \
+  --mph-port 32036 \
+  --quiet \
+  --async-open-tools
+```
+
+`v0007` 验证结果：
+
+- `sim-run doctor` 通过，`missing_files: []`。
+- `02_sim/run_manifest.json` 为 `ok: true`。
+- `simulation_run`、`field_export`、`postprocess`、`case_build`、`analysis` 均为 `completed`。
+- `02_sim/simulation/status.json` 为 `ok: true`，`stage: completed`。
+- `02_sim/postprocess/render_summary.json` 为 `ok: true`，温度范围约 `243.91 K ~ 385.72 K`。
+- `6081/5902` 与 `6082/5932` 均已验证可访问。
+
+ParaView 展示脚本生成逻辑位于 `backend/workflow_agents/agents/sim_cli_tools/runtime/codex_agents/external_tool_launchers.py`。当前会自动选择 `T`、`Color` 或第一个可用数组进行着色，避免 `native.vtu` 温度数组名为 `Color` 时只按 `T` 着色导致“导入了但显示不正常”。
+
+如果发现其他用户遗留的 COMSOL runtime 进程占用资源或干扰端口，可先确认不是当前 `lbk` 工作区运行，再终止对应用户的遗留进程。
+
+---
+
 ## 项目结构
 
 ```

@@ -109,6 +109,49 @@
   transform: translateY(-1px);
 }
 
+.agent-stop-summary-button {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 91, 91, 0.38);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(255, 59, 48, 0.18), rgba(4, 18, 32, 0.56)),
+    rgba(4, 18, 32, 0.72);
+  box-shadow:
+    inset 0 0 14px rgba(255, 59, 48, 0.1),
+    0 0 16px rgba(255, 59, 48, 0.1);
+  color: #ffd8d5;
+  cursor: pointer;
+  padding: 0 13px;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.agent-stop-summary-button span {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 0 8px rgba(255, 91, 91, 0.5);
+}
+
+.agent-stop-summary-button:not(:disabled):hover {
+  border-color: rgba(255, 91, 91, 0.68);
+  background:
+    linear-gradient(90deg, rgba(255, 59, 48, 0.26), rgba(4, 18, 32, 0.66)),
+    rgba(4, 18, 32, 0.82);
+  transform: translateY(-1px);
+}
+
+.agent-stop-summary-button:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
 .agent-status-pill--session {
   display: inline-flex;
   align-items: center;
@@ -231,6 +274,14 @@
   color: #f4fbff;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.agent-session-pill.is-running .agent-session-label {
+  color: #ff8a84;
+}
+
+.agent-session-pill.is-loaded .agent-session-label {
+  color: var(--hud-green);
 }
 
 .agent-session-pill.is-running .agent-session-dot {
@@ -969,7 +1020,13 @@
   line-height: 1.35;
 }
 
-.agent-conversation-popover > header button {
+.agent-conversation-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-conversation-popover > header .agent-conversation-close {
   display: grid;
   width: 22px;
   height: 22px;
@@ -984,7 +1041,7 @@
   line-height: 1;
 }
 
-.agent-conversation-popover > header button:hover {
+.agent-conversation-popover > header .agent-conversation-close:hover {
   border-color: rgba(23, 231, 255, 0.48);
   color: rgba(255, 255, 255, 0.88);
 }

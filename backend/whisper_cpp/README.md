@@ -6,7 +6,7 @@ This folder is the local deployment home for whisper.cpp.
 
 The web transcription endpoint defaults to:
 
-- `large-v3-turbo`: `models/ggml-large-v3-turbo.bin`
+- `large-v3-turbo`: `/data/llm_models/Whisper/ggml-large-v3-turbo.bin`
 
 The model is downloaded from:
 
@@ -37,7 +37,7 @@ From `open_codex_web/backend`:
 The backend expects:
 
 - binary: `whisper_cpp/whisper.cpp/build-cuda/bin/whisper-cli`
-- model: `whisper_cpp/models/ggml-large-v3-turbo.bin`
+- model: `/data/llm_models/Whisper/ggml-large-v3-turbo.bin`
 
 You can override paths with environment variables:
 

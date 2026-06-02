@@ -87,7 +87,10 @@ Resource controls:
   successful simulation. Add `--no-open-tools` for headless runs. Omit
   `--async-open-tools` only for manual CLI runs that explicitly need to wait
   for launcher completion.
-- Do not use `/usr/local/bin/start-comsol-remote` for GUI loading. The legacy launcher targets `DISPLAY=:3` / VNC `5903` and can break the shared noVNC port `6082`. COMSOL GUI loading is managed by `external_tool_launchers.py` on `DISPLAY=:32`, VNC `5932`, noVNC `6082`.
+- COMSOL GUI loading is managed by `external_tool_launchers.py` through
+  `/usr/local/bin/start-comsol-remote` on `DISPLAY=:32`, VNC `5932`, noVNC
+  `6082`. Keep that launcher aligned with those ports so it does not collide
+  with the shared noVNC mapping.
 
 Example controlled COMSOL run:
 

@@ -52,6 +52,7 @@ type AgentWorkspacePanelProps = {
   workspaceChanging: boolean
   workspaceItems: CurrentWorkspaceCardProps['workspaceItems']
   workspaceListOpen: boolean
+  workspaceRefreshNonce?: number
 }
 
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null) {
@@ -98,6 +99,7 @@ export function AgentWorkspacePanel({
   workspaceChanging,
   workspaceItems,
   workspaceListOpen,
+  workspaceRefreshNonce = 0,
 }: AgentWorkspacePanelProps) {
   return (
     <section className={`agent-workspace-panel ${activeView ? 'is-open' : 'is-collapsed'}`}>
@@ -196,6 +198,7 @@ export function AgentWorkspacePanel({
               <GeneratedFilesTreeCard
                 activeContext={activeContext}
                 onSelectFile={handleSelectFile}
+                refreshNonce={workspaceRefreshNonce}
                 selectedFilePath={selectedFilePath}
               />
             </aside>

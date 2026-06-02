@@ -5,6 +5,8 @@ import { APP_NAVIGATION_EVENT } from "../app/sessionUtils"
 import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
 import type { CodexInputItem } from "../types"
+import { summarizeManagedCodex } from "./agent/managedRun"
+import { useAgentSpeech } from "./agent/useAgentSpeech"
 import { BomInspectorCard } from "./workspace/BomInspectorCard"
 import { CurrentWorkspaceCard } from "./workspace/CurrentWorkspaceCard"
 import { DeleteSessionDialog } from "./workspace/DeleteSessionDialog"
@@ -100,6 +102,8 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [deleteError, setDeleteError] = useState("")
   const [deletePending, setDeletePending] = useState(false)
+  const [stopSummaryPending, setStopSummaryPending] = useState(false)
+  const { speakText } = useAgentSpeech()
 
   const activeSession = sortedSessions.find(session => session.id === activeSessionId)
   const remoteToolHost = typeof window !== "undefined" ? window.location.hostname : "localhost"
@@ -285,6 +289,34 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
   }, [activeContext, handleSubmit, refreshWorkspaceViews, resetProgressData, workspaces])
 
+  const handleStopAndSummarize = useCallback(async () => {
+    if (!activeSessionId || stopSummaryPending) return
+    setStopSummaryPending(true)
+    abort(activeSessionId)
+    try {
+      const result = await summarizeManagedCodex({
+        apiBase,
+        input: "请总结当前或刚才停止的 Codex 任务已经完成的进度和结果。",
+        sessionId: activeSessionId,
+        threadId: activeSession?.threadId ?? null,
+        workspace: {
+          workspaceDir: activeContext.versionDir,
+          workspaceId: activeContext.workspaceId,
+          workspaceName: activeContext.workspaceName,
+          versionId: activeContext.versionId,
+        },
+      })
+      const speechText = result.spokenSummary || result.summary || "任务已停止，当前进度已总结。"
+      void speakText(speechText, `workspace-stop-summary:${activeSessionId}:${Date.now()}`)
+      reloadSessionsQuietly()
+      setProgressRefreshNonce(value => value + 1)
+    } catch {
+      void speakText("任务已停止，但总结生成失败。", `workspace-stop-summary-error:${activeSessionId}:${Date.now()}`)
+    } finally {
+      setStopSummaryPending(false)
+    }
+  }, [abort, activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, activeSessionId, apiBase, reloadSessionsQuietly, speakText, stopSummaryPending])
+
   const handleSelectLog = useCallback((entry: RunLogEntry) => {
     setSelectedLogId(entry.id)
     setActivePanel("log")
@@ -437,11 +469,13 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
         activePanel={activePanel}
         activeSessionMatchesWorkspace={activeSessionMatchesWorkspace}
         enableGncConfig={enableGncConfig}
+        onStopAndSummarize={activeSessionId ? handleStopAndSummarize : undefined}
         onReturnHome={handleReturnHome}
         onSelectPanel={setActivePanel}
         showBom={showBom}
         showModel={showModel}
         showTools={showTools}
+        stopSummaryPending={stopSummaryPending}
         t={t}
         visibleRunning={visibleRunning}
       />

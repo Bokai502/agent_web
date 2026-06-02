@@ -17,7 +17,7 @@ export type WorkflowLoopProgressEntry = {
   status: "running" | "completed" | "failed" | "pending" | "unknown"
 }
 
-export type WorkflowProgressVariant = "thermal" | "gnc"
+export type WorkflowProgressVariant = "thermal" | "gnc" | "check"
 
 const THERMAL_WORKFLOW_PROGRESS_STAGES = [
   { key: "create_cad", labelKey: "workspace.progress.createCad" },
@@ -35,8 +35,16 @@ const GNC_WORKFLOW_PROGRESS_STAGES = [
   { key: "document_generation", labelKey: "workspace.progress.gncDocumentGeneration" },
 ]
 
+const CHECK_WORKFLOW_PROGRESS_STAGES = [
+  { key: "check_convert_table", labelKey: "workspace.progress.checkConvertTable" },
+  { key: "check_ai_mapping", labelKey: "workspace.progress.checkAiMapping" },
+  { key: "check_rule_analysis", labelKey: "workspace.progress.checkRuleAnalysis" },
+]
+
 function getWorkflowProgressStages(variant: WorkflowProgressVariant) {
-  return variant === "gnc" ? GNC_WORKFLOW_PROGRESS_STAGES : THERMAL_WORKFLOW_PROGRESS_STAGES
+  if (variant === "gnc") return GNC_WORKFLOW_PROGRESS_STAGES
+  if (variant === "check") return CHECK_WORKFLOW_PROGRESS_STAGES
+  return THERMAL_WORKFLOW_PROGRESS_STAGES
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

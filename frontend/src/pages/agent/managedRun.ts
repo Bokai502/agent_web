@@ -121,9 +121,21 @@ export async function dispatchManagedCodex(request: ManagedRunRequest) {
   return postManagedRun<ManagedDispatchResponse>('/run/managed/dispatch', request)
 }
 
+export async function summarizeManagedCodex(request: ManagedRunRequest) {
+  return postManagedRun<ManagedRunResponse>('/run/managed/summarize', request)
+}
+
 export async function getManagedCodexStatus(managedRunId: string, apiBase?: string) {
   const response = await fetch(joinApiPath(apiBase, `/run/managed/status/${encodeURIComponent(managedRunId)}`), {
     cache: 'no-store',
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  return response.json() as Promise<ManagedRunStatusResponse>
+}
+
+export async function cancelManagedCodex(managedRunId: string, apiBase?: string) {
+  const response = await fetch(joinApiPath(apiBase, `/run/managed/cancel/${encodeURIComponent(managedRunId)}`), {
+    method: 'POST',
   })
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   return response.json() as Promise<ManagedRunStatusResponse>

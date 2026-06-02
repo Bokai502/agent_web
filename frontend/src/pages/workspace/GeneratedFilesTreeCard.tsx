@@ -23,6 +23,7 @@ type GeneratedFilesTreeCardProps = {
   activeContext: WorkspaceVersionContext
   apiBase?: string
   onSelectFile?: (entry: GeneratedFileTreeEntry) => void
+  refreshNonce?: number
   selectedFilePath?: string
 }
 
@@ -45,7 +46,7 @@ function buildWorkspaceQuery(context: Pick<WorkspaceVersionContext, "versionDir"
   return `?${params.toString()}`
 }
 
-export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, selectedFilePath }: GeneratedFilesTreeCardProps) {
+export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, refreshNonce = 0, selectedFilePath }: GeneratedFilesTreeCardProps) {
   const versionDir = activeContext.versionDir
   const workspaceId = activeContext.workspaceId
   const versionId = activeContext.versionId
@@ -111,7 +112,7 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, s
   useEffect(() => {
     if (!versionDir) return
     void loadPath(ROOT_PATH)
-  }, [loadPath, versionDir])
+  }, [loadPath, refreshNonce, versionDir])
 
   const titlePath = useMemo(() => formatWorkspacePath(versionDir), [versionDir])
 

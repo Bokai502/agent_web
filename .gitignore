@@ -9,7 +9,7 @@ backend/dist/
 backend/node_modules/
 backend/skills.json
 backend/config.json
-backend/whisper_cpp/models/*.bin
+backend/whisper_cpp/models/
 
 frontend/dist/
 frontend/node_modules/
