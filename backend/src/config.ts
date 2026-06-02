@@ -190,7 +190,7 @@ export function loadConfig(): AppConfig {
     workspace: {
       workspaceDir: workspace.workspaceDir ?? null,
       rpcHost: workspace.rpcHost ?? "localhost",
-      rpcPort: workspace.rpcPort ?? 9876,
+      rpcPort: workspace.rpcPort ?? 9877,
     },
     logging: {
       level: logging.level ?? "info",

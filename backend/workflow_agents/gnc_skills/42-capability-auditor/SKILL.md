@@ -28,18 +28,18 @@ Use this skill when the user asks:
 
 Required:
 
-- `scenario_facts.json`
-- `open_questions.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json`
 
 Optional:
 
 - mission description text
-- prior case files
+- prior workspace configuration files
 - user clarification answers
 
 ## Required Local Context
 
-Read `references/repo-sources.md` first. Prefer the top-level capability documents and machine-readable indexes before consulting any detailed schema.
+Read `skills/42-capability-auditor/references/repo-sources.md` first. Prefer the top-level capability documents and machine-readable indexes before consulting any detailed schema.
 
 Default knowledge scope:
 
@@ -61,7 +61,7 @@ Use `knowledge/42/details/` only when a verdict depends on a specific field, par
 
 Complete these in order:
 
-1. Verify that `scenario_facts.json` and `open_questions.json` exist or are provided.
+1. Verify that `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json` and `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json` exist or are provided.
 2. Split the request into auditable items.
 3. Classify each item as `supported`, `supported_with_assumptions`, or `requires_extension`.
 4. Record blockers and unsupported items explicitly.
@@ -129,10 +129,14 @@ Typical routes are:
 
 ## Output Contract
 
-Produce:
+Produce under `workspace_dir/AIGNC_Workflow/03_capability/`:
 
-- `42_capability_assessment.md`
-- `capability_assessment.json`
+- `workspace_dir/AIGNC_Workflow/03_capability/42_capability_assessment.md`
+- `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`
+
+Append step-level status entries to `workspace_dir/AIGNC_Workflow/workflow_log.md` when this skill starts, after upstream artifact verification, audit item decomposition, each major support-classification pass, blocker detection, verdict artifact writing, and final route recommendation. Entries must use stage `03_capability`, current skill `42-capability-auditor`, step id or step name, status, timestamp, concise externally useful description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
+Structured progress must also be updated in `workspace_dir/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `workspace_dir/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+
 
 The JSON should include:
 
@@ -193,4 +197,4 @@ The next downstream skill is typically `42-config-author` or `fsw-requirements-e
 
 ## Terminal State
 
-The terminal state is a capability package ready for `42-config-author`, or a blocker package requiring user clarification or model-extension work.
+The terminal state is a capability artifact bundle ready for `42-config-author`, or a blocker artifact bundle requiring user clarification or model-extension work.

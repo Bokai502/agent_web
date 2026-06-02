@@ -26,7 +26,7 @@ Do not silently retune code or modify source files from this skill unless the us
 Use this skill when:
 
 - `42-build-run-diagnose` or equivalent runtime evidence already exists
-- the code compiles and the case runs, but mission-level behavior is wrong
+- the code compiles and the configuration runs, but mission-level behavior is wrong
 - performance metrics, residuals, settling time, stability, or mode timing are off
 - the user wants debugging direction, bug review, or tuning guidance before another code-edit pass
 
@@ -34,28 +34,28 @@ Use this skill when:
 
 Required:
 
-- `run_report.md` or equivalent runtime evidence
-- `run_summary.json`
+- `workspace_dir/AIGNC_Workflow/08_run/run_report.md` or equivalent runtime evidence
+- `workspace_dir/AIGNC_Workflow/08_run/run_summary.json`
 
 Recommended:
 
-- `fsw_code_author_report.md`
-- `fsw_change_set.json`
-- `fsw_architecture_plan.md`
-- `file_change_map.json`
-- `fsw_requirement_spec.md`
-- `mode_table.json`
+- `workspace_dir/AIGNC_Workflow/07_fsw_implementation/fsw_code_author_report.md`
+- `workspace_dir/AIGNC_Workflow/07_fsw_implementation/fsw_change_set.json`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/fsw_architecture_plan.md`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/file_change_map.json`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/fsw_requirement_spec.md`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/mode_table.json`
 - selected runtime logs or plots relevant to the failing behavior
 - standard post-run figures from `$42-runtime-plotter` when available
 
 Optional:
 
-- current case configuration files
+- current workspace configuration files
 - prior tuning notes
 
 ## Required Local Context
 
-Read `references/repo-sources.md` first.
+Read `skills/fsw-tuning-reviewer/references/repo-sources.md` first.
 
 Default knowledge scope:
 
@@ -66,26 +66,26 @@ Default knowledge scope:
 
 Default source scope:
 
-- `fsw/overlay/Source/AcSensors.c`
-- `fsw/overlay/Source/AcControl.c`
-- `fsw/overlay/Source/AcMode.c`
-- `fsw/overlay/Source/AcStateMachine.c`
-- `fsw/overlay/Source/AcActuators.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcSensors.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcControl.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcMode.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcStateMachine.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcActuators.c`
 
 Read these native 42 files when the review depends on simulator-side definitions, sensor validity, or actuator semantics:
 
-- `sim/42_baseline/Source/42sensors.c`
-- `sim/42_baseline/Source/42actuators.c`
-- `sim/42_baseline/Source/42joints.c`
-- `sim/42_baseline/Include/42types.h`
-- current case configuration files under `cases/<mission>/04_config/` or runtime `InOut/`
+- `42/Source/42sensors.c`
+- `42/Source/42actuators.c`
+- `42/Source/42joints.c`
+- `42/Include/42types.h`
+- current workspace configuration files under `workspace_dir/00_inputs/Config/`, AI-generated configuration under `workspace_dir/AIGNC_Workflow/04_config/`, or runtime `workspace_dir/02_sim/42_run/runtime_case/InOut/`
 
 Read these when the issue runs through the optical-link sidecar path:
 
 - `bridge/mission_bypass/Source/AcOpticalPayload.c`
 - `bridge/mission_bypass/Source/AcOpticalLink.c`
 - `bridge/mission_bypass/Include/AcOpticalPayload.h`
-- `fsw/overlay/Include/AcFswModules.h`
+- `workspace_dir/00_inputs/FSW/ADCS/include/AcFswModules.h`
 
 ## Workflow
 
@@ -133,7 +133,7 @@ Unless the evidence clearly points elsewhere, review in this order:
 
 1. **User-intent confirmation**
    - restate the intended sensor set, actuator set, control mode structure, and switching policy
-   - make sure the current case is actually testing the intended architecture rather than a stale configuration
+   - make sure the current workspace run is actually testing the intended architecture rather than a stale configuration
 2. **Implementation consistency review**
    - inspect coordinate-frame definitions
    - inspect guidance-frame construction
@@ -166,7 +166,7 @@ Default to `fsw-code-author` when the architecture is still sound and the issue 
 
 For each likely cause, recommend only bounded actions such as:
 
-- confirm the intended sensor, actuator, or switching policy with the user when the runtime case may not reflect the intended architecture
+- confirm the intended sensor, actuator, or switching policy with the user when the runtime workspace may not reflect the intended architecture
 - inspect sign conventions in a named file and function
 - inspect whether simulator-side definitions in `42sensors.c`, `42actuators.c`, `42joints.c`, or `42types.h` match the FSW-side assumptions
 - inspect whether guidance-frame construction and body/reference transforms are consistent
@@ -185,8 +185,14 @@ Avoid open-ended advice like "retune controller."
 
 Produce:
 
-- `fsw_tuning_review.md`
-- `fsw_tuning_hypotheses.json`
+- `workspace_dir/AIGNC_Workflow/09_tuning_review/fsw_tuning_review.md`
+- `workspace_dir/AIGNC_Workflow/09_tuning_review/fsw_tuning_hypotheses.json`
+
+Write these outputs under `workspace_dir/AIGNC_Workflow/09_tuning_review/`.
+
+Append step-level status entries to `workspace_dir/AIGNC_Workflow/workflow_log.md` when this skill starts, after runtime-evidence confirmation, failing-behavior isolation, requirement comparison, issue classification, review-sequence checks, hypothesis ranking, corrective-action selection, review artifact writing, and final return-stage recommendation. Entries must use stage `09_tuning_review`, current skill `fsw-tuning-reviewer`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
+Structured progress must also be updated in `workspace_dir/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `workspace_dir/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+
 
 The review must include:
 
@@ -210,7 +216,7 @@ Stop and say the evidence is insufficient if:
 
 - runtime logs or plots do not contain the failing observable
 - the user asks for performance diagnosis before any runnable implementation exists
-- the observed behavior cannot be compared to a requirement because the requirement package is missing
+- the observed behavior cannot be compared to a requirement because the requirement artifact bundle is missing
 
 ## Self-Review
 
@@ -235,4 +241,4 @@ Do not:
 
 ## Terminal State
 
-The terminal state is a bounded performance-review package that tells the next stage whether to revise implementation, revise architecture, or revise the case configuration, and why. In the normal FSW loop, this package is intended to feed the next `fsw-code-author` iteration.
+The terminal state is a bounded performance-review artifact bundle that tells the next stage whether to revise implementation, revise architecture, or revise the workspace configuration, and why. In the normal FSW loop, this package is intended to feed the next `fsw-code-author` iteration.

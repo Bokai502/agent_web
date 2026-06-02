@@ -313,7 +313,7 @@ interface RunRequestBody {
   "threadId": null,
   "turnId": "turn-1",
   "enabledSkills": [],
-  "workspaceDir": "/data/lbk/codex_web/FreeCAD_data/v1_data",
+  "workspaceDir": "/data/lbk/codex_web/data/input_data/v1_data",
   "workspaceId": "workspace-1",
   "versionId": "v1"
 }

@@ -12,7 +12,7 @@ Use this skill first when the user is still describing the mission, simulation s
 This skill does not generate 42 input files and does not modify code.
 
 <HARD-GATE>
-Do not generate or modify any 42 input file, and do not start capability auditing, until `scenario_facts.json` and `open_questions.json` have been produced and reviewed for blockers.
+Do not generate or modify any 42 input file, and do not start capability auditing, until `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json` and `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json` have been produced and reviewed for blockers.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -23,7 +23,7 @@ If required information is missing, keep the workflow in the clarification loop.
 
 Use this skill when the user asks to:
 
-- analyze a mission description before building a 42 case
+- analyze a mission description before building a 42 workspace configuration
 - extract simulation requirements from a scenario document
 - identify what orbit, sensors, actuators, modes, or outputs are implied
 - brainstorm what must be clarified before configuration or FSW work starts
@@ -40,13 +40,13 @@ Expected inputs are one or more of:
 
 Optional supporting inputs:
 
-- existing `scenario_facts.json`
-- existing `open_questions.json`
-- existing case files if the user wants a differential update
+- existing `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- existing `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json`
+- existing workspace configuration files if the user wants a differential update
 
 ## Required Local Context
 
-Read `references/repo-sources.md` first. Then load only the minimum needed knowledge files it points to.
+Read `skills/aignc-scenario-brainstorm/references/repo-sources.md` first. Then load only the minimum needed knowledge files it points to.
 
 Default knowledge scope:
 
@@ -103,9 +103,9 @@ Prioritize ambiguities that materially change the 42 mapping, for example:
 
 Return three artifacts:
 
-- `scenario_understanding.md`
-- `scenario_facts.json`
-- `open_questions.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_understanding.md`
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json`
 
 If the environment does not require file creation, provide the same structures in the response in clearly labeled sections.
 
@@ -124,14 +124,18 @@ Question priority:
 
 After each user answer:
 
-- update `scenario_facts.json`
-- remove or downgrade resolved entries from `open_questions.json`
+- update `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- remove or downgrade resolved entries from `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json`
 - add any new conflicts or must-confirm questions uncovered by the answer
 - continue asking until no configuration-blocking `must_confirm` entries remain
 
 Only then may the workflow hand off to `42-capability-auditor`.
 
 ## Output Contract
+
+Write all output artifacts under `workspace_dir/AIGNC_Workflow/02_scenario/`. AI-consumed copies, extracted text, and input inventories belong under `workspace_dir/AIGNC_Workflow/01_inputs/`.
+
+Append step-level status entries to `workspace_dir/AIGNC_Workflow/workflow_log.md` when this skill starts, after input inventory/copying, fact extraction, assumption separation, conflict detection, open-question update, blocker decision, and final scenario-package handoff. Entries must record timestamp, stage `01_inputs` or `02_scenario`, current skill `aignc-scenario-brainstorm`, step id or step name, status, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning; log only workflow state and handoff-relevant decisions.
 
 ### scenario_understanding.md
 
@@ -180,7 +184,7 @@ Fix issues inline before declaring the scenario ready for audit.
 
 Do not:
 
-- generate `Inp_Sim.txt`, `Orb_*.txt`, or `SC_*.txt`
+- generate `workspace_dir/AIGNC_Workflow/04_config/Inp_Sim.txt`, `Orb_*.txt`, or `SC_*.txt`
 - decide final 42 support status
 - modify `CFS_FSW` code
 - hide uncertainty behind polished prose
@@ -189,6 +193,8 @@ The next downstream skill is typically `42-capability-auditor`.
 
 ## Terminal State
 
-The terminal state is a scenario package ready for `42-capability-auditor`, or a single next clarification question. Do not proceed to configuration generation from this skill.
+The terminal state is a scenario artifact bundle ready for `42-capability-auditor`, or a single next clarification question. Do not proceed to configuration generation from this skill.
 
 If the terminal state is clarification, ask only the next highest-priority question and wait for the user's answer.
+
+Structured progress must also be updated in `workspace_dir/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `workspace_dir/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.

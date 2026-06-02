@@ -1,18 +1,18 @@
 ---
 name: 42-config-validator
-description: Validate generated 42 configuration artifacts before runtime by checking file existence, cross-file references, manifest traceability, and obvious unsupported content against the audited capability decision.
+description: Validate generated 42 configuration artifacts before runtime by checking file existence, cross-file references, manifest traceability, core-file field completion, and obvious unsupported content against the audited capability decision.
 ---
 
 # 42 Config Validator
 
 ## Overview
 
-Use this skill after `42-config-author` and before any runtime attempt. The goal is to reject obviously broken 42 configuration packages before they are handed to the simulator.
+Use this skill after `42-config-author` and before any runtime attempt. The goal is to reject obviously broken 42 configuration artifact bundles before they are handed to the simulator.
 
 This skill is configuration-focused. It does not implement FSW and does not assess control performance.
 
 <HARD-GATE>
-Do not approve a configuration package for runtime unless the generated files, file references, and manifest traceability have been checked and all blocking findings are resolved.
+Do not approve a configuration artifact bundle for runtime unless the generated files, file references, core-file field decisions, and manifest traceability have been checked and all blocking findings are resolved.
 </HARD-GATE>
 
 ## When to Use
@@ -23,22 +23,22 @@ Use this skill when generated 42 files already exist and you need to determine w
 
 Required:
 
-- `scenario_facts.json`
-- `capability_assessment.json`
-- `generated_config_manifest.json`
-- generated `04_config/` files
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`
+- `workspace_dir/AIGNC_Workflow/04_config/generated_config_manifest.json`
+- generated `workspace_dir/AIGNC_Workflow/04_config/` files
 
 ## Required Local Context
 
-Read `references/repo-sources.md` first.
+Read `skills/42-config-validator/references/repo-sources.md` first.
 
-Workspace-local case layout and writable-boundary rules are governed by `WORKSPACE_RULES_FOR_AI.md` at the current workspace root.
+Workspace-local directory layout and writable-boundary rules are governed by `AGENT.md` at the current workspace root.
 
 Load only the detailed input, sensor, and actuator schemas that correspond to the files actually present in the generated package.
 
 ## Preferred Execution Path
 
-Use `scripts/validate_42_config.py` as the primary validator implementation when the required upstream artifacts exist. Fall back to manual checking only if the script is unavailable or clearly insufficient for the specific case.
+Use `skills/42-config-validator/scripts/validate_42_config.py` as the primary validator implementation when the required upstream artifacts exist. Fall back to manual checking only if the script is unavailable or clearly insufficient for the specific workspace configuration.
 
 ## Required Checklist
 
@@ -46,27 +46,39 @@ Complete these in order:
 
 1. Confirm required upstream artifacts exist.
 2. Check that every manifest-listed file exists.
-3. Check `Inp_Sim.txt` references to orbit and spacecraft files.
-4. Check spacecraft-file references to node, flex, optics, and related local files.
-5. Compare generated content against audited capability boundaries.
-6. Confirm that all generator assumptions are represented in the manifest.
-7. Emit a bounded validation verdict and route.
+3. Check `workspace_dir/AIGNC_Workflow/04_config/Inp_Sim.txt` references to orbit and spacecraft files.
+4. Identify the core file set: `Inp_Sim.txt`, referenced `Orb_*.txt`, and referenced `SC_*.txt`.
+5. Verify manifest field-decision traceability for every mission-defining field in the core file set.
+6. Check spacecraft-file references to node, flex, optics, and related local files.
+7. Check that support files copied from the template were not modified unless the manifest records a scenario-driven reason.
+8. Compare generated content against audited capability boundaries.
+9. Confirm that all generator assumptions, conservative defaults, and retained template defaults are represented in the manifest.
+10. Emit a bounded validation verdict and route.
 
 ## Output Contract
 
-Produce:
+Produce under `workspace_dir/AIGNC_Workflow/04_config/validation/`:
 
-- `config_validation_report.md`
-- `config_validation_summary.json`
-- `requirements_trace.md`
-- `requirements_trace.json`
+- `workspace_dir/AIGNC_Workflow/04_config/validation/config_validation_report.md`
+- `workspace_dir/AIGNC_Workflow/04_config/validation/config_validation_summary.json`
+- `workspace_dir/AIGNC_Workflow/04_config/validation/requirements_trace.md`
+- `workspace_dir/AIGNC_Workflow/04_config/validation/requirements_trace.json`
+
+Append step-level status entries to `workspace_dir/AIGNC_Workflow/workflow_log.md` when this skill starts, after required artifact verification, manifest verification, `Inp_Sim` reference checks, spacecraft local-reference checks, capability-boundary checks, validation artifact writing, validation verdict emission, and any successful sync from `workspace_dir/AIGNC_Workflow/04_config/` to `workspace_dir/00_inputs/Config/`. Entries must use stage `04_config`, current skill `42-config-validator`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
+Structured progress must also be updated in `workspace_dir/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `workspace_dir/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+
 
 Required summary fields:
 
 - `status`
 - `files_checked`
+- `core_files_checked`
+- `support_files_checked`
 - `missing_files`
 - `broken_references`
+- `missing_core_field_decisions`
+- `unjustified_template_defaults`
+- `unexpected_support_file_modifications`
 - `schema_shape_warnings`
 - `validation_warnings`
 - `unsupported_content_findings`
@@ -84,9 +96,11 @@ Allowed status values:
 Return `fail` if:
 
 - any manifest-listed file is missing
-- `Inp_Sim.txt` references missing orbit or spacecraft files
+- `workspace_dir/AIGNC_Workflow/04_config/Inp_Sim.txt` references missing orbit or spacecraft files
 - generated spacecraft files reference missing required local files
-- generated content contradicts `capability_assessment.json`
+- any mission-defining field in `Inp_Sim.txt`, referenced `Orb_*.txt`, or referenced `SC_*.txt` lacks a manifest field decision, approved source, or documented applicable default
+- a support file was modified without a scenario-driven reason recorded in the manifest
+- generated content contradicts `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`
 - unresolved placeholders or TODO markers remain
 
 ## Self-Review
@@ -94,9 +108,12 @@ Return `fail` if:
 Before finishing, check:
 
 1. Did I verify all manifest-listed files?
-2. Did I verify all local references that the generated case depends on?
-3. Did I catch any case where a surrogate or extension-required item was written as if it were native support?
-4. Does the summary route clearly either back to `42-config-author` or forward to `42-build-run-diagnose`?
+2. Did I verify all local references that the generated configuration set depends on?
+3. Did I verify that `Inp_Sim.txt`, referenced `Orb_*.txt`, and referenced `SC_*.txt` were fully authored rather than partially patched with silent template placeholders?
+4. Did I verify that retained core-file defaults are documented as applicable defaults?
+5. Did I verify that unchanged support files are distinguished from modified support files?
+6. Did I catch any situation where a surrogate or extension-required item was written as if it were native support?
+7. Does the summary route clearly either back to `42-config-author` or forward to `42-build-run-diagnose`?
 
 ## Boundaries
 
@@ -112,5 +129,6 @@ Do not:
 The terminal state is a validation report with a clear `pass`, `pass_with_warnings`, or `fail` verdict.
 
 - `fail` returns to `42-config-author`
-- `pass` or `pass_with_warnings` closes the requirements/configuration stage
+- `pass` or `pass_with_warnings` closes the requirements/configuration stage and copies runtime-ready configuration files from `workspace_dir/AIGNC_Workflow/04_config/` to `workspace_dir/00_inputs/Config/`
 - `42-build-run-diagnose` is optional downstream execution verification, not a prerequisite for completing requirements analysis
+

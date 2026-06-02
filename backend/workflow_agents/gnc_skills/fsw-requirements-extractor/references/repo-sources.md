@@ -29,6 +29,8 @@ Use detailed sensor or actuator schemas only when requirement extraction depends
 
 ## Intended outputs
 
-- `fsw_requirement_spec.md`
-- `mode_table.json`
-- `sensor_actuator_contract.json`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/fsw_requirement_spec.md`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/mode_table.json`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/sensor_actuator_contract.json`
+
+These outputs must jointly describe the complete fixed-FSW GNC process: mode-switching sequence and conditions, per-mode sensor and actuator configuration, per-mode control method, control target, pointing guidance rate, target attitude/frame/vector, command outputs, and per-mode pass/completion criteria. Missing per-mode fields must become blocking questions rather than implicit assumptions.

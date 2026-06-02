@@ -27,5 +27,5 @@ Use this reference as the entry map for `aignc-scenario-brainstorm`.
 ## Intended outputs
 
 - `scenario_understanding.md`
-- `scenario_facts.json`
-- `open_questions.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/open_questions.json`

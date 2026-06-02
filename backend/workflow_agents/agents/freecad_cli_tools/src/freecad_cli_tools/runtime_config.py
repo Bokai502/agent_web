@@ -28,11 +28,15 @@ def _load_codex_web_config() -> dict[str, Any]:
 
 
 def _get_freecad_config_value(key: str, default: str | None = None) -> str | None:
-    freecad_config = _load_codex_web_config().get("freecad", {})
-    if not isinstance(freecad_config, dict):
-        return default
+    config = _load_codex_web_config()
+    freecad_config = config.get("freecad", {})
+    workspace_config = config.get("workspace", {})
 
-    value = freecad_config.get(key)
+    value = None
+    if isinstance(freecad_config, dict):
+        value = freecad_config.get(key)
+    if value is None and isinstance(workspace_config, dict):
+        value = workspace_config.get(key)
     if value is None:
         return default
     if isinstance(value, str) and not value.strip():

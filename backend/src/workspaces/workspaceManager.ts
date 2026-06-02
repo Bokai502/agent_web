@@ -6,8 +6,7 @@ import { getRequestWorkspaceRootOverride } from "../server/requestContext.js"
 const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(BACKEND_SRC_DIR, "..", "..", "..", "..")
 const ROOT_CONFIG_JSON = path.join(PROJECT_ROOT, "config.json")
-const DEFAULT_WORKSPACE_ROOT_NAME = ["Free", "CAD_data"].join("")
-const DEFAULT_WORKSPACE_ROOT = path.join(PROJECT_ROOT, DEFAULT_WORKSPACE_ROOT_NAME)
+const DEFAULT_WORKSPACE_ROOT = path.join(PROJECT_ROOT, "data", "input_data")
 const LEGACY_CAD_CONFIG_KEY = ["free", "cad"].join("")
 const WORKSPACE_CONFIG_KEY = "workspace"
 
@@ -54,9 +53,10 @@ function getWorkspaceRootFromConfigured(configuredWorkspaceDir: string | null) {
   const workspaceRootOverride = getRequestWorkspaceRootOverride()
   if (workspaceRootOverride) return path.resolve(workspaceRootOverride)
   if (!configuredWorkspaceDir) return DEFAULT_WORKSPACE_ROOT
-  const parent = path.dirname(configuredWorkspaceDir)
-  if (path.basename(parent) === DEFAULT_WORKSPACE_ROOT_NAME) return parent
-  if (path.basename(configuredWorkspaceDir) === DEFAULT_WORKSPACE_ROOT_NAME) return configuredWorkspaceDir
+  const relativeToDefaultRoot = path.relative(DEFAULT_WORKSPACE_ROOT, configuredWorkspaceDir)
+  if (relativeToDefaultRoot === "" || (!relativeToDefaultRoot.startsWith("..") && !path.isAbsolute(relativeToDefaultRoot))) {
+    return DEFAULT_WORKSPACE_ROOT
+  }
   return DEFAULT_WORKSPACE_ROOT
 }
 

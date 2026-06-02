@@ -6,17 +6,19 @@ Use this reference as the entry map for `fsw-architecture-planner`.
 
 - `knowledge/skills/fsw-architecture-planner-spec.md`
 
-## Upstream extracted FSW package
+## Upstream extracted FSW artifact bundle
 
-- `cases/<mission>/05_fsw_requirements/fsw_requirement_spec.md`
-- `cases/<mission>/05_fsw_requirements/mode_table.json`
-- `cases/<mission>/05_fsw_requirements/sensor_actuator_contract.json`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/fsw_requirement_spec.md`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/mode_table.json`
+- `workspace_dir/AIGNC_Workflow/05_fsw_requirements/sensor_actuator_contract.json`
+
+The planner must consume the complete-GNC fields produced by `fsw-requirements-extractor`: mode sequence, entry/exit/fallback transitions, per-mode sensor and actuator configuration, control method, control target, guidance rate, target frame, target attitude, target vector/LOS, command outputs, and pass criteria. Missing fields become architecture blockers unless the upstream requirement artifact bundle already records them as unresolved questions.
 
 ## Recommended supporting case artifacts
 
-- `cases/<mission>/02_scenario/scenario_facts.json`
-- `cases/<mission>/03_capability/capability_assessment.json`
-- `cases/<mission>/04_config/generated_config_manifest.json`
+- `workspace_dir/AIGNC_Workflow/02_scenario/scenario_facts.json`
+- `workspace_dir/AIGNC_Workflow/03_capability/capability_assessment.json`
+- `workspace_dir/AIGNC_Workflow/04_config/generated_config_manifest.json`
 
 ## Primary 42 knowledge
 
@@ -33,15 +35,17 @@ Use this reference as the entry map for `fsw-architecture-planner`.
 
 ## Source files for ownership checks
 
-- `fsw/overlay/Source/AcSensors.c`
-- `fsw/overlay/Source/AcControl.c`
-- `fsw/overlay/Source/AcMode.c`
-- `fsw/overlay/Source/AcStateMachine.c`
-- `fsw/overlay/Source/AcActuators.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcSensors.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcControl.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcMode.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcStateMachine.c`
+- `workspace_dir/00_inputs/FSW/ADCS/src/AcActuators.c`
 
 ## Intended outputs
 
-- `fsw_architecture_plan.md`
-- `file_change_map.json`
-- `blocking_architecture_questions.json`
-- `truth_model_extension_boundary.json`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/fsw_architecture_plan.md`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/file_change_map.json`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/blocking_architecture_questions.json`
+- `workspace_dir/AIGNC_Workflow/06_fsw_architecture/truth_model_extension_boundary.json`
+
+`file_change_map.json` must provide machine-readable coverage for mode ownership, transition ownership, pass-criteria ownership, sensor interface ownership, actuator interface ownership, control target ownership, guidance-rate ownership, target-frame ownership, target-attitude ownership, target-vector/LOS ownership, command-output ownership, and extension-boundary items.

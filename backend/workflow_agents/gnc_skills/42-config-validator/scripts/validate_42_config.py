@@ -5,6 +5,7 @@ import argparse
 import json
 import math
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -466,7 +467,172 @@ def check_zero_count_placeholder(sc_text: str, start_comment: str, end_comment: 
     return placeholder_token in section
 
 
-def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any], str]:
+SUPPORT_FILE_NAMES = {
+    "Inp_Cmd.txt",
+    "Inp_AcOutput.txt",
+    "Inp_ScOutput.txt",
+    "Inp_Graphics.txt",
+    "Inp_CommLink.txt",
+    "Inp_FOV.txt",
+    "Inp_IPC.txt",
+    "Inp_Region.txt",
+    "Inp_Shaker.txt",
+    "Inp_TDRS.txt",
+    "Readme.txt",
+}
+
+CORE_FIELD_DECISION_KEYS = (
+    "core_file_field_decisions",
+    "core_field_decisions",
+    "field_decisions",
+    "field_level_decisions",
+)
+
+RETAINED_DEFAULT_KEYS = (
+    "retained_defaults",
+    "core_file_retained_defaults",
+    "template_defaults_retained",
+    "conservative_defaults",
+)
+
+SUPPORT_MODIFICATION_KEYS = (
+    "support_file_modifications",
+    "modified_support_files",
+    "support_files_modified",
+)
+
+
+
+def manifest_item_path(item: Any) -> str | None:
+    if isinstance(item, str):
+        return item
+    if isinstance(item, dict):
+        for key in ("relative_path", "path", "file", "filename", "name", "core_file"):
+            value = item.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return None
+
+
+
+def collect_manifest_paths(manifest: dict[str, Any], keys: tuple[str, ...]) -> list[str]:
+    paths: list[str] = []
+    for key in keys:
+        value = manifest.get(key)
+        if isinstance(value, list):
+            for item in value:
+                path = manifest_item_path(item)
+                if path:
+                    paths.append(path)
+        elif isinstance(value, dict):
+            for map_key, item in value.items():
+                path = manifest_item_path(item)
+                paths.append(path or str(map_key))
+        elif isinstance(value, str):
+            paths.append(value)
+    return list(dict.fromkeys(paths))
+
+
+
+def manifest_path_name(path_text: str) -> str:
+    return Path(path_text.split(":", 1)[0]).name
+
+
+
+def nested_paths(value: Any) -> set[str]:
+    found: set[str] = set()
+    if isinstance(value, dict):
+        path = manifest_item_path(value)
+        if path:
+            found.add(manifest_path_name(path))
+        for item in value.values():
+            found.update(nested_paths(item))
+    elif isinstance(value, list):
+        for item in value:
+            found.update(nested_paths(item))
+    elif isinstance(value, str):
+        name = manifest_path_name(value)
+        if name.endswith(".txt"):
+            found.add(name)
+    return found
+
+
+
+def collect_core_decision_files(manifest: dict[str, Any]) -> set[str]:
+    files: set[str] = set()
+    for key in CORE_FIELD_DECISION_KEYS:
+        value = manifest.get(key)
+        if isinstance(value, dict):
+            for map_key, item in value.items():
+                files.add(manifest_path_name(str(map_key)))
+                files.update(nested_paths(item))
+        elif isinstance(value, list):
+            files.update(nested_paths(value))
+    return {name for name in files if name.endswith(".txt")}
+
+
+
+def default_entry_has_reason(item: Any) -> bool:
+    if isinstance(item, dict):
+        for key in (
+            "reason",
+            "justification",
+            "why_applicable",
+            "approved_source",
+            "source",
+            "basis",
+        ):
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                return True
+            if isinstance(value, list) and value:
+                return True
+        return False
+    return isinstance(item, str) and len(item.strip()) > 20
+
+
+
+def collect_unjustified_defaults(manifest: dict[str, Any]) -> list[str]:
+    findings: list[str] = []
+    for key in RETAINED_DEFAULT_KEYS:
+        value = manifest.get(key)
+        if value is None:
+            continue
+        entries: list[tuple[str, Any]] = []
+        if isinstance(value, dict):
+            entries.extend((str(k), v) for k, v in value.items())
+        elif isinstance(value, list):
+            entries.extend((f"{key}[{idx}]", item) for idx, item in enumerate(value))
+        else:
+            entries.append((key, value))
+        for label, item in entries:
+            if isinstance(item, list):
+                for idx, subitem in enumerate(item):
+                    if not default_entry_has_reason(subitem):
+                        findings.append(f"{label}[{idx}] lacks a reason/source for a retained default.")
+            elif not default_entry_has_reason(item):
+                findings.append(f"{label} lacks a reason/source for a retained default.")
+    return findings
+
+
+
+def support_file_has_reason(manifest: dict[str, Any], file_name: str) -> bool:
+    for key in SUPPORT_MODIFICATION_KEYS:
+        value = manifest.get(key)
+        if isinstance(value, dict):
+            for map_key, item in value.items():
+                names = {manifest_path_name(str(map_key))} | nested_paths(item)
+                if file_name in names and default_entry_has_reason(item):
+                    return True
+        elif isinstance(value, list):
+            for item in value:
+                names = nested_paths(item)
+                if file_name in names and default_entry_has_reason(item):
+                    return True
+    return False
+
+
+def validate_case(workspace_dir: Path, aignc_root: Path) -> tuple[dict[str, Any], str, list[dict[str, Any]], str]:
     findings: list[Finding] = []
     validation_warnings: list[str] = []
     broken_references: list[str] = []
@@ -475,9 +641,10 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
     unsupported_content: list[str] = []
     files_checked: list[str] = []
 
-    scenario_path = case_dir / "02_scenario" / "scenario_facts.json"
-    capability_path = case_dir / "03_capability" / "capability_assessment.json"
-    manifest_path = case_dir / "04_config" / "generated_config_manifest.json"
+    workflow_dir = workspace_dir / "AIGNC_Workflow"
+    scenario_path = workflow_dir / "02_scenario" / "scenario_facts.json"
+    capability_path = workflow_dir / "03_capability" / "capability_assessment.json"
+    manifest_path = workflow_dir / "04_config" / "generated_config_manifest.json"
 
     required_upstream = [scenario_path, capability_path, manifest_path]
     for path in required_upstream:
@@ -489,31 +656,44 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
         summary = {
             "status": "fail",
             "files_checked": files_checked,
+            "core_files_checked": [],
+            "support_files_checked": [],
             "missing_files": missing_files,
             "broken_references": [],
+            "missing_core_field_decisions": [],
+            "unjustified_template_defaults": [],
+            "unexpected_support_file_modifications": [],
             "schema_shape_warnings": [],
+            "validation_warnings": [],
             "unsupported_content_findings": [],
+            "requirement_trace_counts": {
+                "satisfied": 0,
+                "satisfied_with_assumption": 0,
+                "not_config_stage": 0,
+                "unsatisfied": 0,
+            },
             "recommended_next_step": "42-config-author",
         }
-        return summary, "# Validation failed\n\nMissing upstream artifacts."
+        return summary, "# Validation failed\n\nMissing upstream artifacts.", [], "# Requirement Trace\n"
+
 
     scenario = json.loads(read_text(scenario_path))
     capability = json.loads(read_text(capability_path))
     manifest = json.loads(read_text(manifest_path))
-    inp_schema = load_json(workspace_root / "knowledge" / "42" / "details" / "inputs" / "inp_sim.schema.json")
-    orb_schema = load_json(workspace_root / "knowledge" / "42" / "details" / "inputs" / "orb.schema.json")
-    sc_schema = load_json(workspace_root / "knowledge" / "42" / "details" / "inputs" / "sc.schema.json")
-    wheel_schema = load_json(workspace_root / "knowledge" / "42" / "details" / "actuators" / "wheel.schema.json")
-    thruster_schema = load_json(workspace_root / "knowledge" / "42" / "details" / "actuators" / "thruster.schema.json")
-    gyro_schema = load_json(workspace_root / "knowledge" / "42" / "details" / "sensors" / "gyro.schema.json")
-    st_schema = load_json(workspace_root / "knowledge" / "42" / "details" / "sensors" / "star_tracker.schema.json")
-    css_schema = load_json(workspace_root / "knowledge" / "42" / "details" / "sensors" / "css.schema.json")
+    inp_schema = load_json(aignc_root / "knowledge" / "42" / "details" / "inputs" / "inp_sim.schema.json")
+    orb_schema = load_json(aignc_root / "knowledge" / "42" / "details" / "inputs" / "orb.schema.json")
+    sc_schema = load_json(aignc_root / "knowledge" / "42" / "details" / "inputs" / "sc.schema.json")
+    wheel_schema = load_json(aignc_root / "knowledge" / "42" / "details" / "actuators" / "wheel.schema.json")
+    thruster_schema = load_json(aignc_root / "knowledge" / "42" / "details" / "actuators" / "thruster.schema.json")
+    gyro_schema = load_json(aignc_root / "knowledge" / "42" / "details" / "sensors" / "gyro.schema.json")
+    st_schema = load_json(aignc_root / "knowledge" / "42" / "details" / "sensors" / "star_tracker.schema.json")
+    css_schema = load_json(aignc_root / "knowledge" / "42" / "details" / "sensors" / "css.schema.json")
 
-    config_dir = case_dir / "04_config"
-    validation_dir = case_dir / "04_config" / "validation"
+    config_dir = workflow_dir / "04_config"
+    validation_dir = workflow_dir / "04_config" / "validation"
     validation_dir.mkdir(parents=True, exist_ok=True)
 
-    generated_files = manifest.get("generated_files", [])
+    generated_files = collect_manifest_paths(manifest, ("generated_files", "created_files", "modified_files"))
     for rel in generated_files:
         path = config_dir / rel
         files_checked.append(str(path))
@@ -521,6 +701,25 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
             missing_files.append(str(path))
 
     inp_sim_path = config_dir / "Inp_Sim.txt"
+    files_checked.append(str(inp_sim_path))
+    if not inp_sim_path.exists():
+        missing_files.append(str(inp_sim_path))
+        summary = {
+            "status": "fail",
+            "files_checked": list(dict.fromkeys(files_checked)),
+            "core_files_checked": [str(inp_sim_path)],
+            "support_files_checked": [],
+            "missing_files": missing_files,
+            "broken_references": [],
+            "schema_shape_warnings": [],
+            "validation_warnings": [],
+            "missing_core_field_decisions": ["Inp_Sim.txt"],
+            "unjustified_template_defaults": [],
+            "unexpected_support_file_modifications": [],
+            "unsupported_content_findings": [],
+            "recommended_next_step": "42-config-author",
+        }
+        return summary, "# Validation failed\n\nMissing Inp_Sim.txt.", [], "# Requirement Trace\n"
     inp = parse_inp_sim(inp_sim_path)
 
     # Field-level schema checks
@@ -547,6 +746,87 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
         sc_paths.append(sc_path)
         if not sc_path.exists():
             broken_references.append(f"Missing spacecraft file referenced by Inp_Sim: {entry['spacecraft_file']}")
+
+    core_paths = [inp_sim_path] + orbit_paths + sc_paths
+    core_files_checked = [str(path) for path in core_paths]
+    core_file_names = {path.name for path in core_paths}
+
+    support_manifest_paths = collect_manifest_paths(
+        manifest,
+        (
+            "reused_template_support_files",
+            "copied_support_files",
+            "support_files_checked",
+            "support_files",
+            "reused_template_files",
+            "copied_files",
+        ),
+    )
+    support_file_names = {
+        manifest_path_name(path_text)
+        for path_text in support_manifest_paths
+        if manifest_path_name(path_text) in SUPPORT_FILE_NAMES
+        or manifest_path_name(path_text).startswith("Flex_")
+    }
+    support_file_names.update(
+        path.name
+        for path in config_dir.glob("*.txt")
+        if path.name not in core_file_names
+        and (path.name in SUPPORT_FILE_NAMES or path.name.startswith("Flex_"))
+    )
+    support_files_checked = [str(config_dir / name) for name in sorted(support_file_names)]
+    files_checked.extend(support_files_checked)
+
+    decision_files = collect_core_decision_files(manifest)
+    missing_core_field_decisions = [
+        path.name
+        for path in core_paths
+        if path.name not in decision_files
+    ]
+
+    unjustified_template_defaults = collect_unjustified_defaults(manifest)
+
+    modified_file_names = {
+        manifest_path_name(path_text)
+        for path_text in collect_manifest_paths(
+            manifest,
+            (
+                "modified_files",
+                "edited_files",
+                "changed_files",
+                "support_file_modifications",
+                "modified_support_files",
+                "support_files_modified",
+            ),
+        )
+    }
+    unchanged_support_names = {
+        manifest_path_name(path_text)
+        for path_text in collect_manifest_paths(
+            manifest,
+            (
+                "reused_template_support_files",
+                "copied_support_files",
+                "reused_template_files",
+                "copied_files",
+            ),
+        )
+    }
+    unexpected_support_file_modifications = sorted(
+        name
+        for name in modified_file_names
+        if (name in SUPPORT_FILE_NAMES or name.startswith("Flex_"))
+        and name not in core_file_names
+        and name not in unchanged_support_names
+        and not support_file_has_reason(manifest, name)
+    )
+
+    for name in missing_core_field_decisions:
+        unsupported_content.append(f"Manifest lacks core-file field decisions for {name}.")
+    for item in unexpected_support_file_modifications:
+        unsupported_content.append(f"Support file {item} is marked modified without a scenario-driven reason.")
+    for item in unjustified_template_defaults:
+        unsupported_content.append(item)
 
     orbit_data = [parse_orbit(p) for p in orbit_paths if p.exists()]
     sc_data = [parse_sc(p) for p in sc_paths if p.exists()]
@@ -578,7 +858,7 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
         for axis in sc["fgs_bore_axes"]:
             validate_allowed_value(f"{sc_path.name}.fgs_bore_axis", axis, ["X_AXIS", "Y_AXIS", "Z_AXIS"], unsupported_content)
 
-    model_dir = workspace_root / "Model"
+    model_dir = aignc_root / "42" / "Model"
     for sc_path, sc in zip(sc_paths, sc_data):
         for node_file in sc["node_files"]:
             path = config_dir / node_file
@@ -640,11 +920,15 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
                 broken_references.append(f"{sc_path.name} enabled FGS block is missing Body/Node lines.")
 
     # Simple contradiction/TODO scan.
-    for rel in generated_files:
-        path = config_dir / rel
-        text = read_text(path)
-        if "TODO" in text or "TBD" in text or "<placeholder>" in text.lower():
+    placeholder_scan_paths = list(dict.fromkeys(core_paths + [Path(p) for p in support_files_checked]))
+    for path in placeholder_scan_paths:
+        if not path.exists() or not path.is_file():
+            continue
+        rel = path.name
+        file_text = read_text(path)
+        if "TODO" in file_text or "TBD" in file_text or "<placeholder>" in file_text.lower():
             unsupported_content.append(f"{rel} contains unresolved placeholder markers.")
+
 
     # Capability/requirements alignment.
     if scenario["orbit"]["central_body"] == "LUNA":
@@ -891,8 +1175,13 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
     summary = {
         "status": status,
         "files_checked": files_checked,
+        "core_files_checked": core_files_checked,
+        "support_files_checked": support_files_checked,
         "missing_files": missing_files,
         "broken_references": broken_references,
+        "missing_core_field_decisions": missing_core_field_decisions,
+        "unjustified_template_defaults": unjustified_template_defaults,
+        "unexpected_support_file_modifications": unexpected_support_file_modifications,
         "schema_shape_warnings": schema_shape_warnings,
         "validation_warnings": validation_warnings,
         "unsupported_content_findings": unsupported_content,
@@ -917,7 +1206,7 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
     }
 
     report_lines = [
-        f"# Static Configuration Validation Report: {case_dir.name}",
+        f"# Static Configuration Validation Report: {workspace_dir.name}",
         "",
         "## Verdict",
         "",
@@ -928,6 +1217,30 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
     ]
     for item in files_checked:
         report_lines.append(f"- `{item}`")
+
+    report_lines.extend(["", "## Core Files Checked", ""])
+    for item in core_files_checked:
+        report_lines.append(f"- `{item}`")
+
+    if support_files_checked:
+        report_lines.extend(["", "## Support Files Checked", ""])
+        for item in support_files_checked:
+            report_lines.append(f"- `{item}`")
+
+    if missing_core_field_decisions:
+        report_lines.extend(["", "## Missing Core Field Decisions", ""])
+        for item in missing_core_field_decisions:
+            report_lines.append(f"- {item}")
+
+    if unjustified_template_defaults:
+        report_lines.extend(["", "## Unjustified Template Defaults", ""])
+        for item in unjustified_template_defaults:
+            report_lines.append(f"- {item}")
+
+    if unexpected_support_file_modifications:
+        report_lines.extend(["", "## Unexpected Support File Modifications", ""])
+        for item in unexpected_support_file_modifications:
+            report_lines.append(f"- {item}")
 
     if missing_files:
         report_lines.extend(["", "## Missing Files", ""])
@@ -957,7 +1270,7 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
     report_lines.extend(["", "## Recommended Next Step", "", f"`{recommended_next_step}`", ""])
     report = "\n".join(report_lines)
     trace_lines = [
-        f"# Requirement Trace: {case_dir.name}",
+        f"# Requirement Trace: {workspace_dir.name}",
         "",
         "| Requirement | Status | Notes |",
         "|---|---|---|",
@@ -970,15 +1283,16 @@ def validate_case(case_dir: Path, workspace_root: Path) -> tuple[dict[str, Any],
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--case-dir", required=True, help="Path to the case root directory")
-    parser.add_argument("--workspace-root", required=True, help="Path to repository workspace root")
+    parser.add_argument("--workspace-dir", required=True, help="Path to the active version workspace directory")
+    parser.add_argument("--aignc-root", default="/data/lbk/codex_web/AIGNC", help="Path to the AIGNC repository root")
     args = parser.parse_args()
 
-    case_dir = Path(args.case_dir).resolve()
-    workspace_root = Path(args.workspace_root).resolve()
-    summary, report, requirement_trace, trace_md = validate_case(case_dir, workspace_root)
+    workspace_dir = Path(args.workspace_dir).resolve()
+    aignc_root = Path(args.aignc_root).resolve()
+    summary, report, requirement_trace, trace_md = validate_case(workspace_dir, aignc_root)
 
-    validation_dir = case_dir / "04_config" / "validation"
+    workflow_dir = workspace_dir / "AIGNC_Workflow"
+    validation_dir = workflow_dir / "04_config" / "validation"
     validation_dir.mkdir(parents=True, exist_ok=True)
     (validation_dir / "config_validation_summary.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False),
@@ -990,6 +1304,14 @@ def main() -> int:
         encoding="utf-8",
     )
     (validation_dir / "requirements_trace.md").write_text(trace_md, encoding="utf-8")
+
+    if summary["status"] in {"pass", "pass_with_warnings"}:
+        source_config = workflow_dir / "04_config"
+        final_config = workspace_dir / "00_inputs" / "Config"
+        final_config.mkdir(parents=True, exist_ok=True)
+        for path in source_config.iterdir():
+            if path.is_file():
+                shutil.copy2(path, final_config / path.name)
 
     return 0 if summary["status"] in {"pass", "pass_with_warnings"} else 1
 

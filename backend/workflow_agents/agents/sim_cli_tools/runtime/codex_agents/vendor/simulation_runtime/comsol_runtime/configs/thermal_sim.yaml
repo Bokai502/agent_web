@@ -46,5 +46,5 @@ thermal_sim:
 
 # 数据集路径配置
 dataset:
-  base_dir: "/data/lbk/codex_web/FreeCAD_data/v9_data/02_sim/runs"
+  base_dir: "/data/lbk/codex_web/data/input_data/v9_data/02_sim/runs"
   samples_dir: "samples"
