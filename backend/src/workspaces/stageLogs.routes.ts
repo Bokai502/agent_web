@@ -24,6 +24,13 @@ type ConversationLogEntry = {
   title: string
 }
 
+type LatestConversationText = {
+  id: string
+  source: string
+  text: string
+  time: string
+}
+
 const MAX_FILES = 100
 const MAX_ENTRIES = 300
 const MARKDOWN_REPORTS = [
@@ -38,6 +45,18 @@ const MARKDOWN_REPORTS = [
     idSuffix: "modifications",
     relativePath: path.join("reports", "modifications.md"),
     title: "修改建议",
+  },
+  {
+    detail: "reports/cad_sim_report/report.md",
+    idSuffix: "cad-sim-report",
+    relativePath: path.join("reports", "cad_sim_report", "report.md"),
+    title: "CAD/仿真报告",
+  },
+  {
+    detail: "reports/cad_sim_report/modifications.md",
+    idSuffix: "cad-sim-modifications",
+    relativePath: path.join("reports", "cad_sim_report", "modifications.md"),
+    title: "CAD/仿真修改建议",
   },
 ]
 const MARKDOWN_LINK_OR_IMAGE_RE = /(!?\[[^\]]*\]\()([^)\s]+)(\))/gu
@@ -141,6 +160,36 @@ function collectStageEntries(value: unknown, source: string, fallbackTime: strin
   }
 
   if (isRecord(value)) addStageEntry(value, source, fallbackTime, entries)
+}
+
+function findLatestConversationText(sessions: unknown[], source: string, fallbackTime: string): LatestConversationText | null {
+  for (let sessionIndex = sessions.length - 1; sessionIndex >= 0; sessionIndex -= 1) {
+    const session = sessions[sessionIndex]
+    if (!isRecord(session) || !Array.isArray(session.turns)) continue
+
+    for (let turnIndex = session.turns.length - 1; turnIndex >= 0; turnIndex -= 1) {
+      const turn = session.turns[turnIndex]
+      if (!isRecord(turn) || !Array.isArray(turn.events)) continue
+
+      for (let eventIndex = turn.events.length - 1; eventIndex >= 0; eventIndex -= 1) {
+        const event = turn.events[eventIndex]
+        if (!isRecord(event) || !isRecord(event.item)) continue
+        const text = asString(event.item.text)
+        if (!text) continue
+        const itemId = asString(event.item.id) ?? `event-${eventIndex}`
+        const turnId = asString(turn.id) ?? `turn-${turnIndex}`
+        const sessionId = asString(session.id) ?? `session-${sessionIndex}`
+        return {
+          id: `${sessionId}:${turnId}:${itemId}`,
+          source,
+          text,
+          time: getTime(event, fallbackTime),
+        }
+      }
+    }
+  }
+
+  return null
 }
 
 async function listTopLevelJsonFiles(dir: string): Promise<string[]> {
@@ -279,6 +328,33 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
       return reply.send(entries)
     } catch {
       return reply.send([])
+    }
+  })
+
+  fastify.get<{ Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/conversation/latest", async (req, reply) => {
+    let configuredWorkspaceDir: string
+    try {
+      configuredWorkspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve conversation history workspace")
+    }
+
+    const historyPath = path.join(configuredWorkspaceDir, "logs", "conversation-history.json")
+    const raw = await fs.readFile(historyPath, "utf-8").catch(() => null)
+    if (raw === null) return reply.send({ text: null })
+
+    try {
+      const parsed = JSON.parse(raw)
+      const sessions = Array.isArray(parsed) ? parsed : []
+      const stat = await fs.stat(historyPath)
+      const latest = findLatestConversationText(
+        sessions,
+        path.relative(process.cwd(), historyPath),
+        stat.mtime.toISOString(),
+      )
+      return reply.send(latest ?? { text: null })
+    } catch {
+      return reply.send({ text: null })
     }
   })
 }

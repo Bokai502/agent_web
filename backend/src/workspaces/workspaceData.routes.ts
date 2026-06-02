@@ -38,6 +38,13 @@ const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_inf
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
 const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation", "data1.txt")
+const THERMAL_DB_JSON_RELATIVE_PATH = path.join(
+  "workflow_agents",
+  "thermal_skills",
+  "config-editor",
+  "references",
+  "热仿真数据库.json",
+)
 const MAX_FILE_TREE_ENTRIES = 500
 
 type TemperaturePoint = {
@@ -46,6 +53,21 @@ type TemperaturePoint = {
   y: number
   z: number
 }
+
+type JsonRecord = Record<string, unknown>
+
+type ThermalDbRecord = {
+  assetRoot: string | null
+  record: JsonRecord
+  sheetName: string
+}
+
+type ThermalDbIndex = {
+  byModel: Map<string, ThermalDbRecord | null>
+  sourcePath: string
+}
+
+let thermalDbIndexPromise: Promise<ThermalDbIndex | null> | null = null
 
 async function readWorkspaceProgress(progressPath: string): Promise<WorkspaceProgressData | null> {
   const raw = await fs.readFile(progressPath, "utf-8").catch(() => null)
@@ -195,6 +217,244 @@ function temperatureColor(temperature: number, tempMin: number, tempMax: number)
   return [t, 1 - t, 0]
 }
 
+function isRecord(value: unknown): value is JsonRecord {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
+function cleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : ""
+}
+
+function setUniqueModel(index: Map<string, ThermalDbRecord | null>, key: string, value: ThermalDbRecord) {
+  if (!key) return
+  if (index.has(key)) {
+    index.set(key, null)
+    return
+  }
+  index.set(key, value)
+}
+
+async function loadThermalDbIndex() {
+  if (!thermalDbIndexPromise) {
+    thermalDbIndexPromise = buildThermalDbIndex().catch(() => null)
+  }
+  return thermalDbIndexPromise
+}
+
+async function buildThermalDbIndex(): Promise<ThermalDbIndex | null> {
+  const candidatePaths = [
+    path.resolve(process.cwd(), THERMAL_DB_JSON_RELATIVE_PATH),
+    path.resolve(process.cwd(), "backend", THERMAL_DB_JSON_RELATIVE_PATH),
+  ]
+
+  let sourcePath: string | null = null
+  let raw: string | null = null
+  for (const candidatePath of candidatePaths) {
+    raw = await fs.readFile(candidatePath, "utf-8").catch(() => null)
+    if (raw !== null) {
+      sourcePath = candidatePath
+      break
+    }
+  }
+  if (!sourcePath || raw === null) return null
+
+  const payload = JSON.parse(raw) as unknown
+  if (!isRecord(payload) || !Array.isArray(payload.sheets)) return null
+
+  const topLevelSourceFile = cleanString(payload.source_file)
+  const topLevelAssetRoot = topLevelSourceFile ? path.dirname(topLevelSourceFile) : null
+  const byModel = new Map<string, ThermalDbRecord | null>()
+
+  for (const sheet of payload.sheets) {
+    if (!isRecord(sheet) || !Array.isArray(sheet.records)) continue
+    const sheetSourceFile = cleanString(sheet.source_file)
+    const assetRoot = topLevelAssetRoot || (sheetSourceFile ? path.dirname(sheetSourceFile) : null)
+
+    for (const rawRecord of sheet.records) {
+      if (!isRecord(rawRecord)) continue
+      const model = cleanString(rawRecord["器件型号"])
+      if (!model || model === "model") continue
+      setUniqueModel(byModel, model, {
+        assetRoot,
+        record: rawRecord,
+        sheetName: cleanString(sheet.name),
+      })
+    }
+  }
+
+  return { byModel, sourcePath }
+}
+
+function templateCsvModelFromBomItem(item: JsonRecord) {
+  const direct = cleanString(item.template_csv_model)
+  if (direct) return direct
+
+  const sourceRef = isRecord(item.source_ref) ? item.source_ref : {}
+  return cleanString(sourceRef.template_csv_model) || cleanString(sourceRef.template_model)
+}
+
+function resolveAssetPath(assetRoot: string | null, value: unknown) {
+  const rawPath = cleanString(value)
+  if (!rawPath) return null
+  if (path.isAbsolute(rawPath)) return rawPath
+  return assetRoot ? path.join(assetRoot, rawPath) : rawPath
+}
+
+function assetExists(pathValue: string | null) {
+  return Boolean(pathValue)
+}
+
+function finiteNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
+function firstNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value !== "string") return null
+  const match = value.match(/-?\d+(?:\.\d+)?/u)
+  return match ? Number.parseFloat(match[0]) : null
+}
+
+function sizeMmFromRecord(record: JsonRecord) {
+  const values = [record["长 mm"], record["宽 mm"], record["高 mm"]].map(finiteNumber)
+  return values.every((value): value is number => value !== null) ? values : null
+}
+
+function displayInfoFromThermalRecord(match: ThermalDbRecord) {
+  const record = match.record
+  const imagePath = resolveAssetPath(match.assetRoot, record["图片路径"])
+  const cadPath = resolveAssetPath(match.assetRoot, record["CAD路径"])
+  const cadRotatedPath = resolveAssetPath(
+    match.assetRoot,
+    record["CAD_rotated_path"] ?? record["Rotated CAD Path"],
+  )
+  const datasheetPath = resolveAssetPath(match.assetRoot, record["datasheet path"])
+
+  return {
+    semantic_name: record["器件ID"] ?? null,
+    model: record["器件型号"] ?? null,
+    name: record["器件名称"] ?? null,
+    name_cn: record["器件名称(中文)"] ?? null,
+    kind: record["器件种类"] ?? null,
+    subsystem: record["所属分系统"] ?? null,
+    source: record["器件来源"] ?? null,
+    workbook_sheet: match.sheetName,
+    description: record["描述 / 用途说明）"] ?? null,
+    shape: record["外形"] ?? null,
+    dimensions: record["尺寸"] ?? null,
+    mass_g: record["质量 g"] ?? null,
+    power_main: record["主模式功耗"] ?? null,
+    power_calibration: record["校准模式功耗"] ?? null,
+    power_cooling: record["冷却系统功耗"] ?? null,
+    operating_voltage: record["工作电压"] ?? null,
+    material: record["核心材料"] ?? null,
+    mount_face: record["安装面"] ?? null,
+    thermal: {
+      conductivity_W_mK: record["导热率W/(m·K)"] ?? null,
+      emissivity: record["辐射率"] ?? null,
+      thermal_resistance_K_W: record["热阻K/W"] ?? null,
+      contact_resistance_K_W: record["接触热阻K/W"] ?? null,
+      specific_heat_J_kgK: record["比热容J/(kg·K)"] ?? null,
+      max_temp: record["最高工作温度"] ?? null,
+      min_temp: record["最低工作温度"] ?? null,
+      storage_temp_range: record["储存温度范围"] ?? null,
+    },
+    assets: {
+      image_path: imagePath,
+      image_path_exists: assetExists(imagePath),
+      cad_path: cadPath,
+      cad_path_exists: assetExists(cadPath),
+      cad_rotated_path: cadRotatedPath,
+      cad_rotated_path_exists: assetExists(cadRotatedPath),
+      datasheet_path: datasheetPath,
+      datasheet_path_exists: assetExists(datasheetPath),
+    },
+  }
+}
+
+function excelAndCadFromThermalRecord(match: ThermalDbRecord) {
+  const record = match.record
+  const displayInfo = displayInfoFromThermalRecord(match)
+  return {
+    thermal_db_component_id: record["器件ID"] ?? null,
+    excel_model: record["器件型号"] ?? null,
+    excel_name: record["器件名称"] ?? null,
+    excel_name_cn: record["器件名称(中文)"] ?? null,
+    excel_kind: record["器件种类"] ?? null,
+    excel_subsystem: record["所属分系统"] ?? null,
+    excel_source: record["器件来源"] ?? null,
+    excel_description: record["描述 / 用途说明）"] ?? null,
+    excel_dimensions: record["尺寸"] ?? null,
+    excel_material: record["核心材料"] ?? null,
+    excel_mount_face: record["安装面"] ?? null,
+    ...displayInfo.assets,
+  }
+}
+
+function enrichRealBomPayload(payload: unknown, index: ThermalDbIndex | null) {
+  if (!index || !isRecord(payload) || !Array.isArray(payload.items)) return payload
+
+  const unmatchedKeys: string[] = []
+  let ambiguousRecords = 0
+  let matchedRecords = 0
+  let missingRecords = 0
+
+  const items = payload.items.map((rawItem) => {
+    if (!isRecord(rawItem)) return rawItem
+    const lookupKey = templateCsvModelFromBomItem(rawItem)
+    if (!lookupKey) return rawItem
+
+    const match = index.byModel.get(lookupKey)
+    if (match === null) {
+      ambiguousRecords += 1
+      unmatchedKeys.push(lookupKey)
+      return rawItem
+    }
+    if (!match) {
+      missingRecords += 1
+      unmatchedKeys.push(lookupKey)
+      return rawItem
+    }
+
+    matchedRecords += 1
+    const record = match.record
+    const massG = finiteNumber(record["质量 g"])
+    const powerW = firstNumber(record["主模式功耗"])
+    const sizeMm = sizeMmFromRecord(record)
+
+    return {
+      ...rawItem,
+      ...(massG !== null ? { mass_kg: massG / 1000 } : {}),
+      ...(powerW !== null ? { power_W: powerW } : {}),
+      ...(sizeMm ? { size_mm: sizeMm } : {}),
+      thermal_db_component_id: record["器件ID"] ?? rawItem.thermal_db_component_id,
+      display_info: {
+        ...(isRecord(rawItem.display_info) ? rawItem.display_info : {}),
+        ...displayInfoFromThermalRecord(match),
+      },
+      excel_and_cad: {
+        ...(isRecord(rawItem.excel_and_cad) ? rawItem.excel_and_cad : {}),
+        ...excelAndCadFromThermalRecord(match),
+      },
+    }
+  })
+
+  return {
+    ...payload,
+    items,
+    total_records: items.length,
+    matched_records: matchedRecords,
+    missing_records: missingRecords,
+    bom_lookup: {
+      ambiguous_records: ambiguousRecords,
+      database_path: index.sourcePath,
+      matched_records: matchedRecords,
+      missing_records: missingRecords,
+      unmatched_keys: Array.from(new Set(unmatchedKeys)).slice(0, 50),
+    },
+  }
+}
+
 export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: WorkspaceFilesQuery }>("/api/workspace/files/tree", async (req, reply) => {
     try {
@@ -252,10 +512,15 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
       }
 
       const stat = await fs.stat(bomInfoPath)
+      const payload = JSON.parse(raw) as unknown
+      const isRealBom = path.basename(bomInfoPath) === path.basename(DEFAULT_REAL_BOM_RELATIVE_PATH)
+      const responsePayload = isRealBom
+        ? enrichRealBomPayload(payload, await loadThermalDbIndex())
+        : payload
 
       reply.header("Cache-Control", "no-cache")
       return reply.send({
-        ...JSON.parse(raw),
+        ...(isRecord(responsePayload) ? responsePayload : {}),
         source_path: bomInfoPath,
         source_version: [bomInfoPath, stat.mtimeMs, stat.size].join(":"),
       })

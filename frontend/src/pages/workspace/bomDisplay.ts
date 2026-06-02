@@ -13,5 +13,5 @@ export function getBomDisplayName(component: { model: string; name: string; name
 }
 
 export function getBomPrimaryName(component: { model: string; name: string; nameCn: string; semanticName: string }) {
-  return getPresentBomText(component.semanticName) || getBomDisplayName(component) || getPresentBomText(component.model)
+  return getBomDisplayName(component) || getPresentBomText(component.semanticName)
 }

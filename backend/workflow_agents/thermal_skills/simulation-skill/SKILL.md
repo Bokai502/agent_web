@@ -32,11 +32,9 @@ The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes 
   - `<workspace>/01_cad/comsol_inputs/channels_input.npz`
 - Real COMSOL runs always start a private mphserver. Reusing an existing mphserver is not supported by this tool.
 - Use `comsol_local` for real thermal simulation.
-- After a successful simulation in Open Codex Web, let the simulation CLI open
-  COMSOL/ParaView GUI loaders with its default behavior. Do not pass
-  `--no-open-tools` unless the user explicitly requests a headless run. Use
-  `--async-open-tools` only when a manual CLI run explicitly needs detached
-  launcher behavior.
+- For normal simulation runs, always pass `--async-open-tools` so COMSOL and
+  ParaView GUI loaders open through the detached remote-tool flow after the run
+  succeeds.
 - Never call `/usr/local/bin/start-comsol-remote` to open `work.mph`. That legacy launcher uses the old `DISPLAY=:3` / `5903` path and can steal or terminate the shared COMSOL noVNC session on port `6082`. To view a COMSOL result, use the simulation CLI's built-in loader or open the file on the stable remote desktop session: `DISPLAY=:32`, VNC `5932`, noVNC `6082`.
 - Do not delete or recreate the workspace unless the user explicitly asks.
 
@@ -67,7 +65,8 @@ python -m sim_cli_tools.cli.main \
   --simulation-backend comsol_local \
   --mph-port 32036 \
   --force \
-  --quiet
+  --quiet \
+  --async-open-tools
 ```
 
 ## Outputs To Inspect

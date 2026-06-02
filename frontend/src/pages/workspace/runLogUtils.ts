@@ -95,29 +95,25 @@ export function buildAgentSummaries(turns: Turn[], currentPrompt: string, curren
 
 export function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[], t: TFunction): RunLogEntry[] {
   const events = [...turns.flatMap(turn => turn.events), ...currentEvents]
-  const entries: RunLogEntry[] = []
+  const entriesById = new Map<string, RunLogEntry>()
+  const upsertEntry = (entry: RunLogEntry) => {
+    if (entriesById.has(entry.id)) entriesById.delete(entry.id)
+    entriesById.set(entry.id, entry)
+  }
 
   events.forEach((event, index) => {
     if (event.type === "turn.started") {
-      entries.push({ detail: "turn started", id: `turn-started-${index}`, status: "running", title: t("workspace.logs.turnStarted"), type: "run" })
       return
     }
     if (event.type === "turn.completed") {
-      entries.push({
-        detail: `input ${event.usage.input_tokens} / output ${event.usage.output_tokens}`,
-        id: `turn-completed-${index}`,
-        status: "completed",
-        title: t("workspace.logs.turnCompleted"),
-        type: "run",
-      })
       return
     }
     if (event.type === "turn.failed") {
-      entries.push({ detail: event.error.message, id: `turn-failed-${index}`, status: "failed", title: t("workspace.logs.turnFailed"), type: "error" })
+      upsertEntry({ detail: event.error.message, id: `turn-failed-${index}`, status: "failed", title: t("workspace.logs.turnFailed"), type: "error" })
       return
     }
     if (event.type === "error") {
-      entries.push({ detail: event.message, id: `error-${index}`, status: "error", title: t("workspace.logs.systemError"), type: "error" })
+      upsertEntry({ detail: event.message, id: `error-${index}`, status: "error", title: t("workspace.logs.systemError"), type: "error" })
       return
     }
     if (event.type !== "item.started" && event.type !== "item.updated" && event.type !== "item.completed") return
@@ -126,14 +122,14 @@ export function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[], t:
     const item = event.item
     if (item.type === "command_execution") {
       const command = item.command.split("\n")[0] ?? item.command
-      entries.push({
+      upsertEntry({
         detail: done ? `exit ${item.exit_code ?? "-"}` : item.status,
         fields: {
           command: item.command,
           exit_code: item.exit_code == null ? "-" : String(item.exit_code),
           output_chars: String(item.aggregated_output.length),
         },
-        id: `${item.id}-${event.type}`,
+        id: item.id,
         raw: {
           command: item.command,
           output: item.aggregated_output,
@@ -147,13 +143,13 @@ export function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[], t:
       return
     }
     if (item.type === "file_change") {
-      entries.push({
+      upsertEntry({
         detail: item.changes.map(change => `${change.kind} ${change.path}`).join(", "),
         fields: {
           changes: String(item.changes.length),
           paths: item.changes.map(change => change.path).join(", "),
         },
-        id: `${item.id}-${event.type}`,
+        id: item.id,
         raw: item.changes,
         status: done ? "completed" : "running",
         title: t("workspace.logs.fileChange", { count: item.changes.length }),
@@ -162,13 +158,13 @@ export function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[], t:
       return
     }
     if (item.type === "mcp_tool_call") {
-      entries.push({
+      upsertEntry({
         detail: `${item.server}.${item.tool} · ${item.status}`,
         fields: {
           server: item.server,
           tool: item.tool,
         },
-        id: `${item.id}-${event.type}`,
+        id: item.id,
         raw: {
           arguments: item.arguments,
           result: item.result ?? null,
@@ -181,18 +177,18 @@ export function getRunLogEntries(turns: Turn[], currentEvents: ThreadEvent[], t:
       return
     }
     if (item.type === "web_search") {
-      entries.push({ detail: item.query, id: `${item.id}-${event.type}`, status: done ? "completed" : "running", title: t("workspace.logs.webSearch"), type: "web" })
+      upsertEntry({ detail: item.query, id: item.id, status: done ? "completed" : "running", title: t("workspace.logs.webSearch"), type: "web" })
       return
     }
     if (item.type === "ask_user") {
-      entries.push({ detail: item.question, id: `${item.id}-${event.type}`, status: "pending", title: t("workspace.logs.askUser"), type: "ask" })
+      upsertEntry({ detail: item.question, id: item.id, status: "pending", title: t("workspace.logs.askUser"), type: "ask" })
     }
   })
 
-  return entries.slice(-80).reverse()
+  return [...entriesById.values()].slice(-80).reverse()
 }
 
-export function getDisplayLogEntries(stageLogs: StageLogEntry[], conversationLogs: ConversationLogEntry[], _runEntries: RunLogEntry[]): RunLogEntry[] {
+export function getDisplayLogEntries(stageLogs: StageLogEntry[], conversationLogs: ConversationLogEntry[], runEntries: RunLogEntry[]): RunLogEntry[] {
   const conversationEntries = conversationLogs.map(entry => ({
     detail: entry.detail,
     id: entry.id,
@@ -217,7 +213,7 @@ export function getDisplayLogEntries(stageLogs: StageLogEntry[], conversationLog
     title: entry.stage_name,
     type: "stage",
   }))
-  return [...conversationEntries, ...stageEntries]
+  return [...runEntries, ...conversationEntries, ...stageEntries]
 }
 
 export function getStatusIcon(status: string) {

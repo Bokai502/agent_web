@@ -50,7 +50,6 @@ export function BomStagePanel({ bomInfo, bomLoading, onSelectBom, selectedBom, t
                   [t("workspace.bomFields.material"), selectedBom.material],
                   [t("workspace.bomFields.mountFace"), selectedBom.mountFace],
                   [t("workspace.bomFields.source"), selectedBom.source],
-                  ...Object.entries(selectedBom.thermal).map(([label, value]) => [t("workspace.bomFields.thermal", { label }), value]),
                 ].map(([label, value]) => (
                   <div className="wa-bom-field" key={String(label)}>
                     <span>{String(label)}</span>

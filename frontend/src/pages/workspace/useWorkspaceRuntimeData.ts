@@ -25,14 +25,16 @@ type RuntimeDataArgs = {
   visibleCurrentEvents: ThreadEvent[]
   visibleTurns: Turn[]
   workspaceRefreshNonce: number
+  sessionId?: string | null
 }
 
-function buildWorkspaceQuery(activeContext: WorkspaceVersionContext) {
+function buildWorkspaceQuery(activeContext: WorkspaceVersionContext, sessionId?: string | null) {
   if (!activeContext.versionDir) return ""
   return `?${new URLSearchParams({
     workspaceDir: activeContext.versionDir,
     ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
     ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
+    ...(sessionId ? { sessionId } : {}),
   }).toString()}`
 }
 
@@ -46,6 +48,7 @@ export function useWorkspaceRuntimeData({
   visibleCurrentEvents,
   visibleTurns,
   workspaceRefreshNonce,
+  sessionId,
 }: RuntimeDataArgs) {
   const [progressData, setProgressData] = useState<WorkspaceProgressResponse | null>(null)
   const [stageLogs, setStageLogs] = useState<StageLogEntry[]>([])
@@ -60,7 +63,7 @@ export function useWorkspaceRuntimeData({
         setProgressData(null)
         return
       }
-      fetch(`${joinApiPath(apiBase, "/workspace/progress")}${buildWorkspaceQuery(activeContext)}`, { cache: "no-store" })
+      fetch(`${joinApiPath(apiBase, "/workspace/progress")}${buildWorkspaceQuery(activeContext, sessionId)}`, { cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<WorkspaceProgressResponse> : null)
         .then(data => {
           if (!cancelled) setProgressData(data)
@@ -76,7 +79,7 @@ export function useWorkspaceRuntimeData({
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, progressRefreshNonce, running, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, progressRefreshNonce, running, sessionId, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false

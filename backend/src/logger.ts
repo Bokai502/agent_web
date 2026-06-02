@@ -36,6 +36,10 @@ function safeStringify(value: unknown): string {
   }
 }
 
+function shouldSkipFastifyAccessLog(msg: unknown) {
+  return msg === "incoming request" || msg === "request completed"
+}
+
 export function createLogger(opts: {
   level: LogLevel
   file: string
@@ -75,6 +79,7 @@ export function createLogger(opts: {
             (obj.level ?? 30) >= 50 ? "error" :
             (obj.level ?? 30) >= 40 ? "warn" :
             (obj.level ?? 30) >= 30 ? "info" : "debug"
+          if (shouldSkipFastifyAccessLog(obj.msg)) continue
           const { level: _l, time: _t, msg, pid: _p, hostname: _h, ...rest } = obj
           write(level, typeof msg === "string" ? msg : "http", rest as Record<string, unknown>)
         } catch {
