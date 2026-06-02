@@ -123,6 +123,7 @@ export default function AgentPage() {
     cad: `http://${remoteToolHost}:6080/${NOVNC_URL_PARAMS}`,
     paraview: `http://${remoteToolHost}:6081/${NOVNC_URL_PARAMS}`,
     comsol: `http://${remoteToolHost}:6082/${NOVNC_URL_PARAMS}`,
+    gnc: 'http://10.110.10.11:8765/',
   }), [remoteToolHost])
   const progressVariant = useMemo<WorkflowProgressVariant>(() => {
     const marker = [
@@ -437,6 +438,8 @@ export default function AgentPage() {
     : activeSessionMatchesWorkspace
       ? t('workspace.status.loaded')
       : t('workspace.status.waiting')
+  const dataSourceLabel = activeContext.workspaceName || activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
+  const versionLabel = activeContext.versionId || '未选择版本'
 
   return (
     <main className="agent-page">
@@ -445,6 +448,7 @@ export default function AgentPage() {
         conversationOpen={conversationPanelOpen}
         currentDate={currentDate}
         currentTime={currentTime}
+        dataSourceLabel={dataSourceLabel}
         onConversationToggle={() => setConversationPanelOpen(open => !open)}
         onProgressToggle={() => setProgressPanelOpen(open => !open)}
         progressOpen={progressPanelOpen}
@@ -452,6 +456,7 @@ export default function AgentPage() {
         progressStatusLabel={progressStatusLabel}
         progressTitle={t('workspace.inspector.progressTitle')}
         sessionStatusLabel={sessionStatusLabel}
+        versionLabel={versionLabel}
         visibleRunning={visibleRunning}
       />
       {conversationPanelOpen ? (

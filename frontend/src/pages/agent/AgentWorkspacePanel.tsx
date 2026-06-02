@@ -138,14 +138,14 @@ export function AgentWorkspacePanel({
         </div>
         {activeView === 'tools' && (
           <div className="agent-tool-tabs">
-            {(['cad', 'paraview', 'comsol'] as const).map(tool => (
+            {(['cad', 'paraview', 'comsol', 'gnc'] as const).map(tool => (
               <button
                 key={tool}
                 type="button"
                 className={activeTool === tool ? 'active' : undefined}
                 onClick={() => setActiveTool(tool)}
               >
-                {tool === 'cad' ? 'CAD' : tool === 'paraview' ? 'ParaView' : 'COMSOL'}
+                {tool === 'cad' ? 'CAD' : tool === 'paraview' ? 'ParaView' : tool === 'comsol' ? 'COMSOL' : 'GNC'}
               </button>
             ))}
           </div>

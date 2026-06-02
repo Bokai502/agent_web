@@ -3,6 +3,7 @@ type AgentTopbarProps = {
   conversationOpen: boolean
   currentDate: string
   currentTime: string
+  dataSourceLabel: string
   onConversationToggle: () => void
   onProgressToggle: () => void
   progressOpen: boolean
@@ -10,6 +11,7 @@ type AgentTopbarProps = {
   progressStatusLabel: string
   progressTitle: string
   sessionStatusLabel: string
+  versionLabel: string
   visibleRunning: boolean
 }
 
@@ -18,6 +20,7 @@ export function AgentTopbar({
   conversationOpen,
   currentDate,
   currentTime,
+  dataSourceLabel,
   onConversationToggle,
   onProgressToggle,
   progressOpen,
@@ -25,6 +28,7 @@ export function AgentTopbar({
   progressStatusLabel,
   progressTitle,
   sessionStatusLabel,
+  versionLabel,
   visibleRunning,
 }: AgentTopbarProps) {
   return (
@@ -40,8 +44,14 @@ export function AgentTopbar({
           aria-haspopup="dialog"
           onClick={onConversationToggle}
         >
-          <span className="agent-session-dot" />
-          <span className="agent-session-label">{sessionStatusLabel}</span>
+          <span className="agent-session-status">
+            <span className="agent-session-dot" />
+            <span className="agent-session-label">{sessionStatusLabel}</span>
+          </span>
+          <span className="agent-session-copy">
+            <span className="agent-session-source">{dataSourceLabel}</span>
+            <span className="agent-session-version">· {versionLabel}</span>
+          </span>
         </button>
         <button
           type="button"
