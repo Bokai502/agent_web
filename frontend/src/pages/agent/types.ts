@@ -16,7 +16,7 @@ export type AgentMessage = {
 
 export type AgentWorkspaceView = 'workspace' | 'bom' | 'model' | 'tools' | 'log'
 
-export type AgentToolView = 'cad' | 'paraview' | 'comsol'
+export type AgentToolView = 'cad' | 'paraview' | 'comsol' | 'gnc'
 
 export type ViewerComponentMessage = {
   componentId?: unknown

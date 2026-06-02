@@ -96,6 +96,8 @@ export const resources = {
         },
         status: {
           running: "Running",
+          completed: "Completed",
+          failed: "Failed",
           loaded: "Session loaded",
           waiting: "Waiting for session",
           run: "RUN",
@@ -225,6 +227,7 @@ export const resources = {
           checkAiMapping: "Component mapping",
           checkRuleAnalysis: "Rule analysis",
           status: {
+            blocked: "Blocked",
             completed: "Completed",
             failed: "Failed",
             pending: "Pending",
@@ -243,6 +246,7 @@ export const resources = {
             ai_mapping_completed: "Component mapping complete",
             ai_mapping_missing: "Mapping not provided",
             ai_mapping_running: "Mapping components",
+            blocked: "Blocked",
             pending: "Pending",
             postprocess_running: "Postprocessing",
             rule_analysis_completed: "Rule analysis complete",
@@ -387,6 +391,8 @@ export const resources = {
         },
         status: {
           running: "运行中",
+          completed: "已完成",
+          failed: "失败",
           loaded: "已加载会话",
           waiting: "等待会话",
           run: "运行",
@@ -515,6 +521,7 @@ export const resources = {
           checkAiMapping: "元器件映射",
           checkRuleAnalysis: "规则检查",
           status: {
+            blocked: "阻塞",
             completed: "已完成",
             failed: "失败",
             pending: "等待中",
@@ -533,6 +540,7 @@ export const resources = {
             ai_mapping_completed: "元器件映射已完成",
             ai_mapping_missing: "未提供映射",
             ai_mapping_running: "正在映射元器件",
+            blocked: "阻塞",
             pending: "等待中",
             postprocess_running: "后处理中",
             rule_analysis_completed: "规则检查已完成",

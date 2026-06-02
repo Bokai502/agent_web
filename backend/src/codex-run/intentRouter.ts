@@ -33,19 +33,27 @@ function isThermalWorkspace(body: RunRequestBody) {
     .filter((value): value is string => typeof value === "string" && value.trim() !== "")
     .join("\n")
     .toLowerCase()
-  return /thermal|热仿真|热设计|ws_thermal/u.test(fields)
+  return /(?:^|[_/\s-])thermal(?:$|[_/\s-])|ws_thermal/u.test(fields)
 }
 
-function looksLikeCheckRequest(text: string) {
-  return /降额|derating|check|检查|校验|审查|符合性|xlsx|元器件/u.test(text)
+function isGncWorkspace(body: RunRequestBody) {
+  const fields = [body.workspaceName, body.workspaceId, body.workspaceDir]
+    .filter((value): value is string => typeof value === "string" && value.trim() !== "")
+    .join("\n")
+    .toLowerCase()
+  return /(?:^|[_/\s-])(?:gnc|aignc|adcs)(?:$|[_/\s-])|ws_gnc/u.test(fields)
 }
 
-function looksLikeProgressQuestion(text: string) {
-  return /进度|状态|完成|结束|怎么样|到哪|当前任务|刚才|上一个|previous|progress|status|finished|summary/u.test(text)
+function isCheckWorkspace(body: RunRequestBody) {
+  const fields = [body.workspaceName, body.workspaceId, body.workspaceDir]
+    .filter((value): value is string => typeof value === "string" && value.trim() !== "")
+    .join("\n")
+    .toLowerCase()
+  return /(?:^|[_/\s-])(?:check|derating)(?:$|[_/\s-])|ws_check/u.test(fields)
 }
 
-function fallbackRouting(body?: RunRequestBody, userInput = ""): IntentRoutingResult {
-  if (looksLikeCheckRequest(userInput) && !looksLikeProgressQuestion(userInput)) {
+export function fallbackRouting(body?: RunRequestBody): IntentRoutingResult {
+  if (body && isCheckWorkspace(body)) {
     return {
       intent: "check",
       managedSkills: ["task-runner"],
@@ -54,12 +62,21 @@ function fallbackRouting(body?: RunRequestBody, userInput = ""): IntentRoutingRe
       source: "fallback",
     }
   }
-  if (body && isThermalWorkspace(body) && !looksLikeProgressQuestion(userInput)) {
+  if (body && isThermalWorkspace(body)) {
     return {
       intent: "thermal",
       managedSkills: ["task-runner"],
       selectedSkills: ["planner", "config-editor", "freecad", "simulation-skill"],
       skillScopes: ["public", "thermal"],
+      source: "fallback",
+    }
+  }
+  if (body && isGncWorkspace(body)) {
+    return {
+      intent: "gnc",
+      managedSkills: ["task-runner"],
+      selectedSkills: ["aignc-42-orchestrator"],
+      skillScopes: ["public", "aignc"],
       source: "fallback",
     }
   }
@@ -242,10 +259,13 @@ export async function routeManagedRunIntent(
   { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
 ): Promise<IntentRoutingResult> {
   const userInput = getInputText(body)
-  if (!userInput) return fallbackRouting(body, userInput)
+  if (!userInput) return fallbackRouting(body)
 
   const skill = readRoutingSkillInstruction("intent-router")
-  if (!skill) return fallbackRouting(body, userInput)
+  if (!skill) {
+    logger.warn("managed run routing skill missing", { requestId, skillName: "intent-router" })
+    return fallbackRouting(body)
+  }
 
   try {
     const abort = new AbortController()
@@ -276,6 +296,7 @@ export async function routeManagedRunIntent(
         requestId,
         selectedSkills: parsed.selectedSkills,
         skillScopes: parsed.skillScopes,
+        routingSkillFile: skill.file,
         source: parsed.source,
         timeoutMs: INTENT_ROUTER_TIMEOUT_MS,
       })
@@ -285,13 +306,20 @@ export async function routeManagedRunIntent(
     logger.warn("managed run intent routing fallback", { err, requestId })
   }
 
-  const fallback = fallbackRouting(body, userInput)
+  const fallback = fallbackRouting(body)
   logger.info("managed run intent routed", {
-    fallbackReason: fallback.intent === "thermal" ? "thermal-workspace" : fallback.intent === "check" ? "check-request" : "general-default",
+    fallbackReason: fallback.intent === "thermal"
+      ? "thermal-workspace"
+      : fallback.intent === "check"
+        ? "check-request"
+        : fallback.intent === "gnc"
+          ? "gnc-workspace-or-request"
+          : "general-default",
     intent: fallback.intent,
     model: INTENT_ROUTER_MODEL,
     managedSkills: fallback.managedSkills,
     requestId,
+    routingSkillFile: skill.file,
     selectedSkills: fallback.selectedSkills,
     skillScopes: fallback.skillScopes,
     source: fallback.source,

@@ -243,7 +243,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
 
   const saveConfig = async () => {
     if (!payload) return
-    setStatus("正在写回 42 配置文件")
+    setStatus("正在写回配置文件")
     const response = await fetch(endpoint, {
       body: JSON.stringify({
         payload,
@@ -257,7 +257,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
     const data = await readJsonResponse<{ payload?: GncPayload; source_dir?: string }>(response, "保存 GNC 配置失败")
     setPayload(data.payload ?? payload)
     setSourceDir(data.source_dir ?? sourceDir)
-    setStatus("已写回 Inp_Sim / Orb / SC 文件")
+    setStatus("配置文件已保存")
   }
 
   const orbit = asRecord(payload?.orbits?.[selectedOrbit])
@@ -283,7 +283,6 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
       <div className="gnc-editor-top">
         <div>
           <span>42 CONFIG STUDIO</span>
-          <strong>KX09 Parameter Workspace</strong>
           <small>{sourceDir || "workspaceDir/00_inputs"}</small>
         </div>
         <div className="gnc-editor-actions">

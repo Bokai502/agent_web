@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
-import { cancelManagedRunAndSummarize, getManagedRunEvents, getManagedRunStatus, runAgentTurn, subscribeManagedRunStatus, summarizeManagedProgress, type ManagedRunEvent } from "./agentOrchestrator.js"
+import { cancelManagedRunAndSummarize, getLatestManagedStatusForWorkspace, getManagedRunEvents, getManagedRunStatus, runAgentTurn, subscribeManagedRunStatus, summarizeManagedProgress, type ManagedRunEvent } from "./agentOrchestrator.js"
 import { RunRequestError } from "./codexTurn.js"
 import type { RunRequestBody } from "./runTypes.js"
 
@@ -9,6 +9,18 @@ export async function managedRunRoutes(
   fastify: FastifyInstance,
   { config, logger }: { config: AppConfig; logger: Logger }
 ) {
+  fastify.get<{
+    Querystring: { versionId?: string; workspaceDir?: string; workspaceId?: string }
+  }>("/api/run/managed/latest", async (req, reply) => {
+    const status = await getLatestManagedStatusForWorkspace({
+      versionId: req.query.versionId ?? null,
+      workspaceDir: req.query.workspaceDir ?? null,
+      workspaceId: req.query.workspaceId ?? null,
+    })
+    if (!status) return reply.send({ status: "none" })
+    return reply.send(status)
+  })
+
   fastify.get<{ Params: { managedRunId: string } }>("/api/run/managed/status/:managedRunId", async (req, reply) => {
     const status = await getManagedRunStatus(req.params.managedRunId)
     if (!status) return reply.status(404).send({ error: "managed run not found" })
@@ -82,7 +94,7 @@ export async function managedRunRoutes(
     try {
       return reply.send(await runAgentTurn({
         body: req.body,
-        inputType: "text",
+        inputType: req.body.inputType === "voice" ? "voice" : "text",
       }, {
         config,
         logger,

@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next"
 import { APP_NAVIGATION_EVENT } from "../../app/sessionUtils"
+import type { WorkspaceSessionStatus } from "./workspaceSessionVisibility"
 
 type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
 
@@ -14,6 +15,7 @@ type WorkspaceTopbarProps = {
   showBom: boolean
   showModel: boolean
   showTools: boolean
+  sessionStatus: WorkspaceSessionStatus
   t: TFunction
   visibleRunning: boolean
 }
@@ -29,6 +31,7 @@ export function WorkspaceTopbar({
   showBom,
   showModel,
   showTools,
+  sessionStatus,
   t,
   visibleRunning,
 }: WorkspaceTopbarProps) {
@@ -119,7 +122,7 @@ export function WorkspaceTopbar({
           )}
           <div className="wa-status-pill">
             <span className="wa-status-dot" />
-            {visibleRunning ? t("workspace.status.running") : activeSessionMatchesWorkspace ? t("workspace.status.loaded") : t("workspace.status.waiting")}
+            {t(`workspace.status.${sessionStatus}`)}
           </div>
         </div>
       </div>

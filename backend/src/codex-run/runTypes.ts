@@ -14,6 +14,7 @@ export type RunInputItem = UserInput
 export interface RunRequestBody {
   prompt?: string | null
   input?: unknown
+  inputType?: "text" | "voice"
   sessionId?: string | null
   threadId?: string | null
   turnId?: string | null

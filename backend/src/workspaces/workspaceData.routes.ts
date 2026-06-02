@@ -53,6 +53,11 @@ const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "g
 const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
+const AIGNC_PROGRESS_RELATIVE_PATH = path.join("AIGNC_Workflow", "loop_progress.json")
+const WORKSPACE_PROGRESS_RELATIVE_PATHS = [
+  AIGNC_PROGRESS_RELATIVE_PATH,
+  DEFAULT_PROGRESS_RELATIVE_PATH,
+]
 const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation", "data1.txt")
 const THERMAL_DB_JSON_RELATIVE_PATH = path.join(
   "workflow_agents",
@@ -96,6 +101,26 @@ async function readWorkspaceProgress(progressPath: string): Promise<WorkspacePro
     sourcePath: progressPath,
     sourceVersion: [progressPath, stat.mtimeMs, stat.size].join(":"),
     updatedAt: stat.mtime.toISOString(),
+  }
+}
+
+async function readFirstWorkspaceProgress(workspaceDir: string) {
+  const candidatePaths = WORKSPACE_PROGRESS_RELATIVE_PATHS.map(relativePath => path.join(workspaceDir, relativePath))
+
+  for (const progressPath of candidatePaths) {
+    const stat = await fs.stat(progressPath).catch(() => null)
+    if (!stat?.isFile()) continue
+    return {
+      progressPath,
+      stat,
+      workspaceProgress: await readWorkspaceProgress(progressPath),
+    }
+  }
+
+  return {
+    progressPath: candidatePaths[0],
+    stat: null,
+    workspaceProgress: null,
   }
 }
 
@@ -640,21 +665,24 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: WorkspaceProgressQuery }>("/api/workspace/progress", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
-      const progressPath = path.join(workspaceDir, DEFAULT_PROGRESS_RELATIVE_PATH)
 
       let workspaceProgress: WorkspaceProgressData | null = null
+      let progressPath = path.join(workspaceDir, AIGNC_PROGRESS_RELATIVE_PATH)
+      let progressStat: { mtime: Date; mtimeMs: number; size: number } | null = null
       try {
-        workspaceProgress = await readWorkspaceProgress(progressPath)
+        const progressResult = await readFirstWorkspaceProgress(workspaceDir)
+        progressPath = progressResult.progressPath
+        progressStat = progressResult.stat
+        workspaceProgress = progressResult.workspaceProgress
       } catch {
-        const stat = await fs.stat(progressPath).catch(() => null)
         reply.header("Cache-Control", "no-cache")
         return reply.send({
           exists: false,
           data: null,
           error: "progress json is not valid yet",
           source_path: progressPath,
-          source_version: stat ? [progressPath, stat.mtimeMs, stat.size].join(":") : null,
-          updated_at: stat?.mtime.toISOString() ?? null,
+          source_version: progressStat ? [progressPath, progressStat.mtimeMs, progressStat.size].join(":") : null,
+          updated_at: progressStat?.mtime.toISOString() ?? null,
         })
       }
 

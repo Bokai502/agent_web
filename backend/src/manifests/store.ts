@@ -664,6 +664,7 @@ export async function registerExistingArtifacts(versionId: string, body: Record<
     "02_sim/analysis/metrics_summary.json",
     "02_sim/analysis/anomaly_candidates.json",
     "02_sim/analysis/diagnosis.json",
+    "AIGNC_Workflow/loop_progress.json",
     "logs/progress.json",
   ]
   const artifacts: ArtifactRecord[] = []

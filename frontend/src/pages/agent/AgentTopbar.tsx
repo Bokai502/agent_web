@@ -1,31 +1,41 @@
+import type { WorkspaceSessionStatus } from '../workspace/workspaceSessionVisibility'
+
+type AgentInputMode = 'voice' | 'text'
+
 type AgentTopbarProps = {
-  activeSessionMatchesWorkspace: boolean
   conversationOpen: boolean
   currentDate: string
   currentTime: string
+  dataSourceLabel: string
+  inputMode: AgentInputMode
+  onInputModeChange: (nextMode: AgentInputMode) => void
   onConversationToggle: () => void
   onProgressToggle: () => void
   progressOpen: boolean
   progressPercent: number
   progressStatusLabel: string
   progressTitle: string
+  sessionStatus: WorkspaceSessionStatus
   sessionStatusLabel: string
-  visibleRunning: boolean
+  versionLabel: string
 }
 
 export function AgentTopbar({
-  activeSessionMatchesWorkspace,
   conversationOpen,
   currentDate,
   currentTime,
+  dataSourceLabel,
+  inputMode,
+  onInputModeChange,
   onConversationToggle,
   onProgressToggle,
   progressOpen,
   progressPercent,
   progressStatusLabel,
   progressTitle,
+  sessionStatus,
   sessionStatusLabel,
-  visibleRunning,
+  versionLabel,
 }: AgentTopbarProps) {
   return (
     <header className="agent-hud-topbar">
@@ -35,13 +45,19 @@ export function AgentTopbar({
       <div className="agent-topbar-status">
         <button
           type="button"
-          className={`agent-status-pill agent-status-pill--session agent-session-pill ${visibleRunning ? 'is-running' : activeSessionMatchesWorkspace ? 'is-loaded' : 'is-waiting'} ${conversationOpen ? 'is-open' : ''}`}
+          className={`agent-status-pill agent-status-pill--session agent-session-pill is-${sessionStatus} ${conversationOpen ? 'is-open' : ''}`}
           aria-expanded={conversationOpen}
           aria-haspopup="dialog"
           onClick={onConversationToggle}
         >
-          <span className="agent-session-dot" />
-          <span className="agent-session-label">{sessionStatusLabel}</span>
+          <span className="agent-session-status">
+            <span className="agent-session-dot" />
+            <span className="agent-session-label">{sessionStatusLabel}</span>
+          </span>
+          <span className="agent-session-copy">
+            <span className="agent-session-source">{dataSourceLabel}</span>
+            <span className="agent-session-version">· {versionLabel}</span>
+          </span>
         </button>
         <button
           type="button"
@@ -59,6 +75,24 @@ export function AgentTopbar({
         </button>
       </div>
       <div className="agent-topbar-clock">
+        <div className="agent-input-mode-switch" role="group" aria-label="输入方式">
+          <button
+            type="button"
+            className={inputMode === 'voice' ? 'is-active' : ''}
+            aria-pressed={inputMode === 'voice'}
+            onClick={() => onInputModeChange('voice')}
+          >
+            语音
+          </button>
+          <button
+            type="button"
+            className={inputMode === 'text' ? 'is-active' : ''}
+            aria-pressed={inputMode === 'text'}
+            onClick={() => onInputModeChange('text')}
+          >
+            文字
+          </button>
+        </div>
         <div className="agent-clock-card">
           <span className="agent-clock-icon" aria-hidden="true" />
           <div>

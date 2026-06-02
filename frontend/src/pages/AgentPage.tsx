@@ -19,7 +19,7 @@ import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar } from './agent/AgentTopbar'
 import { AgentVoiceExchange } from './agent/AgentVoiceExchange'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
-import { dispatchManagedCodex, getManagedCodexStatus, subscribeManagedCodexStatus, summarizeManagedCodex, type ManagedRunStatusResponse } from './agent/managedRun'
+import { dispatchManagedCodex, getLatestManagedCodexStatus, getManagedCodexStatus, subscribeManagedCodexStatus, summarizeManagedCodex, type ManagedRunStatusResponse } from './agent/managedRun'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -37,6 +37,8 @@ import { getRecorderStatusText, useAgentRecorder } from './agent/useAgentRecorde
 import { useWorkspaceFilePreview } from './agent/useWorkspaceFilePreview'
 import './AgentPage.css'
 
+type AgentInputMode = 'voice' | 'text'
+
 export default function AgentPage() {
   const { t } = useTranslation()
   const [activeView, setActiveView] = useState<AgentWorkspaceView | null>(null)
@@ -45,7 +47,11 @@ export default function AgentPage() {
   const [progressPanelOpen, setProgressPanelOpen] = useState(false)
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
+  const [inputMode, setInputMode] = useState<AgentInputMode>('voice')
+  const [textInput, setTextInput] = useState('')
+  const [textInputDisplay, setTextInputDisplay] = useState('')
   const [managedVoiceRunning, setManagedVoiceRunning] = useState(false)
+  const [latestManagedStatus, setLatestManagedStatus] = useState<ManagedRunStatusResponse | null>(null)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [selectedBomId, setSelectedBomId] = useState('')
   const [selectedLogId, setSelectedLogId] = useState('')
@@ -95,7 +101,7 @@ export default function AgentPage() {
   const selectedBom = bomInfo.components.find(component => component.componentId === selectedBomId) ?? bomInfo.components[0]
   const activeSession = workspaceAppState.sortedSessions.find(session => session.id === workspaceAppState.activeSessionId)
   const {
-    activeSessionMatchesWorkspace,
+    sessionStatus,
     visibleCurrentEvents,
     visibleRunning,
     visibleTurns,
@@ -123,6 +129,7 @@ export default function AgentPage() {
     cad: `http://${remoteToolHost}:6080/${NOVNC_URL_PARAMS}`,
     paraview: `http://${remoteToolHost}:6081/${NOVNC_URL_PARAMS}`,
     comsol: `http://${remoteToolHost}:6082/${NOVNC_URL_PARAMS}`,
+    gnc: 'http://10.110.10.11:8765/',
   }), [remoteToolHost])
   const progressVariant = useMemo<WorkflowProgressVariant>(() => {
     const marker = [
@@ -134,6 +141,15 @@ export default function AgentPage() {
     if (/gnc|aignc|adcs|region/.test(marker)) return "gnc"
     return "thermal"
   }, [activeContext.versionDir, activeContext.workspaceId, activeContext.workspaceKey])
+  const showGncConfig = progressVariant === "gnc"
+  const navItems = useMemo(() => {
+    if (!showGncConfig) return NAV_ITEMS
+    return NAV_ITEMS.map(item => (
+      item.href === '#bom'
+        ? { ...item, label: '配置文件', meta: 'Config' }
+        : item
+    ))
+  }, [showGncConfig])
   const {
     handleSelectFile,
     selectedFileError,
@@ -152,10 +168,11 @@ export default function AgentPage() {
     visibleAgentResponse,
   } = useAgentSpeech()
 
-  const runCodex = useCallback(async (transcript: string) => {
+  const runCodex = useCallback(async (transcript: string, inputType: AgentInputMode = 'voice') => {
     resetProgressDataRef.current?.()
     setProgressRefreshNonce(value => value + 1)
     setManagedVoiceRunning(true)
+    let backgroundRunStarted = false
 
     const handleManagedCompletion = async (
       managedRunId: string,
@@ -166,6 +183,7 @@ export default function AgentPage() {
       if (managedPollTokenRef.current !== token) return
       if (status.status === 'running') return
 
+      setManagedVoiceRunning(false)
       const reloadedSessions = await workspaceAppState.reloadSessions()
       const sessionId = status.sessionId
       if (sessionId && reloadedSessions.some(session => session.id === sessionId)) {
@@ -220,6 +238,7 @@ export default function AgentPage() {
     const runManagedWithContext = async (context: typeof activeContext) => {
       const result = await dispatchManagedCodex({
         input: transcript,
+        inputType,
         workspace: {
           workspaceDir: context.versionDir,
           workspaceId: context.workspaceId,
@@ -238,9 +257,12 @@ export default function AgentPage() {
       showSpeechText(speechText)
       void speakText(speechText, result.managedRunId ?? result.turnId ?? transcript)
       if (result.status === 'started' && result.managedRunId) {
+        backgroundRunStarted = true
         const pollToken = managedPollTokenRef.current + 1
         managedPollTokenRef.current = pollToken
         watchManagedCompletion(result.managedRunId, result.turnId, pollToken)
+      } else {
+        setManagedVoiceRunning(false)
       }
     }
 
@@ -286,7 +308,7 @@ export default function AgentPage() {
 
       await runManagedWithContext(activeContext)
     } finally {
-      setManagedVoiceRunning(false)
+      if (!backgroundRunStarted) setManagedVoiceRunning(false)
     }
   }, [activeContext, refreshWorkspaceViews, showSpeechText, speakText, versionState, workspaceAppState, workspaces])
 
@@ -342,7 +364,7 @@ export default function AgentPage() {
     activeContext,
     progressRefreshNonce,
     progressVariant,
-    running: visibleRunning || managedVoiceRunning || state === 'thinking' || state === 'transcribing',
+    running: visibleRunning || managedVoiceRunning || state === 'transcribing',
     t,
     visibleCurrentEvents,
     visibleTurns,
@@ -362,6 +384,34 @@ export default function AgentPage() {
       setProgressRefreshNonce(value => value + 1)
     }
   }, [state])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadLatestManagedStatus = async () => {
+      if (!activeContext.versionDir && !activeContext.workspaceId && !activeContext.versionId) {
+        setLatestManagedStatus(null)
+        return
+      }
+      const status = await getLatestManagedCodexStatus({
+        versionId: activeContext.versionId,
+        workspaceDir: activeContext.versionDir,
+        workspaceId: activeContext.workspaceId,
+      }).catch(() => null)
+      if (cancelled) return
+      if (!status || status.status === 'none') {
+        setLatestManagedStatus(null)
+        return
+      }
+      setLatestManagedStatus(status)
+    }
+
+    void loadLatestManagedStatus()
+    const intervalId = window.setInterval(loadLatestManagedStatus, latestManagedStatus?.status === 'running' || managedVoiceRunning ? 1500 : 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, latestManagedStatus?.status, managedVoiceRunning])
 
   useEffect(() => {
     if (activeView !== 'tools') return
@@ -411,6 +461,14 @@ export default function AgentPage() {
     }
   }, [agentSpeechPlaying, agentSpeechState, startRecording, state, stopAgentSpeechPlayback, stopRecording])
 
+  const handleInputModeChange = useCallback((nextMode: AgentInputMode) => {
+    if (nextMode === inputMode) return
+    if (state === 'recording') stopRecording()
+    if (agentSpeechPlaying || agentSpeechState === 'synthesizing') stopAgentSpeechPlayback()
+    clearAgentSpeechDisplay()
+    setInputMode(nextMode)
+  }, [agentSpeechPlaying, agentSpeechState, clearAgentSpeechDisplay, inputMode, state, stopAgentSpeechPlayback, stopRecording])
+
   const handleNavSelect = useCallback((_item: (typeof NAV_ITEMS)[number], index: number, event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault()
     const nextView = NAV_VIEWS[index] ?? 'model'
@@ -432,27 +490,47 @@ export default function AgentPage() {
     : progressUpdatedAt
   const recordButtonBusy = state === 'thinking' || visibleRunning || managedVoiceRunning || agentSpeechState === 'synthesizing' || agentSpeechPlaying
   const recordButtonDisabled = state === 'transcribing' || ((state === 'thinking' || visibleRunning || managedVoiceRunning) && !agentSpeechPlaying && agentSpeechState !== 'synthesizing')
-  const sessionStatusLabel = visibleRunning
-    ? t('workspace.status.running')
-    : activeSessionMatchesWorkspace
-      ? t('workspace.status.loaded')
-      : t('workspace.status.waiting')
+  const textComposerBusy = recordButtonBusy || state === 'transcribing'
+  const textRecorderStatusText = textComposerBusy
+    ? recorderStatusText
+    : '文字输入模式，提交后继续语音播报'
+  const handleTextSubmit = useCallback(() => {
+    const prompt = textInput.trim()
+    if (!prompt || textComposerBusy) return
+    clearAgentSpeechDisplay()
+    setTextInput('')
+    setTextInputDisplay(prompt)
+    void runCodex(prompt, 'text')
+  }, [clearAgentSpeechDisplay, runCodex, textComposerBusy, textInput])
+  const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
+    ? 'running'
+    : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'
+      ? 'completed'
+      : latestManagedStatus?.status === 'failed' || latestManagedStatus?.status === 'cancelled'
+        ? 'failed'
+        : sessionStatus
+  const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
+  const dataSourceLabel = activeContext.workspaceName || activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
+  const versionLabel = activeContext.versionId || '未选择版本'
 
   return (
     <main className="agent-page">
       <AgentTopbar
-        activeSessionMatchesWorkspace={activeSessionMatchesWorkspace}
         conversationOpen={conversationPanelOpen}
         currentDate={currentDate}
         currentTime={currentTime}
+        dataSourceLabel={dataSourceLabel}
+        inputMode={inputMode}
+        onInputModeChange={handleInputModeChange}
         onConversationToggle={() => setConversationPanelOpen(open => !open)}
         onProgressToggle={() => setProgressPanelOpen(open => !open)}
         progressOpen={progressPanelOpen}
         progressPercent={progressPercent}
         progressStatusLabel={progressStatusLabel}
         progressTitle={t('workspace.inspector.progressTitle')}
+        sessionStatus={displayedSessionStatus}
         sessionStatusLabel={sessionStatusLabel}
-        visibleRunning={visibleRunning}
+        versionLabel={versionLabel}
       />
       {conversationPanelOpen ? (
         <AgentConversationPopover
@@ -482,9 +560,8 @@ export default function AgentPage() {
           workflowLoopProgressEntries={workflowLoopProgressEntries}
         />
       ) : null}
-
       <section className="agent-stage" aria-live="polite">
-        <AgentSideNav activeNavIndex={activeNavIndex} onNavSelect={handleNavSelect} />
+        <AgentSideNav activeNavIndex={activeNavIndex} navItems={navItems} onNavSelect={handleNavSelect} />
         <AgentWorkspacePanel
           activeContext={activeContext}
           activeManifestVersion={activeManifestVersion}
@@ -509,6 +586,7 @@ export default function AgentPage() {
           setSelectedBomId={setSelectedBomId}
           setVersionListOpen={() => setVersionListOpen(open => !open)}
           setWorkspaceListOpen={() => setWorkspaceListOpen(open => !open)}
+          showGncConfig={showGncConfig}
           switchActiveWorkspace={switchActiveWorkspace}
           t={t}
           toolUrls={toolUrls}
@@ -527,8 +605,9 @@ export default function AgentPage() {
           agentSpeechError={agentSpeechError}
           agentSpeechState={agentSpeechState}
           error={error}
+          inputMode={inputMode}
           state={state}
-          text={text}
+          text={inputMode === 'text' ? textInputDisplay : text}
           visibleAgentResponse={visibleAgentResponse}
         />
 
@@ -536,9 +615,14 @@ export default function AgentPage() {
           activeView={activeView}
           busy={recordButtonBusy}
           disabled={recordButtonDisabled}
+          inputMode={inputMode}
           onButtonClick={handleButtonClick}
-          recorderStatusText={recorderStatusText}
+          onTextChange={setTextInput}
+          onTextSubmit={handleTextSubmit}
+          recorderStatusText={inputMode === 'text' ? textRecorderStatusText : recorderStatusText}
           state={state}
+          textInputDisabled={textComposerBusy}
+          textInputValue={textInput}
         />
       </section>
     </main>
