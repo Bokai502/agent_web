@@ -63,6 +63,8 @@ export type ManagedRunStatusResponse = {
   workspaceId?: string | null
 }
 
+export type ManagedLatestStatusResponse = ManagedRunStatusResponse | { status: 'none' }
+
 export type ManagedRunEvent =
   | { type: 'accepted'; managedRunId: string; inputType: 'text' | 'voice'; requestId?: string }
   | { type: 'routing'; managedRunId: string; routing: { selectedSkills?: string[]; skillScopes: string[] } }
@@ -75,6 +77,7 @@ type ManagedRunRequest = {
   apiBase?: string
   enabledSkills?: string[]
   input: string | CodexInputItem[]
+  inputType?: 'text' | 'voice'
   sessionId?: string | null
   threadId?: string | null
   turnId?: string | null
@@ -92,6 +95,7 @@ async function postManagedRun<TResponse>(path: string, {
   apiBase,
   enabledSkills = [],
   input,
+  inputType,
   sessionId,
   threadId,
   turnId,
@@ -103,6 +107,7 @@ async function postManagedRun<TResponse>(path: string, {
     body: JSON.stringify({
       ...(typeof input === 'string' ? { prompt: input } : { input }),
       enabledSkills,
+      ...(inputType ? { inputType } : {}),
       ...(sessionId ? { sessionId } : {}),
       ...(threadId ? { threadId } : {}),
       ...(turnId ? { turnId } : {}),
@@ -131,6 +136,29 @@ export async function getManagedCodexStatus(managedRunId: string, apiBase?: stri
   })
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   return response.json() as Promise<ManagedRunStatusResponse>
+}
+
+export async function getLatestManagedCodexStatus({
+  apiBase,
+  versionId,
+  workspaceDir,
+  workspaceId,
+}: {
+  apiBase?: string
+  versionId?: string | null
+  workspaceDir?: string | null
+  workspaceId?: string | null
+}) {
+  const params = new URLSearchParams()
+  if (workspaceDir) params.set('workspaceDir', workspaceDir)
+  if (workspaceId) params.set('workspaceId', workspaceId)
+  if (versionId) params.set('versionId', versionId)
+  const suffix = params.toString()
+  const response = await fetch(joinApiPath(apiBase, `/run/managed/latest${suffix ? `?${suffix}` : ''}`), {
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  return response.json() as Promise<ManagedLatestStatusResponse>
 }
 
 export async function cancelManagedCodex(managedRunId: string, apiBase?: string) {

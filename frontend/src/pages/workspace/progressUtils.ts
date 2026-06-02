@@ -14,7 +14,7 @@ export type WorkflowLoopProgressEntry = {
   label: string
   percent: number
   statusLabel: string
-  status: "running" | "completed" | "failed" | "pending" | "unknown"
+  status: "running" | "completed" | "failed" | "blocked" | "pending" | "unknown"
 }
 
 export type WorkflowProgressVariant = "thermal" | "gnc" | "check"
@@ -34,6 +34,16 @@ const GNC_WORKFLOW_PROGRESS_STAGES = [
   { key: "verification_plan", labelKey: "workspace.progress.gncVerificationPlan" },
   { key: "document_generation", labelKey: "workspace.progress.gncDocumentGeneration" },
 ]
+
+const GNC_AIGNC_STAGE_ALIASES: Record<string, string[]> = {
+  requirement_analysis: ["01_inputs", "02_scenario"],
+  architecture_generation: ["03_capability"],
+  parameter_configuration: ["04_config"],
+  control_law_design: ["05_fsw_requirements", "06_fsw_architecture", "07_fsw_implementation"],
+  simulation_plan: ["08_run"],
+  verification_plan: ["09_audit", "09_tuning_review"],
+  document_generation: ["10_reports"],
+}
 
 const CHECK_WORKFLOW_PROGRESS_STAGES = [
   { key: "check_convert_table", labelKey: "workspace.progress.checkConvertTable" },
@@ -61,6 +71,7 @@ function normalizeLoopStatus(value: unknown, completed: boolean): WorkflowLoopPr
   if (typeof value !== "string") return completed ? "completed" : "pending"
   const normalized = value.toLowerCase()
   if (normalized.includes("fail") || normalized.includes("error")) return "failed"
+  if (normalized.includes("block")) return "blocked"
   if (normalized.includes("complete") || normalized.includes("success")) return "completed"
   if (normalized.includes("run") || normalized.includes("progress") || normalized.endsWith("_running")) return "running"
   if (normalized.includes("pending") || normalized.includes("wait")) return "pending"
@@ -77,25 +88,94 @@ function getStatusLabel(rawStatus: string, fallbackStatus: WorkflowLoopProgressE
   })
 }
 
+function getStringField(record: Record<string, unknown> | null, field: string) {
+  const value = record?.[field]
+  return typeof value === "string" ? value : ""
+}
+
+function getLoopStage(loopData: Record<string, unknown> | null) {
+  const input = isRecord(loopData?.input) ? loopData.input : null
+  return getStringField(loopData, "stage") || getStringField(input, "stage")
+}
+
+function loopMatchesStage(
+  loopKey: string,
+  loopData: Record<string, unknown> | null,
+  stageKey: string,
+  variant: WorkflowProgressVariant,
+) {
+  if (loopKey === stageKey) return true
+  if (variant !== "gnc") return false
+
+  const aliases = GNC_AIGNC_STAGE_ALIASES[stageKey] ?? []
+  const loopStage = getLoopStage(loopData)
+  return aliases.some(alias => loopStage === alias || loopKey.startsWith(`${alias}_`))
+}
+
+function statusPriority(status: WorkflowLoopProgressEntry["status"]) {
+  switch (status) {
+    case "failed": return 5
+    case "blocked": return 4
+    case "running": return 3
+    case "unknown": return 2
+    case "pending": return 1
+    case "completed": return 0
+  }
+}
+
+function buildLoopProgressEntry(
+  stage: { key: string; labelKey: string },
+  matchingLoops: unknown[],
+  t: TFunction,
+): WorkflowLoopProgressEntry {
+  let selectedLoop: Record<string, unknown> | null = null
+  let selectedStatus: WorkflowLoopProgressEntry["status"] = "pending"
+  let selectedRawStatus = "pending"
+  let percent = 0
+
+  for (const loop of matchingLoops) {
+    if (!isRecord(loop)) continue
+    const completed = loop.completed === true
+    const rawStatus = getRawStatus(loop.status, completed)
+    const status = normalizeLoopStatus(loop.status, completed)
+    const loopPercent = normalizePercent(loop.percentage)
+    const shouldSelect = !selectedLoop ||
+      statusPriority(status) > statusPriority(selectedStatus) ||
+      (statusPriority(status) === statusPriority(selectedStatus) && loopPercent >= percent)
+
+    percent = Math.max(percent, loopPercent)
+    if (shouldSelect) {
+      selectedLoop = loop
+      selectedStatus = status
+      selectedRawStatus = rawStatus
+    }
+  }
+
+  const completed = matchingLoops.length > 0 && matchingLoops.every(loop => isRecord(loop) && loop.completed === true)
+  const displayStatus = completed && statusPriority(selectedStatus) < statusPriority("running")
+    ? "completed"
+    : selectedStatus
+  const displayRawStatus = displayStatus === "completed" ? "completed" : selectedRawStatus
+  return {
+    completed,
+    key: stage.key,
+    label: t(stage.labelKey),
+    percent,
+    status: displayStatus,
+    statusLabel: getStatusLabel(displayStatus === "completed" ? selectedRawStatus : displayRawStatus, displayStatus, t),
+  }
+}
+
 export function getWorkflowLoopProgressEntries(data: unknown, t: TFunction, variant: WorkflowProgressVariant = "thermal"): WorkflowLoopProgressEntry[] {
   const loops = isRecord(data) && data.schema_version === "loop_progress/1.0" && isRecord(data.loops)
     ? data.loops
     : {}
 
   return getWorkflowProgressStages(variant).map(stage => {
-    const loop = loops[stage.key]
-    const loopData = isRecord(loop) ? loop : null
-    const completed = loopData?.completed === true
-    const rawStatus = loopData ? getRawStatus(loopData.status, completed) : "pending"
-    const status = loopData ? normalizeLoopStatus(loopData.status, completed) : "pending"
-    return {
-      completed,
-      key: stage.key,
-      label: t(stage.labelKey),
-      percent: normalizePercent(loopData?.percentage),
-      status,
-      statusLabel: getStatusLabel(rawStatus, status, t),
-    }
+    const matchingLoops = Object.entries(loops)
+      .filter(([loopKey, loop]) => loopMatchesStage(loopKey, isRecord(loop) ? loop : null, stage.key, variant))
+      .map(([, loop]) => loop)
+    return buildLoopProgressEntry(stage, matchingLoops, t)
   })
 }
 

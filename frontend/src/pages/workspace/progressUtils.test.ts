@@ -73,4 +73,29 @@ describe("progressUtils", () => {
     expect(createCad?.status).toBe("failed")
     expect(createCad?.statusLabel).toBe("方案配置需处理")
   })
+
+  it("maps AIGNC numbered stages to the GNC progress rows", () => {
+    const entries = getWorkflowLoopProgressEntries({
+      schema_version: "loop_progress/1.0",
+      loops: {
+        "02_scenario_aignc-42-orchestrator": {
+          completed: false,
+          percentage: 20,
+          stage: "02_scenario",
+          status: "blocked",
+        },
+        "02_scenario_aignc-scenario-brainstorm": {
+          completed: false,
+          percentage: 65,
+          stage: "02_scenario",
+          status: "blocked",
+        },
+      },
+    }, i18n.t, "gnc")
+
+    const requirementAnalysis = entries.find(entry => entry.key === "requirement_analysis")
+    expect(requirementAnalysis?.percent).toBe(65)
+    expect(requirementAnalysis?.status).toBe("blocked")
+    expect(requirementAnalysis?.statusLabel).toBe("阻塞")
+  })
 })

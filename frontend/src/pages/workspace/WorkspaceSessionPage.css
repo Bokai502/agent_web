@@ -1627,6 +1627,7 @@ button.wa-run-card.selected {
 .wa-progress-loop.is-running .wa-bar span { background: #2d6cdf; }
 .wa-progress-loop.is-completed .wa-bar span { background: #22863a; }
 .wa-progress-loop.is-failed .wa-bar span { background: #c93c37; }
+.wa-progress-loop.is-blocked .wa-bar span { background: #b7791f; }
 .wa-progress-loop.is-running .wa-progress-loop-main small {
   background: rgba(45, 108, 223, 0.1);
   color: #245dbf;
@@ -1638,6 +1639,10 @@ button.wa-run-card.selected {
 .wa-progress-loop.is-failed .wa-progress-loop-main small {
   background: rgba(201, 60, 55, 0.1);
   color: #ad302c;
+}
+.wa-progress-loop.is-blocked .wa-progress-loop-main small {
+  background: rgba(183, 121, 31, 0.12);
+  color: #9a5d12;
 }
 .wa-progress-files {
   grid-column: 2 / 4;

@@ -157,7 +157,7 @@ function rememberManagedSessionState(sessionKey: string, state: Omit<ManagedSess
   }, MANAGED_SESSION_STATE_TTL_MS).unref()
 }
 
-async function getLatestManagedStatusForWorkspace(body: RunRequestBody) {
+export async function getLatestManagedStatusForWorkspace(body: RunRequestBody) {
   const workspaceDir = getOptionalString(body.workspaceDir)
   const workspaceId = getOptionalString(body.workspaceId)
   if (!workspaceDir && !workspaceId) return null

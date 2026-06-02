@@ -1,9 +1,12 @@
 import type { AgentSpeechState, RecorderState } from './types'
 
+type AgentInputMode = 'voice' | 'text'
+
 type AgentVoiceExchangeProps = {
   agentSpeechError: string
   agentSpeechState: AgentSpeechState
   error: string
+  inputMode: AgentInputMode
   state: RecorderState
   text: string
   visibleAgentResponse: string
@@ -13,17 +16,23 @@ export function AgentVoiceExchange({
   agentSpeechError,
   agentSpeechState,
   error,
+  inputMode,
   state,
   text,
   visibleAgentResponse,
 }: AgentVoiceExchangeProps) {
   const displayError = error || agentSpeechError
   if (!displayError && !text && !visibleAgentResponse && agentSpeechState !== 'synthesizing') return null
+  const exchangeTitle = displayError
+    ? '处理失败'
+    : visibleAgentResponse
+      ? inputMode === 'text' ? '文字对话' : '语音对话'
+      : inputMode === 'text' ? '文字输入' : '语音识别'
 
   return (
-    <aside className="agent-voice-exchange" aria-label="语音对话结果">
+    <aside className="agent-voice-exchange" aria-label={inputMode === 'text' ? '文字对话结果' : '语音对话结果'}>
       <header>
-        <strong>{displayError ? '语音处理失败' : visibleAgentResponse ? '语音对话' : '语音识别'}</strong>
+        <strong>{exchangeTitle}</strong>
         <span>{agentSpeechState === 'synthesizing' ? 'tts' : state}</span>
       </header>
       <div className="agent-voice-exchange-body">

@@ -168,6 +168,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   const selectedBom = bomInfo.components.find(component => component.componentId === selectedBomId) ?? bomInfo.components[0]
   const {
     activeSessionMatchesWorkspace,
+    sessionStatus,
     visibleCurrentEvents,
     visibleCurrentPrompt,
     visiblePendingAskUser,
@@ -475,6 +476,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
         showBom={showBom}
         showModel={showModel}
         showTools={showTools}
+        sessionStatus={sessionStatus}
         stopSummaryPending={stopSummaryPending}
         t={t}
         visibleRunning={visibleRunning}

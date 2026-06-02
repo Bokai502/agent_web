@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react'
 import type { TFunction } from 'i18next'
+import { GncConfigEditor } from '../../../gnc_config/GncConfigEditor'
 import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
 import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
@@ -41,6 +42,7 @@ type AgentWorkspacePanelProps = {
   setSelectedBomId: BomStagePanelProps['onSelectBom']
   setVersionListOpen: CurrentWorkspaceCardProps['onToggleVersionList']
   setWorkspaceListOpen: CurrentWorkspaceCardProps['onToggleWorkspaceList']
+  showGncConfig: boolean
   switchActiveWorkspace: CurrentWorkspaceCardProps['onSelectWorkspace']
   t: TFunction
   toolUrls: Record<AgentToolView, string>
@@ -55,9 +57,9 @@ type AgentWorkspacePanelProps = {
   workspaceRefreshNonce?: number
 }
 
-function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null) {
+function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showGncConfig: boolean) {
   if (activeView === 'workspace') return '当前工作区'
-  if (activeView === 'bom') return 'BOM'
+  if (activeView === 'bom') return showGncConfig ? '配置文件' : 'BOM'
   if (activeView === 'model') return '模型'
   if (activeView === 'tools') return '工具'
   if (activeView === 'log') return '文件'
@@ -88,6 +90,7 @@ export function AgentWorkspacePanel({
   setSelectedBomId,
   setVersionListOpen,
   setWorkspaceListOpen,
+  showGncConfig,
   switchActiveWorkspace,
   t,
   toolUrls,
@@ -133,7 +136,7 @@ export function AgentWorkspacePanel({
       )}
       <div className="agent-workspace-header">
         <div>
-          <strong>{getWorkspacePanelTitle(activeView)}</strong>
+          <strong>{getWorkspacePanelTitle(activeView, showGncConfig)}</strong>
           <span>{activeView ? `${activeContext.workspaceName}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : '选择左侧功能展开工作区'}</span>
         </div>
         {activeView === 'tools' && (
@@ -176,6 +179,8 @@ export function AgentWorkspacePanel({
               workspaceListOpen={workspaceListOpen}
             />
           </div>
+        ) : activeView === 'bom' && showGncConfig ? (
+          <GncConfigEditor activeContext={activeContext} />
         ) : activeView === 'bom' ? (
           <BomStagePanel
             bomInfo={bomInfo}

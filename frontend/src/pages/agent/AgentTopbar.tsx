@@ -1,35 +1,41 @@
+import type { WorkspaceSessionStatus } from '../workspace/workspaceSessionVisibility'
+
+type AgentInputMode = 'voice' | 'text'
+
 type AgentTopbarProps = {
-  activeSessionMatchesWorkspace: boolean
   conversationOpen: boolean
   currentDate: string
   currentTime: string
   dataSourceLabel: string
+  inputMode: AgentInputMode
+  onInputModeChange: (nextMode: AgentInputMode) => void
   onConversationToggle: () => void
   onProgressToggle: () => void
   progressOpen: boolean
   progressPercent: number
   progressStatusLabel: string
   progressTitle: string
+  sessionStatus: WorkspaceSessionStatus
   sessionStatusLabel: string
   versionLabel: string
-  visibleRunning: boolean
 }
 
 export function AgentTopbar({
-  activeSessionMatchesWorkspace,
   conversationOpen,
   currentDate,
   currentTime,
   dataSourceLabel,
+  inputMode,
+  onInputModeChange,
   onConversationToggle,
   onProgressToggle,
   progressOpen,
   progressPercent,
   progressStatusLabel,
   progressTitle,
+  sessionStatus,
   sessionStatusLabel,
   versionLabel,
-  visibleRunning,
 }: AgentTopbarProps) {
   return (
     <header className="agent-hud-topbar">
@@ -39,7 +45,7 @@ export function AgentTopbar({
       <div className="agent-topbar-status">
         <button
           type="button"
-          className={`agent-status-pill agent-status-pill--session agent-session-pill ${visibleRunning ? 'is-running' : activeSessionMatchesWorkspace ? 'is-loaded' : 'is-waiting'} ${conversationOpen ? 'is-open' : ''}`}
+          className={`agent-status-pill agent-status-pill--session agent-session-pill is-${sessionStatus} ${conversationOpen ? 'is-open' : ''}`}
           aria-expanded={conversationOpen}
           aria-haspopup="dialog"
           onClick={onConversationToggle}
@@ -69,6 +75,24 @@ export function AgentTopbar({
         </button>
       </div>
       <div className="agent-topbar-clock">
+        <div className="agent-input-mode-switch" role="group" aria-label="输入方式">
+          <button
+            type="button"
+            className={inputMode === 'voice' ? 'is-active' : ''}
+            aria-pressed={inputMode === 'voice'}
+            onClick={() => onInputModeChange('voice')}
+          >
+            语音
+          </button>
+          <button
+            type="button"
+            className={inputMode === 'text' ? 'is-active' : ''}
+            aria-pressed={inputMode === 'text'}
+            onClick={() => onInputModeChange('text')}
+          >
+            文字
+          </button>
+        </div>
         <div className="agent-clock-card">
           <span className="agent-clock-icon" aria-hidden="true" />
           <div>
