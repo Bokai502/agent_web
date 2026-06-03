@@ -1,23 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { joinApiPath } from "../../app/apiBase"
+import { useCallback, useEffect, useState } from "react"
+import {
+  downloadBlob,
+  fetchWorkspaceArchive,
+  fetchWorkspaceFileTree,
+  type WorkspaceFileTreeEntry,
+  workspaceArchiveFileName,
+} from "../agent/files/workspaceFilesApi"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 
-type FileTreeEntry = {
-  mtimeMs: number
-  name: string
-  relativePath: string
-  size?: number
-  type: "directory" | "file"
-}
-
-export type GeneratedFileTreeEntry = FileTreeEntry
-
-type FileTreeResponse = {
-  entries?: FileTreeEntry[]
-  relativePath?: string
-  truncated?: boolean
-  workspaceDir?: string
-}
+export type GeneratedFileTreeEntry = WorkspaceFileTreeEntry
 
 type GeneratedFilesTreeCardProps = {
   activeContext: WorkspaceVersionContext
@@ -29,31 +20,15 @@ type GeneratedFilesTreeCardProps = {
 
 const ROOT_PATH = ""
 
-function formatWorkspacePath(value?: string | null) {
-  if (!value) return "等待工作区"
-  const parts = value.split(/[\\/]/u).filter(Boolean)
-  return parts.slice(-4).join("/")
-}
-
-function buildWorkspaceQuery(context: Pick<WorkspaceVersionContext, "versionDir" | "versionId" | "workspaceId">, relativePath: string) {
-  if (!context.versionDir) return ""
-  const params = new URLSearchParams({
-    workspaceDir: context.versionDir,
-  })
-  if (context.workspaceId) params.set("workspaceId", context.workspaceId)
-  if (context.versionId) params.set("versionId", context.versionId)
-  if (relativePath) params.set("relativePath", relativePath)
-  return `?${params.toString()}`
-}
-
 export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, refreshNonce = 0, selectedFilePath }: GeneratedFilesTreeCardProps) {
   const versionDir = activeContext.versionDir
   const workspaceId = activeContext.workspaceId
   const versionId = activeContext.versionId
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set())
-  const [entriesByPath, setEntriesByPath] = useState<Record<string, FileTreeEntry[]>>({})
+  const [entriesByPath, setEntriesByPath] = useState<Record<string, WorkspaceFileTreeEntry[]>>({})
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState("")
+  const [downloading, setDownloading] = useState(false)
   const workspaceKey = `${versionDir ?? ""}:${workspaceId ?? ""}:${versionId ?? ""}`
   const rootEntries = entriesByPath[ROOT_PATH] ?? []
   const isRootLoading = loadingPaths.has(ROOT_PATH)
@@ -63,9 +38,7 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     setError("")
     setLoadingPaths(prev => new Set(prev).add(relativePath))
     try {
-      const response = await fetch(`${joinApiPath(apiBase, "/workspace/files/tree")}${buildWorkspaceQuery({ versionDir, versionId, workspaceId }, relativePath)}`, { cache: "no-store" })
-      if (!response.ok) throw new Error("文件列表读取失败")
-      const data = await response.json() as FileTreeResponse
+      const data = await fetchWorkspaceFileTree({ apiBase, context: activeContext, relativePath })
       setEntriesByPath(prev => ({
         ...prev,
         [relativePath]: Array.isArray(data.entries) ? data.entries : [],
@@ -79,15 +52,7 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
         return next
       })
     }
-  }, [apiBase, versionDir, versionId, workspaceId])
-
-  const refreshVisible = useCallback(() => {
-    if (!versionDir) return
-    const paths = [ROOT_PATH, ...expandedPaths]
-    paths.forEach(path => {
-      void loadPath(path)
-    })
-  }, [expandedPaths, loadPath, versionDir])
+  }, [activeContext, apiBase, versionDir])
 
   const toggleDirectory = useCallback((relativePath: string) => {
     setExpandedPaths(prev => {
@@ -102,6 +67,20 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     void loadPath(relativePath)
   }, [loadPath])
 
+  const downloadWorkspaceArchive = useCallback(async () => {
+    if (!versionDir || downloading) return
+    setDownloading(true)
+    setError("")
+    try {
+      const blob = await fetchWorkspaceArchive({ apiBase, context: activeContext })
+      downloadBlob(blob, workspaceArchiveFileName(activeContext))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "文件打包下载失败")
+    } finally {
+      setDownloading(false)
+    }
+  }, [activeContext, apiBase, downloading, versionDir])
+
   useEffect(() => {
     setExpandedPaths(new Set())
     setEntriesByPath({})
@@ -114,9 +93,7 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     void loadPath(ROOT_PATH)
   }, [loadPath, refreshNonce, versionDir])
 
-  const titlePath = useMemo(() => formatWorkspacePath(versionDir), [versionDir])
-
-  const renderEntries = (entries: FileTreeEntry[], depth = 0) => entries.map(entry => {
+  const renderEntries = (entries: WorkspaceFileTreeEntry[], depth = 0) => entries.map(entry => {
     const isDirectory = entry.type === "directory"
     const isExpanded = expandedPaths.has(entry.relativePath)
     const children = entriesByPath[entry.relativePath] ?? []
@@ -159,11 +136,16 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
       <div className="wa-file-tree-head">
         <div>
           <h3>生成文件</h3>
-          <p title={versionDir ?? undefined}>{titlePath}</p>
         </div>
-        <div className="wa-file-tree-actions">
-          <button type="button" onClick={refreshVisible} disabled={!versionDir || isRootLoading}>刷新</button>
-        </div>
+        <button
+          type="button"
+          className="wa-file-tree-download"
+          disabled={!versionDir || downloading}
+          onClick={downloadWorkspaceArchive}
+          title="下载全部生成文件"
+        >
+          {downloading ? "打包中" : "下载"}
+        </button>
       </div>
       <div className="wa-file-tree-body">
         {error && <div className="wa-file-tree-error">{error}</div>}

@@ -13,12 +13,7 @@ type WorkspaceFilePreviewPanelProps = {
 
 export function WorkspaceFilePreviewPanel({ error, file, loading, selectedPath }: WorkspaceFilePreviewPanelProps) {
   if (!selectedPath) {
-    return (
-      <div className="agent-file-preview is-empty">
-        <strong>选择左侧文件</strong>
-        <span>点击文件树中的文件后会在这里预览。</span>
-      </div>
-    )
+    return null
   }
 
   if (loading) {
@@ -47,7 +42,6 @@ export function WorkspaceFilePreviewPanel({ error, file, loading, selectedPath }
       <header>
         <div>
           <strong>{file.name}</strong>
-          <span>{file.relativePath}</span>
         </div>
         <small>{file.mimeType}</small>
       </header>

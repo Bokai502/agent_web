@@ -1,0 +1,522 @@
+.agent-right-rail,
+.agent-progress-popover {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  background: rgba(2, 10, 18, 0.54);
+  padding: 28px 12px 0;
+}
+
+.agent-right-rail {
+  display: none;
+}
+
+.agent-progress-popover {
+  position: fixed;
+  top: 56px;
+  right: 14px;
+  z-index: 18;
+  width: min(340px, calc(100vw - 28px));
+  max-height: min(560px, calc(100vh - 72px));
+  overflow: auto;
+  border: 1px solid var(--hud-line);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(5, 24, 42, 0.94), rgba(2, 10, 18, 0.9));
+  box-shadow:
+    inset 0 0 34px rgba(0, 168, 255, 0.12),
+    0 18px 46px rgba(0, 0, 0, 0.38),
+    0 0 32px rgba(0, 168, 255, 0.14);
+  padding: 12px;
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+.agent-progress-popover::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  right: 104px;
+  width: 12px;
+  height: 12px;
+  border-left: 1px solid var(--hud-line);
+  border-top: 1px solid var(--hud-line);
+  background: rgba(5, 24, 42, 0.94);
+  transform: rotate(45deg);
+}
+
+.agent-right-rail section,
+.agent-progress-popover section {
+  border: 1px solid var(--hud-line);
+  border-radius: 8px;
+  background: var(--hud-panel);
+  box-shadow: inset 0 0 28px rgba(0, 168, 255, 0.12);
+  padding: 14px;
+}
+
+.agent-right-rail header,
+.agent-progress-popover header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.agent-right-rail header strong,
+.agent-progress-popover header strong {
+  color: #f4fbff;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.agent-right-rail header span,
+.agent-progress-popover header span {
+  max-width: 96px;
+  overflow: hidden;
+  color: var(--hud-cyan);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-progress-close {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid rgba(23, 231, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(2, 8, 16, 0.64);
+  color: rgba(234, 247, 255, 0.72);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.agent-progress-close:hover {
+  border-color: rgba(23, 231, 255, 0.48);
+  color: #f4fbff;
+}
+
+.agent-conversation-popover {
+  --blue: rgba(255, 255, 255, 0.72);
+  --code-dim: rgba(255, 255, 255, 0.46);
+  --code-text: rgba(255, 255, 255, 0.78);
+  --text: rgba(255, 255, 255, 0.82);
+  --text-2: rgba(255, 255, 255, 0.66);
+  --text-3: rgba(255, 255, 255, 0.48);
+  position: fixed;
+  top: 56px;
+  left: 14px;
+  z-index: 18;
+  display: flex;
+  width: min(340px, calc(100vw - 28px));
+  max-height: min(560px, calc(100vh - 72px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--hud-line);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(5, 24, 42, 0.94), rgba(2, 10, 18, 0.9));
+  box-shadow:
+    inset 0 0 34px rgba(0, 168, 255, 0.12),
+    0 18px 46px rgba(0, 0, 0, 0.38),
+    0 0 32px rgba(0, 168, 255, 0.14);
+  padding: 12px;
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+.agent-conversation-popover::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 104px;
+  width: 12px;
+  height: 12px;
+  border-left: 1px solid var(--hud-line);
+  border-top: 1px solid var(--hud-line);
+  background: rgba(5, 24, 42, 0.94);
+  transform: rotate(45deg);
+}
+
+.agent-conversation-popover > header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--hud-line);
+  border-radius: 8px;
+  background: var(--hud-panel);
+  box-shadow: inset 0 0 24px rgba(0, 168, 255, 0.1);
+  margin-bottom: 12px;
+  padding: 12px 14px;
+}
+
+.agent-conversation-popover > header strong,
+.agent-conversation-popover > header span {
+  display: block;
+}
+
+.agent-conversation-popover > header strong {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.agent-conversation-popover > header span {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.agent-conversation-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-conversation-popover > header .agent-conversation-close {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid rgba(23, 231, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(2, 8, 16, 0.64);
+  color: rgba(234, 247, 255, 0.72);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.agent-conversation-popover > header .agent-conversation-close:hover {
+  border-color: rgba(23, 231, 255, 0.48);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.agent-conversation-popover .wa-conversation-log {
+  min-height: 0;
+  overflow: auto;
+  color: rgba(255, 255, 255, 0.82);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.42) transparent;
+}
+
+.agent-conversation-empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  border: 1px dashed rgba(0, 168, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(4, 18, 32, 0.52);
+  color: rgba(234, 247, 255, 0.62);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.agent-clock-card {
+  display: inline-grid;
+  grid-template-columns: 22px minmax(72px, 1fr);
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 116px;
+  height: 32px;
+  border: 1px solid rgba(0, 168, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(4, 18, 32, 0.68);
+  box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.1);
+  padding: 4px 10px;
+}
+
+.agent-clock-card strong {
+  display: block;
+  color: #f4fbff;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.05;
+}
+
+.agent-clock-card span {
+  display: block;
+  margin-top: 1px;
+  color: rgba(234, 247, 255, 0.6);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.agent-clock-icon {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(23, 231, 255, 0.82);
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(0, 168, 255, 0.46);
+}
+
+.agent-clock-icon::before,
+.agent-clock-icon::after {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  content: "";
+  border-radius: 99px;
+  background: rgba(23, 231, 255, 0.9);
+  transform-origin: left center;
+}
+
+.agent-clock-icon::before {
+  width: 5px;
+  height: 2px;
+  transform: translateY(-1px) rotate(0deg);
+}
+
+.agent-clock-icon::after {
+  width: 2px;
+  height: 6px;
+  transform: translate(-1px, -5px);
+}
+
+.agent-task-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.agent-task-row span,
+.agent-task-row small,
+.agent-task-row em {
+  color: rgba(234, 247, 255, 0.72);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.agent-task-row span {
+  min-width: 0;
+}
+
+.agent-task-row em {
+  grid-column: 1 / -1;
+  color: rgba(23, 231, 255, 0.72);
+  font-size: 10px;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.agent-task-row i {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #1b83ff, var(--hud-cyan));
+  box-shadow: 0 0 14px rgba(0, 168, 255, 0.58);
+}
+
+.agent-task-row.is-completed i {
+  background: linear-gradient(90deg, #0fd477, var(--hud-cyan));
+}
+
+.agent-task-row.is-running i {
+  background: linear-gradient(90deg, #1b83ff, #17e7ff);
+  box-shadow: 0 0 18px rgba(23, 231, 255, 0.72);
+}
+
+.agent-task-row.is-failed i {
+  background: linear-gradient(90deg, #ff4d7d, #ffb15f);
+  box-shadow: 0 0 16px rgba(255, 77, 125, 0.5);
+}
+
+.agent-task-row.is-pending i,
+.agent-task-row.is-unknown i {
+  background: linear-gradient(90deg, rgba(86, 114, 139, 0.52), rgba(23, 231, 255, 0.38));
+  box-shadow: none;
+}
+
+.agent-right-rail button,
+.agent-progress-popover button:not(.agent-progress-close) {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  border: 0;
+  border-top: 1px solid rgba(0, 168, 255, 0.12);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 10px 0;
+  text-align: left;
+}
+
+.agent-right-rail button small,
+.agent-progress-popover button:not(.agent-progress-close) small {
+  color: #eaf7ff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.agent-right-rail button span,
+.agent-progress-popover button:not(.agent-progress-close) span {
+  overflow: hidden;
+  color: rgba(234, 247, 255, 0.54);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-right-rail .wa-run-info-card,
+.agent-progress-popover .wa-run-info-card {
+  min-height: 0;
+  max-height: min(360px, calc(100vh - 520px));
+  overflow: hidden;
+}
+
+.agent-right-rail .wa-left-section-header,
+.agent-progress-popover .wa-left-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 168, 255, 0.14);
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
+
+.agent-right-rail .wa-left-section-header strong,
+.agent-progress-popover .wa-left-section-header strong {
+  display: block;
+  color: #f4fbff;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.agent-right-rail .wa-left-section-header span,
+.agent-progress-popover .wa-left-section-header span {
+  display: block;
+  margin-top: 4px;
+  color: var(--hud-cyan);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.agent-right-rail .wa-run-feed,
+.agent-progress-popover .wa-run-feed {
+  display: grid;
+  max-height: 286px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.4) transparent;
+}
+
+.agent-right-rail .wa-run-card,
+.agent-progress-popover .wa-run-card {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  border: 0;
+  border-top: 1px solid rgba(0, 168, 255, 0.12);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 10px 0;
+}
+
+.agent-right-rail button.wa-run-card.selected,
+.agent-right-rail button.wa-run-card:hover,
+.agent-progress-popover button.wa-run-card.selected,
+.agent-progress-popover button.wa-run-card:hover {
+  background: rgba(0, 168, 255, 0.08);
+}
+
+.agent-right-rail .wa-run-status-icon,
+.agent-progress-popover .wa-run-status-icon {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1px solid rgba(23, 231, 255, 0.2);
+  border-radius: 50%;
+  background: rgba(0, 168, 255, 0.1);
+  color: var(--hud-cyan);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.agent-right-rail .wa-run-status-icon.success,
+.agent-right-rail .wa-run-status-icon.completed,
+.agent-right-rail .wa-run-status-icon.done,
+.agent-progress-popover .wa-run-status-icon.success,
+.agent-progress-popover .wa-run-status-icon.completed,
+.agent-progress-popover .wa-run-status-icon.done {
+  border-color: rgba(15, 212, 119, 0.34);
+  background: rgba(15, 212, 119, 0.12);
+  color: #77ffc0;
+}
+
+.agent-right-rail .wa-run-status-icon.failed,
+.agent-right-rail .wa-run-status-icon.error,
+.agent-progress-popover .wa-run-status-icon.failed,
+.agent-progress-popover .wa-run-status-icon.error {
+  border-color: rgba(255, 77, 125, 0.36);
+  background: rgba(255, 77, 125, 0.12);
+  color: #ff9bb7;
+}
+
+.agent-right-rail .wa-run-status-icon.running,
+.agent-right-rail .wa-run-status-icon.in_progress,
+.agent-right-rail .wa-run-status-icon.pending,
+.agent-progress-popover .wa-run-status-icon.running,
+.agent-progress-popover .wa-run-status-icon.in_progress,
+.agent-progress-popover .wa-run-status-icon.pending {
+  border-color: rgba(23, 231, 255, 0.38);
+  background: rgba(23, 231, 255, 0.12);
+  color: var(--hud-cyan);
+}
+
+.agent-right-rail .wa-run-main,
+.agent-progress-popover .wa-run-main {
+  min-width: 0;
+}
+
+.agent-right-rail .wa-run-title,
+.agent-progress-popover .wa-run-title {
+  overflow: hidden;
+  color: #f4fbff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-right-rail .wa-run-detail,
+.agent-progress-popover .wa-run-detail {
+  overflow: hidden;
+  margin-top: 4px;
+  color: rgba(234, 247, 255, 0.56);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-right-rail .wa-left-empty,
+.agent-progress-popover .wa-left-empty {
+  border: 1px dashed rgba(0, 168, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(4, 18, 32, 0.52);
+  color: rgba(234, 247, 255, 0.58);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  padding: 12px;
+}

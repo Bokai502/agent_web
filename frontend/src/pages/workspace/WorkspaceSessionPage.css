@@ -1112,6 +1112,50 @@ button.wa-run-card.selected {
 }
 .wa-conversation-agent {
   max-width: min(820px, 92%);
+  color: #ffffff;
+}
+
+.wa-conversation-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(68vh, 760px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.wa-conversation-load-hint {
+  align-self: center;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.055);
+  color: #8b95a1;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 12px;
+}
+
+.wa-conversation-session-inline {
+  align-self: center;
+  color: #8b95a1;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.wa-conversation-expand {
+  align-self: flex-start;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.055);
+  color: #6e7781;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 11px;
+}
+
+.wa-conversation-expand:hover {
   color: #1d1d1f;
 }
 .wa-conversation-agent-head {
@@ -1135,8 +1179,13 @@ button.wa-run-card.selected {
   letter-spacing: 0;
 }
 .wa-conversation-agent .markdown-body {
+  color: #ffffff;
   font-size: 14px;
   line-height: 1.7;
+}
+.wa-conversation-agent > div:not(.wa-conversation-agent-head),
+.wa-conversation-agent > div:not(.wa-conversation-agent-head) * {
+  color: #ffffff !important;
 }
 .wa-conversation-shell {
   display: flex;
@@ -1263,19 +1312,9 @@ button.wa-run-card.selected {
   justify-content: space-between;
   gap: 10px;
 }
-.wa-file-tree-head p {
-  overflow: hidden;
-  max-width: 180px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.wa-file-tree-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 6px;
-}
-.wa-file-tree-actions button {
+.wa-file-tree-download {
   height: 28px;
+  flex-shrink: 0;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
@@ -1285,9 +1324,18 @@ button.wa-run-card.selected {
   font-size: 11px;
   font-weight: 800;
 }
-.wa-file-tree-actions button:disabled {
+.wa-file-tree-download:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95);
+}
+.wa-file-tree-download:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+.wa-file-tree-head p {
+  overflow: hidden;
+  max-width: 180px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .wa-file-tree-body {
   max-height: 260px;

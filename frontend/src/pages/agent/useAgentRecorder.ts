@@ -11,10 +11,10 @@ type UseAgentRecorderOptions = {
 }
 
 export function getRecorderStatusText(state: RecorderState, running: boolean) {
-  if (running) return '大模型正在思考'
   if (state === 'recording') return '正在聆听，点击结束'
   if (state === 'transcribing') return '正在将语音转成文字'
   if (state === 'thinking') return '大模型正在思考'
+  if (running) return '任务运行中，可继续语音提问'
   if (state === 'done') return '已完成，可继续说'
   if (state === 'error') return '语音输入遇到问题'
   return '点击开始语音输入'
@@ -167,7 +167,18 @@ export function useAgentRecorder({ clearAgentSpeechDisplay, runCodex, running }:
     setState('error')
   }, [])
 
+  const clearRecorderDisplay = useCallback(() => {
+    setText('')
+    setError('')
+    setState(current => (
+      current === 'recording' || current === 'transcribing' || current === 'thinking'
+        ? current
+        : 'idle'
+    ))
+  }, [])
+
   return {
+    clearRecorderDisplay,
     error,
     setRecorderError,
     startRecording,

@@ -24,6 +24,10 @@ const CONVERSATION_EVENT_LIMIT = 120
 type RuntimeDataArgs = {
   activeContext: WorkspaceVersionContext
   apiBase?: string
+  enableConversationLogRefresh?: boolean
+  enableConversationLogs?: boolean
+  enableRunLogEntries?: boolean
+  enableStageLogs?: boolean
   progressRefreshNonce: number
   progressVariant: WorkflowProgressVariant
   running: boolean
@@ -53,9 +57,24 @@ function appendQueryParams(query: string, params: Record<string, string | number
   return value ? `?${value}` : ""
 }
 
+function haveSameLogEntries<TEntry extends { detail?: string; id: string; status?: string; time?: string }>(previous: TEntry[], next: TEntry[]) {
+  if (previous.length !== next.length) return false
+  return previous.every((entry, index) => {
+    const nextEntry = next[index]
+    return entry.id === nextEntry.id &&
+      entry.status === nextEntry.status &&
+      entry.time === nextEntry.time &&
+      entry.detail === nextEntry.detail
+  })
+}
+
 export function useWorkspaceRuntimeData({
   activeContext,
   apiBase,
+  enableConversationLogRefresh = false,
+  enableConversationLogs = true,
+  enableRunLogEntries = true,
+  enableStageLogs = true,
   progressRefreshNonce,
   progressVariant,
   running,
@@ -108,7 +127,7 @@ export function useWorkspaceRuntimeData({
     let cancelled = false
     let controller: AbortController | null = null
     const loadStageLogs = () => {
-      if (!activeContext.versionDir) {
+      if (!enableStageLogs || !activeContext.versionDir) {
         setStageLogs([])
         return
       }
@@ -121,7 +140,9 @@ export function useWorkspaceRuntimeData({
       })
         .then(response => response.ok ? response.json() as Promise<StageLogEntry[]> : [])
         .then(data => {
-          if (!cancelled) setStageLogs(Array.isArray(data) ? data.slice(-MAX_STAGE_LOG_ENTRIES) : [])
+          if (cancelled) return
+          const nextLogs = Array.isArray(data) ? data.slice(-MAX_STAGE_LOG_ENTRIES) : []
+          setStageLogs(previousLogs => haveSameLogEntries(previousLogs, nextLogs) ? previousLogs : nextLogs)
         })
         .catch(err => {
           if (err instanceof DOMException && err.name === "AbortError") return
@@ -136,13 +157,13 @@ export function useWorkspaceRuntimeData({
       controller?.abort()
       window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, enableStageLogs, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
     let controller: AbortController | null = null
     const loadConversationLogs = () => {
-      if (!activeContext.versionDir) {
+      if (!enableConversationLogs || !activeContext.versionDir) {
         setConversationLogs([])
         return
       }
@@ -159,7 +180,9 @@ export function useWorkspaceRuntimeData({
       })
         .then(response => response.ok ? response.json() as Promise<ConversationLogEntry[]> : [])
         .then(data => {
-          if (!cancelled) setConversationLogs(Array.isArray(data) ? data.slice(-MAX_CONVERSATION_LOG_ENTRIES) : [])
+          if (cancelled) return
+          const nextLogs = Array.isArray(data) ? data.slice(-MAX_CONVERSATION_LOG_ENTRIES) : []
+          setConversationLogs(previousLogs => haveSameLogEntries(previousLogs, nextLogs) ? previousLogs : nextLogs)
         })
         .catch(err => {
           if (err instanceof DOMException && err.name === "AbortError") return
@@ -168,15 +191,17 @@ export function useWorkspaceRuntimeData({
     }
 
     loadConversationLogs()
-    const intervalId = window.setInterval(loadConversationLogs, 3000)
+    const intervalId = enableConversationLogRefresh ? window.setInterval(loadConversationLogs, 2000) : null
     return () => {
       cancelled = true
       controller?.abort()
-      window.clearInterval(intervalId)
+      if (intervalId) window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, enableConversationLogRefresh, enableConversationLogs, workspaceRefreshNonce])
 
-  const runLogEntries = useMemo(() => getRunLogEntries(visibleTurns, visibleCurrentEvents, t), [visibleCurrentEvents, t, visibleTurns])
+  const runLogEntries = useMemo(() => (
+    enableRunLogEntries ? getRunLogEntries(visibleTurns, visibleCurrentEvents, t) : []
+  ), [enableRunLogEntries, visibleCurrentEvents, t, visibleTurns])
   const logEntries = useMemo(() => getDisplayLogEntries(stageLogs, conversationLogs, runLogEntries), [conversationLogs, runLogEntries, stageLogs])
   const workflowLoopProgressEntries = useMemo(
     () => getWorkflowLoopProgressEntries(progressData?.data, t, progressVariant),
