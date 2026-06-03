@@ -27,6 +27,14 @@ type WorkspaceFilesQuery = WorkspaceQuery & {
 }
 
 type WorkspaceFileContentQuery = WorkspaceFilesQuery
+type DeratingMissingItemsQuery = WorkspaceQuery
+type DeratingMissingItemsBody = {
+  components?: unknown
+}
+type DeratingCheckResultQuery = WorkspaceQuery
+type DeratingCheckResultBody = {
+  rows?: unknown
+}
 
 const TEXT_FILE_EXTENSIONS = new Set([
   ".cfg",
@@ -59,6 +67,17 @@ const WORKSPACE_PROGRESS_RELATIVE_PATHS = [
   DEFAULT_PROGRESS_RELATIVE_PATH,
 ]
 const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation", "data1.txt")
+const DERATING_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "component-derating-classifier")
+const DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_mapping_completeness.json")
+const DERATING_TABLE_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_table.json")
+const DERATING_CHECK_RESULT_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_check_result.json")
+const DERATING_REFERENCE_RELATIVE_PATH = path.join(
+  "workflow_agents",
+  "check_skills",
+  "component-derating-classifier",
+  "reference",
+  "jiange_full.json",
+)
 const THERMAL_DB_JSON_RELATIVE_PATH = path.join(
   "workflow_agents",
   "thermal_skills",
@@ -344,6 +363,256 @@ function isRecord(value: unknown): value is JsonRecord {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
+function normalizeDeratingCompletenessPayload(value: unknown) {
+  if (!isRecord(value)) {
+    throw new WorkspaceQueryError("derating completeness JSON root must be an object", 422)
+  }
+  const components = Array.isArray(value.components)
+    ? value.components.filter(isRecord)
+    : []
+  return {
+    ...value,
+    components,
+  }
+}
+
+function summarizeDeratingCompletenessComponents(components: JsonRecord[]) {
+  return {
+    component_count: components.length,
+    components_with_missing: components.filter(component => Number(component.missing_count ?? 0) > 0).length,
+    missing_total: components.reduce((total, component) => total + Number(component.missing_count ?? 0), 0),
+  }
+}
+
+function uniqueCleanStrings(values: unknown[]) {
+  return Array.from(new Set(values
+    .map(value => typeof value === "string" || typeof value === "number" ? String(value).trim() : "")
+    .filter(Boolean)))
+}
+
+async function readJsonObject(filePath: string) {
+  const raw = await fs.readFile(filePath, "utf-8").catch(() => null)
+  if (raw === null) return null
+  const parsed = JSON.parse(raw) as unknown
+  return isRecord(parsed) ? parsed : null
+}
+
+async function readDeratingReferenceRows() {
+  const candidatePaths = [
+    path.resolve(process.cwd(), DERATING_REFERENCE_RELATIVE_PATH),
+    path.resolve(process.cwd(), "backend", DERATING_REFERENCE_RELATIVE_PATH),
+  ]
+  for (const candidatePath of candidatePaths) {
+    const raw = await fs.readFile(candidatePath, "utf-8").catch(() => null)
+    if (raw === null) continue
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) ? parsed.filter(isRecord) : []
+  }
+  return []
+}
+
+async function resolveDeratingOutputFile(workspaceDir: string, preferredRelativePath: string, suffix: string) {
+  const preferredPath = path.join(workspaceDir, preferredRelativePath)
+  const preferredStat = await fs.stat(preferredPath).catch(() => null)
+  if (preferredStat?.isFile()) {
+    return {
+      fullPath: preferredPath,
+      relativePath: preferredRelativePath,
+      stat: preferredStat,
+    }
+  }
+
+  const outputDir = path.join(workspaceDir, DERATING_OUTPUT_RELATIVE_PATH)
+  const dirents = await fs.readdir(outputDir, { withFileTypes: true }).catch(() => [])
+  const candidates = await Promise.all(dirents
+    .filter(dirent => dirent.isFile() && dirent.name.endsWith(suffix))
+    .map(async dirent => {
+      const fullPath = path.join(outputDir, dirent.name)
+      const stat = await fs.stat(fullPath).catch(() => null)
+      return stat?.isFile()
+        ? {
+            fullPath,
+            relativePath: path.join(DERATING_OUTPUT_RELATIVE_PATH, dirent.name),
+            stat,
+          }
+        : null
+    }))
+
+  const sorted = candidates
+    .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+    .sort((left, right) => right.stat.mtimeMs - left.stat.mtimeMs)
+
+  return sorted[0] ?? null
+}
+
+async function enrichDeratingCompletenessPayload(workspaceDir: string, payload: ReturnType<typeof normalizeDeratingCompletenessPayload>) {
+  const tablePayload = await readJsonObject(path.join(workspaceDir, DERATING_TABLE_RELATIVE_PATH))
+  const tableRows = Array.isArray(tablePayload?.data) ? tablePayload.data.filter(isRecord) : []
+  const referenceRows = await readDeratingReferenceRows()
+  const requiredByType = new Map<string, string[]>()
+
+  for (const row of referenceRows) {
+    const category = cleanString(row["元器件大类"])
+    const subclass = cleanString(row["元器件子类"])
+    const parameter = cleanString(row["降额参数"])
+    if (!category || !subclass || !parameter) continue
+    const key = `${category}\n${subclass}`
+    const values = requiredByType.get(key) ?? []
+    if (!values.includes(parameter)) values.push(parameter)
+    requiredByType.set(key, values)
+  }
+
+  const components = payload.components.map(component => {
+    const componentName = cleanString(component["元器件名称"])
+    const category = cleanString(component["元器件大类"])
+    const subclass = cleanString(component["元器件子类"])
+    const matchingRows = tableRows.filter(row => cleanString(row["元器件名称"]) === componentName)
+    const requiredParameters = requiredByType.get(`${category}\n${subclass}`) ?? []
+    const filledParameters = uniqueCleanStrings(matchingRows.map(row => row["降额参数"]))
+    return {
+      ...component,
+      "型号规格": component["型号规格"] ?? uniqueCleanStrings(matchingRows.map(row => row["型号规格_规格"])).join("; "),
+      "生产厂商": component["生产厂商"] ?? uniqueCleanStrings(matchingRows.map(row => row["生产厂商_生产单位"])).join("; "),
+      "标准全量参数": component["标准全量参数"] ?? requiredParameters.join("; "),
+      "已填参数": component["已填参数"] ?? filledParameters.join("; "),
+    }
+  })
+
+  return {
+    ...payload,
+    components,
+  }
+}
+
+async function readDeratingMissingItems(workspaceDir: string) {
+  const resolvedFile = await resolveDeratingOutputFile(
+    workspaceDir,
+    DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH,
+    "_mapping_completeness.json",
+  )
+  if (!resolvedFile) {
+    throw new WorkspaceQueryError("derating mapping completeness JSON not found", 404)
+  }
+  const completenessPath = resolvedFile.fullPath
+  const raw = await fs.readFile(completenessPath, "utf-8").catch(() => null)
+  if (raw === null) {
+    throw new WorkspaceQueryError("derating mapping completeness JSON not found", 404)
+  }
+
+  const payload = await enrichDeratingCompletenessPayload(
+    workspaceDir,
+    normalizeDeratingCompletenessPayload(JSON.parse(raw) as unknown),
+  )
+  return {
+    ...payload,
+    source_path: completenessPath,
+    source_relative_path: resolvedFile.relativePath.split(path.sep).join("/"),
+    source_version: [completenessPath, resolvedFile.stat.mtimeMs, resolvedFile.stat.size].join(":"),
+    updated_at: resolvedFile.stat.mtime.toISOString(),
+  }
+}
+
+async function writeDeratingMissingItems(workspaceDir: string, body: DeratingMissingItemsBody) {
+  if (!Array.isArray(body.components)) {
+    throw new WorkspaceQueryError("components array is required", 400)
+  }
+  const completenessPath = path.join(workspaceDir, DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH)
+  const existingRaw = await fs.readFile(completenessPath, "utf-8").catch(() => null)
+  const existingPayload = existingRaw
+    ? normalizeDeratingCompletenessPayload(JSON.parse(existingRaw) as unknown)
+    : { schema_version: "1.0", components: [] }
+  const components = body.components.filter(isRecord)
+  const nextPayload = {
+    ...existingPayload,
+    summary: summarizeDeratingCompletenessComponents(components),
+    components,
+  }
+  await fs.mkdir(path.dirname(completenessPath), { recursive: true })
+  await fs.writeFile(completenessPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+  return readDeratingMissingItems(workspaceDir)
+}
+
+function normalizeDeratingCheckResultPayload(value: unknown) {
+  if (!isRecord(value)) {
+    throw new WorkspaceQueryError("derating check result JSON root must be an object", 422)
+  }
+  const rows = Array.isArray(value.rows)
+    ? value.rows.filter(isRecord)
+    : []
+  return {
+    ...value,
+    rows,
+  }
+}
+
+function summarizeDeratingCheckRows(rows: JsonRecord[]) {
+  const summary: Record<string, number> = { total_rows: rows.length }
+  const issueCounts: Record<string, number> = {}
+  for (const row of rows) {
+    const status = cleanString(row["符合性"]) || cleanString(row["综合判定"]) || "未判定"
+    summary[status] = (summary[status] ?? 0) + 1
+    const issues = Array.isArray(row["问题"]) ? row["问题"] : []
+    for (const issue of issues) {
+      const text = cleanString(issue)
+      if (!text) continue
+      issueCounts[text] = (issueCounts[text] ?? 0) + 1
+    }
+  }
+  return { issueCounts, summary }
+}
+
+async function readDeratingCheckResult(workspaceDir: string) {
+  const resolvedFile = await resolveDeratingOutputFile(
+    workspaceDir,
+    DERATING_CHECK_RESULT_RELATIVE_PATH,
+    "_check_result.json",
+  )
+  if (!resolvedFile) {
+    throw new WorkspaceQueryError("derating check result JSON not found", 404)
+  }
+  const resultPath = resolvedFile.fullPath
+  const raw = await fs.readFile(resultPath, "utf-8").catch(() => null)
+  if (raw === null) {
+    throw new WorkspaceQueryError("derating check result JSON not found", 404)
+  }
+
+  const payload = normalizeDeratingCheckResultPayload(JSON.parse(raw) as unknown)
+  return {
+    ...payload,
+    source_path: resultPath,
+    source_relative_path: resolvedFile.relativePath.split(path.sep).join("/"),
+    source_version: [resultPath, resolvedFile.stat.mtimeMs, resolvedFile.stat.size].join(":"),
+    updated_at: resolvedFile.stat.mtime.toISOString(),
+  }
+}
+
+async function writeDeratingCheckResult(workspaceDir: string, body: DeratingCheckResultBody) {
+  if (!Array.isArray(body.rows)) {
+    throw new WorkspaceQueryError("rows array is required", 400)
+  }
+  const resolvedFile = await resolveDeratingOutputFile(
+    workspaceDir,
+    DERATING_CHECK_RESULT_RELATIVE_PATH,
+    "_check_result.json",
+  )
+  const resultPath = resolvedFile?.fullPath ?? path.join(workspaceDir, DERATING_CHECK_RESULT_RELATIVE_PATH)
+  const existingRaw = await fs.readFile(resultPath, "utf-8").catch(() => null)
+  const existingPayload = existingRaw
+    ? normalizeDeratingCheckResultPayload(JSON.parse(existingRaw) as unknown)
+    : { schema_version: "1.0", rows: [] }
+  const rows = body.rows.filter(isRecord)
+  const { issueCounts, summary } = summarizeDeratingCheckRows(rows)
+  const nextPayload = {
+    ...existingPayload,
+    issue_counts: issueCounts,
+    rows,
+    summary,
+  }
+  await fs.mkdir(path.dirname(resultPath), { recursive: true })
+  await fs.writeFile(resultPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+  return readDeratingCheckResult(workspaceDir)
+}
+
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : ""
 }
@@ -599,6 +868,46 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
     }
   })
 
+  fastify.get<{ Querystring: DeratingMissingItemsQuery }>("/api/workspace/derating/missing-items", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await readDeratingMissingItems(workspaceDir))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve derating missing items")
+    }
+  })
+
+  fastify.put<{ Body: DeratingMissingItemsBody; Querystring: DeratingMissingItemsQuery }>("/api/workspace/derating/missing-items", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await writeDeratingMissingItems(workspaceDir, req.body ?? {}))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to save derating missing items")
+    }
+  })
+
+  fastify.get<{ Querystring: DeratingCheckResultQuery }>("/api/workspace/derating/check-result", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await readDeratingCheckResult(workspaceDir))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve derating check result")
+    }
+  })
+
+  fastify.put<{ Body: DeratingCheckResultBody; Querystring: DeratingCheckResultQuery }>("/api/workspace/derating/check-result", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await writeDeratingCheckResult(workspaceDir, req.body ?? {}))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to save derating check result")
+    }
+  })
+
   fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/component-info", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
@@ -641,7 +950,17 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
       }
 
       if (!bomInfoPath || raw === null) {
-        return reply.status(404).send({ error: "BOM data not found" })
+        reply.header("Cache-Control", "no-cache")
+        return reply.send({
+          bom_id: "-",
+          components: [],
+          matched_records: 0,
+          missing_records: 0,
+          schema_version: "-",
+          source_path: "",
+          source_version: "",
+          total_records: 0,
+        })
       }
 
       const stat = await fs.stat(bomInfoPath)
