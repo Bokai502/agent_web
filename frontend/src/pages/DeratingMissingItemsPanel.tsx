@@ -35,10 +35,10 @@ const RESULT_COLUMNS = [
   { key: "参数值_额定", label: "额定值", width: 92 },
   { key: "AI分类", label: "AI分类（新）", width: 180 },
   { key: "I级降额公式", label: "I级降额公式（新）", width: 150 },
-  { key: "允许值判定组合", label: "允许值 ▸ AI判定", width: 160 },
-  { key: "实际值判定组合", label: "实际值 ▸ AI判定", width: 160 },
-  { key: "降额因子判定组合", label: "降额因子_规定 ▸ AI判定", width: 190 },
-  { key: "实际降额因子判定组合", label: "实际降额因子 ▸ AI判定", width: 190 },
+  { key: "允许值判定组合", label: "允许值 / AI判定", width: 220 },
+  { key: "实际值判定组合", label: "实际值 / AI判定", width: 220 },
+  { key: "降额因子判定组合", label: "降额因子_规定 / AI判定", width: 230 },
+  { key: "实际降额因子判定组合", label: "实际降额因子 / AI判定", width: 230 },
   { key: "判定结果", label: "判定结果", width: 142 },
   { key: "综合判定详情", label: "综合判定详情", width: 260 },
 ] as const
@@ -69,6 +69,13 @@ const RESULT_CSV_COLUMNS = [
   ["综合判定", "综合判定"],
 ] as const
 
+const COMPARISON_COLUMNS: Record<string, { aiKey: string; tableKey: string; tableLabel: string }> = {
+  允许值判定组合: { aiKey: "允许值判定", tableKey: "参数值_允许", tableLabel: "允许值" },
+  实际值判定组合: { aiKey: "实际值判定", tableKey: "参数值_实际", tableLabel: "实际值" },
+  降额因子判定组合: { aiKey: "降额因子判定", tableKey: "降额因子_规定", tableLabel: "规定因子" },
+  实际降额因子判定组合: { aiKey: "实际降额因子判定", tableKey: "降额因子_实际", tableLabel: "实际因子" },
+}
+
 function asText(value: unknown): string {
   if (Array.isArray(value)) return value.map(asText).filter(Boolean).join("; ")
   if (typeof value === "number" && Number.isFinite(value)) return String(value)
@@ -95,6 +102,26 @@ function issueText(row: JsonRow) {
   return issues.map(asText).filter(Boolean).join("；")
 }
 
+function rowIssues(row: JsonRow) {
+  const issues = Array.isArray(row["问题"]) ? row["问题"].map(asText).filter(Boolean) : []
+  const detail = asText(row["综合判定详情"])
+  return detail ? [...issues, detail] : issues
+}
+
+function hasIssue(row: JsonRow, pattern: RegExp) {
+  return rowIssues(row).some(issue => pattern.test(issue))
+}
+
+function valueWithSourceUnit(value: unknown, sourceValue: unknown) {
+  const text = asText(value)
+  const source = asText(sourceValue)
+  if (!text) return ""
+  if (!source) return text
+  const unitMatch = source.match(/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*([^\d\s].*)$/u)
+  const unit = unitMatch?.[1]?.trim()
+  return unit && !text.includes(unit) ? `${text}${unit}` : text
+}
+
 function statusText(row: JsonRow) {
   return asText(row["综合判定"]) || asText(row["符合性"]) || "需确认"
 }
@@ -118,6 +145,54 @@ function getResultValue(row: JsonRow, key: string) {
   if (key === "判定结果") return statusText(row)
   if (key === "综合判定详情") return asText(row["综合判定详情"]) || issueText(row)
   return row[key]
+}
+
+function getComparisonValue(row: JsonRow, key: string) {
+  const comparison = COMPARISON_COLUMNS[key]
+  if (!comparison) return null
+
+  const combined = asText(row[key]).split("▸").map(part => part.trim()).filter(Boolean)
+  return {
+    aiValue: asText(row[comparison.aiKey]) || combined[1] || deriveComparisonJudgement(row, key),
+    tableLabel: comparison.tableLabel,
+    tableValue: asText(row[comparison.tableKey]) || combined[0] || "",
+  }
+}
+
+function deriveComparisonJudgement(row: JsonRow, key: string) {
+  if (key === "允许值判定组合") {
+    if (hasIssue(row, /允许值不等于|允许值.*错误|允许值.*填写错误/u)) {
+      const expected = valueWithSourceUnit(row["计算允许值"], row["参数值_允许"])
+      return expected ? `表中填写错误，应为 ${expected}` : "表中填写错误"
+    }
+    return "正确"
+  }
+
+  if (key === "实际值判定组合") {
+    if (hasIssue(row, /实际值大于允许值|实际值.*错误|实际值.*不符合/u)) return "实际值大于允许值"
+    return "正确"
+  }
+
+  if (key === "降额因子判定组合") {
+    if (hasIssue(row, /规定降额因子大于|规定降额因子.*标准值/u)) return "规定降额因子大于 I 级标准值"
+    if (hasIssue(row, /规定降额因子小于|更严格/u)) return "规定降额因子更严格"
+    return "正确"
+  }
+
+  if (key === "实际降额因子判定组合") {
+    if (hasIssue(row, /实际降额因子大于规定降额因子/u)) return "实际降额因子大于规定降额因子"
+    return "正确"
+  }
+
+  return ""
+}
+
+function isPositiveJudgement(value: string) {
+  return /^(符合|正确|正常|通过|ok|pass)$/iu.test(value.trim())
+}
+
+function isNegativeJudgement(value: string) {
+  return /(不符合|错误|异常|问题|失败|不通过|fail|warning|警告|应为|不等于|缺少|存在)/iu.test(value)
 }
 
 function writeResultValue(row: JsonRow, key: string, value: string) {
@@ -273,7 +348,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
         <span>元器件清单：</span>
         <select style={selectStyle} disabled><option>{missingSourcePath || "input_mapping_completeness.json"}</option></select>
         <button type="button" onClick={loadAll} style={toolbarButtonStyle}>重新开始</button>
-        <span style={{ color: "#6b7280", marginLeft: "auto" }}>{status}</span>
+        <span style={statusTextStyle}>{status}</span>
       </div>
 
       <section style={sectionStyle}>
@@ -304,7 +379,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
           <div style={sectionBodyStyle}>
             <div style={metricsStyle}>
               <span>共 <b>{resultRows.length}</b> 行 · <b style={greenText}>✔ {passCount(resultRows)} 通过</b> · <b style={redText}>✕ {problemCount(resultRows)} 问题</b></span>
-              <span style={{ color: "#2563eb", fontWeight: 700 }}>可直接点击单元格编辑判定内容</span>
+              <span style={hintTextStyle}>可直接点击单元格编辑判定内容</span>
             </div>
             <EditableTable
               columns={RESULT_COLUMNS}
@@ -313,6 +388,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
               onChange={updateResultCell}
               rows={resultRows}
               selectColumns={{ 判定结果: ["符合", "不符合"] }}
+              stickyRightColumns={["判定结果", "综合判定详情"]}
             />
             <div style={actionsStyle}>
               <button type="button" onClick={downloadResultCsv} disabled={resultRows.length === 0} style={toolbarButtonStyle}>下载校验结果 CSV</button>
@@ -328,7 +404,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
           <div style={sectionBodyStyle}>
             <div style={metricsStyle}>
               <span>根据步骤2当前确认结果生成：共 <b>{finalRows.length}</b> 行 · <b style={greenText}>{passCount(finalRows)} 通过</b> · <b style={redText}>{problemCount(finalRows)} 问题</b></span>
-              <span style={{ color: "#6b7280" }}>{finalGenerated ? "已生成降额总表，可下载 CSV。" : "点击步骤2“确认并生成降额总表”后生成。"}</span>
+              <span style={mutedTextStyle}>{finalGenerated ? "已生成降额总表，可下载 CSV。" : "点击步骤2“确认并生成降额总表”后生成。"}</span>
             </div>
             <EditableTable
               columns={RESULT_CSV_COLUMNS.map(([, label]) => ({ key: label, label, width: label.length > 7 ? 150 : 110 }))}
@@ -355,6 +431,7 @@ function EditableTable({
   readOnly = false,
   rows,
   selectColumns = {},
+  stickyRightColumns = [],
 }: {
   columns: readonly { key: string; label: string; width: number }[]
   emptyText: string
@@ -363,14 +440,24 @@ function EditableTable({
   readOnly?: boolean
   rows: JsonRow[]
   selectColumns?: Record<string, string[]>
+  stickyRightColumns?: string[]
 }) {
+  const stickyOffsets = new Map<string, number>()
+  let rightOffset = 0
+  for (let index = columns.length - 1; index >= 0; index -= 1) {
+    const column = columns[index]
+    if (!stickyRightColumns.includes(column.key)) continue
+    stickyOffsets.set(column.key, rightOffset)
+    rightOffset += column.width
+  }
+
   return (
     <div style={tableWrapStyle}>
       <table style={{ borderCollapse: "collapse", minWidth: Math.max(980, columns.reduce((total, column) => total + column.width, 76)), tableLayout: "fixed", width: "100%" }}>
         <thead>
           <tr>
             {columns.map(column => (
-              <th key={column.key} style={{ ...headerCellStyle, width: column.width }}>{column.label}</th>
+              <th key={column.key} style={{ ...headerCellStyle, ...stickyRightStyle(column.key, stickyOffsets, true), width: column.width }}>{column.label}</th>
             ))}
           </tr>
         </thead>
@@ -380,24 +467,34 @@ function EditableTable({
               {columns.map(column => {
                 const value = asText(getValue(row, column.key))
                 const isWarning = column.key.includes("判定") || column.key === "missing_standard_parameters"
+                const comparison = getComparisonValue(row, column.key)
                 const options = selectColumns[column.key]
                 return (
-                  <td key={column.key} style={bodyCellStyle}>
-                    {options ? (
+                  <td key={column.key} style={{ ...bodyCellStyle, ...stickyRightStyle(column.key, stickyOffsets, false) }}>
+                    {comparison ? (
+                      <ComparisonCell
+                        aiValue={comparison.aiValue}
+                        onAiChange={value => onChange?.(rowIndex, COMPARISON_COLUMNS[column.key].aiKey, value)}
+                        onTableChange={value => onChange?.(rowIndex, COMPARISON_COLUMNS[column.key].tableKey, value)}
+                        readOnly={readOnly}
+                        tableLabel={comparison.tableLabel}
+                        tableValue={comparison.tableValue}
+                      />
+                    ) : options ? (
                       <select
                         value={options.includes(value) ? value : value === "符合" ? "符合" : "不符合"}
                         onChange={event => onChange?.(rowIndex, column.key, event.target.value)}
                         style={{
                           ...selectCellStyle,
-                          color: value === "符合" ? "#059669" : "#ef4444",
+                          color: value === "符合" ? HUD_GREEN : HUD_RED,
                         }}
                       >
-                        {options.map(option => <option key={option} value={option}>{option}</option>)}
+                        {options.map(option => <option key={option} value={option} style={optionStyle}>{option}</option>)}
                       </select>
                     ) : readOnly ? (
                       <div style={{
                         ...readOnlyCellStyle,
-                        color: isWarning && value && value !== "符合" ? "#ef4444" : "#111827",
+                        color: isWarning && value && value !== "符合" ? HUD_RED : HUD_TEXT,
                         fontWeight: isWarning ? 700 : 600,
                       }}>
                         {value || "-"}
@@ -408,7 +505,7 @@ function EditableTable({
                         onChange={event => onChange?.(rowIndex, column.key, event.target.value)}
                         style={{
                           ...cellInputStyle,
-                          color: isWarning && value && value !== "符合" ? "#ef4444" : "#111827",
+                          color: isWarning && value && value !== "符合" ? HUD_RED : HUD_TEXT,
                           fontWeight: isWarning ? 700 : 600,
                           minHeight: value.length > 28 ? 46 : 34,
                         }}
@@ -421,7 +518,7 @@ function EditableTable({
           ))}
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} style={{ color: "#6b7280", padding: 24, textAlign: "center" }}>
+              <td colSpan={columns.length} style={emptyCellStyle}>
                 {emptyText}
               </td>
             </tr>
@@ -432,8 +529,90 @@ function EditableTable({
   )
 }
 
+function stickyRightStyle(key: string, offsets: Map<string, number>, header: boolean): CSSProperties {
+  const right = offsets.get(key)
+  if (right === undefined) return {}
+
+  return {
+    background: header ? "rgba(10, 35, 56, 0.98)" : "rgba(3, 13, 24, 0.96)",
+    boxShadow: right === 0
+      ? "-12px 0 22px rgba(0, 0, 0, 0.28)"
+      : `-1px 0 0 ${HUD_LINE}`,
+    position: "sticky",
+    right,
+    zIndex: header ? 5 : 3,
+  }
+}
+
+function ComparisonCell({
+  aiValue,
+  onAiChange,
+  onTableChange,
+  readOnly,
+  tableLabel,
+  tableValue,
+}: {
+  aiValue: string
+  onAiChange?: (value: string) => void
+  onTableChange?: (value: string) => void
+  readOnly: boolean
+  tableLabel: string
+  tableValue: string
+}) {
+  const aiTone = isPositiveJudgement(aiValue)
+    ? "ok"
+    : isNegativeJudgement(aiValue)
+      ? "bad"
+      : "neutral"
+  const tableTone = isNegativeJudgement(aiValue) ? "bad" : "neutral"
+
+  if (readOnly) {
+    return (
+      <div style={comparisonCellStyle}>
+        <div style={comparisonRowStyle}>
+          <span style={comparisonLabelStyle}>{tableLabel}</span>
+          <span style={{ ...comparisonValueStyle, color: tableTone === "bad" ? HUD_RED : HUD_TEXT }}>{tableValue || "-"}</span>
+        </div>
+        <div style={comparisonDividerStyle} />
+        <div style={comparisonRowStyle}>
+          <span style={comparisonLabelStyle}>AI判定</span>
+          <span style={{ ...comparisonValueStyle, color: aiTone === "ok" ? HUD_GREEN : aiTone === "bad" ? HUD_RED : HUD_CYAN }}>{aiValue || "-"}</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={comparisonCellStyle}>
+      <label style={comparisonEditorLabelStyle}>
+        <span style={comparisonEditorTextStyle}>{tableLabel}</span>
+        <textarea
+          value={tableValue}
+          onChange={event => onTableChange?.(event.target.value)}
+          style={{
+            ...comparisonTextareaStyle,
+            color: tableTone === "bad" ? HUD_RED : HUD_TEXT,
+          }}
+        />
+      </label>
+      <label style={comparisonEditorLabelStyle}>
+        <span style={comparisonEditorTextStyle}>AI判定</span>
+        <textarea
+          value={aiValue}
+          onChange={event => onAiChange?.(event.target.value)}
+          style={{
+            ...comparisonTextareaStyle,
+            color: aiTone === "ok" ? HUD_GREEN : aiTone === "bad" ? HUD_RED : HUD_CYAN,
+          }}
+        />
+      </label>
+    </div>
+  )
+}
+
 function downloadCsv(filename: string, content: string) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8" })
+  const normalizedContent = content.replace(/\r?\n/gu, "\r\n")
+  const blob = new Blob([`\ufeff${normalizedContent}`], { type: "text/csv;charset=utf-8" })
   const url = URL.createObjectURL(blob)
   const link = document.createElement("a")
   link.href = url
@@ -442,12 +621,27 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url)
 }
 
-const greenText = { color: "#059669" }
-const redText = { color: "#ef4444" }
+const HUD_BG = "#06111d"
+const HUD_PANEL = "rgba(4, 18, 32, 0.82)"
+const HUD_PANEL_SOFT = "rgba(7, 24, 40, 0.74)"
+const HUD_LINE = "rgba(23, 231, 255, 0.18)"
+const HUD_LINE_SOFT = "rgba(23, 231, 255, 0.1)"
+const HUD_TEXT = "#eaf7ff"
+const HUD_MUTED = "rgba(234, 247, 255, 0.62)"
+const HUD_DIM = "rgba(234, 247, 255, 0.42)"
+const HUD_CYAN = "#17e7ff"
+const HUD_GREEN = "#38f8b7"
+const HUD_RED = "#ff7b8c"
+
+const greenText = { color: HUD_GREEN }
+const redText = { color: HUD_RED }
+const mutedTextStyle = { color: HUD_MUTED } satisfies CSSProperties
+const hintTextStyle = { color: HUD_CYAN, fontWeight: 800 } satisfies CSSProperties
+const statusTextStyle = { color: HUD_MUTED, marginLeft: "auto" } satisfies CSSProperties
 
 const pageStyle = {
-  background: "#f5f6f8",
-  color: "#111827",
+  background: `linear-gradient(180deg, rgba(2, 8, 16, 0.96), ${HUD_BG})`,
+  color: HUD_TEXT,
   height: "100%",
   overflow: "auto",
   padding: "16px",
@@ -455,7 +649,7 @@ const pageStyle = {
 
 const topbarStyle = {
   alignItems: "center",
-  borderBottom: "1px solid #d9dde4",
+  borderBottom: `1px solid ${HUD_LINE}`,
   display: "flex",
   gap: 10,
   minHeight: 44,
@@ -463,18 +657,19 @@ const topbarStyle = {
 } satisfies CSSProperties
 
 const selectStyle = {
-  background: "#eef0f3",
-  border: "1px solid #d1d5db",
+  background: "rgba(2, 8, 16, 0.72)",
+  border: `1px solid ${HUD_LINE}`,
   borderRadius: 4,
-  color: "#6b7280",
+  color: HUD_MUTED,
   height: 28,
   minWidth: 260,
   padding: "0 8px",
 } satisfies CSSProperties
 
 const sectionStyle = {
-  background: "#fff",
-  border: "1px solid #d9dde4",
+  background: HUD_PANEL,
+  border: `1px solid ${HUD_LINE}`,
+  boxShadow: "inset 0 0 22px rgba(0, 168, 255, 0.06)",
   marginTop: 14,
 } satisfies CSSProperties
 
@@ -483,15 +678,17 @@ const summaryStyle = {
   fontSize: 14,
   fontWeight: 800,
   padding: "12px 14px",
+  color: HUD_TEXT,
 } satisfies CSSProperties
 
 const sectionBodyStyle = {
-  background: "#f3f4f6",
-  borderTop: "1px solid #d9dde4",
+  background: HUD_PANEL_SOFT,
+  borderTop: `1px solid ${HUD_LINE_SOFT}`,
   padding: "12px 14px",
 } satisfies CSSProperties
 
 const metricsStyle = {
+  color: HUD_MUTED,
   display: "grid",
   fontSize: 13,
   gap: 5,
@@ -500,11 +697,13 @@ const metricsStyle = {
 } satisfies CSSProperties
 
 const tableWrapStyle = {
-  background: "#fff",
-  border: "1px solid #d9dde4",
+  background: "rgba(2, 8, 16, 0.64)",
+  border: `1px solid ${HUD_LINE}`,
+  boxShadow: "inset 0 0 28px rgba(0, 168, 255, 0.06)",
   maxHeight: 360,
   minHeight: 0,
   overflow: "auto",
+  scrollbarColor: "rgba(23, 231, 255, 0.42) transparent",
 } satisfies CSSProperties
 
 const actionsStyle = {
@@ -515,10 +714,10 @@ const actionsStyle = {
 } satisfies CSSProperties
 
 const toolbarButtonStyle = {
-  background: "#ffffff",
-  border: "1px solid #cfd6e1",
+  background: "rgba(4, 18, 32, 0.84)",
+  border: `1px solid ${HUD_LINE}`,
   borderRadius: 4,
-  color: "#111827",
+  color: HUD_TEXT,
   cursor: "pointer",
   fontSize: 13,
   fontWeight: 700,
@@ -528,44 +727,52 @@ const toolbarButtonStyle = {
 
 const primaryButtonStyle = {
   ...toolbarButtonStyle,
-  background: "#0b63ce",
-  border: "1px solid #0b63ce",
-  color: "#ffffff",
+  background: "linear-gradient(90deg, rgba(0, 168, 255, 0.48), rgba(23, 231, 255, 0.22))",
+  border: "1px solid rgba(23, 231, 255, 0.62)",
+  boxShadow: "0 0 18px rgba(0, 168, 255, 0.16)",
+  color: "#f4fbff",
 } satisfies CSSProperties
 
 const headerCellStyle = {
-  background: "#eef0f3",
-  border: "1px solid #d9dde4",
-  color: "#6b7280",
+  background: "rgba(10, 35, 56, 0.94)",
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  boxShadow: `0 1px 0 ${HUD_LINE}, 0 8px 18px rgba(0, 0, 0, 0.24)`,
+  color: "rgba(234, 247, 255, 0.72)",
   fontSize: 12,
-  fontWeight: 700,
+  fontWeight: 800,
   padding: "9px 8px",
+  position: "sticky",
   textAlign: "left",
+  top: 0,
+  zIndex: 2,
 } satisfies CSSProperties
 
 const bodyCellStyle = {
-  border: "1px solid #e1e5ea",
+  background: "rgba(3, 13, 24, 0.72)",
+  border: `1px solid ${HUD_LINE_SOFT}`,
   fontSize: 12,
   padding: 0,
   verticalAlign: "top",
 } satisfies CSSProperties
 
 const cellInputStyle = {
-  background: "transparent",
+  background: "rgba(2, 8, 16, 0.16)",
   border: 0,
   boxSizing: "border-box",
-  color: "#111827",
+  color: HUD_TEXT,
   display: "block",
   font: "inherit",
   lineHeight: 1.45,
   outline: "none",
   padding: "8px",
   resize: "vertical",
+  scrollbarColor: "rgba(23, 231, 255, 0.42) transparent",
   width: "100%",
 } satisfies CSSProperties
 
 const readOnlyCellStyle = {
   boxSizing: "border-box",
+  color: HUD_TEXT,
   lineHeight: 1.45,
   minHeight: 34,
   padding: "8px",
@@ -575,8 +782,8 @@ const readOnlyCellStyle = {
 } satisfies CSSProperties
 
 const selectCellStyle = {
-  background: "#ffffff",
-  border: "1px solid #d1d5db",
+  background: "rgba(2, 8, 16, 0.72)",
+  border: `1px solid ${HUD_LINE}`,
   borderRadius: 4,
   boxSizing: "border-box",
   font: "inherit",
@@ -586,4 +793,77 @@ const selectCellStyle = {
   outline: "none",
   padding: "0 8px",
   width: "calc(100% - 12px)",
+} satisfies CSSProperties
+
+const comparisonCellStyle = {
+  display: "grid",
+  gap: 6,
+  padding: 8,
+} satisfies CSSProperties
+
+const comparisonRowStyle = {
+  alignItems: "start",
+  display: "grid",
+  gap: 6,
+  gridTemplateColumns: "64px minmax(0, 1fr)",
+  minHeight: 22,
+} satisfies CSSProperties
+
+const comparisonLabelStyle = {
+  alignSelf: "start",
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 4,
+  color: HUD_DIM,
+  fontSize: 10,
+  fontWeight: 800,
+  lineHeight: 1.2,
+  padding: "3px 5px",
+  textAlign: "center",
+  whiteSpace: "nowrap",
+} satisfies CSSProperties
+
+const comparisonValueStyle = {
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: "anywhere",
+  paddingTop: 2,
+  whiteSpace: "pre-wrap",
+} satisfies CSSProperties
+
+const comparisonDividerStyle = {
+  borderTop: `1px solid ${HUD_LINE_SOFT}`,
+} satisfies CSSProperties
+
+const comparisonEditorLabelStyle = {
+  display: "grid",
+  gap: 4,
+} satisfies CSSProperties
+
+const comparisonEditorTextStyle = {
+  color: HUD_DIM,
+  fontSize: 10,
+  fontWeight: 800,
+  lineHeight: 1.2,
+} satisfies CSSProperties
+
+const comparisonTextareaStyle = {
+  ...cellInputStyle,
+  background: "rgba(2, 8, 16, 0.38)",
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 4,
+  minHeight: 30,
+  padding: "6px 7px",
+} satisfies CSSProperties
+
+const emptyCellStyle = {
+  color: HUD_DIM,
+  padding: 24,
+  textAlign: "center",
+} satisfies CSSProperties
+
+const optionStyle = {
+  background: "#06111d",
+  color: HUD_TEXT,
 } satisfies CSSProperties
