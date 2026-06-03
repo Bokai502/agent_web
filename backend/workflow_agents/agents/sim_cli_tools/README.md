@@ -12,7 +12,7 @@ sim-run --workspace-dir <workspace_dir>
 
 In Open Codex Web, workspace/version selection is request-scoped. Use the
 `workspace_dir` provided in the execution context and pass it explicitly with
-`--workspace-dir`. Do not rely on `/data/lbk/codex_web/config.json` defaults for
+`--workspace-dir`. Do not rely on `/data/lbk/codex_web/open_codex_web/config.json` defaults for
 Web-triggered runs.
 
 Install:

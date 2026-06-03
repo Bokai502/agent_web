@@ -1,18 +1,19 @@
-# Codex Web
+# Open Codex Web
 
-基于 OpenAI Codex SDK 的 Web 聊天界面，风格类似 ChatGPT。支持多会话管理、对话历史持久化，实时展示 Agent 的思考过程、命令执行和文件变更。
+Open Codex Web 是一个面向工程工作区的 Codex Web 前端与 Fastify 后端。当前项目已经不只是早期的聊天页面，而是集成了工作区版本管理、Agent 语音/文字任务、运行进度、文件浏览、三维模型、远程 GUI 工具、GNC 配置编辑与 GNC 遥测看板的工程工作台。
 
 ---
 
-## 功能特性
+## 当前功能
 
-- **流式输出**：SSE 实时推送 Codex 事件，AI 回复带打字机动画
-- **多会话管理**：左侧边栏按日期分组管理对话，支持新建/切换/删除
-- **对话历史持久化**：双层存储——`localStorage`（即时读取）+ 后端 `sessions.json`（持久化主存储）
-- **多轮对话**：通过 Codex SDK `resumeThread` 保持对话上下文
-- **命令执行展示**：内联显示执行的 Shell 命令和输出
-- **文件变更展示**：显示 Agent 读写的文件列表
-- **局域网访问**：可在同一局域网内的其他设备上访问
+- **Codex Agent 对话**：支持普通 SSE 任务流与托管任务流，能够绑定工作区、版本、线程和会话。
+- **Agent 工作台**：`/agent` 页面提供工作区、配置/BOM、模型、工具、文件、语音交互和进度面板。
+- **工作区版本树**：通过 workspace manifest 管理工作区版本、父子分支、兄弟分支、checkout、artifact、checkpoint、score 和 run 状态。
+- **GNC 工作流**：支持 GNC 工作区根目录、42 配置解析/编辑、外部 GNC 页面和本地 D3 遥测看板。
+- **热仿真工作流**：保留 FreeCAD、ParaView、COMSOL 远程工具和热仿真工作区数据读取能力。
+- **文件与日志**：支持工作区文件树、文本/二进制预览、压缩下载、阶段日志、对话日志和进度文件读取。
+- **语音能力**：Whisper.cpp 语音转写、CosyVoice TTS、Agent 语音任务反馈。
+- **三维查看器**：`/viewer` 页面读取工作区 GLB 或模型接口，使用 Three.js/WebGPU 展示模型。
 
 ---
 
@@ -20,179 +21,400 @@
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | React 19 + TypeScript + Vite |
-| 后端 | Fastify + TypeScript + tsx |
-| Agent | @openai/codex-sdk + codex 二进制 |
-| 持久化 | localStorage（缓存）+ sessions.json（主存储） |
+| 前端 | React 19、TypeScript、Vite、D3、Three.js、Shiki、i18next |
+| 后端 | Fastify 5、TypeScript、tsx、@openai/codex-sdk |
+| Agent | Codex SDK、Codex CLI、workflow skill contracts |
+| 语音 | whisper.cpp、CosyVoice HTTP 服务 |
+| 工作区 | 本地文件系统、workspace manifest、session store、progress/log artifacts |
 
 ---
 
-## 前置要求
+## 目录结构
 
-### 1. Node.js
-
-需要 **Node.js 18+**（推荐 20+）。
-
-```bash
-node --version
+```text
+open_codex_web/
+├── backend/
+│   ├── src/
+│   │   ├── index.ts                 # Fastify 入口，加载根 config.json 并注册全部 API
+│   │   ├── server/routes.ts         # API 聚合注册
+│   │   ├── codex-run/               # /api/run 与 /api/run/managed/*
+│   │   ├── manifests/               # workspace manifest、版本、run、artifact 注册
+│   │   ├── workspaces/              # 工作区列表、文件、BOM、模型、进度、日志
+│   │   ├── sessions/                # 会话存储与会话 REST API
+│   │   ├── gnc_config/              # 42 GNC 配置解析与写回
+│   │   ├── system/                  # health、skills、remote tools
+│   │   ├── whisper/                 # whisper.cpp 转写与语音转 Codex
+│   │   └── cosyvoice/               # TTS 与任务提示音
+│   ├── workflow_agents/
+│   │   ├── gnc_skills/              # AIGNC/42 相关 Codex skills 和 plot_runtime_gnc.py
+│   │   ├── thermal_skills/          # 热仿真、FreeCAD、仿真相关 skills
+│   │   ├── check_skills/            # 降额检查等 skills
+│   │   └── agents/                  # freecad_cli_tools、sim_cli_tools
+│   ├── cosyvoice3/                  # 本地 CosyVoice 依赖目录，可未纳入 git
+│   └── whisper_cpp/                 # whisper.cpp 依赖目录，可未纳入 git
+├── frontend/
+│   ├── src/
+│   │   ├── main.tsx                 # 前端轻量路由分发
+│   │   ├── pages/
+│   │   │   ├── AgentPage.tsx        # /agent 主工作台
+│   │   │   ├── WorkspacePageShell.tsx
+│   │   │   ├── GncWorkspacePage.tsx # /gnc-workspace，复用 shell
+│   │   │   ├── WorkspaceSessionPage.tsx
+│   │   │   ├── RegionWorkspacePage.tsx
+│   │   │   ├── ModelViewerPage.tsx
+│   │   │   └── workspace/
+│   │   │       ├── GncDashboardPanel.tsx
+│   │   │       └── GncTelemetryCharts.tsx
+│   │   ├── pages/agent/             # Agent 侧栏、工具面板、录音、文件视图等
+│   │   └── app/                     # API base、session、workspace 配置工具
+│   ├── gnc_config/                  # GNC 配置编辑器组件与样式
+│   └── vite.config.ts
+├── docs/                            # 提示音、示例输入数据等
+├── start_remote_gui_tools.sh        # GUI 工具启动/状态/重启脚本
+└── package-lock.json
 ```
 
-### 2. Codex 二进制
-
-`@openai/codex-sdk` 需要 `codex` 可执行文件。通过 npm 全局安装：
-
-```bash
-# 全局安装（推荐）
-npm install -g @openai/codex
-
-# 安装后验证
-codex --version
-```
-
-Windows 用户若遇到问题，可单独安装平台包：
-
-```bash
-npm install -g @openai/codex-win32-x64
-```
+项目根目录 `/data/lbk/codex_web/open_codex_web/config.json` 是运行配置主文件；`/data/lbk/codex_web/open_codex_web/start_open_codex_web.sh` 是推荐启动脚本。
 
 ---
 
 ## 配置
 
-### API Key 与 Base URL
+后端优先读取 `/data/lbk/codex_web/open_codex_web/config.json`，如果不存在才读取 `open_codex_web/backend/config.json`。关键字段：
 
-后端通过环境变量读取 API 配置，启动前在终端中设置：
+| 字段 | 说明 |
+|------|------|
+| `openai.apiKey` / `OPENAI_API_KEY` | OpenAI 或兼容服务 API Key，环境变量可覆盖 |
+| `openai.baseUrl` / `OPENAI_BASE_URL` | OpenAI 或兼容服务 Base URL，环境变量可覆盖 |
+| `openai.model` | Codex 默认模型 |
+| `codex.modelReasoningEffort` | 推理强度 |
+| `codex.approvalPolicy` | Codex approval policy |
+| `codex.sandboxMode` | Codex sandbox mode |
+| `server.port` / `BACKEND_PORT` | 后端端口，环境变量可覆盖 |
+| `server.host` | 后端监听地址 |
+| `server.corsOrigin` | 允许访问后端的前端 origin 列表 |
+| `frontend.host` | Vite 监听地址 |
+| `frontend.port` | HTTP 开发端口 |
+| `frontend.httpsPort` | HTTPS 开发端口 |
+| `tools.cad/paraview/comsol.noVncPort` | 前端工具面板 noVNC 端口 |
+| `tools.cad/paraview/comsol.url` | 可选，直接覆盖工具 iframe URL |
+| `tools.gnc.url` | 外部 GNC 页面 URL |
+| `gnc.dashboard.telemetryPaths` | GNC 看板 CSV 遥测路径 |
+| `gnc.dashboard.telemetryMaxBytes` | GNC 看板单文件读取上限 |
+| `workspace.workspaceDir` | 默认工程工作区版本目录 |
+| `workspace.filesystemGroup` | 新建 workspace/version 目录和 manifest 文件的 Linux 文件系统 group，默认 `xieteam`，可用 `WORKSPACE_FILESYSTEM_GROUP` 覆盖 |
+| `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD MCP RPC 连接配置 |
+| `workspace.filePreviewMaxBytes` | 普通文件预览大小上限 |
+| `workspace.textFileMaxBytes` | 文本文件整读上限 |
+| `workspace.textChunkBytes` / `workspace.textChunkMaxBytes` | 超大文本/JSON 分块读取默认块大小和单块上限 |
+| `whisper.modelPath` / `whisper.ffmpegBin` | whisper.cpp 模型和 ffmpeg 配置 |
+| `whisper.bin` / `whisper.cudaVisibleDevices` / `whisper.defaultLanguage` | whisper.cpp 可执行文件、GPU 和默认语言 |
+| `cosyvoice.apiUrl` / `cosyvoice.promptWav` / `cosyvoice.promptText` | CosyVoice 服务与零样本提示配置 |
+| `cosyvoice.streamCacheTtlMs` / `cosyvoice.streamCacheMaxItems` | TTS 流式缓存配置 |
+| `cosyvoice.ttsMaxTextLength` | 单次 TTS 文本长度上限 |
+| `workflowAgents.contractDir` | workflow skills 根目录 |
 
-**Windows（CMD）**
-```cmd
-set OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
-set OPENAI_BASE_URL=https://api.openai.com/v1
-```
-
-**Windows（PowerShell）**
-```powershell
-$env:OPENAI_API_KEY = "sk-xxxxxxxxxxxxxxxx"
-$env:OPENAI_BASE_URL = "https://api.openai.com/v1"
-```
-
-**macOS / Linux**
-```bash
-export OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxx"
-export OPENAI_BASE_URL="https://api.openai.com/v1"
-```
-
-> `OPENAI_BASE_URL` 为可选项，不设置则使用 OpenAI 官方地址。  
-> 若使用第三方代理，将 Base URL 替换为代理地址即可。
-
-### Codex 本地配置文件（可选）
-
-Codex 会读取 `~/.codex/config.toml`，可在此配置默认模型：
-
-```toml
-model = "o3-mini"
-model_reasoning_effort = "medium"
-
-[model_providers.custom]
-name = "custom"
-wire_api = "responses"
-base_url = "https://your-proxy.example.com"
-```
+不要把真实 API Key 写进 README、提交记录或日志。
 
 ---
 
 ## 安装依赖
 
 ```bash
-# 后端
-cd codex_web/backend
+cd /data/lbk/codex_web/open_codex_web/backend
 npm install
 
-# 前端
-cd ../frontend
+cd /data/lbk/codex_web/open_codex_web/frontend
 npm install
 ```
+
+Codex SDK 需要本机能找到 `codex` 可执行文件：
+
+```bash
+npm install -g @openai/codex
+codex --version
+```
+
+语音功能还依赖本机 whisper.cpp、模型文件、ffmpeg 和可用的 CosyVoice 服务；这些能力缺失时，不影响纯文字 Agent 和工作区页面启动。
 
 ---
 
 ## 启动
 
-推荐从仓库根目录一条命令同时拉起前后端：
+推荐从项目根目录使用统一脚本：
 
 ```bash
-cd /data/lbk/codex_web
+cd /data/lbk/codex_web/open_codex_web
 ./start_open_codex_web.sh
 ```
 
-该脚本会读取根目录 `config.json`，通过 tmux 启动后端和前端，并注入 FreeCAD 相关配置。默认地址：
+该脚本会：
 
-- 后端：`http://localhost:3001`
-- 前端：`http://localhost:5174`
+- 读取 `/data/lbk/codex_web/open_codex_web/config.json`。
+- 关闭旧的 `ocw-backend*` / `ocw-frontend*` tmux 会话。
+- 释放后端端口。
+- 在 tmux 中启动后端 `npm run dev`。
+- 在 tmux 中启动前端 `npm run dev:https`。
 
-### 终端 1 — 后端
+当前脚本输出形如：
 
-如果需要手动调试，也可以分别启动两个服务：
+```text
+backend:  http://localhost:<server.port>  tmux=ocw-backend
+frontend: https://10.110.10.11:<frontend.httpsPort>  tmux=ocw-frontend
+```
+
+如果按当前根配置运行，后端端口来自 `server.port`，前端 HTTPS 端口来自 `frontend.httpsPort`。不要假定一定是 `3001` 或 `5174`。
+
+手动调试也可以分开启动：
 
 ```bash
 cd /data/lbk/codex_web/open_codex_web/backend
-set OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx   # Windows CMD
 npm run dev
 ```
-
-成功后输出：
-```
-Backend running on http://localhost:3001
-```
-
-### 终端 2 — 前端
 
 ```bash
 cd /data/lbk/codex_web/open_codex_web/frontend
 npm run dev
+# 或 HTTPS
+npm run dev:https -- --host 0.0.0.0 --port 5175 --strictPort
 ```
 
-成功后输出：
-```
-  VITE ready in xxx ms
-
-  ➜  Local:   http://localhost:5174/
-  ➜  Network: http://192.168.x.x:5174/
-```
-
-打开浏览器访问 `http://localhost:5174` 即可使用。
-
-如需验证 WebGPU 等依赖安全上下文的能力，可使用 HTTPS 开发模式：
+构建验证：
 
 ```bash
+cd /data/lbk/codex_web/open_codex_web/backend
+npm run build
+
 cd /data/lbk/codex_web/open_codex_web/frontend
-npm run dev:https
-```
-
-成功后访问 `https://localhost:5175` 或 `https://<你的局域网 IP>:5175`。首次打开时浏览器会提示本地自签名证书，信任后即可继续。
-
-后端 CORS 通过根目录 `/data/lbk/codex_web/config.json` 的 `server.corsOrigin` 配置。默认已放行本地和当前局域网 HTTP 开发源。
-如果你需要从其他域名或局域网 HTTPS 地址直连后端，再把对应 origin 加到根目录 `/data/lbk/codex_web/config.json` 的 `server.corsOrigin` 数组里即可。
-
-### 局域网访问
-
-前端已配置监听 `0.0.0.0`，同一局域网内的其他设备可通过 Network 地址访问：
-
-```
-http://192.168.x.x:5174
+npm run build
 ```
 
 ---
 
-## CAD 与热仿真远程工具
+## 前端页面
 
-本项目的 CAD 与热仿真流程依赖本机 GUI 工具的远程桌面展示。当前约定如下：
+前端没有使用 React Router，而是在 `frontend/src/main.tsx` 根据 `window.location.pathname` 分流：
 
-| 工具 | DISPLAY | VNC | noVNC | 说明 |
+| 路径 | 页面 |
+|------|------|
+| `/`、`/home` | 首页 |
+| `/agent` | Agent 工程工作台 |
+| `/workspace` | 通用热仿真/工程工作区页面 |
+| `/gnc-workspace` | GNC workspace shell，使用 `/api/gnc` 前缀 |
+| `/region-workspace` | 区域/降额类工作区页面 |
+| `/viewer` | Three.js/WebGPU 模型查看器 |
+| `/earth` | 地球/轨道相关页面 |
+| `/spline` | Spline bot 页面 |
+| `/v3` | V3 页面 |
+
+当前 GNC 看板已经集成在 `/agent` 的工具面板中；不要再把它作为独立的 `/gnc-workspace` 看板入口维护。
+
+---
+
+## Agent 页面
+
+`/agent` 是当前主要入口。左侧功能项来自 `frontend/src/pages/agent/constants.ts`：
+
+- `工作区`：选择工作区、查看版本树、创建子分支/兄弟分支、checkout。
+- `BOM` / `配置文件`：普通工作区显示 BOM；GNC 工作区显示 42 配置编辑器。
+- `模型`：打开 `/viewer` 并读取当前工作区模型。
+- `工具`：嵌入远程 GUI 工具或 GNC 看板。
+- `文件`：浏览工作区文件树并预览文件。
+
+GNC 工作区识别逻辑在 `AgentPage.tsx` 中通过工作区标识匹配 `gnc`、`aignc`、`adcs`、`region` 等关键词。识别为 GNC 后：
+
+- `BOM` 标签改为 `配置文件`。
+- 工具面板增加 `GNC` 和 `GNC 看板`。
+- 非 GNC 工作区会自动避免停留在 GNC 相关工具标签。
+
+---
+
+## GNC 工具与看板
+
+`/agent` 的工具面板在 GNC 工作区下显示：
+
+| 标签 | 内容 |
+|------|------|
+| CAD | noVNC：`http://<当前主机>:6080/vnc.html?autoconnect=true&resize=scale&path=websockify` |
+| ParaView | noVNC：`http://<当前主机>:6081/vnc.html?autoconnect=true&resize=scale&path=websockify` |
+| COMSOL | noVNC：`http://<当前主机>:6082/vnc.html?autoconnect=true&resize=scale&path=websockify` |
+| GNC | 外部页面 `http://10.110.10.11:8765/` |
+| GNC 看板 | 本地前端 D3/SVG 遥测图表 |
+
+GNC 看板不读取 Python 生成的 PNG，而是直接读取当前工作区运行数据并在前端渲染。入口文件：
+
+- `frontend/src/pages/workspace/GncDashboardPanel.tsx`：读取 CSV 文本文件。
+- `frontend/src/pages/workspace/GncTelemetryCharts.tsx`：解析遥测、计算派生量、渲染 D3/SVG 图表。
+
+当前读取的工作区文件：
+
+- `02_sim/42_run/runtime_case/InOut/Sc.csv`
+- `02_sim/42_run/runtime_case/InOut/AcWhl.csv`
+- `02_sim/42_run/runtime_case/InOut/ModeTrace_SC0.csv`
+
+渲染逻辑应与 `backend/workflow_agents/gnc_skills/42-runtime-plotter/scripts/plot_runtime_gnc.py` 保持一致，标准图包括：
+
+- 本体角速度：`Sc_wn_1/2/3 * 180/pi`
+- 惯性系姿态：`Sc_qn_1..4` 按 42 vector-first quaternion 转 `CBN`，再转 Euler-123。
+- 轨道系姿态误差：由 `Sc_PosN_*`、`Sc_VelN_*` 构造 `CLN`，计算 `CBL = CBN * CLN^T` 后转 Euler-123。
+- 飞轮转速：`Ac_Whl*_H / J * 60 / (2*pi)`，默认 `J = 0.00068209`。
+- 模式时间线：`ModeTrace_SC0.csv` 的 `TimeSec`、`ModeId`、`Mode`。
+
+图表约定：
+
+- X 轴统一以小时显示。
+- 每张图的 label/legend 固定在图表右上区域。
+- 看板内不展示额外统计卡片或解释性信息。
+- 图表字体和 legend 已按嵌入式面板尺寸压缩，避免遮挡曲线和模式标签。
+
+---
+
+## GNC 配置编辑
+
+GNC 配置编辑器位于：
+
+- `frontend/gnc_config/GncConfigEditor.tsx`
+- `frontend/gnc_config/gnc_config.css`
+- `backend/src/gnc_config/routes.ts`
+
+后端接口：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/gnc-config` | 读取当前工作区 42 配置 |
+| `PUT` | `/api/gnc-config` | 写回当前工作区 42 配置 |
+| `GET` | `/api/gnc/gnc-config` | GNC 前缀版本 |
+| `PUT` | `/api/gnc/gnc-config` | GNC 前缀版本 |
+
+配置目录解析规则：
+
+- 优先使用工作区 `00_inputs/Config`，如果其中存在 `Inp_Sim.txt`。
+- 否则回退到 `00_inputs`。
+
+---
+
+## 后端 API 概览
+
+所有 API 注册在 `backend/src/server/routes.ts`。后端还支持路径重写：
+
+- `/api/gnc/*` 会重写到 `/api/*`，并把工作区根目录覆盖为 `/data/lbk/codex_web/data/input_data`。
+- `/api/region/*` 会重写到 `/api/*`，并把工作区根目录覆盖为 `/data/lbk/codex_web/data_jiange`。
+
+### Codex 运行
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/run` | 普通 SSE Codex turn |
+| `POST` | `/api/run/input-files` | 上传/登记输入文件 |
+| `POST` | `/api/run/managed/dispatch` | 启动绑定工作区的托管 Agent 任务 |
+| `GET` | `/api/run/managed/latest` | 查询当前工作区最新托管任务 |
+| `GET` | `/api/run/managed/status/:managedRunId` | 查询托管任务状态 |
+| `GET` | `/api/run/managed/events/:managedRunId` | SSE 订阅托管任务事件 |
+| `POST` | `/api/run/managed/cancel/:managedRunId` | 停止托管任务并总结 |
+| `POST` | `/api/run/managed/summarize` | 总结当前或刚停止的任务进度 |
+
+### 会话
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/sessions` | 读取会话列表 |
+| `GET` | `/api/agent/messages` | 按 `sessionId` 和 `turnId` 读取最终 Agent 消息，供语音播放使用 |
+| `PUT` | `/api/sessions/:id` | 增量写入单个 session |
+| `POST` | `/api/sessions/:id` | `sendBeacon` 兼容写入，语义同 PUT |
+| `DELETE` | `/api/sessions/:id` | 删除会话 |
+| `POST` | `/api/sessions/:id/delete` | 删除会话的 POST fallback |
+| `POST` | `/api/sessions` | 覆盖写入全部 sessions，最多 1000 条 |
+
+### 工作区数据
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/workspace/workspaces` | 列出工作区 |
+| `POST` | `/api/workspace/workspace` | 创建工作区 |
+| `GET` | `/api/workspace/files/tree` | 读取工作区文件树 |
+| `GET` | `/api/workspace/files/content` | 读取文件预览内容，默认 1MB |
+| `GET` | `/api/workspace/files/text` | 读取较大文本文件，最高 8MB，GNC CSV 看板使用该接口 |
+| `GET` | `/api/workspace/files/archive` | 下载工作区压缩包 |
+| `GET` | `/api/workspace/component-info` | 读取几何组件信息 |
+| `GET` | `/api/workspace/bom` | 读取 BOM |
+| `GET` | `/api/workspace/progress` | 读取 `AIGNC_Workflow/loop_progress.json` 或 `logs/progress.json` |
+| `GET` | `/api/workspace/temperature-field` | 读取热场数据 |
+| `GET` | `/api/logs/stages` | 读取阶段日志 |
+| `GET` | `/api/logs/conversation` | 读取对话日志 |
+| `GET` | `/api/logs/conversation/latest` | 读取最新对话日志 |
+| `GET` | `/api/workspace/model` | 解析当前工作区模型来源并返回模型 URL |
+| `GET` | `/api/workspace/model/file` | 读取 GLB 模型文件 |
+
+工作区查询参数通常包含：
+
+| 参数 | 说明 |
+|------|------|
+| `workspaceDir` | 工作区版本目录 |
+| `workspaceId` | 工作区 ID，可选 |
+| `versionId` | 版本 ID，可选 |
+| `relativePath` | 工作区内相对路径，文件接口使用 |
+| `maxBytes` | 文件读取上限，文本接口最高 8MB |
+
+示例：
+
+```bash
+curl 'http://localhost:3002/api/workspace/files/text?workspaceDir=/data/lbk/codex_web/data/input_data/workspaces/ws_gnc/versions/v0001&relativePath=02_sim/42_run/runtime_case/InOut/Sc.csv'
+```
+
+### Workspace Manifest
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/workspace-manifest` | 按 workspaceKey/sessionId/workspaceDir 读取或初始化 manifest |
+| `GET` | `/api/workspaces/:sessionId/manifest` | 旧 session 维度 manifest 入口 |
+| `GET` | `/api/workspace-index/:workspaceId/manifest` | workspaceId 维度 manifest 入口 |
+| `POST` | `/api/versions/:versionId/branch` | 从当前版本创建分支版本 |
+| `POST` | `/api/versions/:versionId/checkout` | checkout 版本 |
+| `POST` | `/api/versions/:versionId/commit` | 标记版本提交完成 |
+| `POST` | `/api/versions/:versionId/fail` | 标记版本失败 |
+| `GET` | `/api/versions/:a/diff/:b` | 比较两个版本 |
+| `POST` | `/api/runs` | 创建 run |
+| `GET` | `/api/runs/:runId` | 查询 run |
+| `PATCH` | `/api/runs/:runId` | 更新 run |
+| `POST` | `/api/runs/:runId/cancel` | 取消 run |
+| `POST` | `/api/runs/:runId/retry` | 重试 run |
+| `POST` | `/api/artifacts/register` | 注册 artifact |
+| `POST` | `/api/versions/:versionId/artifacts/register` | 为版本注册 artifact |
+| `POST` | `/api/checkpoints/register` | 注册 checkpoint |
+| `POST` | `/api/scores/register` | 注册 score |
+
+新建 workspace/version 时，后端会把 manifest 根目录、`versions/vNNNN` 目录、复制的 `00_inputs` 以及 `workspace_manifest.json` 的 Linux 文件系统 group 设置为 `workspace.filesystemGroup`（默认 `xieteam`），并对目录设置 setgid 位，使后续在这些目录下生成的文件尽量继承同一个 group。manifest/version record 中的 `group` 字段也默认写入 `xieteam`，用于前端和 API 元数据展示。
+
+### 系统、语音和资源
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/health` | 后端、配置和 Codex 端点健康检查 |
+| `GET` | `/api/skills` | 读取后端缓存的 skills |
+| `POST` | `/api/remote-tools/ensure-desktops` | 确保 CAD/ParaView/COMSOL 远程桌面启动 |
+| `GET` | `/api/image?path=...` | 安全读取本地图片 |
+| `GET` | `/api/whisper/models` | 查看 whisper.cpp 配置 |
+| `POST` | `/api/whisper/transcribe` | 上传音频并转写 |
+| `POST` | `/api/whisper/codex` | 转写文本后直接派发 Codex |
+| `GET` | `/api/agent/audio/task-accepted` | 任务接受提示音 |
+| `GET` | `/api/cosyvoice/config` | 查看 CosyVoice 配置 |
+| `POST` | `/api/cosyvoice/tts` | 生成 TTS 音频文件 |
+| `POST` | `/api/cosyvoice/tts-stream` | 直接流式返回 TTS 音频 |
+| `GET` | `/api/cosyvoice/audio/:fileName` | 读取已生成音频 |
+
+---
+
+## 远程 GUI 工具
+
+远程 GUI 工具由 `start_remote_gui_tools.sh` 和 `/usr/local/bin/start-remote-cad-desktop <tool> start` 管理。当前约定：
+
+| 工具 | DISPLAY | VNC | noVNC | 用途 |
 |------|---------|-----|-------|------|
-| FreeCAD | `:1` | `5901` | `6080` | CAD 构建和校验通过 GUI FreeCAD MCP RPC `9877` 执行 |
-| ParaView | `:2` | `5902` | `6081` | 热仿真 `native.vtu` 结果展示 |
-| COMSOL | `:32` | `5932` | `6082` | 热仿真 `work.mph` 结果展示 |
+| FreeCAD | `:1` | `5901` | `6080` | CAD 构建、模型校验、GUI MCP RPC |
+| ParaView | `:2` | `5902` | `6081` | 热仿真结果查看 |
+| COMSOL | `:32` | `5932` | `6082` | COMSOL 模型与仿真查看 |
 
-远程工具统一启动脚本：
+常用命令：
 
 ```bash
 /data/lbk/codex_web/open_codex_web/start_remote_gui_tools.sh start
@@ -200,203 +422,52 @@ http://192.168.x.x:5174
 /data/lbk/codex_web/open_codex_web/start_remote_gui_tools.sh restart
 ```
 
-Agent 页面触发远程桌面时会调用 `/usr/local/bin/start-remote-cad-desktop <tool> start`。该入口已改为幂等启动：`start` 只补齐缺失的 `Xvfb`、`x11vnc`、noVNC 组件，不会因为已有 GUI 进程而关闭当前 `6080/6081/6082` 会话；只有 `stop` 或 `restart` 才会主动关闭会话。
+Agent 工具面板只负责 iframe 嵌入这些 noVNC 页面；远程桌面进程是否启动由后端系统接口和外部脚本保证。
 
-### FreeCAD CAD 构建
+FreeCAD CAD 构建仍应使用 GUI FreeCAD 的 MCP RPC，不使用 `freecadcmd` 代替。正常状态下：
 
-CAD 构建必须使用 GUI FreeCAD 的 MCP RPC，不使用 `freecadcmd`、headless RPC 或其他替代进程。正常状态下：
-
-- `6080` 返回 noVNC 页面。
-- `5901` 返回 VNC 握手 `RFB 003.008`。
-- `9877` 由 GUI `freecad` 进程监听。
+- noVNC `6080` 可访问。
+- VNC `5901` 返回 RFB 握手。
+- FreeCAD GUI MCP RPC 监听 `9877`。
 - 进程列表中不应有 `freecadcmd`。
 
-常用检查：
-
-```bash
-ss -ltnp '( sport = :6080 or sport = :5901 or sport = :9877 )'
-curl -I --max-time 3 http://127.0.0.1:6080/vnc.html
-timeout 2 bash -lc 'exec 3<>/dev/tcp/127.0.0.1/5901; dd bs=12 count=1 <&3 2>/dev/null | od -An -tc'
-ps -eo pid=,ppid=,user=,comm=,args= | awk '($0 ~ /freecadcmd/) || ($0 ~ /freecad/) || ($0 ~ /FreeCAD/) || ($0 ~ /9877/) {print}'
-```
-
-如果 `9877` 被其他进程占用过，FreeCAD MCP 插件可能只在 GUI 启动时自动尝试一次，失败后不会自动重试。处理方式是先释放 `9877`，再只重启 GUI FreeCAD，让 MCP 插件重新监听 `9877`；不要启动 `freecadcmd`。
-
-示例构建命令：
-
-```bash
-PYTHONPATH=/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools/src \
-FREECAD_RPC_HOST=localhost \
-FREECAD_RPC_PORT=9877 \
-python3 -m freecad_cli_tools.cli.main cad build \
-  --workspace-dir /data/lbk/codex_web/data/input_data/workspaces/ws_thermal/versions/v0007
-```
-
-`v0007` 验证结果：`cad build` 成功，输出 `01_cad/geometry_after.step`、`01_cad/geometry_after.glb` 和 `01_cad/cad_agent_output.json`。
-
-### 热仿真流程
-
-热仿真使用 `sim-run`，从工作区的 `00_inputs` 与 `01_cad` 生成并运行 `02_sim`：
-
-```bash
-PYTHONPATH=/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/src:/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/runtime \
-python3 -m sim_cli_tools.cli.main --json doctor \
-  --workspace-dir /data/lbk/codex_web/data/input_data/workspaces/ws_thermal/versions/v0007
-```
-
-完整运行示例：
-
-```bash
-PYTHONPATH=/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/src:/data/lbk/codex_web/open_codex_web/backend/workflow_agents/agents/sim_cli_tools/runtime \
-python3 -m sim_cli_tools.cli.main --json run \
-  --workspace-dir /data/lbk/codex_web/data/input_data/workspaces/ws_thermal/versions/v0007 \
-  --mph-port 32036 \
-  --quiet \
-  --async-open-tools
-```
-
-`v0007` 验证结果：
-
-- `sim-run doctor` 通过，`missing_files: []`。
-- `02_sim/run_manifest.json` 为 `ok: true`。
-- `simulation_run`、`field_export`、`postprocess`、`case_build`、`analysis` 均为 `completed`。
-- `02_sim/simulation/status.json` 为 `ok: true`，`stage: completed`。
-- `02_sim/postprocess/render_summary.json` 为 `ok: true`，温度范围约 `243.91 K ~ 385.72 K`。
-- `6081/5902` 与 `6082/5932` 均已验证可访问。
-
-ParaView 展示脚本生成逻辑位于 `backend/workflow_agents/agents/sim_cli_tools/runtime/codex_agents/external_tool_launchers.py`。当前会自动选择 `T`、`Color` 或第一个可用数组进行着色，避免 `native.vtu` 温度数组名为 `Color` 时只按 `T` 着色导致“导入了但显示不正常”。
-
-如果发现其他用户遗留的 COMSOL runtime 进程占用资源或干扰端口，可先确认不是当前 `lbk` 工作区运行，再终止对应用户的遗留进程。
-
 ---
 
-## 项目结构
+## Workflow Skills
 
-```
-codex_web/
-├── backend/
-│   ├── src/
-│   │   ├── index.ts              # Fastify 服务器入口，监听 3001 端口
-│   │   ├── routes/
-│   │   │   ├── task.ts           # POST /api/run — SSE 流式对话接口
-│   │   │   └── sessions.ts       # GET/POST /api/sessions — 会话持久化接口
-│   │   └── types.ts
-│   ├── sessions.json             # 会话历史数据（运行时生成，gitignore）
-│   ├── package.json
-│   └── tsconfig.json
-│
-└── frontend/
-    ├── src/
-    │   ├── App.tsx               # 根组件，多会话状态管理 + 布局
-    │   ├── types.ts              # ThreadEvent / ThreadItem / Session 类型
-    │   ├── components/
-    │   │   ├── Sidebar.tsx       # 左侧会话列表（按日期分组）
-    │   │   ├── OutputLog.tsx     # 消息流展示（历史轮次 + 当前轮实时）
-    │   │   └── TaskInput.tsx     # 底部输入栏（含发送/停止按钮）
-    │   └── hooks/
-    │       └── useTaskStream.ts  # SSE 流读取 Hook（含 onDone 提前触发优化）
-    ├── index.html                # 含全局 CSS 变量、字体、keyframes
-    └── vite.config.ts            # /api 反向代理到后端 3001
-```
+后端启动时会扫描 `~/.codex/skills` 并刷新 `backend/skills.json`。项目内 workflow skill contract 位于 `backend/workflow_agents`：
 
----
+- `gnc_skills`：AIGNC/42 场景理解、配置生成/校验、构建运行诊断、运行绘图、FSW 架构与代码等。
+- `thermal_skills`：热仿真规划、配置编辑、FreeCAD、仿真运行与报告。
+- `check_skills`：降额检查等规则类工作流。
+- `routing_skills`：意图路由、进度总结等。
 
-## 接口说明
-
-### `POST /api/run`
-
-接收用户输入，以 SSE 格式实时推送 Codex 事件流。
-
-**请求体**
-```json
-{
-  "prompt": "列出当前目录的文件",
-  "threadId": "thread_abc123"
-}
-```
-
-> `threadId` 为可选项。传入时调用 `resumeThread` 续接历史对话；不传时创建新线程。
-
-**响应**（`text/event-stream`）
-
-每行格式为 `data: <JSON>\n\n`，事件类型包括：
-
-| 事件类型 | 说明 |
-|----------|------|
-| `thread.started` | 线程创建，含 `thread_id` 字段 |
-| `turn.started` | 开始处理当前轮 |
-| `item.started` | 新 item 开始（命令执行等） |
-| `item.updated` | item 更新（命令输出追加） |
-| `item.completed` | item 完成（agent 回复、命令完成） |
-| `turn.completed` | 本轮完成 |
-| `turn.failed` | 本轮出错 |
-| `error` | 流级别错误 |
-
----
-
-### `GET /api/sessions`
-
-读取所有保存的会话历史。
-
-**响应**（`application/json`）
-
-```json
-[
-  {
-    "id": "lc4z2p8j9a",
-    "title": "列出当前目录的文件",
-    "threadId": "thread_abc123",
-    "turns": [...],
-    "createdAt": 1744800000000
-  }
-]
-```
-
----
-
-### `POST /api/sessions`
-
-覆盖写入所有会话历史（由前端在对话结束后自动调用）。
-
-**请求体**：`Session[]` 数组（最大 1000 条，5MB 限制）
-
-**响应**：`204 No Content`
-
----
-
-## 数据模型
-
-```typescript
-interface Session {
-  id: string           // 本地唯一 ID
-  title: string        // 首条用户消息（前 60 字符）
-  threadId: string | null  // Codex SDK thread_id，用于 resumeThread
-  turns: Turn[]
-  createdAt: number    // 时间戳
-}
-
-interface Turn {
-  id: string           // 稳定唯一 ID（用作 React key）
-  userPrompt: string
-  events: ThreadEvent[]
-}
-```
+`config.json` 的 `workflowAgents.contractDir` 指向该目录，托管 Agent 会结合工作区上下文和 enabled skills 运行。
 
 ---
 
 ## 常见问题
 
-**Q: 启动后端报 `OPENAI_API_KEY not set`**  
-A: 在同一终端窗口中先设置环境变量，再执行 `npm run dev`。
+**启动后端提示配置文件不存在**  
+确认 `/data/lbk/codex_web/open_codex_web/config.json` 存在，或在 `open_codex_web/backend/config.json` 提供本地配置。
 
-**Q: 报错 `系统找不到指定的文件` 或 `codex exec exited with code 1`**  
-A: `codex` 二进制未找到。执行 `npm install -g @openai/codex` 后重试。
+**后端端口和 README 示例不同**  
+以 `/data/lbk/codex_web/open_codex_web/config.json` 的 `server.port` 或环境变量 `BACKEND_PORT` 为准。当前统一脚本不会固定使用 `3001`。
 
-**Q: 前端提交后无任何响应**  
-A: 检查后端终端是否有报错；确认 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL` 配置正确。
+**前端访问被 CORS 拦截**  
+把实际访问的 origin 加入根配置 `server.corsOrigin`。HTTPS 开发模式通常需要加入 `https://<host>:5175`。
 
-**Q: 局域网其他设备无法访问**  
-A: 检查 Windows 防火墙是否放行了 `config.json` 中配置的前端端口，当前默认是 5174。
+**GNC 看板没有图**  
+检查当前工作区版本目录下是否存在 `Sc.csv`、`AcWhl.csv`、`ModeTrace_SC0.csv`，并确认 `/api/workspace/files/text` 能读取这些文件。
 
-**Q: 刷新页面后历史对话消失**  
-A: 确认后端正在运行，历史数据保存在 `backend/sessions.json`，通过 `/api/sessions` 接口读取。若后端未启动，前端会回退到 `localStorage` 缓存。
+**GNC 工具外部页面打不开**  
+`GNC` 标签是 iframe 到 `http://10.110.10.11:8765/`，需要该服务本身可从浏览器所在机器访问。
+
+**语音转写不可用**  
+检查 `WHISPER_CPP_BIN`、`WHISPER_MODEL_PATH`、`WHISPER_FFMPEG_BIN` 和 CUDA/CPU 构建是否可用。纯文字 Agent 不依赖这些配置。
+
+**TTS 不出声**  
+检查 `COSYVOICE_API_URL`、`COSYVOICE_PROMPT_WAV` 和本地 CosyVoice 服务是否可访问。
+
+**远程 CAD/ParaView/COMSOL 是空白**  
+先运行 `start_remote_gui_tools.sh status`，再通过对应 noVNC 端口检查。Agent 只是嵌入工具窗口，不会替代底层 GUI 启动。

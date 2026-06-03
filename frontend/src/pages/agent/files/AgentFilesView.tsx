@@ -35,6 +35,7 @@ export function AgentFilesView({
       <div className="agent-file-log-pane">
         {selectedFilePath ? (
           <WorkspaceFilePreviewPanel
+            activeContext={activeContext}
             error={selectedFileError}
             file={selectedFilePreview}
             loading={selectedFileLoading}

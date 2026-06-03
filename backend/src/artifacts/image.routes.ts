@@ -27,7 +27,7 @@ export async function imageRoutes(fastify: FastifyInstance) {
     try {
       const data = await fs.promises.readFile(filePath)
       reply.header("Content-Type", mime)
-      reply.header("Cache-Control", "public, max-age=3600")
+      reply.header("Cache-Control", "no-cache")
       return reply.send(data)
     } catch {
       return reply.status(404).send({ error: "file not found" })

@@ -30,8 +30,24 @@ export type WorkspaceFileContentResponse = {
   type?: string
 }
 
+export type WorkspaceTextChunkResponse = {
+  complete?: boolean
+  contentBase64?: string
+  encoding?: 'base64'
+  mimeType?: string
+  mtimeMs?: number
+  name?: string
+  nextOffset?: number
+  offset?: number
+  relativePath?: string
+  size?: number
+  type?: 'text-chunk'
+}
+
 type WorkspaceFileQueryOptions = {
+  length?: number
   maxBytes?: number
+  offset?: number
   relativePath?: string
 }
 
@@ -42,6 +58,8 @@ export function buildWorkspaceFilesQuery(context: WorkspaceContextQuery, options
   if (context.versionId) params.set('versionId', context.versionId)
   if (options.relativePath) params.set('relativePath', options.relativePath)
   if (options.maxBytes) params.set('maxBytes', String(options.maxBytes))
+  if (options.offset !== undefined) params.set('offset', String(options.offset))
+  if (options.length !== undefined) params.set('length', String(options.length))
   return `?${params.toString()}`
 }
 
@@ -107,6 +125,26 @@ export async function fetchWorkspaceTextFile({
   const response = await fetch(`${joinApiPath(apiBase, '/workspace/files/text')}${query}`, { cache: 'no-store' })
   if (!response.ok) throw new Error('文件内容读取失败')
   return response.json() as Promise<WorkspaceFileContentResponse>
+}
+
+export async function fetchWorkspaceTextChunk({
+  apiBase,
+  context,
+  length,
+  offset,
+  relativePath,
+}: {
+  apiBase?: string
+  context: WorkspaceContextQuery
+  length?: number
+  offset: number
+  relativePath: string
+}) {
+  const query = buildWorkspaceFilesQuery(context, { length, offset, relativePath })
+  if (!query) throw new Error('当前工作区未就绪')
+  const response = await fetch(`${joinApiPath(apiBase, '/workspace/files/text-chunk')}${query}`, { cache: 'no-store' })
+  if (!response.ok) throw new Error('文件分块读取失败')
+  return response.json() as Promise<WorkspaceTextChunkResponse>
 }
 
 export function workspaceArchiveFileName(context: WorkspaceContextQuery) {

@@ -5,6 +5,12 @@ const IMAGE_PATH_RE = /([A-Za-z]:[/\\][\w/\\. -]+\.(?:png|jpg|jpeg|gif|webp|svg)
 
 type Tone = "primary" | "muted"
 
+type MarkdownTextProps = {
+  imageSrcResolver?: (src: string) => string
+  text: string
+  tone?: Tone
+}
+
 function toMarkdownWithLocalImages(text: string) {
   return text.replace(IMAGE_PATH_RE, (path) => {
     const src = `/api/image?path=${encodeURIComponent(path)}`
@@ -12,7 +18,7 @@ function toMarkdownWithLocalImages(text: string) {
   })
 }
 
-export function MarkdownText({ text, tone = "primary" }: { text: string; tone?: Tone }) {
+export function MarkdownText({ imageSrcResolver, text, tone = "primary" }: MarkdownTextProps) {
   const color = tone === "muted" ? "var(--text-2)" : "var(--text)"
   const inlineCodeBg = tone === "muted" ? "rgba(15, 23, 42, 0.05)" : "rgba(15, 23, 42, 0.08)"
   const codeBg = tone === "muted" ? "rgba(15, 23, 42, 0.04)" : "var(--code-bg)"
@@ -104,7 +110,7 @@ export function MarkdownText({ text, tone = "primary" }: { text: string; tone?: 
           ),
           img: ({ src, alt }) => (
             <span style={{ display: "block", margin: "10px 0" }}>
-              <img src={src ?? ""} alt={alt ?? ""} style={{ maxWidth: "100%", borderRadius: 6, display: "block" }} />
+              <img src={src ? imageSrcResolver?.(src) ?? src : ""} alt={alt ?? ""} style={{ maxWidth: "100%", borderRadius: 6, display: "block" }} />
               {alt ? (
                 <span
                   style={{

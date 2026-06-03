@@ -18,7 +18,7 @@ CODEX_AGENTS_ROOT = RUNTIME_ROOT / "codex_agents"
 EXTRA_PYTHONPATH = Path("/tmp/codex_openpyxl_py313")
 
 DEFAULT_WORKSPACE = Path("/data/lbk/codex_web/data/input_data/v9_data")
-APP_CONFIG_PATH = Path("/data/lbk/codex_web/config.json")
+APP_CONFIG_PATH = Path(os.getenv("CODEX_WEB_CONFIG_PATH", TOOL_ROOT.parents[3] / "config.json"))
 DEFAULT_PYTHON = Path("/data/conda/bin/python")
 DEFAULT_SAMPLE_ID = "930001"
 TOOL_NAME = "sim-run"

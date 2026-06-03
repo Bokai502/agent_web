@@ -6,6 +6,16 @@ import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
 type RootConfig = {
+  gnc?: {
+    dashboard?: {
+      telemetryMaxBytes?: number
+      telemetryPaths?: {
+        mode?: string
+        sc?: string
+        wheel?: string
+      }
+    }
+  }
   server?: {
     port?: number
   }
@@ -15,12 +25,18 @@ type RootConfig = {
     httpsPort?: number
     strictPort?: boolean
   }
+  tools?: {
+    cad?: { noVncPort?: number; url?: string }
+    comsol?: { noVncPort?: number; url?: string }
+    gnc?: { url?: string }
+    paraview?: { noVncPort?: number; url?: string }
+  }
 }
 
 const DEFAULT_BACKEND_PORT = 3001
 
 function loadRootConfig(): RootConfig {
-  const configPath = path.resolve(__dirname, "..", "..", "config.json")
+  const configPath = path.resolve(__dirname, "..", "config.json")
   try {
     return JSON.parse(fs.readFileSync(configPath, "utf-8")) as RootConfig
   } catch {
@@ -36,10 +52,15 @@ export default defineConfig(({ mode }) => {
     ? envBackendPort
     : rootConfig.server?.port ?? DEFAULT_BACKEND_PORT
   const frontend = rootConfig.frontend ?? {}
+  const publicConfig = {
+    gnc: rootConfig.gnc,
+    tools: rootConfig.tools,
+  }
 
   return {
     define: {
       __BACKEND_PORT__: JSON.stringify(backendPort),
+      __APP_CONFIG__: JSON.stringify(publicConfig),
     },
     plugins: [
       tailwindcss(),

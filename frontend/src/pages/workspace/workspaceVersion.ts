@@ -211,6 +211,7 @@ export function checkoutWorkspaceVersion({
 
 export function branchWorkspaceVersion({
   baseVersionId,
+  group = "xieteam",
   label,
   workspaceKey,
   workspaceId,
@@ -219,6 +220,7 @@ export function branchWorkspaceVersion({
 }: {
   apiBase?: string
   baseVersionId: string
+  group?: string
   label: string
   workspaceKey?: string | null
   workspaceId?: string | null
@@ -227,7 +229,7 @@ export function branchWorkspaceVersion({
   return fetch(joinApiPath(apiBase, `/versions/${encodeURIComponent(baseVersionId)}/branch`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ label, workspaceDir, workspaceId, workspaceKey }),
+    body: JSON.stringify({ group, label, workspaceDir, workspaceId, workspaceKey }),
   }).then(response => readJsonResponse<{ manifest?: WorkspaceManifestSummary }>(response, "version branch failed"))
 }
 

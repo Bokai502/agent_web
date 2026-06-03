@@ -1,4 +1,5 @@
 import { FastifyInstance } from "fastify"
+import type { AppConfig } from "../config.js"
 import {
   listWorkspaces,
   setWorkspace,
@@ -6,7 +7,7 @@ import {
 import { registerModelRoutes } from "./model.routes.js"
 import { registerWorkspaceDataRoutes } from "./workspaceData.routes.js"
 
-export async function workspaceRoutes(fastify: FastifyInstance) {
+export async function workspaceRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
   fastify.get("/api/workspace/workspaces", async (_req, reply) => {
     try {
       reply.header("Cache-Control", "no-cache")
@@ -26,6 +27,6 @@ export async function workspaceRoutes(fastify: FastifyInstance) {
     }
   })
 
-  registerWorkspaceDataRoutes(fastify)
+  registerWorkspaceDataRoutes(fastify, { config })
   registerModelRoutes(fastify)
 }
