@@ -6,11 +6,6 @@ import { useWorkspaceAppState } from '../hooks/useWorkspaceAppState'
 import { formatProgressUpdatedAt, type WorkflowProgressVariant } from './workspace/progressUtils'
 import { useWorkspaceRuntimeData } from './workspace/useWorkspaceRuntimeData'
 import { useWorkspaceVersionState } from './workspace/useWorkspaceVersionState'
-import {
-  fetchWorkspaceManifest,
-  getActiveVersion,
-  resolveWorkspaceVersionContext,
-} from './workspace/workspaceVersion'
 import { getVisibleWorkspaceSessionState } from './workspace/workspaceSessionVisibility'
 import { AgentProgressRail } from './agent/AgentProgressRail'
 import { AgentConversationPopover } from './agent/AgentConversationPopover'
@@ -19,7 +14,7 @@ import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentVoiceExchange } from './agent/AgentVoiceExchange'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
-import { dispatchManagedCodex, getLatestManagedCodexStatus, getManagedCodexStatus, subscribeManagedCodexStatus, summarizeManagedCodex, type ManagedRunStatusResponse } from './agent/managedRun'
+import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex } from './agent/managedRun'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -34,6 +29,8 @@ import type {
 } from './agent/types'
 import { useAgentSpeech } from './agent/useAgentSpeech'
 import { getRecorderStatusText, useAgentRecorder } from './agent/useAgentRecorder'
+import { useLatestManagedStatus } from './agent/useLatestManagedStatus'
+import { useManagedAgentRun } from './agent/useManagedAgentRun'
 import { useWorkspaceFilePreview } from './agent/useWorkspaceFilePreview'
 import './AgentPage.css'
 
@@ -50,22 +47,17 @@ export default function AgentPage() {
   const [inputMode, setInputMode] = useState<AgentInputMode>('voice')
   const [textInput, setTextInput] = useState('')
   const [textInputDisplay, setTextInputDisplay] = useState('')
-  const [managedVoiceRunning, setManagedVoiceRunning] = useState(false)
-  const [latestManagedStatus, setLatestManagedStatus] = useState<ManagedRunStatusResponse | null>(null)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [remoteToolPortStatus, setRemoteToolPortStatus] = useState<RemoteToolPortSummary | null>(null)
   const [remoteToolPortError, setRemoteToolPortError] = useState('')
   const [remoteToolPortLoading, setRemoteToolPortLoading] = useState(false)
   const [selectedBomId, setSelectedBomId] = useState('')
-  const [selectedLogId, setSelectedLogId] = useState('')
-  const managedPollTokenRef = useRef(0)
   const resetProgressDataRef = useRef<(() => void) | null>(null)
   const remoteToolHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
   const workspaceAppState = useWorkspaceAppState({ homePath: AGENT_HOME_PATH })
 
   const refreshWorkspaceViews = useCallback(() => {
     setSelectedBomId('')
-    setSelectedLogId('')
     setWorkspaceRefreshNonce(value => value + 1)
     setProgressRefreshNonce(value => value + 1)
   }, [])
@@ -188,183 +180,82 @@ export default function AgentPage() {
     stopAgentSpeechPlayback,
     visibleAgentResponse,
   } = useAgentSpeech()
-
-  const runCodex = useCallback(async (transcript: string, inputType: AgentInputMode = 'voice') => {
-    resetProgressDataRef.current?.()
-    setProgressRefreshNonce(value => value + 1)
-    setManagedVoiceRunning(true)
-    let backgroundRunStarted = false
-
-    const handleManagedCompletion = async (
-      managedRunId: string,
-      startedTurnId: string,
-      token: number,
-      status: ManagedRunStatusResponse,
-    ) => {
-      if (managedPollTokenRef.current !== token) return
-      if (status.status === 'running') return
-
-      setManagedVoiceRunning(false)
-      const reloadedSessions = await workspaceAppState.reloadSessions()
-      const sessionId = status.sessionId
-      if (sessionId && reloadedSessions.some(session => session.id === sessionId)) {
-        workspaceAppState.handleSelect(sessionId)
-      }
-      setProgressRefreshNonce(value => value + 1)
-      refreshWorkspaceViews()
-
-      const speechText = status.spokenSummary || status.summary || (
-        status.status === 'failed' ? '任务执行失败，请查看详情。' : '任务已完成。'
-      )
-      showSpeechText(speechText)
-      void speakText(speechText, `${managedRunId}:finished:${startedTurnId}`)
-    }
-
-    const watchManagedCompletion = (managedRunId: string, startedTurnId: string, token: number) => {
-      let closed = false
-      let fallbackTimer: number | null = null
-      const close = () => {
-        closed = true
-        if (fallbackTimer !== null) window.clearTimeout(fallbackTimer)
-        unsubscribe()
-      }
-      const scheduleFallback = () => {
-        if (fallbackTimer !== null) return
-        fallbackTimer = window.setTimeout(async () => {
-          fallbackTimer = null
-          if (closed || managedPollTokenRef.current !== token) return
-          const status = await getManagedCodexStatus(managedRunId).catch(() => null)
-          if (!status || status.status === 'running') {
-            scheduleFallback()
-            return
-          }
-          close()
-          void handleManagedCompletion(managedRunId, startedTurnId, token, status)
-        }, 5000)
-      }
-      const unsubscribe = subscribeManagedCodexStatus(
-        managedRunId,
-        (status) => {
-          if (closed || managedPollTokenRef.current !== token) return
-          if (status.status === 'running') return
-          close()
-          void handleManagedCompletion(managedRunId, startedTurnId, token, status)
-        },
-        () => {
-          if (!closed) scheduleFallback()
-        },
-      )
-    }
-
-    const runManagedWithContext = async (context: typeof activeContext) => {
-      const result = await dispatchManagedCodex({
-        input: transcript,
-        inputType,
-        workspace: {
-          workspaceDir: context.versionDir,
-          workspaceId: context.workspaceId,
-          workspaceName: context.workspaceName,
-          versionId: context.versionId,
-        },
-      })
-      const reloadedSessions = await workspaceAppState.reloadSessions()
-      const sessionId = result.sessionId
-      if (sessionId && reloadedSessions.some(session => session.id === sessionId)) {
-        workspaceAppState.handleSelect(sessionId)
-      }
-      setProgressRefreshNonce(value => value + 1)
-      if (result.status === 'started') refreshWorkspaceViews()
-      const speechText = result.spokenSummary || result.summary || (result.status === 'started' ? '任务已开始。' : '当前任务正在处理中。')
-      showSpeechText(speechText)
-      void speakText(speechText, result.managedRunId ?? result.turnId ?? transcript)
-      if (result.status === 'started' && result.managedRunId) {
-        backgroundRunStarted = true
-        const pollToken = managedPollTokenRef.current + 1
-        managedPollTokenRef.current = pollToken
-        watchManagedCompletion(result.managedRunId, result.turnId, pollToken)
-      } else {
-        setManagedVoiceRunning(false)
-      }
-    }
-
-    try {
-      if (!activeContext.versionDir && activeContext.manifestRoot) {
-        try {
-          const data = await fetchWorkspaceManifest({
-            initialize: true,
-            manifestRoot: activeContext.manifestRoot,
-            sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
-            workspaceId: activeContext.workspaceId,
-            workspaceKey: activeContext.workspaceKey,
-          })
-          if (!data) {
-            await runManagedWithContext(activeContext)
-            return
-          }
-          const activeVersion = getActiveVersion(data)
-          const initializedContext = activeVersion?.workspaceDir
-            ? {
-              ...activeContext,
-              manifestRoot: data.rootDir ?? activeContext.manifestRoot,
-              manifestSessionId: data.sessionId ?? activeContext.manifestSessionId,
-              versionDir: activeVersion.workspaceDir,
-              versionId: activeVersion.id ?? null,
-              workspaceId: data.workspaceId ?? activeContext.workspaceId,
-              workspaceKey: data.workspaceId ?? activeContext.workspaceKey,
-              workspaceRoot: data.rootDir ?? activeContext.workspaceRoot,
-            }
-            : resolveWorkspaceVersionContext({
-              branchManifest: data,
-              fallbackWorkspaceName: activeContext.workspaceName,
-              workspaces,
-            })
-          versionState.setBranchManifest(data)
-          refreshWorkspaceViews()
-          await runManagedWithContext(initializedContext)
-        } catch {
-          await runManagedWithContext(activeContext)
-        }
-        return
-      }
-
-      await runManagedWithContext(activeContext)
-    } finally {
-      if (!backgroundRunStarted) setManagedVoiceRunning(false)
-    }
-  }, [activeContext, refreshWorkspaceViews, showSpeechText, speakText, versionState, workspaceAppState, workspaces])
-
+  const {
+    activeWorkspaceSpeechKey,
+    invalidateManagedRun,
+    managedVoiceRunning,
+    runCodex,
+    setManagedVoiceRunning,
+  } = useManagedAgentRun({
+    activeContext,
+    refreshWorkspaceViews,
+    resetProgressDataRef,
+    setBranchManifest: versionState.setBranchManifest,
+    setProgressRefreshNonce,
+    showSpeechText,
+    speakText,
+    workspaceAppState,
+    workspaces,
+  })
+  const {
+    latestManagedStatus,
+    setLatestManagedStatus,
+  } = useLatestManagedStatus({ activeContext, managedVoiceRunning })
   const handleStopAndSummarize = useCallback(async () => {
-    const sessionId = workspaceAppState.activeSessionId
     if (stopSummaryPending) return
+    let stoppedSessionId = workspaceAppState.runningSessionId ?? workspaceAppState.activeSessionId ?? null
     setStopSummaryPending(true)
-    workspaceAppState.abort(sessionId)
     try {
-      const result = await summarizeManagedCodex({
-        input: '请总结当前或刚才停止的 Codex 任务已经完成的进度和结果。',
-        sessionId,
-        threadId: activeSession?.threadId ?? null,
-        workspace: {
-          workspaceDir: activeContext.versionDir,
-          workspaceId: activeContext.workspaceId,
-          workspaceName: activeContext.workspaceName,
-          versionId: activeContext.versionId,
-        },
-      })
+      const refreshedStatus = latestManagedStatus?.status === 'running'
+        ? latestManagedStatus
+        : await getLatestManagedCodexStatus({
+            versionId: activeContext.versionId,
+            workspaceDir: activeContext.versionDir,
+            workspaceId: activeContext.workspaceId,
+          }).catch(() => null)
+      const runningManagedStatus = refreshedStatus?.status === 'running' ? refreshedStatus : null
+      if (refreshedStatus && refreshedStatus.status !== 'none') setLatestManagedStatus(refreshedStatus)
+      const sessionId = runningManagedStatus?.sessionId ?? workspaceAppState.runningSessionId ?? workspaceAppState.activeSessionId
+      const threadId = runningManagedStatus?.threadId ?? activeSession?.threadId ?? null
+      stoppedSessionId = sessionId
+
+      workspaceAppState.abort(sessionId)
+      const result = runningManagedStatus?.managedRunId
+        ? await cancelManagedCodex(runningManagedStatus.managedRunId)
+        : await summarizeManagedCodex({
+            input: '请总结当前或刚才停止的 Codex 任务已经完成的进度和结果。',
+            sessionId,
+            threadId,
+            workspace: {
+              workspaceDir: activeContext.versionDir,
+              workspaceId: activeContext.workspaceId,
+              workspaceName: activeContext.workspaceName,
+              versionId: activeContext.versionId,
+            },
+          })
       const speechText = result.spokenSummary || result.summary || '任务已停止，当前进度已总结。'
       showSpeechText(speechText)
       void speakText(speechText, `agent-stop-summary:${sessionId ?? 'workspace'}:${Date.now()}`)
       await workspaceAppState.reloadSessions().catch(() => null)
+      const latestStatus = await getLatestManagedCodexStatus({
+        versionId: activeContext.versionId,
+        workspaceDir: activeContext.versionDir,
+        workspaceId: activeContext.workspaceId,
+      }).catch(() => null)
+      setLatestManagedStatus(latestStatus && latestStatus.status !== 'none' ? latestStatus : null)
+      setManagedVoiceRunning(false)
       setProgressRefreshNonce(value => value + 1)
       refreshWorkspaceViews()
     } catch {
       const fallback = '任务已停止，但总结生成失败。'
       showSpeechText(fallback)
-      void speakText(fallback, `agent-stop-summary-error:${sessionId ?? 'workspace'}:${Date.now()}`)
+      void speakText(fallback, `agent-stop-summary-error:${stoppedSessionId ?? 'workspace'}:${Date.now()}`)
     } finally {
       setStopSummaryPending(false)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, refreshWorkspaceViews, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, latestManagedStatus, refreshWorkspaceViews, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
   const {
+    clearRecorderDisplay,
     error,
     startRecording,
     state,
@@ -375,14 +266,20 @@ export default function AgentPage() {
     runCodex,
     running: visibleRunning || workspaceAppState.running || managedVoiceRunning,
   })
+  const conversationLogSessionId = latestManagedStatus?.status === 'running'
+    ? latestManagedStatus.sessionId
+    : workspaceAppState.runningSessionId ?? workspaceAppState.activeSessionId
   const {
     conversationLogs,
-    logEntries,
     progressData,
     resetProgressData,
     workflowLoopProgressEntries,
   } = useWorkspaceRuntimeData({
     activeContext,
+    enableConversationLogs: conversationPanelOpen,
+    enableConversationLogRefresh: conversationPanelOpen && (visibleRunning || managedVoiceRunning || latestManagedStatus?.status === 'running'),
+    enableRunLogEntries: false,
+    enableStageLogs: false,
     progressRefreshNonce,
     progressVariant,
     running: visibleRunning || managedVoiceRunning || state === 'transcribing',
@@ -390,11 +287,19 @@ export default function AgentPage() {
     visibleCurrentEvents,
     visibleTurns,
     workspaceRefreshNonce,
-    sessionId: workspaceAppState.activeSessionId,
+    sessionId: conversationLogSessionId,
   })
   resetProgressDataRef.current = resetProgressData
-  const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
   const recorderStatusText = getRecorderStatusText(state, visibleRunning || managedVoiceRunning)
+
+  useEffect(() => {
+    invalidateManagedRun()
+    clearAgentSpeechDisplay()
+    clearRecorderDisplay()
+    setTextInput('')
+    setTextInputDisplay('')
+    setLatestManagedStatus(null)
+  }, [activeWorkspaceSpeechKey, clearAgentSpeechDisplay, clearRecorderDisplay, invalidateManagedRun, setLatestManagedStatus])
 
   useEffect(() => {
     resetProgressData()
@@ -415,34 +320,6 @@ export default function AgentPage() {
   }, [state])
 
   useEffect(() => {
-    let cancelled = false
-    const loadLatestManagedStatus = async () => {
-      if (!activeContext.versionDir && !activeContext.workspaceId && !activeContext.versionId) {
-        setLatestManagedStatus(null)
-        return
-      }
-      const status = await getLatestManagedCodexStatus({
-        versionId: activeContext.versionId,
-        workspaceDir: activeContext.versionDir,
-        workspaceId: activeContext.workspaceId,
-      }).catch(() => null)
-      if (cancelled) return
-      if (!status || status.status === 'none') {
-        setLatestManagedStatus(null)
-        return
-      }
-      setLatestManagedStatus(status)
-    }
-
-    void loadLatestManagedStatus()
-    const intervalId = window.setInterval(loadLatestManagedStatus, latestManagedStatus?.status === 'running' || managedVoiceRunning ? 1500 : 5000)
-    return () => {
-      cancelled = true
-      window.clearInterval(intervalId)
-    }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, latestManagedStatus?.status, managedVoiceRunning])
-
-  useEffect(() => {
     if (activeView !== 'tools') return
 
     fetch(joinApiPath(undefined, '/remote-tools/ensure-desktops'), { method: 'POST' })
@@ -457,9 +334,8 @@ export default function AgentPage() {
   }, [activeView])
 
   useEffect(() => {
-    if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return
-    setSelectedLogId(logEntries[0]?.id ?? '')
-  }, [logEntries, selectedLogId])
+    if (!showGncConfig && (activeTool === 'gnc' || activeTool === 'gnc-dashboard')) setActiveTool('cad')
+  }, [activeTool, showGncConfig])
 
   useEffect(() => {
     const handleViewerMessage = (event: MessageEvent<ViewerComponentMessage>) => {
@@ -485,7 +361,7 @@ export default function AgentPage() {
     }
     if (state === 'recording') {
       stopRecording()
-    } else if (state !== 'transcribing' && state !== 'thinking') {
+    } else if (state !== 'transcribing') {
       void startRecording()
     }
   }, [agentSpeechPlaying, agentSpeechState, startRecording, state, stopAgentSpeechPlayback, stopRecording])
@@ -515,8 +391,8 @@ export default function AgentPage() {
   const progressStatusLabel = activeProgressEntry
     ? `${activeProgressEntry.label} · ${activeProgressEntry.statusLabel}`
     : progressUpdatedAt
-  const recordButtonBusy = state === 'thinking' || visibleRunning || managedVoiceRunning || agentSpeechState === 'synthesizing' || agentSpeechPlaying
-  const recordButtonDisabled = state === 'transcribing' || ((state === 'thinking' || visibleRunning || managedVoiceRunning) && !agentSpeechPlaying && agentSpeechState !== 'synthesizing')
+  const recordButtonBusy = agentSpeechState === 'synthesizing' || agentSpeechPlaying
+  const recordButtonDisabled = state === 'transcribing'
   const textComposerBusy = recordButtonBusy || state === 'transcribing'
   const textRecorderStatusText = textComposerBusy
     ? recorderStatusText
@@ -539,9 +415,16 @@ export default function AgentPage() {
   const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
   const dataSourceLabel = activeContext.workspaceName || activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
   const versionLabel = activeContext.versionId || '未选择版本'
+  const agentPageClassName = [
+    'agent-page',
+    activeView ? 'has-workspace-view' : '',
+    conversationPanelOpen ? 'has-left-floating-panel' : '',
+    progressPanelOpen ? 'has-right-floating-panel' : '',
+    conversationPanelOpen || progressPanelOpen ? 'has-floating-panel' : '',
+  ].filter(Boolean).join(' ')
 
   return (
-    <main className="agent-page">
+    <main className={agentPageClassName}>
       <AgentTopbar
         conversationOpen={conversationPanelOpen}
         dataSourceLabel={dataSourceLabel}
@@ -552,28 +435,18 @@ export default function AgentPage() {
         portStatusError={remoteToolPortError}
         portStatusLoading={remoteToolPortLoading}
         onProgressToggle={() => setProgressPanelOpen(open => !open)}
+        onStopAndSummarize={handleStopAndSummarize}
         progressOpen={progressPanelOpen}
         progressPercent={progressPercent}
         progressStatusLabel={progressStatusLabel}
         progressTitle={t('workspace.inspector.progressTitle')}
         sessionStatus={displayedSessionStatus}
         sessionStatusLabel={sessionStatusLabel}
+        stopSummaryPending={stopSummaryPending}
         versionLabel={versionLabel}
       />
       {conversationPanelOpen ? (
         <AgentConversationPopover
-          actions={(
-            <button
-              type="button"
-              className="agent-stop-summary-button"
-              disabled={stopSummaryPending}
-              onClick={handleStopAndSummarize}
-              title="停止当前 Codex 进程并生成语音总结"
-            >
-              <span aria-hidden="true" />
-              {stopSummaryPending ? '总结中' : '停止'}
-            </button>
-          )}
           conversationLogs={conversationLogs}
           onClose={() => setConversationPanelOpen(false)}
           title="历史对话"
@@ -602,14 +475,12 @@ export default function AgentPage() {
           createChildBranch={createChildBranch}
           createSiblingBranch={createSiblingBranch}
           handleSelectFile={handleSelectFile}
-          logEntries={logEntries}
           manifestLoading={manifestLoading}
           selectedBom={selectedBom}
           selectedFileError={selectedFileError}
           selectedFileLoading={selectedFileLoading}
           selectedFilePath={selectedFilePath}
           selectedFilePreview={selectedFilePreview}
-          selectedLog={selectedLog}
           setActiveTool={setActiveTool}
           setSelectedBomId={setSelectedBomId}
           setVersionListOpen={() => setVersionListOpen(open => !open)}

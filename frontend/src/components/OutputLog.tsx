@@ -547,14 +547,6 @@ export function OutputLog({ turns, currentPrompt, currentEvents, running, pendin
   const bottomRef = useRef<HTMLDivElement>(null)
   // RAF ref：确保每帧最多触发一次滚动，避免密集事件流造成滚动抖动
   const scrollRafRef = useRef<number | null>(null)
-  // Dev render counter
-  const renderCountRef = useRef(0)
-
-  if (import.meta.env.DEV) {
-    renderCountRef.current += 1
-    console.log(`[OutputLog] render #${renderCountRef.current}  events=${currentEvents.length}  turns=${turns.length}`)
-  }
-
   useEffect(() => {
     if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current)
     scrollRafRef.current = requestAnimationFrame(() => {
@@ -565,13 +557,7 @@ export function OutputLog({ turns, currentPrompt, currentEvents, running, pendin
 
   // useMemo：仅在 currentEvents 引用变化（批量 flush 后）时重新计算
   const { order, map } = useMemo(() => {
-    const t0 = performance.now()
-    const result = buildItemStates(currentEvents)
-    if (import.meta.env.DEV) {
-      const ms = (performance.now() - t0).toFixed(2)
-      if (Number(ms) > 1) console.log(`[buildItemStates] ${ms}ms for ${currentEvents.length} events`)
-    }
-    return result
+    return buildItemStates(currentEvents)
   }, [currentEvents])
 
   const isTurnStarted = currentEvents.some(ev => ev.type === "turn.started")

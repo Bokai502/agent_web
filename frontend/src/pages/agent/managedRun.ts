@@ -23,6 +23,7 @@ export type ManagedRunResponse = {
   summary?: string
   threadId?: string | null
   turnId?: string
+  versionId?: string | null
   workspaceDir?: string | null
   workspaceId?: string | null
 }
@@ -40,6 +41,7 @@ export type ManagedStartResponse = {
   summary?: string
   threadId?: string | null
   turnId: string
+  versionId?: string | null
   workspaceDir?: string | null
   workspaceId?: string | null
 }
@@ -59,6 +61,7 @@ export type ManagedRunStatusResponse = {
   summary?: string
   threadId?: string | null
   turnId: string
+  versionId?: string | null
   workspaceDir?: string | null
   workspaceId?: string | null
 }
