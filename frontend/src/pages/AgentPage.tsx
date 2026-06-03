@@ -362,6 +362,9 @@ export default function AgentPage() {
     workflowLoopProgressEntries,
   } = useWorkspaceRuntimeData({
     activeContext,
+    enableConversationLogs: conversationPanelOpen,
+    enableRunLogEntries: activeView === 'log',
+    enableStageLogs: activeView === 'log',
     progressRefreshNonce,
     progressVariant,
     running: visibleRunning || managedVoiceRunning || state === 'transcribing',
@@ -512,9 +515,16 @@ export default function AgentPage() {
   const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
   const dataSourceLabel = activeContext.workspaceName || activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
   const versionLabel = activeContext.versionId || '未选择版本'
+  const agentPageClassName = [
+    'agent-page',
+    activeView ? 'has-workspace-view' : '',
+    conversationPanelOpen ? 'has-left-floating-panel' : '',
+    progressPanelOpen ? 'has-right-floating-panel' : '',
+    conversationPanelOpen || progressPanelOpen ? 'has-floating-panel' : '',
+  ].filter(Boolean).join(' ')
 
   return (
-    <main className="agent-page">
+    <main className={agentPageClassName}>
       <AgentTopbar
         conversationOpen={conversationPanelOpen}
         currentDate={currentDate}

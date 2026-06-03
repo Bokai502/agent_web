@@ -104,8 +104,14 @@ export function AgentWorkspacePanel({
   workspaceListOpen,
   workspaceRefreshNonce = 0,
 }: AgentWorkspacePanelProps) {
+  const panelClassName = [
+    'agent-workspace-panel',
+    activeView ? 'is-open' : 'is-collapsed',
+    activeView ? `is-${activeView}-view` : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <section className={`agent-workspace-panel ${activeView ? 'is-open' : 'is-collapsed'}`}>
+    <section className={panelClassName}>
       {!activeView && (
         <>
           <MagicRings

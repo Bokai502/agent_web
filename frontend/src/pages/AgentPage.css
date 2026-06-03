@@ -818,6 +818,24 @@
   animation: agent-panel-open 240ms ease both;
 }
 
+@media (min-width: 900px) {
+  .agent-page.has-workspace-view.has-left-floating-panel .agent-workspace-panel.is-open {
+    margin-left: 372px;
+  }
+
+  .agent-page.has-workspace-view.has-right-floating-panel .agent-workspace-panel.is-open {
+    margin-right: 372px;
+  }
+
+  .agent-page.has-workspace-view.has-floating-panel .agent-workspace-panel.is-open {
+    min-width: 0;
+  }
+
+  .agent-page.has-floating-panel .agent-workspace-panel.is-log-view .agent-file-stage {
+    grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+  }
+}
+
 .agent-workspace-panel.is-collapsed > .magic-rings-container {
   position: absolute;
   left: 50%;
@@ -2509,6 +2527,36 @@
   padding: 2px 2px 8px;
 }
 
+.agent-workspace-body .wa-conversation-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(68vh, 760px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.38) transparent;
+}
+
+.agent-workspace-body .wa-conversation-load-hint {
+  align-self: center;
+  border: 1px solid rgba(23, 231, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(1, 12, 22, 0.48);
+  color: rgba(234, 247, 255, 0.54);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 12px;
+}
+
+.agent-workspace-body .wa-conversation-session-inline {
+  align-self: center;
+  color: rgba(234, 247, 255, 0.44);
+  font-size: 11px;
+  font-weight: 850;
+}
+
 .agent-workspace-body .wa-conversation-session,
 .agent-workspace-body .wa-conversation-turn {
   display: flex;
@@ -2567,7 +2615,14 @@
   max-width: min(820px, 92%);
   border-left: 2px solid rgba(23, 231, 255, 0.58);
   padding-left: 13px;
-  color: #eaf7ff;
+  color: #ffffff;
+}
+
+.agent-workspace-body .wa-conversation-agent .markdown-body,
+.agent-workspace-body .wa-conversation-agent > div:not(.wa-conversation-agent-head),
+.agent-workspace-body .wa-conversation-agent > div:not(.wa-conversation-agent-head) *,
+.agent-workspace-body .wa-conversation-agent .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div) {
+  color: #ffffff !important;
 }
 
 .agent-workspace-body .wa-conversation-agent-head {
@@ -2593,6 +2648,24 @@
   font-size: 10px;
   font-weight: 850;
   letter-spacing: 0;
+}
+
+.agent-workspace-body .wa-conversation-expand {
+  align-self: flex-start;
+  border: 1px solid rgba(23, 231, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(1, 12, 22, 0.52);
+  color: rgba(234, 247, 255, 0.62);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 7px 11px;
+}
+
+.agent-workspace-body .wa-conversation-expand:hover {
+  border-color: rgba(23, 231, 255, 0.44);
+  color: #ffffff;
 }
 
 .agent-workspace-body .wa-conversation-shell {
@@ -2641,6 +2714,36 @@
   flex-direction: column;
   gap: 18px;
   padding: 2px 4px 8px 2px;
+}
+
+.agent-conversation-popover .wa-conversation-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.agent-conversation-popover .wa-conversation-load-hint {
+  align-self: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(1, 12, 22, 0.45);
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 12px;
+}
+
+.agent-conversation-popover .wa-conversation-session-inline {
+  align-self: center;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  font-weight: 850;
 }
 
 .agent-conversation-popover .wa-conversation-session,
@@ -2727,6 +2830,24 @@
   font-size: 10px;
   font-weight: 850;
   letter-spacing: 0;
+}
+
+.agent-conversation-popover .wa-conversation-expand {
+  align-self: flex-start;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(1, 12, 22, 0.48);
+  color: rgba(255, 255, 255, 0.58);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 7px 11px;
+}
+
+.agent-conversation-popover .wa-conversation-expand:hover {
+  border-color: rgba(255, 255, 255, 0.36);
+  color: #ffffff;
 }
 
 .agent-conversation-popover .wa-conversation-agent .markdown-body {

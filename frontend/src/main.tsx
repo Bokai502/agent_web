@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { APP_NAVIGATION_EVENT } from './app/sessionUtils.ts'
 import './i18n.ts'
 import './styles/app.css'
+import { installDevPerformanceTimelineGuard } from './utils/performanceTimeline.ts'
+
+installDevPerformanceTimelineGuard()
 
 const ModelViewerPage = lazy(() => import('./pages/ModelViewerPage.tsx'))
 const EarthPage = lazy(() => import('./pages/EarthPage.tsx'))

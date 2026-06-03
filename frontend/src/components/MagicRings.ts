@@ -180,7 +180,7 @@ export default function MagicRings({
     const resize = () => {
       const w = mount.clientWidth;
       const h = mount.clientHeight;
-      const dpr = Math.min(window.devicePixelRatio, 2);
+      const dpr = Math.min(window.devicePixelRatio, 1.5);
       renderer.setSize(w, h);
       renderer.setPixelRatio(dpr);
       uniforms.uResolution.value.set(w * dpr, h * dpr);
@@ -210,8 +210,12 @@ export default function MagicRings({
     mount.addEventListener('click', onClick);
 
     let frameId: number;
+    let lastRenderTime = 0;
+    const frameIntervalMs = 1000 / 30;
     const animate = (t: number) => {
       frameId = requestAnimationFrame(animate);
+      if (document.hidden || t - lastRenderTime < frameIntervalMs) return;
+      lastRenderTime = t;
       const p = propsRef.current!;
 
       smoothMouseRef.current[0] += (mouseRef.current[0] - smoothMouseRef.current[0]) * 0.08;
