@@ -37,7 +37,7 @@ function Router() {
   const isGncWorkspace = pathname === '/gnc-workspace' || pathname.startsWith('/gnc-workspace/')
   const isRegionWorkspace = pathname === '/region-workspace' || pathname.startsWith('/region-workspace/')
   const isSplineBot = pathname === '/spline'
-  const isAgent = pathname === '/agent'
+  const isAgent = pathname === '/agent' || pathname.startsWith('/agent/')
   const isV3 = pathname === '/v3'
 
   if (isViewer) {

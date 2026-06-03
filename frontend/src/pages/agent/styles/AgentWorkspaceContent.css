@@ -1,0 +1,998 @@
+.agent-workspace-body .wa-bom-stage,
+.agent-workspace-body .wa-log-stage {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: transparent;
+  color: #eaf7ff;
+  padding: 42px 28px 28px;
+}
+
+.agent-workspace-body .wa-bom-stage-inner,
+.agent-workspace-body .wa-log-stage-inner {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.agent-workspace-body .wa-bom-stage h2,
+.agent-workspace-body .wa-log-stage h2 {
+  margin: 0;
+  color: #f4fbff;
+  font-size: 38px;
+  line-height: 1.05;
+}
+
+.agent-workspace-body .wa-bom-stage p,
+.agent-workspace-body .wa-log-stage p,
+.agent-workspace-body .wa-bom-stage-grid small,
+.agent-workspace-body .wa-log-detail-card p {
+  color: rgba(234, 247, 255, 0.62);
+}
+
+.agent-workspace-body .wa-bom-stage > .wa-bom-stage-inner > p,
+.agent-workspace-body .wa-log-stage > .wa-log-stage-inner > p {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.agent-workspace-body .wa-bom-detail {
+  display: grid;
+  grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.agent-workspace-body .wa-bom-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.agent-workspace-body .wa-bom-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.agent-workspace-body .wa-bom-detail-card,
+.agent-workspace-body .wa-bom-stage-grid button,
+.agent-workspace-body .wa-log-detail-card,
+.agent-workspace-body .wa-file {
+  border: 1px solid rgba(0, 168, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(2, 12, 24, 0.66);
+  box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.08);
+  color: #eaf7ff;
+}
+
+.agent-workspace-body .wa-bom-detail-card {
+  min-width: 0;
+  padding: 18px;
+}
+
+.agent-workspace-body .wa-bom-detail-card img {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.agent-workspace-body .wa-bom-detail-card h3,
+.agent-workspace-body .wa-bom-stage-grid strong,
+.agent-workspace-body .wa-log-detail-card h3,
+.agent-workspace-body .wa-bom-field strong {
+  color: #f4fbff;
+}
+
+.agent-workspace-body .wa-bom-field {
+  min-width: 0;
+  border-radius: 8px;
+  background: rgba(0, 168, 255, 0.07);
+  padding: 11px 12px;
+}
+
+.agent-workspace-body .wa-bom-field span,
+.agent-workspace-body .wa-bom-id,
+.agent-workspace-body .wa-log-detail-field span {
+  display: block;
+  color: var(--hud-cyan);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.agent-workspace-body .wa-bom-field strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.agent-workspace-body .wa-bom-detail-card h3 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.agent-workspace-body .wa-bom-stage-grid button {
+  min-height: 96px;
+  cursor: pointer;
+  padding: 15px;
+  text-align: left;
+}
+
+.agent-workspace-body .wa-bom-stage-grid strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.agent-workspace-body .wa-bom-stage-grid small {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.agent-workspace-body .wa-file {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  text-align: center;
+}
+
+.agent-workspace-body .gnc-editor-shell {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: transparent;
+}
+
+.agent-workspace-body .gnc-editor-top {
+  border-color: rgba(0, 168, 255, 0.22);
+  background: rgba(2, 12, 24, 0.72);
+}
+
+.agent-workspace-body .gnc-editor-card,
+.agent-workspace-body .gnc-editor-preview,
+.agent-workspace-body .gnc-editor-empty {
+  border-color: rgba(0, 168, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(2, 12, 24, 0.66);
+}
+
+.agent-workspace-body .wa-log-detail-card {
+  max-height: min(68vh, 760px);
+  margin-top: 24px;
+  overflow: hidden;
+  padding: 16px;
+  white-space: normal;
+}
+
+.agent-file-stage {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 28px;
+}
+
+.agent-file-tree-pane,
+.agent-file-log-pane {
+  min-width: 0;
+  min-height: 0;
+}
+
+.agent-file-tree-pane {
+  overflow: hidden;
+}
+
+.agent-file-log-pane {
+  overflow: hidden;
+}
+
+.agent-file-log-pane .wa-log-stage {
+  padding: 0;
+}
+
+.agent-file-log-pane .wa-log-stage-inner {
+  max-width: none;
+}
+
+.agent-file-log-pane .wa-log-stage h2 {
+  font-size: 34px;
+}
+
+.agent-file-tree-pane .wa-file-tree-card {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  border: 1px solid rgba(0, 168, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(2, 12, 24, 0.68);
+  box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.08);
+  color: #eaf7ff;
+  overflow: hidden;
+  padding: 14px;
+}
+
+.agent-file-tree-pane .wa-file-tree-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.agent-file-tree-pane .wa-file-tree-head h3 {
+  margin: 0;
+  color: #f4fbff;
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.agent-file-tree-pane .wa-file-tree-download {
+  height: 28px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(23, 231, 255, 0.28);
+  border-radius: 6px;
+  background: rgba(0, 168, 255, 0.12);
+  color: var(--hud-cyan);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 0 10px;
+}
+
+.agent-file-tree-pane .wa-file-tree-download:hover:not(:disabled) {
+  border-color: rgba(23, 231, 255, 0.48);
+  background: rgba(0, 168, 255, 0.2);
+}
+
+.agent-file-tree-pane .wa-file-tree-download:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.agent-file-tree-pane .wa-file-tree-head p {
+  max-width: 180px;
+  margin: 7px 0 0;
+  overflow: hidden;
+  color: rgba(234, 247, 255, 0.58);
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-file-tree-pane .wa-file-tree-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  margin-top: 12px;
+  overflow: auto;
+  border: 1px solid rgba(0, 168, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(1, 7, 14, 0.5);
+  padding: 6px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.42) transparent;
+}
+
+.agent-file-tree-pane .wa-file-tree-row {
+  display: grid;
+  width: 100%;
+  min-height: 30px;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: rgba(234, 247, 255, 0.82);
+  cursor: pointer;
+  padding: 5px 10px;
+  text-align: left;
+}
+
+.agent-file-tree-pane .wa-file-tree-row.is-file {
+  cursor: default;
+}
+
+.agent-file-tree-pane .wa-file-tree-row:disabled {
+  color: rgba(234, 247, 255, 0.58);
+}
+
+.agent-file-tree-pane .wa-file-tree-row.is-directory:hover {
+  background: rgba(0, 168, 255, 0.1);
+}
+
+.agent-file-tree-pane .wa-file-tree-row.is-file:not(:disabled):hover,
+.agent-file-tree-pane .wa-file-tree-row.selected {
+  background: rgba(0, 168, 255, 0.14);
+  color: #f4fbff;
+}
+
+.agent-file-tree-pane .wa-file-tree-icon {
+  color: var(--hud-cyan);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.agent-file-tree-pane .wa-file-tree-name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-file-tree-pane .wa-file-tree-row small {
+  color: rgba(234, 247, 255, 0.46);
+  font-size: 10.5px;
+  font-weight: 750;
+}
+
+.agent-file-tree-pane .wa-file-tree-empty,
+.agent-file-tree-pane .wa-file-tree-error {
+  color: rgba(234, 247, 255, 0.58);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.agent-file-tree-pane .wa-file-tree-error {
+  color: #ff9bb7;
+}
+
+.agent-file-preview {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  border: 1px solid rgba(0, 168, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(2, 12, 24, 0.66);
+  box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.08);
+  color: #eaf7ff;
+  overflow: hidden;
+}
+
+.agent-file-preview header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(0, 168, 255, 0.16);
+  padding: 14px 16px;
+}
+
+.agent-file-preview header strong {
+  display: block;
+  color: #f4fbff;
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.agent-file-preview header span {
+  display: block;
+  margin-top: 6px;
+  color: rgba(234, 247, 255, 0.58);
+  font-size: 11px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.agent-file-preview header small {
+  flex: 0 0 auto;
+  color: var(--hud-cyan);
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.agent-file-preview-body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.42) transparent;
+}
+
+.agent-file-preview-body img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.agent-file-preview-body pre,
+.agent-shiki-code pre {
+  min-height: 100%;
+  margin: 0;
+  border: 1px solid rgba(0, 168, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(1, 7, 14, 0.72);
+  color: #dff8ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.58;
+  overflow: auto;
+  padding: 14px;
+}
+
+.agent-file-preview-body pre,
+.agent-shiki-fallback {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.agent-shiki-code {
+  min-height: 100%;
+}
+
+.agent-shiki-code pre {
+  white-space: pre;
+}
+
+.agent-file-preview .wa-log-markdown {
+  max-height: none;
+  margin: 0;
+}
+
+.agent-file-preview .wa-conversation-log {
+  max-height: none;
+  min-height: 100%;
+}
+
+.agent-file-preview.is-empty,
+.agent-file-preview-unavailable {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+.agent-file-preview.is-empty strong,
+.agent-file-preview-unavailable strong {
+  color: #f4fbff;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.agent-file-preview.is-empty span,
+.agent-file-preview-unavailable span {
+  color: rgba(234, 247, 255, 0.58);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.agent-file-preview.is-error strong {
+  color: #ff9bb7;
+}
+
+.agent-workspace-body .wa-log-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.agent-workspace-body .wa-log-detail-field {
+  min-width: 0;
+  border: 1px solid rgba(0, 168, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(0, 168, 255, 0.07);
+  padding: 11px 12px;
+}
+
+.agent-workspace-body .wa-log-detail-field strong {
+  display: block;
+  margin-top: 5px;
+  color: #f4fbff;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.agent-workspace-body .wa-log-raw,
+.agent-workspace-body .wa-log-markdown,
+.agent-workspace-body .wa-conversation-log {
+  max-height: min(62vh, 700px);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.42) transparent;
+}
+
+.agent-workspace-body .wa-log-raw {
+  margin: 16px 0 0;
+  border: 1px solid rgba(0, 168, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(1, 7, 14, 0.76);
+  color: rgba(234, 247, 255, 0.82);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+.agent-workspace-body .wa-log-raw.only-content,
+.agent-workspace-body .wa-log-markdown.only-content {
+  margin-top: 0;
+}
+
+.agent-workspace-body .wa-log-markdown {
+  --blue: #5fdfff;
+  --border: rgba(95, 223, 255, 0.22);
+  --code-bg: rgba(2, 14, 27, 0.86);
+  --text: #eefbff;
+  --text-2: rgba(234, 247, 255, 0.82);
+  --text-3: rgba(234, 247, 255, 0.62);
+  margin-top: 16px;
+  border: 1px solid rgba(0, 168, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(1, 8, 16, 0.72);
+  color: #eefbff;
+  padding: 16px;
+}
+
+.agent-workspace-body .wa-log-markdown .markdown-body,
+.agent-workspace-body .wa-conversation-agent .markdown-body {
+  color: #eefbff;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.agent-workspace-body .wa-log-markdown :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em),
+.agent-workspace-body .wa-log-markdown .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em) {
+  color: inherit;
+}
+
+.agent-workspace-body .wa-log-markdown :where(h1, h2, h3) {
+  color: #f8fdff;
+}
+
+.agent-workspace-body .wa-log-markdown .markdown-body :where(p, ul, ol, pre, blockquote),
+.agent-workspace-body .wa-conversation-agent .markdown-body :where(p, ul, ol, pre, blockquote) {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.agent-workspace-body .wa-log-markdown .markdown-body :where(code, pre),
+.agent-workspace-body .wa-conversation-agent .markdown-body :where(code, pre) {
+  border: 1px solid rgba(0, 168, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(2, 14, 27, 0.86);
+  color: #dff8ff;
+}
+
+.agent-workspace-body .wa-log-markdown :where(a) {
+  color: #5fdfff;
+}
+
+.agent-workspace-body .wa-log-markdown :where(table) {
+  color: #eefbff;
+}
+
+.agent-workspace-body .wa-log-markdown :where(th, td) {
+  border-color: rgba(95, 223, 255, 0.2) !important;
+}
+
+.agent-workspace-body .wa-log-markdown img {
+  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.agent-workspace-body .wa-conversation-log {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 2px 2px 8px;
+}
+
+.agent-workspace-body .wa-conversation-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(68vh, 760px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.38) transparent;
+}
+
+.agent-workspace-body .wa-conversation-load-hint {
+  align-self: center;
+  border: 1px solid rgba(23, 231, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(1, 12, 22, 0.48);
+  color: rgba(234, 247, 255, 0.54);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 12px;
+}
+
+.agent-workspace-body .wa-conversation-session-inline {
+  align-self: center;
+  color: rgba(234, 247, 255, 0.44);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.agent-workspace-body .wa-conversation-session,
+.agent-workspace-body .wa-conversation-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agent-workspace-body .wa-conversation-session + .wa-conversation-session {
+  border-top: 1px solid rgba(0, 168, 255, 0.16);
+  padding-top: 16px;
+}
+
+.agent-workspace-body .wa-conversation-session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(0, 168, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 168, 255, 0.07);
+  padding: 10px 12px;
+}
+
+.agent-workspace-body .wa-conversation-session-head strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f4fbff;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .wa-conversation-session-head span {
+  flex: 0 0 auto;
+  color: var(--hud-cyan);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.agent-workspace-body .wa-conversation-user {
+  align-self: flex-end;
+  max-width: min(760px, 78%);
+  border: 1px solid rgba(85, 142, 247, 0.32);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(85, 142, 247, 0.2), rgba(0, 168, 255, 0.09));
+  box-shadow: inset 0 0 18px rgba(85, 142, 247, 0.1);
+  color: #f4fbff;
+  font-size: 14px;
+  line-height: 1.58;
+  padding: 12px 15px;
+  overflow-wrap: anywhere;
+}
+
+.agent-workspace-body .wa-conversation-agent {
+  align-self: flex-start;
+  max-width: min(820px, 92%);
+  border-left: 2px solid rgba(23, 231, 255, 0.58);
+  padding-left: 13px;
+  color: #ffffff;
+}
+
+.agent-workspace-body .wa-conversation-agent .markdown-body,
+.agent-workspace-body .wa-conversation-agent > div:not(.wa-conversation-agent-head),
+.agent-workspace-body .wa-conversation-agent > div:not(.wa-conversation-agent-head) *,
+.agent-workspace-body .wa-conversation-agent .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div) {
+  color: #ffffff !important;
+}
+
+.agent-workspace-body .wa-conversation-agent-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+  color: #f4fbff;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.agent-workspace-body .wa-conversation-agent-icon {
+  display: grid;
+  width: 28px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid rgba(23, 231, 255, 0.34);
+  border-radius: 6px;
+  background: rgba(23, 231, 255, 0.12);
+  box-shadow: inset 0 0 12px rgba(23, 231, 255, 0.12);
+  color: var(--hud-cyan);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.agent-workspace-body .wa-conversation-expand {
+  align-self: flex-start;
+  border: 1px solid rgba(23, 231, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(1, 12, 22, 0.52);
+  color: rgba(234, 247, 255, 0.62);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 7px 11px;
+}
+
+.agent-workspace-body .wa-conversation-expand:hover {
+  border-color: rgba(23, 231, 255, 0.44);
+  color: #ffffff;
+}
+
+.agent-workspace-body .wa-conversation-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(820px, 92%);
+  overflow: hidden;
+  border: 1px solid rgba(0, 168, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(1, 7, 14, 0.72);
+  color: rgba(234, 247, 255, 0.8);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  padding: 9px 12px;
+}
+
+.agent-workspace-body .wa-conversation-shell span,
+.agent-workspace-body .wa-conversation-shell small {
+  flex: 0 0 auto;
+  color: rgba(23, 231, 255, 0.72);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.agent-workspace-body .wa-conversation-shell code {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: #dff8ff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .wa-conversation-shell small.ok {
+  color: #77ffc0;
+}
+
+.agent-workspace-body .wa-conversation-shell small.bad {
+  color: #ff9bb7;
+}
+
+.agent-conversation-popover .wa-conversation-log {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 2px 4px 8px 2px;
+}
+
+.agent-conversation-popover .wa-conversation-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.agent-conversation-popover .wa-conversation-load-hint {
+  align-self: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(1, 12, 22, 0.45);
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 12px;
+}
+
+.agent-conversation-popover .wa-conversation-session-inline {
+  align-self: center;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.agent-conversation-popover .wa-conversation-session,
+.agent-conversation-popover .wa-conversation-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agent-conversation-popover .wa-conversation-session + .wa-conversation-session {
+  border-top: 1px solid rgba(0, 168, 255, 0.16);
+  padding-top: 16px;
+}
+
+.agent-conversation-popover .wa-conversation-session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(0, 168, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 168, 255, 0.07);
+  padding: 10px 12px;
+}
+
+.agent-conversation-popover .wa-conversation-session-head strong {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-conversation-popover .wa-conversation-session-head span {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.agent-conversation-popover .wa-conversation-user {
+  align-self: flex-end;
+  max-width: 88%;
+  border: 1px solid rgba(85, 142, 247, 0.32);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(85, 142, 247, 0.2), rgba(0, 168, 255, 0.09));
+  box-shadow: inset 0 0 18px rgba(85, 142, 247, 0.1);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+  line-height: 1.58;
+  padding: 11px 13px;
+  overflow-wrap: anywhere;
+}
+
+.agent-conversation-popover .wa-conversation-agent {
+  align-self: flex-start;
+  max-width: 96%;
+  border-left: 2px solid rgba(23, 231, 255, 0.58);
+  padding-left: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.agent-conversation-popover .wa-conversation-agent-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.agent-conversation-popover .wa-conversation-agent-icon {
+  display: grid;
+  width: 28px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid rgba(23, 231, 255, 0.34);
+  border-radius: 6px;
+  background: rgba(23, 231, 255, 0.12);
+  box-shadow: inset 0 0 12px rgba(23, 231, 255, 0.12);
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.agent-conversation-popover .wa-conversation-expand {
+  align-self: flex-start;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(1, 12, 22, 0.48);
+  color: rgba(255, 255, 255, 0.58);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 7px 11px;
+}
+
+.agent-conversation-popover .wa-conversation-expand:hover {
+  border-color: rgba(255, 255, 255, 0.36);
+  color: #ffffff;
+}
+
+.agent-conversation-popover .wa-conversation-agent .markdown-body {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.agent-conversation-popover .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div),
+.agent-conversation-popover .wa-conversation-agent .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div) {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+
+.agent-conversation-popover .markdown-body :where(a),
+.agent-conversation-popover .wa-conversation-agent .markdown-body :where(a) {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.agent-conversation-popover .wa-conversation-agent .markdown-body :where(p, ul, ol, pre, blockquote) {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.agent-conversation-popover .wa-conversation-agent .markdown-body :where(code, pre) {
+  border: 1px solid rgba(0, 168, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(2, 14, 27, 0.86);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.agent-conversation-popover .wa-conversation-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 96%;
+  overflow: hidden;
+  border: 1px solid rgba(0, 168, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(1, 7, 14, 0.72);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+}
+
+.agent-conversation-popover .wa-conversation-shell span,
+.agent-conversation-popover .wa-conversation-shell small {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.agent-conversation-popover .wa-conversation-shell code {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.78);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-conversation-popover .wa-conversation-shell small.ok {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.agent-conversation-popover .wa-conversation-shell small.bad {
+  color: rgba(255, 255, 255, 0.58);
+}

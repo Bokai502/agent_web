@@ -1,23 +1,14 @@
 import { useCallback, useEffect, useState } from "react"
-import { joinApiPath } from "../../app/apiBase"
+import {
+  downloadBlob,
+  fetchWorkspaceArchive,
+  fetchWorkspaceFileTree,
+  type WorkspaceFileTreeEntry,
+  workspaceArchiveFileName,
+} from "../agent/files/workspaceFilesApi"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 
-type FileTreeEntry = {
-  mtimeMs: number
-  name: string
-  relativePath: string
-  size?: number
-  type: "directory" | "file"
-}
-
-export type GeneratedFileTreeEntry = FileTreeEntry
-
-type FileTreeResponse = {
-  entries?: FileTreeEntry[]
-  relativePath?: string
-  truncated?: boolean
-  workspaceDir?: string
-}
+export type GeneratedFileTreeEntry = WorkspaceFileTreeEntry
 
 type GeneratedFilesTreeCardProps = {
   activeContext: WorkspaceVersionContext
@@ -29,23 +20,12 @@ type GeneratedFilesTreeCardProps = {
 
 const ROOT_PATH = ""
 
-function buildWorkspaceQuery(context: Pick<WorkspaceVersionContext, "versionDir" | "versionId" | "workspaceId">, relativePath: string) {
-  if (!context.versionDir) return ""
-  const params = new URLSearchParams({
-    workspaceDir: context.versionDir,
-  })
-  if (context.workspaceId) params.set("workspaceId", context.workspaceId)
-  if (context.versionId) params.set("versionId", context.versionId)
-  if (relativePath) params.set("relativePath", relativePath)
-  return `?${params.toString()}`
-}
-
 export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, refreshNonce = 0, selectedFilePath }: GeneratedFilesTreeCardProps) {
   const versionDir = activeContext.versionDir
   const workspaceId = activeContext.workspaceId
   const versionId = activeContext.versionId
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set())
-  const [entriesByPath, setEntriesByPath] = useState<Record<string, FileTreeEntry[]>>({})
+  const [entriesByPath, setEntriesByPath] = useState<Record<string, WorkspaceFileTreeEntry[]>>({})
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState("")
   const [downloading, setDownloading] = useState(false)
@@ -58,9 +38,7 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     setError("")
     setLoadingPaths(prev => new Set(prev).add(relativePath))
     try {
-      const response = await fetch(`${joinApiPath(apiBase, "/workspace/files/tree")}${buildWorkspaceQuery({ versionDir, versionId, workspaceId }, relativePath)}`, { cache: "no-store" })
-      if (!response.ok) throw new Error("文件列表读取失败")
-      const data = await response.json() as FileTreeResponse
+      const data = await fetchWorkspaceFileTree({ apiBase, context: activeContext, relativePath })
       setEntriesByPath(prev => ({
         ...prev,
         [relativePath]: Array.isArray(data.entries) ? data.entries : [],
@@ -74,7 +52,7 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
         return next
       })
     }
-  }, [apiBase, versionDir, versionId, workspaceId])
+  }, [activeContext, apiBase, versionDir])
 
   const toggleDirectory = useCallback((relativePath: string) => {
     setExpandedPaths(prev => {
@@ -94,24 +72,14 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     setDownloading(true)
     setError("")
     try {
-      const response = await fetch(`${joinApiPath(apiBase, "/workspace/files/archive")}${buildWorkspaceQuery({ versionDir, versionId, workspaceId }, "")}`, { cache: "no-store" })
-      if (!response.ok) throw new Error("文件打包下载失败")
-      const blob = await response.blob()
-      const objectUrl = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      const archiveName = `${versionId || workspaceId || "workspace"}.zip`
-      link.href = objectUrl
-      link.download = archiveName
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(objectUrl)
+      const blob = await fetchWorkspaceArchive({ apiBase, context: activeContext })
+      downloadBlob(blob, workspaceArchiveFileName(activeContext))
     } catch (err) {
       setError(err instanceof Error ? err.message : "文件打包下载失败")
     } finally {
       setDownloading(false)
     }
-  }, [apiBase, downloading, versionDir, versionId, workspaceId])
+  }, [activeContext, apiBase, downloading, versionDir])
 
   useEffect(() => {
     setExpandedPaths(new Set())
@@ -125,7 +93,7 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     void loadPath(ROOT_PATH)
   }, [loadPath, refreshNonce, versionDir])
 
-  const renderEntries = (entries: FileTreeEntry[], depth = 0) => entries.map(entry => {
+  const renderEntries = (entries: WorkspaceFileTreeEntry[], depth = 0) => entries.map(entry => {
     const isDirectory = entry.type === "directory"
     const isExpanded = expandedPaths.has(entry.relativePath)
     const children = entriesByPath[entry.relativePath] ?? []

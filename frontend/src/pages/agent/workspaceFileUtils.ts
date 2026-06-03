@@ -4,25 +4,15 @@ import {
   CONVERSATION_PREVIEW_SESSION_LIMIT,
   CONVERSATION_PREVIEW_TURN_LIMIT,
 } from './constants'
+import { buildWorkspaceFilesQuery } from './files/workspaceFilesApi'
 import type { WorkspaceContextQuery, WorkspaceFilePreview } from './types'
 
 export function buildWorkspaceQuery(activeContext: WorkspaceContextQuery) {
-  if (!activeContext.versionDir) return ''
-  return `?${new URLSearchParams({
-    workspaceDir: activeContext.versionDir,
-    ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
-    ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
-  }).toString()}`
+  return buildWorkspaceFilesQuery(activeContext)
 }
 
 export function buildWorkspaceFileQuery(activeContext: WorkspaceContextQuery, relativePath: string) {
-  if (!activeContext.versionDir) return ''
-  return `?${new URLSearchParams({
-    workspaceDir: activeContext.versionDir,
-    relativePath,
-    ...(activeContext.workspaceId ? { workspaceId: activeContext.workspaceId } : {}),
-    ...(activeContext.versionId ? { versionId: activeContext.versionId } : {}),
-  }).toString()}`
+  return buildWorkspaceFilesQuery(activeContext, { relativePath })
 }
 
 export function isMarkdownFile(file: WorkspaceFilePreview) {

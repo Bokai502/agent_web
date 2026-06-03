@@ -4,16 +4,16 @@ import { GncConfigEditor } from '../../../gnc_config/GncConfigEditor'
 import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
 import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
-import { GeneratedFilesTreeCard, type GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
-import { WorkspaceFilePreviewPanel } from './WorkspaceFilePreviewPanel'
+import { AgentFilesView } from './files/AgentFilesView'
+import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
 
 type CurrentWorkspaceCardProps = ComponentProps<typeof CurrentWorkspaceCard>
 type BomStagePanelProps = ComponentProps<typeof BomStagePanel>
-type GeneratedFilesTreeCardProps = ComponentProps<typeof GeneratedFilesTreeCard>
+type AgentFilesViewProps = ComponentProps<typeof AgentFilesView>
 
 type AgentWorkspacePanelProps = {
-  activeContext: GeneratedFilesTreeCardProps['activeContext'] & {
+  activeContext: AgentFilesViewProps['activeContext'] & {
     versionDir?: string | null
     versionId?: string | null
     workspaceName?: string | null
@@ -198,26 +198,15 @@ export function AgentWorkspacePanel({
         ) : activeView === 'tools' ? (
           <iframe className="agent-embed-frame" title={activeTool} src={toolUrls[activeTool]} />
         ) : (
-          <div className="agent-file-stage">
-            <aside className="agent-file-tree-pane">
-              <GeneratedFilesTreeCard
-                activeContext={activeContext}
-                onSelectFile={handleSelectFile}
-                refreshNonce={workspaceRefreshNonce}
-                selectedFilePath={selectedFilePath}
-              />
-            </aside>
-            <div className="agent-file-log-pane">
-              {selectedFilePath ? (
-                <WorkspaceFilePreviewPanel
-                  error={selectedFileError}
-                  file={selectedFilePreview}
-                  loading={selectedFileLoading}
-                  selectedPath={selectedFilePath}
-                />
-              ) : null}
-            </div>
-          </div>
+          <AgentFilesView
+            activeContext={activeContext}
+            handleSelectFile={handleSelectFile}
+            selectedFileError={selectedFileError}
+            selectedFileLoading={selectedFileLoading}
+            selectedFilePath={selectedFilePath}
+            selectedFilePreview={selectedFilePreview}
+            workspaceRefreshNonce={workspaceRefreshNonce}
+          />
         )}
       </div>
     </section>
