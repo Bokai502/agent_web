@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { joinApiPath } from '../app/apiBase'
+import { getGncToolUrl, getRemoteToolUrl } from '../app/runtimeConfig'
 import { useBomInfo } from '../hooks/useBomInfo'
 import { useWorkspaceAppState } from '../hooks/useWorkspaceAppState'
 import { formatProgressUpdatedAt, type WorkflowProgressVariant } from './workspace/progressUtils'
@@ -19,7 +20,6 @@ import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
   NAV_VIEWS,
-  NOVNC_URL_PARAMS,
   WORKSPACE_GEOMETRY_AFTER_GLB_PATH,
 } from './agent/constants'
 import type {
@@ -118,10 +118,10 @@ export default function AgentPage() {
     return `/viewer?${params.toString()}`
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, workspaceRefreshNonce])
   const toolUrls = useMemo(() => ({
-    cad: `http://${remoteToolHost}:6080/${NOVNC_URL_PARAMS}`,
-    paraview: `http://${remoteToolHost}:6081/${NOVNC_URL_PARAMS}`,
-    comsol: `http://${remoteToolHost}:6082/${NOVNC_URL_PARAMS}`,
-    gnc: 'http://10.110.10.11:8765/',
+    cad: getRemoteToolUrl('cad', remoteToolHost),
+    paraview: getRemoteToolUrl('paraview', remoteToolHost),
+    comsol: getRemoteToolUrl('comsol', remoteToolHost),
+    gnc: getGncToolUrl(),
   }), [remoteToolHost])
   const progressVariant = useMemo<WorkflowProgressVariant>(() => {
     const marker = [

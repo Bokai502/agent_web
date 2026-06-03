@@ -7,7 +7,12 @@ import os
 from pathlib import Path
 from typing import Any
 
-CODEX_WEB_CONFIG_PATH = Path("/data/lbk/codex_web/config.json")
+CODEX_WEB_CONFIG_PATH = Path(
+    os.getenv(
+        "CODEX_WEB_CONFIG_PATH",
+        Path(__file__).resolve().parents[6] / "config.json",
+    )
+)
 _CONFIG_CACHE: dict[str, Any] | None = None
 _WORKSPACE_OVERRIDE: Path | None = None
 

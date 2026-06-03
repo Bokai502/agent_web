@@ -4,6 +4,7 @@ export interface VersionRecord {
   id: string
   parentVersionId: string | null
   [key: string]: unknown
+  group?: string
   label?: string
   status: VersionStatus
   workspaceDir: string
@@ -72,6 +73,7 @@ export interface ScoreRecord {
 export interface WorkspaceManifest {
   schemaVersion: "1.0"
   workspaceId: string
+  group?: string
   sessionId: string
   rootDir: string
   activeVersionId: string | null

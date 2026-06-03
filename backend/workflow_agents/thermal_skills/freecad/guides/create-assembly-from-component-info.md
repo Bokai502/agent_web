@@ -53,7 +53,7 @@ available, falls back to box placeholders when needed, and exports:
 | `--output` | no | Optional STEP output path or directory. Export names remain `component_info_assembly.step` and `component_info_assembly.glb`. |
 | `--max-step-size-mb` | no | Maximum STEP/STP size to import before falling back to a box. Defaults to the value reported by `python -m freecad_cli_tools.cli.main config show` as `component_info_max_step_size_mb`; use `-1` to disable the limit. |
 | `--no-fit-view` | no | Skip GUI fit/view update. |
-| `--host`, `--port` | no | FreeCAD RPC settings. Defaults come from `FREECAD_RPC_HOST` / `FREECAD_RPC_PORT`, then `/data/lbk/codex_web/config.json` fields `freecad.rpcHost` / `freecad.rpcPort`. |
+| `--host`, `--port` | no | FreeCAD RPC settings. Defaults come from `FREECAD_RPC_HOST` / `FREECAD_RPC_PORT`, then `/data/lbk/codex_web/open_codex_web/config.json` fields `freecad.rpcHost` / `freecad.rpcPort`. |
 
 ## Data Mapping
 
@@ -90,11 +90,11 @@ For each candidate component from `real_bom.items`:
 
 Resolve the workspace from the Open Codex Web execution context `workspace_dir`.
 Workspace/version selection is request-scoped; `/api/run`, checkout, and branch
-do not update `/data/lbk/codex_web/config.json`. Always pass the execution
+do not update `/data/lbk/codex_web/open_codex_web/config.json`. Always pass the execution
 context workspace explicitly with `--workspace-dir <workspace_dir>` for
 `config show` and `assembly create-from-component-info`. Do not rely on
 `config.json`, process `cwd`, or CLI defaults during Open Codex Web runs.
-`/data/lbk/codex_web/config.json` field `freecad.workspaceDir`,
+`/data/lbk/codex_web/open_codex_web/config.json` field `freecad.workspaceDir`,
 `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
 non-Web/manual CLI use.
 

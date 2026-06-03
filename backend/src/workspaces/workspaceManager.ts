@@ -4,8 +4,12 @@ import { fileURLToPath } from "url"
 import { getRequestWorkspaceRootOverride } from "../server/requestContext.js"
 
 const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
-const PROJECT_ROOT = path.resolve(BACKEND_SRC_DIR, "..", "..", "..", "..")
-const ROOT_CONFIG_JSON = path.join(PROJECT_ROOT, "config.json")
+const BACKEND_ROOT = path.basename(BACKEND_SRC_DIR) === "workspaces"
+  ? path.resolve(BACKEND_SRC_DIR, "..", "..")
+  : path.resolve(BACKEND_SRC_DIR, "..")
+const APP_ROOT = path.resolve(BACKEND_ROOT, "..")
+const PROJECT_ROOT = path.resolve(APP_ROOT, "..")
+const APP_CONFIG_JSON = path.join(APP_ROOT, "config.json")
 const DEFAULT_WORKSPACE_ROOT = path.join(PROJECT_ROOT, "data", "input_data")
 const LEGACY_CAD_CONFIG_KEY = ["free", "cad"].join("")
 const WORKSPACE_CONFIG_KEY = "workspace"
@@ -33,14 +37,14 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 async function readRootConfig() {
-  const raw = await fs.readFile(ROOT_CONFIG_JSON, "utf-8")
+  const raw = await fs.readFile(APP_CONFIG_JSON, "utf-8")
   return JSON.parse(raw) as RootConfig
 }
 
 async function writeRootConfig(config: RootConfig) {
-  const tmpPath = `${ROOT_CONFIG_JSON}.tmp-${process.pid}-${Date.now()}`
+  const tmpPath = `${APP_CONFIG_JSON}.tmp-${process.pid}-${Date.now()}`
   await fs.writeFile(tmpPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8")
-  await fs.rename(tmpPath, ROOT_CONFIG_JSON)
+  await fs.rename(tmpPath, APP_CONFIG_JSON)
 }
 
 function getConfiguredWorkspaceDir(config: RootConfig) {

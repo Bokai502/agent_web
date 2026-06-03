@@ -1,10 +1,20 @@
 import fs from "fs"
 import path from "path"
 import os from "os"
+import { fileURLToPath } from "url"
 
 export type LogLevel = "debug" | "info" | "warn" | "error"
 
 export interface AppConfig {
+  cosyvoice: {
+    apiUrl: string | null
+    promptText: string | null
+    promptWav: string | null
+    root: string | null
+    streamCacheMaxItems: number
+    streamCacheTtlMs: number
+    ttsMaxTextLength: number
+  }
   openai: {
     apiKey: string
     baseUrl: string
@@ -27,9 +37,21 @@ export interface AppConfig {
     corsOrigin: string | string[]
   }
   workspace: {
+    filesystemGroup: string
+    filePreviewMaxBytes: number
+    textChunkBytes: number
+    textChunkMaxBytes: number
+    textFileMaxBytes: number
     workspaceDir: string | null
     rpcHost: string
     rpcPort: number
+  }
+  whisper: {
+    bin: string | null
+    cudaVisibleDevices: string | null
+    defaultLanguage: string | null
+    ffmpegBin: string | null
+    modelPath: string | null
   }
   logging: {
     level: LogLevel
@@ -38,9 +60,14 @@ export interface AppConfig {
   }
 }
 
-const ROOT_CONFIG_FILE = path.resolve(process.cwd(), "..", "..", "config.json")
+const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
+const BACKEND_ROOT = path.basename(BACKEND_SRC_DIR) === "src" || path.basename(BACKEND_SRC_DIR) === "dist"
+  ? path.resolve(BACKEND_SRC_DIR, "..")
+  : path.resolve(process.cwd())
+const PROJECT_ROOT = path.resolve(BACKEND_ROOT, "..")
+const PROJECT_CONFIG_FILE = path.join(PROJECT_ROOT, "config.json")
 const LOCAL_CONFIG_FILE = path.resolve(process.cwd(), "config.json")
-const CONFIG_FILE = fs.existsSync(ROOT_CONFIG_FILE) ? ROOT_CONFIG_FILE : LOCAL_CONFIG_FILE
+const CONFIG_FILE = fs.existsSync(PROJECT_CONFIG_FILE) ? PROJECT_CONFIG_FILE : LOCAL_CONFIG_FILE
 const DEFAULT_CORS_ORIGINS = [
   "http://localhost:5174",
   "http://127.0.0.1:5174",
@@ -112,11 +139,26 @@ function optionalBoolean(value: unknown, field: string): boolean | null {
   die(`${field} 必须是布尔值 true/false。`)
 }
 
+function optionalNumber(value: unknown, field: string): number | null {
+  if (value == null) return null
+  const numeric = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(numeric)) die(`${field} 必须是数字。`)
+  return numeric
+}
+
+function positiveInteger(value: unknown, field: string, fallback: number): number {
+  const numeric = optionalNumber(value, field)
+  if (numeric == null) return fallback
+  const integer = Math.trunc(numeric)
+  if (integer <= 0) die(`${field} 必须是正整数。`)
+  return integer
+}
+
 export function loadConfig(): AppConfig {
   if (!fs.existsSync(CONFIG_FILE)) {
     die(
       `配置文件不存在: ${CONFIG_FILE}\n` +
-      `请在 /data/lbk/codex_web/config.json 中配置 openai、server、frontend、workspace 等参数后再启动。`
+      `请在 open_codex_web/config.json 中配置 openai、server、frontend、workspace 等参数后再启动。`
     )
   }
 
@@ -159,6 +201,8 @@ export function loadConfig(): AppConfig {
       : {})
   ) as Partial<AppConfig["workspace"]>
   const logging = cfg.logging ?? {} as Partial<AppConfig["logging"]>
+  const whisper = cfg.whisper ?? {} as Partial<AppConfig["whisper"]>
+  const cosyvoice = cfg.cosyvoice ?? {} as Partial<AppConfig["cosyvoice"]>
   const envServerPort = process.env.BACKEND_PORT ? Number(process.env.BACKEND_PORT) : null
 
   if (envServerPort !== null && (!Number.isInteger(envServerPort) || envServerPort <= 0)) {
@@ -188,9 +232,58 @@ export function loadConfig(): AppConfig {
       corsOrigin: normalizeCorsOrigin(server.corsOrigin),
     },
     workspace: {
+      filesystemGroup: optionalString(process.env.WORKSPACE_FILESYSTEM_GROUP ?? workspace.filesystemGroup, "workspace.filesystemGroup") ?? "xieteam",
+      filePreviewMaxBytes: positiveInteger(
+        process.env.WORKSPACE_FILE_PREVIEW_MAX_BYTES ?? workspace.filePreviewMaxBytes,
+        "workspace.filePreviewMaxBytes",
+        1024 * 1024,
+      ),
+      textChunkBytes: positiveInteger(
+        process.env.WORKSPACE_TEXT_CHUNK_BYTES ?? workspace.textChunkBytes,
+        "workspace.textChunkBytes",
+        512 * 1024,
+      ),
+      textChunkMaxBytes: positiveInteger(
+        process.env.WORKSPACE_TEXT_CHUNK_MAX_BYTES ?? workspace.textChunkMaxBytes,
+        "workspace.textChunkMaxBytes",
+        1024 * 1024,
+      ),
+      textFileMaxBytes: positiveInteger(
+        process.env.WORKSPACE_TEXT_FILE_MAX_BYTES ?? workspace.textFileMaxBytes,
+        "workspace.textFileMaxBytes",
+        8 * 1024 * 1024,
+      ),
       workspaceDir: workspace.workspaceDir ?? null,
       rpcHost: workspace.rpcHost ?? "localhost",
       rpcPort: workspace.rpcPort ?? 9877,
+    },
+    whisper: {
+      bin: optionalString(process.env.WHISPER_CPP_BIN ?? whisper.bin, "whisper.bin"),
+      cudaVisibleDevices: optionalString(process.env.WHISPER_CUDA_VISIBLE_DEVICES ?? whisper.cudaVisibleDevices, "whisper.cudaVisibleDevices"),
+      defaultLanguage: optionalString(process.env.WHISPER_LANGUAGE ?? whisper.defaultLanguage, "whisper.defaultLanguage"),
+      ffmpegBin: optionalString(process.env.WHISPER_FFMPEG_BIN ?? whisper.ffmpegBin, "whisper.ffmpegBin"),
+      modelPath: optionalString(process.env.WHISPER_MODEL_PATH ?? whisper.modelPath, "whisper.modelPath"),
+    },
+    cosyvoice: {
+      apiUrl: optionalString(process.env.COSYVOICE_API_URL ?? cosyvoice.apiUrl, "cosyvoice.apiUrl"),
+      promptText: optionalString(process.env.COSYVOICE_PROMPT_TEXT ?? cosyvoice.promptText, "cosyvoice.promptText"),
+      promptWav: optionalString(process.env.COSYVOICE_PROMPT_WAV ?? cosyvoice.promptWav, "cosyvoice.promptWav"),
+      root: optionalString(process.env.COSYVOICE_ROOT ?? cosyvoice.root, "cosyvoice.root"),
+      streamCacheMaxItems: positiveInteger(
+        process.env.COSYVOICE_TTS_CACHE_MAX_ITEMS ?? cosyvoice.streamCacheMaxItems,
+        "cosyvoice.streamCacheMaxItems",
+        64,
+      ),
+      streamCacheTtlMs: positiveInteger(
+        process.env.COSYVOICE_TTS_CACHE_TTL_MS ?? cosyvoice.streamCacheTtlMs,
+        "cosyvoice.streamCacheTtlMs",
+        1000 * 60 * 10,
+      ),
+      ttsMaxTextLength: positiveInteger(
+        process.env.COSYVOICE_TTS_MAX_TEXT_LENGTH ?? cosyvoice.ttsMaxTextLength,
+        "cosyvoice.ttsMaxTextLength",
+        5000,
+      ),
     },
     logging: {
       level: logging.level ?? "info",

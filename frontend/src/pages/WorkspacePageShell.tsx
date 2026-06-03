@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { joinApiPath } from "../app/apiBase"
+import { getRemoteToolUrl } from "../app/runtimeConfig"
 import { APP_NAVIGATION_EVENT } from "../app/sessionUtils"
 import { useBomInfo } from "../hooks/useBomInfo"
 import { useWorkspaceAppState } from "../hooks/useWorkspaceAppState"
@@ -30,7 +31,6 @@ import "./workspace/WorkspaceSessionPage.css"
 
 const WORKSPACE_HOME_PATH = "/workspace"
 const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "02_geometry_edit/geometry_after.glb"
-const NOVNC_URL_PARAMS = "vnc.html?autoconnect=true&resize=scale&path=websockify"
 const WORKSPACE_PANEL_PARAM_VALUES = ["bom", "log", "model", "cad", "paraview", "comsol", "gnc-config"] as const
 
 type ViewerComponentMessage = {
@@ -216,9 +216,9 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, externalModelViewerUrl, workspaceRefreshNonce])
-  const cadHref = `http://${remoteToolHost}:6080/${NOVNC_URL_PARAMS}`
-  const paraviewHref = `http://${remoteToolHost}:6081/${NOVNC_URL_PARAMS}`
-  const comsolHref = `http://${remoteToolHost}:6082/${NOVNC_URL_PARAMS}`
+  const cadHref = getRemoteToolUrl("cad", remoteToolHost)
+  const paraviewHref = getRemoteToolUrl("paraview", remoteToolHost)
+  const comsolHref = getRemoteToolUrl("comsol", remoteToolHost)
   const activeTool = activePanel === "cad"
     ? { label: "CAD", subtitle: t("workspace.tools.cadSubtitle"), title: t("workspace.tools.cadTitle"), url: cadHref }
     : activePanel === "paraview"

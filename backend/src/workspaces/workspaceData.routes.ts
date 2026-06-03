@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify"
 import fs from "fs/promises"
 import path from "path"
 import { spawn } from "child_process"
+import type { AppConfig } from "../config.js"
 import { isPathInside } from "../shared/index.js"
 import { resolveProgressFromLatestSessionRun } from "./workspaceRegistry.js"
 import { resolveScopedWorkspaceFilePath } from "./workspaceFiles.js"
@@ -77,10 +78,13 @@ const THERMAL_DB_JSON_RELATIVE_PATH = path.join(
   "热仿真数据库.json",
 )
 const MAX_FILE_TREE_ENTRIES = 500
-const MAX_FILE_PREVIEW_BYTES = 1024 * 1024
-const MAX_TEXT_FILE_BYTES = 8 * 1024 * 1024
-const DEFAULT_TEXT_CHUNK_BYTES = 512 * 1024
-const MAX_TEXT_CHUNK_BYTES = 1024 * 1024
+
+let workspaceFileLimits = {
+  filePreviewMaxBytes: 1024 * 1024,
+  textChunkBytes: 512 * 1024,
+  textChunkMaxBytes: 1024 * 1024,
+  textFileMaxBytes: 8 * 1024 * 1024,
+}
 
 type TemperaturePoint = {
   temperature: number
@@ -252,7 +256,7 @@ async function readWorkspaceFileContent(workspaceDir: string, relativePath: unkn
     }
   }
 
-  if (isText && stat.size <= MAX_FILE_PREVIEW_BYTES) {
+  if (isText && stat.size <= workspaceFileLimits.filePreviewMaxBytes) {
     return {
       content: await fs.readFile(targetPath, "utf-8"),
       encoding: "utf-8",
@@ -270,7 +274,7 @@ async function readWorkspaceFileContent(workspaceDir: string, relativePath: unkn
     mtimeMs: stat.mtimeMs,
     name: path.basename(targetPath),
     previewable: false,
-    reason: stat.size > MAX_FILE_PREVIEW_BYTES ? "file too large for preview" : "binary file preview is not supported",
+    reason: stat.size > workspaceFileLimits.filePreviewMaxBytes ? "file too large for preview" : "binary file preview is not supported",
     relativePath: normalizedRelativePath,
     size: stat.size,
     type: "binary",
@@ -296,8 +300,8 @@ async function readWorkspaceTextFile(workspaceDir: string, relativePath: unknown
 
   const requestedMaxBytes = Number.parseInt(String(maxBytesValue ?? ""), 10)
   const maxBytes = Number.isFinite(requestedMaxBytes) && requestedMaxBytes > 0
-    ? Math.min(requestedMaxBytes, MAX_TEXT_FILE_BYTES)
-    : MAX_TEXT_FILE_BYTES
+    ? Math.min(requestedMaxBytes, workspaceFileLimits.textFileMaxBytes)
+    : workspaceFileLimits.textFileMaxBytes
   if (stat.size > maxBytes) {
     throw new WorkspaceQueryError(`file too large for text read; size=${stat.size}, maxBytes=${maxBytes}`, 413)
   }
@@ -335,8 +339,8 @@ async function readWorkspaceTextChunk(workspaceDir: string, relativePath: unknow
   const requestedLength = Number.parseInt(String(lengthValue ?? ""), 10)
   const offset = Number.isFinite(requestedOffset) && requestedOffset > 0 ? Math.min(requestedOffset, stat.size) : 0
   const length = Number.isFinite(requestedLength) && requestedLength > 0
-    ? Math.min(requestedLength, MAX_TEXT_CHUNK_BYTES)
-    : DEFAULT_TEXT_CHUNK_BYTES
+    ? Math.min(requestedLength, workspaceFileLimits.textChunkMaxBytes)
+    : workspaceFileLimits.textChunkBytes
   const byteLength = Math.max(0, Math.min(length, stat.size - offset))
   const handle = await fs.open(targetPath, "r")
   try {
@@ -681,7 +685,13 @@ function enrichRealBomPayload(payload: unknown, index: ThermalDbIndex | null) {
   }
 }
 
-export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
+export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  workspaceFileLimits = {
+    filePreviewMaxBytes: config.workspace.filePreviewMaxBytes,
+    textChunkBytes: config.workspace.textChunkBytes,
+    textChunkMaxBytes: config.workspace.textChunkMaxBytes,
+    textFileMaxBytes: config.workspace.textFileMaxBytes,
+  }
   fastify.get<{ Querystring: WorkspaceFilesQuery }>("/api/workspace/files/tree", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)

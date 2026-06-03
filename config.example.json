@@ -1,0 +1,107 @@
+{
+  "openai": {
+    "apiKey": "sk-REPLACE-ME",
+    "baseUrl": "https://api.openai.com/v1",
+    "model": "gpt-5",
+    "modelProvider": "openai",
+    "modelProviderName": "OpenAI",
+    "wireApi": "responses",
+    "supportsWebsockets": false
+  },
+  "codex": {
+    "modelReasoningEffort": "high",
+    "approvalPolicy": "never",
+    "sandboxMode": "workspace-write",
+    "workingDirectory": "/path/to/your/workspace",
+    "skipGitRepoCheck": true
+  },
+  "server": {
+    "port": 3002,
+    "host": "0.0.0.0",
+    "corsOrigin": [
+      "http://localhost:5174",
+      "http://127.0.0.1:5174",
+      "https://localhost:5175",
+      "https://127.0.0.1:5175"
+    ]
+  },
+  "frontend": {
+    "host": "0.0.0.0",
+    "port": 5174,
+    "httpsPort": 5175,
+    "strictPort": true
+  },
+  "tools": {
+    "cad": {
+      "noVncPort": 6080
+    },
+    "paraview": {
+      "noVncPort": 6081
+    },
+    "comsol": {
+      "noVncPort": 6082
+    },
+    "gnc": {
+      "url": "http://localhost:8765/"
+    }
+  },
+  "gnc": {
+    "dashboard": {
+      "telemetryMaxBytes": 8388608,
+      "telemetryPaths": {
+        "sc": "02_sim/42_run/runtime_case/InOut/Sc.csv",
+        "mode": "02_sim/42_run/runtime_case/InOut/ModeTrace_SC0.csv",
+        "wheel": "02_sim/42_run/runtime_case/InOut/AcWhl.csv"
+      }
+    }
+  },
+  "whisper": {
+    "modelPath": "/path/to/whisper/model.bin",
+    "ffmpegBin": "ffmpeg",
+    "cudaVisibleDevices": null,
+    "defaultLanguage": "zh-en"
+  },
+  "cosyvoice": {
+    "apiUrl": "http://127.0.0.1:50000/inference_zero_shot",
+    "promptText": "You are a helpful assistant.",
+    "promptWav": null,
+    "root": null,
+    "streamCacheTtlMs": 600000,
+    "streamCacheMaxItems": 64,
+    "ttsMaxTextLength": 5000
+  },
+  "workflowAgents": {
+    "contractDir": "/path/to/open_codex_web/backend/workflow_agents",
+    "plannerMode": "codex",
+    "plannerModel": "gpt-5",
+    "plannerReasoningEffort": "high",
+    "plannerWorkingDirectory": "/path/to/your/workspace",
+    "plannerTimeoutMs": 120000,
+    "plannerSandboxMode": "read-only",
+    "plannerSkipGitRepoCheck": true
+  },
+  "logging": {
+    "level": "info",
+    "file": "logs/app.log",
+    "alsoStdout": true
+  },
+  "workspace": {
+    "workspaceDir": "/path/to/your/workspace/version",
+    "filesystemGroup": "users",
+    "rpcHost": "localhost",
+    "rpcPort": 9877,
+    "displayNum": ":21",
+    "vncPort": 5901,
+    "noVncPort": 6080,
+    "logDir": "/tmp/freecad-remote-6080",
+    "bin": "/path/to/freecad",
+    "appRegex": "/path/to/freecad",
+    "startupWaitSeconds": 20,
+    "rpcProbeTimeoutSeconds": 15,
+    "componentInfoMaxStepSizeMb": 5,
+    "filePreviewMaxBytes": 1048576,
+    "textFileMaxBytes": 8388608,
+    "textChunkBytes": 524288,
+    "textChunkMaxBytes": 1048576
+  }
+}

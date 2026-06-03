@@ -22,11 +22,13 @@ export function registerVersionRoutes(
       const workspaceId = getString(body?.workspaceId)
       const workspaceKey = getString(body?.workspaceKey)
       const workspaceDir = getString(body?.workspaceDir)
+      const group = getString(body?.group)
       if (!workspaceId && !workspaceKey && !legacySessionId && !workspaceDir) return sendBadRequest(reply, "workspaceId, workspaceKey or workspaceDir is required")
       if (!baseVersionId) return sendBadRequest(reply, "versionId is required")
       try {
         return reply.send(await branchVersion({
           baseVersionId,
+          group,
           label: getString(body?.label),
           sessionId: workspaceId ?? workspaceKey ?? legacySessionId ?? "workspace",
           workspaceDir,

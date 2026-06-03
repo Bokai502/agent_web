@@ -118,8 +118,8 @@ function isWavContent(contentType: string | undefined) {
   return contentType?.toLowerCase().includes("wav") === true
 }
 
-function normalizeLanguage(value: unknown) {
-  const requestedLanguage = typeof value === "string" ? value.trim().toLowerCase() : process.env.WHISPER_LANGUAGE || "zh-en"
+function normalizeLanguage(value: unknown, config: AppConfig) {
+  const requestedLanguage = typeof value === "string" ? value.trim().toLowerCase() : getDefaultLanguage(config)
   if (!requestedLanguage || requestedLanguage === "auto") return { requestedLanguage: "auto", whisperLanguage: "auto" }
   if (requestedLanguage === "zh-en") return { requestedLanguage, whisperLanguage: "zh" }
   return LANGUAGE_PATTERN.test(requestedLanguage)
@@ -127,15 +127,15 @@ function normalizeLanguage(value: unknown) {
     : null
 }
 
-function getDefaultLanguage() {
-  const language = (process.env.WHISPER_LANGUAGE || "zh-en").trim().toLowerCase()
+function getDefaultLanguage(config?: AppConfig) {
+  const language = (config?.whisper.defaultLanguage || "zh-en").trim().toLowerCase()
   if (!language || language === "auto") return "auto"
   if (language === "zh-en") return "zh-en"
   return LANGUAGE_PATTERN.test(language) ? language : "zh"
 }
 
-async function resolveWhisperBin() {
-  if (process.env.WHISPER_CPP_BIN) return process.env.WHISPER_CPP_BIN
+async function resolveWhisperBin(config?: AppConfig) {
+  if (config?.whisper.bin) return config.whisper.bin
 
   for (const candidate of WHISPER_BIN_CANDIDATES) {
     if (await commandExists(candidate)) return candidate
@@ -166,10 +166,10 @@ export async function whisperRoutes(fastify: FastifyInstance, { config, logger }
   })
 
   fastify.get("/api/whisper/models", async (_req, reply) => {
-    const modelPath = process.env.WHISPER_MODEL_PATH || DEFAULT_MODEL_PATH
-    const whisperBin = await resolveWhisperBin()
-    const ffmpegBin = process.env.WHISPER_FFMPEG_BIN || DEFAULT_FFMPEG_BIN
-    const cudaVisibleDevices = process.env.WHISPER_CUDA_VISIBLE_DEVICES || DEFAULT_CUDA_VISIBLE_DEVICES
+    const modelPath = config.whisper.modelPath || DEFAULT_MODEL_PATH
+    const whisperBin = await resolveWhisperBin(config)
+    const ffmpegBin = config.whisper.ffmpegBin || DEFAULT_FFMPEG_BIN
+    const cudaVisibleDevices = config.whisper.cudaVisibleDevices || DEFAULT_CUDA_VISIBLE_DEVICES
 
     return reply.send({
       selected: "large-v3-turbo",
@@ -177,7 +177,7 @@ export async function whisperRoutes(fastify: FastifyInstance, { config, logger }
       whisperBin,
       ffmpegBin,
       cudaVisibleDevices,
-      defaultLanguage: getDefaultLanguage(),
+      defaultLanguage: getDefaultLanguage(config),
       availableDownloads: [
         {
           name: "large-v3-turbo",
@@ -222,11 +222,11 @@ export async function whisperRoutes(fastify: FastifyInstance, { config, logger }
       return reply.status(413).send({ error: "audio is too large" })
     }
 
-    const whisperBin = await resolveWhisperBin()
-    const modelPath = process.env.WHISPER_MODEL_PATH || DEFAULT_MODEL_PATH
-    const ffmpegBin = process.env.WHISPER_FFMPEG_BIN || DEFAULT_FFMPEG_BIN
-    const languageConfig = normalizeLanguage(req.headers["x-whisper-language"])
-    const cudaVisibleDevices = process.env.WHISPER_CUDA_VISIBLE_DEVICES || DEFAULT_CUDA_VISIBLE_DEVICES
+    const whisperBin = await resolveWhisperBin(config)
+    const modelPath = config.whisper.modelPath || DEFAULT_MODEL_PATH
+    const ffmpegBin = config.whisper.ffmpegBin || DEFAULT_FFMPEG_BIN
+    const languageConfig = normalizeLanguage(req.headers["x-whisper-language"], config)
+    const cudaVisibleDevices = config.whisper.cudaVisibleDevices || DEFAULT_CUDA_VISIBLE_DEVICES
     const whisperEnv = { ...process.env, CUDA_VISIBLE_DEVICES: cudaVisibleDevices }
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "codex-whisper-"))
     const inputPath = path.join(tmpDir, `input${getExtension(contentType)}`)

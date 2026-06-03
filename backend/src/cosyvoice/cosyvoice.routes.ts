@@ -3,17 +3,15 @@ import fs from "node:fs/promises"
 import crypto from "node:crypto"
 import path from "node:path"
 import type { FastifyInstance } from "fastify"
+import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 
 const BACKEND_ROOT = path.resolve(process.cwd())
-const COSYVOICE_ROOT = path.join(BACKEND_ROOT, "cosyvoice3", "CosyVoice")
+const DEFAULT_COSYVOICE_ROOT = path.join(BACKEND_ROOT, "cosyvoice3", "CosyVoice")
 const PREGENERATED_TASK_ACCEPTED_AUDIO = path.join(BACKEND_ROOT, "..", "docs", "agent-task-accepted.wav")
 const DEFAULT_COSYVOICE_URL = "http://127.0.0.1:50000/inference_zero_shot"
 const DEFAULT_PROMPT_TEXT = "You are a helpful assistant.<|endofprompt|>希望你以后能够做的比我还好呦。"
-const DEFAULT_PROMPT_WAV = path.join(COSYVOICE_ROOT, "asset", "zero_shot_prompt.wav")
-const MAX_TTS_TEXT_LENGTH = 5000
-const TTS_STREAM_CACHE_TTL_MS = Number(process.env.COSYVOICE_TTS_CACHE_TTL_MS ?? 1000 * 60 * 10)
-const TTS_STREAM_CACHE_MAX_ITEMS = Number(process.env.COSYVOICE_TTS_CACHE_MAX_ITEMS ?? 64)
+const defaultPromptWav = (root: string) => path.join(root, "asset", "zero_shot_prompt.wav")
 
 type TtsBody = {
   text?: unknown
@@ -57,9 +55,9 @@ function sanitizeWavFileName(value: unknown) {
   return baseName
 }
 
-function resolvePromptText(value: unknown) {
+function resolvePromptText(value: unknown, config: AppConfig) {
   if (typeof value === "string" && value.trim()) return value.trim()
-  return process.env.COSYVOICE_PROMPT_TEXT || DEFAULT_PROMPT_TEXT
+  return config.cosyvoice.promptText || DEFAULT_PROMPT_TEXT
 }
 
 async function readErrorBody(response: Response) {
@@ -70,9 +68,9 @@ async function readErrorBody(response: Response) {
   }
 }
 
-function parseTtsBody(body: TtsBody | undefined) {
+function parseTtsBody(body: TtsBody | undefined, config: AppConfig) {
   const text = typeof body?.text === "string" ? body.text.trim() : ""
-  const promptText = resolvePromptText(body?.promptText)
+  const promptText = resolvePromptText(body?.promptText, config)
   return { text, promptText }
 }
 
@@ -105,13 +103,13 @@ function getCachedTtsAudio(cacheKey: string) {
   return entry.audio
 }
 
-function rememberCachedTtsAudio(cacheKey: string, audio: Buffer) {
-  if (TTS_STREAM_CACHE_TTL_MS <= 0 || TTS_STREAM_CACHE_MAX_ITEMS <= 0) return
+function rememberCachedTtsAudio(cacheKey: string, audio: Buffer, config: AppConfig) {
+  if (config.cosyvoice.streamCacheTtlMs <= 0 || config.cosyvoice.streamCacheMaxItems <= 0) return
   ttsStreamCache.set(cacheKey, {
     audio,
-    expiresAt: Date.now() + TTS_STREAM_CACHE_TTL_MS,
+    expiresAt: Date.now() + config.cosyvoice.streamCacheTtlMs,
   })
-  while (ttsStreamCache.size > TTS_STREAM_CACHE_MAX_ITEMS) {
+  while (ttsStreamCache.size > config.cosyvoice.streamCacheMaxItems) {
     const oldestKey = ttsStreamCache.keys().next().value
     if (typeof oldestKey !== "string") break
     ttsStreamCache.delete(oldestKey)
@@ -154,7 +152,11 @@ async function requestCosyVoiceAudio({
   return Buffer.from(await response.arrayBuffer())
 }
 
-export async function cosyVoiceRoutes(fastify: FastifyInstance, { logger }: { logger: Logger }) {
+export async function cosyVoiceRoutes(fastify: FastifyInstance, { config, logger }: { config: AppConfig; logger: Logger }) {
+  const cosyvoiceRoot = config.cosyvoice.root || DEFAULT_COSYVOICE_ROOT
+  const cosyvoiceEndpoint = config.cosyvoice.apiUrl || DEFAULT_COSYVOICE_URL
+  const promptWavPath = config.cosyvoice.promptWav || defaultPromptWav(cosyvoiceRoot)
+
   fastify.get("/api/agent/audio/task-accepted", async (_req, reply) => {
     const stat = await fs.stat(PREGENERATED_TASK_ACCEPTED_AUDIO).catch(() => null)
     if (!stat?.isFile()) return reply.status(404).send({ error: "pregenerated audio not found" })
@@ -167,10 +169,10 @@ export async function cosyVoiceRoutes(fastify: FastifyInstance, { logger }: { lo
 
   fastify.get("/api/cosyvoice/config", async (_req, reply) => {
     return reply.send({
-      endpoint: process.env.COSYVOICE_API_URL || DEFAULT_COSYVOICE_URL,
-      promptWav: process.env.COSYVOICE_PROMPT_WAV || DEFAULT_PROMPT_WAV,
-      outputDir: COSYVOICE_ROOT,
-      maxTextLength: MAX_TTS_TEXT_LENGTH,
+      endpoint: cosyvoiceEndpoint,
+      promptWav: promptWavPath,
+      outputDir: cosyvoiceRoot,
+      maxTextLength: config.cosyvoice.ttsMaxTextLength,
     })
   })
 
@@ -180,7 +182,7 @@ export async function cosyVoiceRoutes(fastify: FastifyInstance, { logger }: { lo
       return reply.status(400).send({ error: "invalid audio file name" })
     }
 
-    const audioPath = path.join(COSYVOICE_ROOT, fileName)
+    const audioPath = path.join(cosyvoiceRoot, fileName)
     const stat = await fs.stat(audioPath).catch(() => null)
 
     if (!stat?.isFile()) {
@@ -196,20 +198,20 @@ export async function cosyVoiceRoutes(fastify: FastifyInstance, { logger }: { lo
   fastify.post<{ Body: TtsBody }>("/api/cosyvoice/tts", async (req, reply) => {
     const requestStartedAt = process.hrtime.bigint()
     const requestId = String(req.id)
-    const { text, promptText } = parseTtsBody(req.body)
+    const { text, promptText } = parseTtsBody(req.body, config)
 
     if (!text) {
       return reply.status(400).send({ error: "text is required" })
     }
 
-    if (text.length > MAX_TTS_TEXT_LENGTH) {
-      return reply.status(413).send({ error: `text is too long; max ${MAX_TTS_TEXT_LENGTH} characters` })
+    if (text.length > config.cosyvoice.ttsMaxTextLength) {
+      return reply.status(413).send({ error: `text is too long; max ${config.cosyvoice.ttsMaxTextLength} characters` })
     }
 
-    const endpoint = process.env.COSYVOICE_API_URL || DEFAULT_COSYVOICE_URL
-    const promptWav = process.env.COSYVOICE_PROMPT_WAV || DEFAULT_PROMPT_WAV
+    const endpoint = cosyvoiceEndpoint
+    const promptWav = promptWavPath
     const outputName = makeOutputName(req.body?.outputName)
-    const outputPath = path.join(COSYVOICE_ROOT, outputName)
+    const outputPath = path.join(cosyvoiceRoot, outputName)
 
     logger.info("cosyvoice tts request received", {
       requestId,
@@ -220,7 +222,7 @@ export async function cosyVoiceRoutes(fastify: FastifyInstance, { logger }: { lo
     })
 
     try {
-      await fs.mkdir(COSYVOICE_ROOT, { recursive: true })
+      await fs.mkdir(cosyvoiceRoot, { recursive: true })
       const audio = await requestCosyVoiceAudio({ endpoint, promptText, promptWav, text })
       await fs.writeFile(outputPath, audio)
       const stat = await fs.stat(outputPath)
@@ -252,18 +254,18 @@ export async function cosyVoiceRoutes(fastify: FastifyInstance, { logger }: { lo
   fastify.post<{ Body: TtsBody }>("/api/cosyvoice/tts-stream", async (req, reply) => {
     const requestStartedAt = process.hrtime.bigint()
     const requestId = String(req.id)
-    const { text, promptText } = parseTtsBody(req.body)
+    const { text, promptText } = parseTtsBody(req.body, config)
 
     if (!text) {
       return reply.status(400).send({ error: "text is required" })
     }
 
-    if (text.length > MAX_TTS_TEXT_LENGTH) {
-      return reply.status(413).send({ error: `text is too long; max ${MAX_TTS_TEXT_LENGTH} characters` })
+    if (text.length > config.cosyvoice.ttsMaxTextLength) {
+      return reply.status(413).send({ error: `text is too long; max ${config.cosyvoice.ttsMaxTextLength} characters` })
     }
 
-    const endpoint = process.env.COSYVOICE_API_URL || DEFAULT_COSYVOICE_URL
-    const promptWav = process.env.COSYVOICE_PROMPT_WAV || DEFAULT_PROMPT_WAV
+    const endpoint = cosyvoiceEndpoint
+    const promptWav = promptWavPath
     const cacheKey = getTtsCacheKey({ endpoint, promptText, promptWav, text })
 
     logger.info("cosyvoice tts stream request received", {
@@ -289,7 +291,7 @@ export async function cosyVoiceRoutes(fastify: FastifyInstance, { logger }: { lo
       }
 
       const audio = await requestCosyVoiceAudio({ endpoint, promptText, promptWav, text })
-      rememberCachedTtsAudio(cacheKey, audio)
+      rememberCachedTtsAudio(cacheKey, audio, config)
 
       logger.info("cosyvoice tts stream completed", {
         requestId,

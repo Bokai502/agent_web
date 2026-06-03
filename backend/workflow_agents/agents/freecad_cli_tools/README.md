@@ -50,7 +50,7 @@ After editable or wheel installation, `freecad-tools` is available as the
 short console-script alias for the same commands.
 
 Workspace-scoped commands resolve relative paths from
-`/data/lbk/codex_web/config.json` field `freecad.workspaceDir`. The
+`/data/lbk/codex_web/open_codex_web/config.json` field `freecad.workspaceDir`. The
 `--workspace` flag is kept only as a deprecated compatibility option and does
 not override the configured workspace.
 
@@ -163,7 +163,7 @@ to reading from `./00_inputs` and writing new dataset files plus
 source dataset remains unchanged unless the user explicitly overrides the paths.
 
 Workspace resolution is deterministic: configure
-`/data/lbk/codex_web/config.json` field `freecad.workspaceDir`, then use
+`/data/lbk/codex_web/open_codex_web/config.json` field `freecad.workspaceDir`, then use
 `python -m freecad_cli_tools.cli.main config show` to inspect the resolved absolute paths.
 
 ## Development Layout
@@ -185,7 +185,7 @@ Workspace resolution is deterministic: configure
 ## Requirements
 
 - For RPC commands: FreeCAD with the MCP addon running on the host/port from the CLI flags or environment
-- Relative input and output paths are resolved against `freecad.workspaceDir` from `/data/lbk/codex_web/config.json`
+- Relative input and output paths are resolved against `freecad.workspaceDir` from `/data/lbk/codex_web/open_codex_web/config.json`
 - For offline layout-dataset use of `python -m freecad_cli_tools.cli.main layout safe-move`: Python 3.9+ only
 - Python 3.9+
 

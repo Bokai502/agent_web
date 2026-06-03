@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { getGncTelemetryMaxBytes, getGncTelemetryPaths } from "../../app/runtimeConfig"
 import { fetchWorkspaceTextFile } from "../agent/files/workspaceFilesApi"
 import { GncTelemetryCharts, parseTelemetryCsv, type TelemetryRow } from "./GncTelemetryCharts"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
@@ -7,11 +8,6 @@ type GncDashboardPanelProps = {
   activeContext: WorkspaceVersionContext
   apiBase?: string
 }
-
-const TELEMETRY_MAX_BYTES = 8 * 1024 * 1024
-const SC_PATH = "02_sim/42_run/runtime_case/InOut/Sc.csv"
-const MODE_PATH = "02_sim/42_run/runtime_case/InOut/ModeTrace_SC0.csv"
-const WHEEL_PATH = "02_sim/42_run/runtime_case/InOut/AcWhl.csv"
 
 export function GncDashboardPanel({ activeContext, apiBase }: GncDashboardPanelProps) {
   const [scRows, setScRows] = useState<TelemetryRow[]>([])
@@ -32,11 +28,13 @@ export function GncDashboardPanel({ activeContext, apiBase }: GncDashboardPanelP
     if (!versionDir) return
 
     const context = { versionDir, versionId, workspaceId }
+    const telemetryPaths = getGncTelemetryPaths()
+    const telemetryMaxBytes = getGncTelemetryMaxBytes()
     setLoading(true)
     Promise.all([
-      fetchWorkspaceTextFile({ apiBase, context, maxBytes: TELEMETRY_MAX_BYTES, relativePath: SC_PATH }),
-      fetchWorkspaceTextFile({ apiBase, context, maxBytes: TELEMETRY_MAX_BYTES, relativePath: MODE_PATH }),
-      fetchWorkspaceTextFile({ apiBase, context, maxBytes: TELEMETRY_MAX_BYTES, relativePath: WHEEL_PATH }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.sc }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.mode }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.wheel }),
     ])
       .then(([sc, mode, wheel]) => {
         if (cancelled) return

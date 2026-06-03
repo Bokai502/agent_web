@@ -47,7 +47,7 @@ python -m freecad_cli_tools.cli.main layout safe-move --component P002 --install
 
 完成 editable 或 wheel 安装后，`freecad-tools` 可作为相同命令的短 console-script 别名。
 
-工作区相关命令会从 `/data/lbk/codex_web/config.json` 的
+工作区相关命令会从 `/data/lbk/codex_web/open_codex_web/config.json` 的
 `freecad.workspaceDir` 字段解析相对路径。`--workspace` 仅作为弃用兼容选项保留，
 不会覆盖配置中的工作区。
 

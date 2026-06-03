@@ -74,13 +74,13 @@ open_codex_web/
 └── package-lock.json
 ```
 
-仓库外的根目录 `/data/lbk/codex_web/config.json` 是运行配置主文件；`/data/lbk/codex_web/start_open_codex_web.sh` 是推荐启动脚本。
+项目根目录 `/data/lbk/codex_web/open_codex_web/config.json` 是运行配置主文件；`/data/lbk/codex_web/open_codex_web/start_open_codex_web.sh` 是推荐启动脚本。
 
 ---
 
 ## 配置
 
-后端优先读取 `/data/lbk/codex_web/config.json`，如果不存在才读取 `open_codex_web/backend/config.json`。关键字段：
+后端优先读取 `/data/lbk/codex_web/open_codex_web/config.json`，如果不存在才读取 `open_codex_web/backend/config.json`。关键字段：
 
 | 字段 | 说明 |
 |------|------|
@@ -96,8 +96,22 @@ open_codex_web/
 | `frontend.host` | Vite 监听地址 |
 | `frontend.port` | HTTP 开发端口 |
 | `frontend.httpsPort` | HTTPS 开发端口 |
+| `tools.cad/paraview/comsol.noVncPort` | 前端工具面板 noVNC 端口 |
+| `tools.cad/paraview/comsol.url` | 可选，直接覆盖工具 iframe URL |
+| `tools.gnc.url` | 外部 GNC 页面 URL |
+| `gnc.dashboard.telemetryPaths` | GNC 看板 CSV 遥测路径 |
+| `gnc.dashboard.telemetryMaxBytes` | GNC 看板单文件读取上限 |
 | `workspace.workspaceDir` | 默认工程工作区版本目录 |
+| `workspace.filesystemGroup` | 新建 workspace/version 目录和 manifest 文件的 Linux 文件系统 group，默认 `xieteam`，可用 `WORKSPACE_FILESYSTEM_GROUP` 覆盖 |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD MCP RPC 连接配置 |
+| `workspace.filePreviewMaxBytes` | 普通文件预览大小上限 |
+| `workspace.textFileMaxBytes` | 文本文件整读上限 |
+| `workspace.textChunkBytes` / `workspace.textChunkMaxBytes` | 超大文本/JSON 分块读取默认块大小和单块上限 |
+| `whisper.modelPath` / `whisper.ffmpegBin` | whisper.cpp 模型和 ffmpeg 配置 |
+| `whisper.bin` / `whisper.cudaVisibleDevices` / `whisper.defaultLanguage` | whisper.cpp 可执行文件、GPU 和默认语言 |
+| `cosyvoice.apiUrl` / `cosyvoice.promptWav` / `cosyvoice.promptText` | CosyVoice 服务与零样本提示配置 |
+| `cosyvoice.streamCacheTtlMs` / `cosyvoice.streamCacheMaxItems` | TTS 流式缓存配置 |
+| `cosyvoice.ttsMaxTextLength` | 单次 TTS 文本长度上限 |
 | `workflowAgents.contractDir` | workflow skills 根目录 |
 
 不要把真实 API Key 写进 README、提交记录或日志。
@@ -127,16 +141,16 @@ codex --version
 
 ## 启动
 
-推荐从根目录使用统一脚本：
+推荐从项目根目录使用统一脚本：
 
 ```bash
-cd /data/lbk/codex_web
+cd /data/lbk/codex_web/open_codex_web
 ./start_open_codex_web.sh
 ```
 
 该脚本会：
 
-- 读取 `/data/lbk/codex_web/config.json`。
+- 读取 `/data/lbk/codex_web/open_codex_web/config.json`。
 - 关闭旧的 `ocw-backend*` / `ocw-frontend*` tmux 会话。
 - 释放后端端口。
 - 在 tmux 中启动后端 `npm run dev`。
@@ -369,6 +383,8 @@ curl 'http://localhost:3002/api/workspace/files/text?workspaceDir=/data/lbk/code
 | `POST` | `/api/checkpoints/register` | 注册 checkpoint |
 | `POST` | `/api/scores/register` | 注册 score |
 
+新建 workspace/version 时，后端会把 manifest 根目录、`versions/vNNNN` 目录、复制的 `00_inputs` 以及 `workspace_manifest.json` 的 Linux 文件系统 group 设置为 `workspace.filesystemGroup`（默认 `xieteam`），并对目录设置 setgid 位，使后续在这些目录下生成的文件尽量继承同一个 group。manifest/version record 中的 `group` 字段也默认写入 `xieteam`，用于前端和 API 元数据展示。
+
 ### 系统、语音和资源
 
 | 方法 | 路径 | 说明 |
@@ -433,10 +449,10 @@ FreeCAD CAD 构建仍应使用 GUI FreeCAD 的 MCP RPC，不使用 `freecadcmd` 
 ## 常见问题
 
 **启动后端提示配置文件不存在**  
-确认 `/data/lbk/codex_web/config.json` 存在，或在 `open_codex_web/backend/config.json` 提供本地配置。
+确认 `/data/lbk/codex_web/open_codex_web/config.json` 存在，或在 `open_codex_web/backend/config.json` 提供本地配置。
 
 **后端端口和 README 示例不同**  
-以 `/data/lbk/codex_web/config.json` 的 `server.port` 或环境变量 `BACKEND_PORT` 为准。当前统一脚本不会固定使用 `3001`。
+以 `/data/lbk/codex_web/open_codex_web/config.json` 的 `server.port` 或环境变量 `BACKEND_PORT` 为准。当前统一脚本不会固定使用 `3001`。
 
 **前端访问被 CORS 拦截**  
 把实际访问的 origin 加入根配置 `server.corsOrigin`。HTTPS 开发模式通常需要加入 `https://<host>:5175`。

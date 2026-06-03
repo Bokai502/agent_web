@@ -1,5 +1,8 @@
 import fs from "node:fs/promises"
 import path from "node:path"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+import { loadConfig } from "../config.js"
 import { getString, isPathInside } from "../shared/index.js"
 import { getWorkspaceRoot, resolveWorkspaceDir, setWorkspaceDir } from "../workspaces/workspaceManager.js"
 import type {
@@ -15,6 +18,9 @@ import type {
 
 const MANIFEST_FILE = "workspace_manifest.json"
 const WORKSPACES_DIR = "workspaces"
+const DEFAULT_WORKSPACE_GROUP = "xieteam"
+const execFileAsync = promisify(execFile)
+const WORKSPACE_FILESYSTEM_GROUP = loadConfig().workspace.filesystemGroup
 
 function nowIso() {
   return new Date().toISOString()
@@ -57,8 +63,11 @@ function makeId(prefix: string) {
 async function atomicWrite(filePath: string, content: string) {
   const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`
   await fs.mkdir(path.dirname(filePath), { recursive: true })
+  await applyWorkspaceFilesystemGroup(path.dirname(filePath), { recursive: false })
   await fs.writeFile(tmp, content, "utf-8")
+  await applyWorkspaceFilesystemGroup(tmp, { recursive: false })
   await fs.rename(tmp, filePath)
+  await applyWorkspaceFilesystemGroup(filePath, { recursive: false })
 }
 
 async function copyWorkspaceInputs(sourceWorkspace: string, destinationWorkspace: string) {
@@ -71,12 +80,31 @@ async function copyWorkspaceInputs(sourceWorkspace: string, destinationWorkspace
     throw new Error(`destination already exists: ${destinationWorkspace}`)
   }
   await fs.mkdir(destinationWorkspace, { recursive: true })
+  await applyWorkspaceFilesystemGroup(destinationWorkspace, { recursive: false })
   await fs.cp(sourceInputs, destinationInputs, {
     recursive: true,
     errorOnExist: true,
     force: false,
     preserveTimestamps: true,
   })
+  await applyWorkspaceFilesystemGroup(destinationWorkspace)
+}
+
+async function applyWorkspaceFilesystemGroup(targetPath: string, options: { recursive?: boolean } = {}) {
+  const group = WORKSPACE_FILESYSTEM_GROUP.trim()
+  if (!group) return
+
+  const args = options.recursive === false ? [group, targetPath] : ["-R", group, targetPath]
+  await execFileAsync("chgrp", args)
+
+  const stat = await fs.stat(targetPath).catch(() => null)
+  if (!stat) return
+  if (stat.isDirectory()) {
+    await execFileAsync("find", [targetPath, "-type", "d", "-exec", "chmod", "g+s", "{}", "+"])
+  } else {
+    const parentDir = path.dirname(targetPath)
+    await execFileAsync("chmod", ["g+s", parentDir])
+  }
 }
 
 async function getVersionRoot(sessionId: string) {
@@ -230,6 +258,7 @@ function emptyManifest(sessionId: string, rootDir: string): WorkspaceManifest {
   return {
     schemaVersion: "1.0",
     workspaceId: getWorkspaceId(sessionId),
+    group: DEFAULT_WORKSPACE_GROUP,
     sessionId,
     rootDir,
     activeVersionId: null,
@@ -253,6 +282,7 @@ function normalizeManifest(value: unknown, sessionId: string, rootDir: string): 
     ...record,
     schemaVersion: "1.0",
     workspaceId: typeof record.workspaceId === "string" && record.workspaceId ? record.workspaceId : fallback.workspaceId,
+    group: typeof record.group === "string" && record.group ? record.group : fallback.group,
     sessionId: typeof record.sessionId === "string" && record.sessionId ? record.sessionId : sessionId,
     rootDir: resolvedRootDir,
     activeVersionId: typeof record.activeVersionId === "string" && record.activeVersionId ? record.activeVersionId : null,
@@ -277,6 +307,7 @@ export async function getWorkspaceManifest(sessionId: string) {
   const trimmedSessionId = normalizeDirectChildName(sessionId, "sessionId")
   const rootDir = await getVersionRoot(trimmedSessionId)
   await fs.mkdir(rootDir, { recursive: true })
+  await applyWorkspaceFilesystemGroup(rootDir, { recursive: false })
   const file = manifestPath(rootDir)
   try {
     return await readManifestFile(rootDir, trimmedSessionId)
@@ -307,6 +338,7 @@ export async function getWorkspaceManifestByLocator(options: {
   }
   const sessionId = normalizeDirectChildName(options.sessionId ?? path.basename(rootDir), "sessionId")
   await fs.mkdir(rootDir, { recursive: true })
+  await applyWorkspaceFilesystemGroup(rootDir, { recursive: false })
   return await writeManifest(emptyManifest(sessionId, rootDir))
 }
 
@@ -335,6 +367,7 @@ async function ensureInitialVersion(manifest: WorkspaceManifest, sourceWorkspace
   const version: VersionRecord = {
     id: versionId,
     parentVersionId: null,
+    group: manifest.group ?? DEFAULT_WORKSPACE_GROUP,
     label: "Initial import",
     status: "active",
     workspaceDir,
@@ -376,11 +409,13 @@ function nextVersionId(manifest: WorkspaceManifest) {
 
 export async function branchVersion({
   baseVersionId,
+  group,
   label,
   sessionId,
   workspaceDir: locatorWorkspaceDir,
 }: {
   baseVersionId?: string | null
+  group?: string | null
   label?: string | null
   sessionId: string
   workspaceDir?: string | null
@@ -398,6 +433,7 @@ export async function branchVersion({
   const version: VersionRecord = {
     id: versionId,
     parentVersionId: baseVersion.id,
+    group: group?.trim() || baseVersion.group || manifest.group || DEFAULT_WORKSPACE_GROUP,
     ...(label ? { label } : {}),
     status: "active",
     workspaceDir: newWorkspaceDir,
