@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { joinApiPath } from "../../app/apiBase"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 
@@ -29,12 +29,6 @@ type GeneratedFilesTreeCardProps = {
 
 const ROOT_PATH = ""
 
-function formatWorkspacePath(value?: string | null) {
-  if (!value) return "等待工作区"
-  const parts = value.split(/[\\/]/u).filter(Boolean)
-  return parts.slice(-4).join("/")
-}
-
 function buildWorkspaceQuery(context: Pick<WorkspaceVersionContext, "versionDir" | "versionId" | "workspaceId">, relativePath: string) {
   if (!context.versionDir) return ""
   const params = new URLSearchParams({
@@ -54,6 +48,7 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
   const [entriesByPath, setEntriesByPath] = useState<Record<string, FileTreeEntry[]>>({})
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState("")
+  const [downloading, setDownloading] = useState(false)
   const workspaceKey = `${versionDir ?? ""}:${workspaceId ?? ""}:${versionId ?? ""}`
   const rootEntries = entriesByPath[ROOT_PATH] ?? []
   const isRootLoading = loadingPaths.has(ROOT_PATH)
@@ -81,14 +76,6 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     }
   }, [apiBase, versionDir, versionId, workspaceId])
 
-  const refreshVisible = useCallback(() => {
-    if (!versionDir) return
-    const paths = [ROOT_PATH, ...expandedPaths]
-    paths.forEach(path => {
-      void loadPath(path)
-    })
-  }, [expandedPaths, loadPath, versionDir])
-
   const toggleDirectory = useCallback((relativePath: string) => {
     setExpandedPaths(prev => {
       const next = new Set(prev)
@@ -102,6 +89,30 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     void loadPath(relativePath)
   }, [loadPath])
 
+  const downloadWorkspaceArchive = useCallback(async () => {
+    if (!versionDir || downloading) return
+    setDownloading(true)
+    setError("")
+    try {
+      const response = await fetch(`${joinApiPath(apiBase, "/workspace/files/archive")}${buildWorkspaceQuery({ versionDir, versionId, workspaceId }, "")}`, { cache: "no-store" })
+      if (!response.ok) throw new Error("文件打包下载失败")
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      const archiveName = `${versionId || workspaceId || "workspace"}.zip`
+      link.href = objectUrl
+      link.download = archiveName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "文件打包下载失败")
+    } finally {
+      setDownloading(false)
+    }
+  }, [apiBase, downloading, versionDir, versionId, workspaceId])
+
   useEffect(() => {
     setExpandedPaths(new Set())
     setEntriesByPath({})
@@ -113,8 +124,6 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     if (!versionDir) return
     void loadPath(ROOT_PATH)
   }, [loadPath, refreshNonce, versionDir])
-
-  const titlePath = useMemo(() => formatWorkspacePath(versionDir), [versionDir])
 
   const renderEntries = (entries: FileTreeEntry[], depth = 0) => entries.map(entry => {
     const isDirectory = entry.type === "directory"
@@ -159,11 +168,16 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
       <div className="wa-file-tree-head">
         <div>
           <h3>生成文件</h3>
-          <p title={versionDir ?? undefined}>{titlePath}</p>
         </div>
-        <div className="wa-file-tree-actions">
-          <button type="button" onClick={refreshVisible} disabled={!versionDir || isRootLoading}>刷新</button>
-        </div>
+        <button
+          type="button"
+          className="wa-file-tree-download"
+          disabled={!versionDir || downloading}
+          onClick={downloadWorkspaceArchive}
+          title="下载全部生成文件"
+        >
+          {downloading ? "打包中" : "下载"}
+        </button>
       </div>
       <div className="wa-file-tree-body">
         {error && <div className="wa-file-tree-error">{error}</div>}

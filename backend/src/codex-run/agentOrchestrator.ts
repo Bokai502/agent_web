@@ -32,6 +32,7 @@ export type ManagedRunResponse = {
   summary: string
   threadId: string | null
   turnId: string
+  versionId: string | null
   workspaceDir: string | null
   workspaceId: string | null
 }
@@ -45,6 +46,7 @@ export type ManagedStartResponse = {
   summary: string
   threadId: string | null
   turnId: string
+  versionId: string | null
   workspaceDir: string | null
   workspaceId: string | null
 }
@@ -59,6 +61,7 @@ export type ManagedRunStatusResponse = {
   summary: string
   threadId: string | null
   turnId: string
+  versionId: string | null
   workspaceDir: string | null
   workspaceId: string | null
 }
@@ -124,8 +127,13 @@ function getOptionalString(value: unknown) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null
 }
 
+function getOptionalWorkspaceDir(value: unknown) {
+  const workspaceDir = getOptionalString(value)
+  return workspaceDir ? path.resolve(workspaceDir) : null
+}
+
 function buildManagedSessionKey(body: RunRequestBody) {
-  const workspaceDir = getOptionalString(body.workspaceDir)
+  const workspaceDir = getOptionalWorkspaceDir(body.workspaceDir)
   const workspaceId = getOptionalString(body.workspaceId)
   const versionId = getOptionalString(body.versionId)
   const workspaceName = getOptionalString(body.workspaceName)
@@ -158,18 +166,16 @@ function rememberManagedSessionState(sessionKey: string, state: Omit<ManagedSess
 }
 
 export async function getLatestManagedStatusForWorkspace(body: RunRequestBody) {
-  const workspaceDir = getOptionalString(body.workspaceDir)
+  const workspaceDir = getOptionalWorkspaceDir(body.workspaceDir)
   const workspaceId = getOptionalString(body.workspaceId)
-  if (!workspaceDir && !workspaceId) return null
+  const versionId = getOptionalString(body.versionId)
+  if (!workspaceDir && !workspaceId && !versionId) return null
   const matches = (await listRecentManagedRunStatuses()).filter(status => {
-    if (workspaceDir) return status.workspaceDir === workspaceDir
-    return workspaceId ? status.workspaceId === workspaceId : false
+    if (workspaceDir) return getOptionalWorkspaceDir(status.workspaceDir) === workspaceDir
+    if (workspaceId && versionId) return status.workspaceId === workspaceId && status.versionId === versionId
+    if (workspaceId) return status.workspaceId === workspaceId
+    return versionId ? status.versionId === versionId : false
   })
-  return matches.sort((a, b) => b.managedRunId.localeCompare(a.managedRunId))[0] ?? null
-}
-
-async function getLatestRunningManagedStatus() {
-  const matches = (await listRecentManagedRunStatuses()).filter(status => status.status === "running")
   return matches.sort((a, b) => b.managedRunId.localeCompare(a.managedRunId))[0] ?? null
 }
 
@@ -198,7 +204,7 @@ async function normalizeManagedRunBody(body: RunRequestBody) {
     sessionId,
     threadId,
     versionId: getOptionalString(body.versionId),
-    workspaceDir: getOptionalString(body.workspaceDir),
+    workspaceDir: getOptionalWorkspaceDir(body.workspaceDir),
     workspaceId: getOptionalString(body.workspaceId),
   })
   return { body: normalizedBody, sessionKey }
@@ -246,6 +252,7 @@ function normalizePersistedManagedStatus(value: unknown): ManagedRunStatusRespon
     summary: typeof record.summary === "string" ? record.summary : "",
     threadId: typeof record.threadId === "string" && record.threadId.trim() !== "" ? record.threadId.trim() : null,
     turnId: record.turnId.trim(),
+    versionId: typeof record.versionId === "string" && record.versionId.trim() !== "" ? record.versionId.trim() : null,
     workspaceDir: typeof record.workspaceDir === "string" && record.workspaceDir.trim() !== "" ? record.workspaceDir.trim() : null,
     workspaceId: typeof record.workspaceId === "string" && record.workspaceId.trim() !== "" ? record.workspaceId.trim() : null,
   }
@@ -817,7 +824,7 @@ async function answerProgressQuestion({
     progress: getProgressDigest(progress),
     workspace: {
       versionId: getOptionalString(body.versionId),
-      workspaceDir: getOptionalString(body.workspaceDir),
+      workspaceDir: getOptionalWorkspaceDir(body.workspaceDir),
       workspaceId: getOptionalString(body.workspaceId),
       workspaceName: getOptionalString(body.workspaceName),
     },
@@ -945,11 +952,27 @@ async function summarizePipelineCompletion({
   return buildCompletionFallbackSummary({ artifacts, issues, latestMessage, manifestRun, progress, status })
 }
 
-async function getLatestManagedStatusForSession(sessionId: string | null | undefined, workspaceDir: string | null) {
+async function getLatestManagedStatusForSession(
+  sessionId: string | null | undefined,
+  {
+    versionId,
+    workspaceDir,
+    workspaceId,
+  }: {
+    versionId?: string | null
+    workspaceDir?: string | null
+    workspaceId?: string | null
+  } = {},
+) {
   if (!sessionId) return null
+  const normalizedWorkspaceDir = getOptionalWorkspaceDir(workspaceDir)
+  const normalizedWorkspaceId = getOptionalString(workspaceId)
+  const normalizedVersionId = getOptionalString(versionId)
   const matches = (await listRecentManagedRunStatuses()).filter(status =>
     status.sessionId === sessionId &&
-    (workspaceDir === null || status.workspaceDir === workspaceDir)
+    (!normalizedWorkspaceDir || getOptionalWorkspaceDir(status.workspaceDir) === normalizedWorkspaceDir) &&
+    (!normalizedWorkspaceId || status.workspaceId === normalizedWorkspaceId) &&
+    (!normalizedVersionId || status.versionId === normalizedVersionId)
   )
   return matches.sort((a, b) => b.managedRunId.localeCompare(a.managedRunId))[0] ?? null
 }
@@ -1077,6 +1100,7 @@ export async function cancelManagedRunAndSummarize(
       sessionId: latestStatus.sessionId,
       threadId: latestStatus.threadId,
       turnId: latestStatus.turnId,
+      versionId: latestStatus.versionId,
       workspaceDir: latestStatus.workspaceDir,
       workspaceId: latestStatus.workspaceId,
     },
@@ -1109,21 +1133,27 @@ export async function summarizeManagedProgress(
   { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
 ) {
   const sessionId = getOptionalString(body.sessionId)
-  const workspaceDir = getOptionalString(body.workspaceDir)
+  const workspaceDir = getOptionalWorkspaceDir(body.workspaceDir)
   const workspaceId = getOptionalString(body.workspaceId)
+  const versionId = getOptionalString(body.versionId)
   const turnId = getOptionalString(body.turnId) ?? makeManagedTurnId()
-  const latestStatus = await getLatestManagedStatusForSession(sessionId, workspaceDir)
-  const progressRecord = sessionId && workspaceDir
-    ? await resolveProgressFromLatestSessionRun(sessionId, workspaceDir).catch(() => null)
+  const latestStatus = await getLatestManagedStatusForSession(sessionId, { versionId, workspaceDir, workspaceId })
+    ?? await getLatestManagedStatusForWorkspace(body)
+  const resolvedSessionId = sessionId ?? latestStatus?.sessionId ?? null
+  const resolvedWorkspaceDir = workspaceDir ?? latestStatus?.workspaceDir ?? null
+  const resolvedWorkspaceId = workspaceId ?? latestStatus?.workspaceId ?? null
+  const resolvedVersionId = versionId ?? latestStatus?.versionId ?? null
+  const progressRecord = resolvedSessionId && resolvedWorkspaceDir
+    ? await resolveProgressFromLatestSessionRun(resolvedSessionId, resolvedWorkspaceDir).catch(() => null)
     : null
   const progress = progressRecord?.data ?? null
-  const latestSession = sessionId ? await findWorkspaceSession(sessionId, workspaceDir).catch(() => null) : null
+  const latestSession = resolvedSessionId ? await findWorkspaceSession(resolvedSessionId, resolvedWorkspaceDir).catch(() => null) : null
   const latestMessage = getLatestSessionAgentMessage(latestSession)
   const artifacts = getProgressOutputFiles(progress)
-  const manifest = workspaceId || workspaceDir
+  const manifest = resolvedWorkspaceId || resolvedWorkspaceDir
     ? await getWorkspaceManifestSnapshotByLocator({
-      sessionId: workspaceId ?? sessionId ?? "workspace",
-      workspaceDir,
+      sessionId: resolvedWorkspaceId ?? resolvedSessionId ?? "workspace",
+      workspaceDir: resolvedWorkspaceDir,
     }).catch(() => null)
     : null
   const spokenSummary = await answerProgressQuestion({
@@ -1148,15 +1178,16 @@ export async function summarizeManagedProgress(
       : null,
     progress,
     routing: { selectedSkills: ["progress-summarizer"], skillScopes: ["public"] as SkillScope[] },
-    sessionId: sessionId ?? "",
+    sessionId: resolvedSessionId ?? "",
     sessionTurn: null,
     spokenSummary,
     status: latestStatus?.status === "running" ? "partial" as const : latestStatus?.status ?? "partial" as const,
     summary: spokenSummary,
     threadId: latestStatus?.threadId ?? getOptionalString(body.threadId),
     turnId,
-    workspaceDir,
-    workspaceId,
+    versionId: resolvedVersionId,
+    workspaceDir: resolvedWorkspaceDir,
+    workspaceId: resolvedWorkspaceId,
   }
 }
 
@@ -1197,20 +1228,27 @@ async function answerManagedProgressFromDispatch({
   routing: ManagedRouting
 }): Promise<ManagedRunResponse> {
   const sessionId = typeof body.sessionId === "string" && body.sessionId.trim() !== "" ? body.sessionId.trim() : latestStatus?.sessionId ?? null
-  const workspaceDir = typeof body.workspaceDir === "string" && body.workspaceDir.trim() !== "" ? body.workspaceDir.trim() : latestStatus?.workspaceDir ?? null
+  const workspaceDir = getOptionalWorkspaceDir(body.workspaceDir) ?? latestStatus?.workspaceDir ?? null
   const workspaceId = typeof body.workspaceId === "string" && body.workspaceId.trim() !== "" ? body.workspaceId.trim() : latestStatus?.workspaceId ?? null
+  const versionId = typeof body.versionId === "string" && body.versionId.trim() !== "" ? body.versionId.trim() : latestStatus?.versionId ?? null
   const turnId = typeof body.turnId === "string" && body.turnId.trim() !== "" ? body.turnId.trim() : managedRunId
-  const resolvedLatestStatus = latestStatus ?? await getLatestManagedStatusForSession(sessionId, workspaceDir)
-  const progressRecord = sessionId && workspaceDir
-    ? await resolveProgressFromLatestSessionRun(sessionId, workspaceDir).catch(() => null)
+  const resolvedLatestStatus = latestStatus
+    ?? await getLatestManagedStatusForSession(sessionId, { versionId, workspaceDir, workspaceId })
+    ?? await getLatestManagedStatusForWorkspace(body)
+  const resolvedSessionId = sessionId ?? resolvedLatestStatus?.sessionId ?? null
+  const resolvedWorkspaceDir = workspaceDir ?? resolvedLatestStatus?.workspaceDir ?? null
+  const resolvedWorkspaceId = workspaceId ?? resolvedLatestStatus?.workspaceId ?? null
+  const resolvedVersionId = versionId ?? resolvedLatestStatus?.versionId ?? null
+  const progressRecord = resolvedSessionId && resolvedWorkspaceDir
+    ? await resolveProgressFromLatestSessionRun(resolvedSessionId, resolvedWorkspaceDir).catch(() => null)
     : null
   const progress = progressRecord?.data ?? null
-  const latestSession = sessionId ? await findWorkspaceSession(sessionId, workspaceDir).catch(() => null) : null
+  const latestSession = resolvedSessionId ? await findWorkspaceSession(resolvedSessionId, resolvedWorkspaceDir).catch(() => null) : null
   const artifacts = getProgressOutputFiles(progress)
-  const manifest = workspaceId || workspaceDir
+  const manifest = resolvedWorkspaceId || resolvedWorkspaceDir
     ? await getWorkspaceManifestSnapshotByLocator({
-      sessionId: workspaceId ?? sessionId ?? "workspace",
-      workspaceDir,
+      sessionId: resolvedWorkspaceId ?? resolvedSessionId ?? "workspace",
+      workspaceDir: resolvedWorkspaceDir,
     }).catch(() => null)
     : null
   const spokenSummary = await answerProgressQuestion({
@@ -1234,15 +1272,16 @@ async function answerManagedProgressFromDispatch({
       : null,
     progress,
     routing,
-    sessionId: sessionId ?? "",
+    sessionId: resolvedSessionId ?? "",
     sessionTurn: null,
     spokenSummary,
     status: resolvedLatestStatus?.status === "running" ? "partial" : resolvedLatestStatus?.status ?? "partial",
     summary: spokenSummary,
     threadId: resolvedLatestStatus?.threadId ?? (typeof body.threadId === "string" && body.threadId.trim() !== "" ? body.threadId.trim() : null),
     turnId,
-    workspaceDir,
-    workspaceId,
+    versionId: resolvedVersionId,
+    workspaceDir: resolvedWorkspaceDir,
+    workspaceId: resolvedWorkspaceId,
   }
   publishManagedRunEvent({
     type: response.status === "failed" ? "failed" : "final",
@@ -1256,8 +1295,9 @@ async function answerManagedProgressFromDispatch({
       summary: response.summary,
       threadId: response.threadId,
       turnId,
-      workspaceDir,
-      workspaceId,
+      versionId: resolvedVersionId,
+      workspaceDir: resolvedWorkspaceDir,
+      workspaceId: resolvedWorkspaceId,
     },
   })
   logger.info("managed dispatch returned progress response", {
@@ -1265,9 +1305,9 @@ async function answerManagedProgressFromDispatch({
     lockedByManagedRunId: resolvedLatestStatus?.status === "running" ? resolvedLatestStatus.managedRunId : null,
     managedRunId,
     requestId,
-    sessionId,
+    sessionId: resolvedSessionId,
     status: response.status,
-    workspaceDir,
+    workspaceDir: resolvedWorkspaceDir,
   })
   return response
 }
@@ -1281,7 +1321,7 @@ export async function runAgentTurn(
   body = normalized.body
   publishManagedRunEvent({ type: "accepted", managedRunId, inputType, requestId })
 
-  const lockedStatus = await getLatestRunningManagedStatus()
+  const lockedStatus = await getLatestManagedStatusForWorkspace(body)
   if (lockedStatus?.status === "running") {
     const routing: ManagedRouting = { selectedSkills: ["progress-summarizer"], skillScopes: ["public"] }
     publishManagedRunEvent({ type: "routing", managedRunId, routing })
@@ -1297,10 +1337,11 @@ export async function runAgentTurn(
     return answerManagedProgressFromDispatch({
       body: {
         ...body,
-        sessionId: lockedStatus.sessionId,
-        threadId: lockedStatus.threadId,
-        workspaceDir: lockedStatus.workspaceDir,
-        workspaceId: lockedStatus.workspaceId,
+        sessionId: body.sessionId ?? lockedStatus.sessionId,
+        threadId: body.threadId ?? lockedStatus.threadId,
+        versionId: body.versionId ?? lockedStatus.versionId,
+        workspaceDir: body.workspaceDir ?? lockedStatus.workspaceDir,
+        workspaceId: body.workspaceId ?? lockedStatus.workspaceId,
       },
       config,
       inputType,
@@ -1356,6 +1397,7 @@ export async function runAgentTurn(
     summary: spokenSummary,
     threadId: prepared.runContext.threadId,
     turnId: prepared.runContext.turnId,
+    versionId: prepared.runContext.versionId,
     workspaceDir: prepared.runContext.workspaceDir,
     workspaceId: prepared.runContext.workspaceId,
   }, logger)
@@ -1378,6 +1420,7 @@ export async function runAgentTurn(
       summary: spokenSummary,
       threadId: prepared.runContext.threadId,
       turnId: prepared.runContext.turnId,
+      versionId: prepared.runContext.versionId,
       workspaceDir: prepared.runContext.workspaceDir,
       workspaceId: prepared.runContext.workspaceId,
     },
@@ -1401,6 +1444,7 @@ export async function runAgentTurn(
         summary: summary.summary,
         threadId: result.threadId,
         turnId: result.turnId,
+        versionId: result.runContext.versionId,
         workspaceDir: result.runContext.workspaceDir,
         workspaceId: result.runContext.workspaceId,
       }, logger)
@@ -1432,6 +1476,7 @@ export async function runAgentTurn(
         summary: errorSummary,
         threadId: prepared.runContext.threadId,
         turnId: prepared.runContext.turnId,
+        versionId: prepared.runContext.versionId,
         workspaceDir: prepared.runContext.workspaceDir,
         workspaceId: prepared.runContext.workspaceId,
       }, logger)
@@ -1461,6 +1506,7 @@ export async function runAgentTurn(
     summary: spokenSummary,
     threadId: prepared.runContext.threadId,
     turnId: prepared.runContext.turnId,
+    versionId: prepared.runContext.versionId,
     workspaceDir: prepared.runContext.workspaceDir,
     workspaceId: prepared.runContext.workspaceId,
   }

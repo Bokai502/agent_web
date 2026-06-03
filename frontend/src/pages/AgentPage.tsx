@@ -54,7 +54,6 @@ export default function AgentPage() {
   const [latestManagedStatus, setLatestManagedStatus] = useState<ManagedRunStatusResponse | null>(null)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [selectedBomId, setSelectedBomId] = useState('')
-  const [selectedLogId, setSelectedLogId] = useState('')
   const managedPollTokenRef = useRef(0)
   const resetProgressDataRef = useRef<(() => void) | null>(null)
   const remoteToolHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
@@ -62,7 +61,6 @@ export default function AgentPage() {
 
   const refreshWorkspaceViews = useCallback(() => {
     setSelectedBomId('')
-    setSelectedLogId('')
     setWorkspaceRefreshNonce(value => value + 1)
     setProgressRefreshNonce(value => value + 1)
   }, [])
@@ -167,8 +165,20 @@ export default function AgentPage() {
     stopAgentSpeechPlayback,
     visibleAgentResponse,
   } = useAgentSpeech()
+  const activeWorkspaceSpeechKey = [
+    activeContext.versionDir,
+    activeContext.workspaceId,
+    activeContext.versionId,
+  ].filter(Boolean).join(':')
+  const activeWorkspaceSpeechKeyRef = useRef(activeWorkspaceSpeechKey)
+
+  useEffect(() => {
+    activeWorkspaceSpeechKeyRef.current = activeWorkspaceSpeechKey
+  }, [activeWorkspaceSpeechKey])
 
   const runCodex = useCallback(async (transcript: string, inputType: AgentInputMode = 'voice') => {
+    const runWorkspaceKey = activeWorkspaceSpeechKeyRef.current
+    const isCurrentWorkspaceRun = () => activeWorkspaceSpeechKeyRef.current === runWorkspaceKey
     resetProgressDataRef.current?.()
     setProgressRefreshNonce(value => value + 1)
     setManagedVoiceRunning(true)
@@ -181,6 +191,7 @@ export default function AgentPage() {
       status: ManagedRunStatusResponse,
     ) => {
       if (managedPollTokenRef.current !== token) return
+      if (!isCurrentWorkspaceRun()) return
       if (status.status === 'running') return
 
       setManagedVoiceRunning(false)
@@ -246,6 +257,7 @@ export default function AgentPage() {
           versionId: context.versionId,
         },
       })
+      if (!isCurrentWorkspaceRun()) return
       const reloadedSessions = await workspaceAppState.reloadSessions()
       const sessionId = result.sessionId
       if (sessionId && reloadedSessions.some(session => session.id === sessionId)) {
@@ -308,7 +320,7 @@ export default function AgentPage() {
 
       await runManagedWithContext(activeContext)
     } finally {
-      if (!backgroundRunStarted) setManagedVoiceRunning(false)
+      if (!backgroundRunStarted && isCurrentWorkspaceRun()) setManagedVoiceRunning(false)
     }
   }, [activeContext, refreshWorkspaceViews, showSpeechText, speakText, versionState, workspaceAppState, workspaces])
 
@@ -366,6 +378,7 @@ export default function AgentPage() {
     }
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, latestManagedStatus, refreshWorkspaceViews, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
   const {
+    clearRecorderDisplay,
     error,
     startRecording,
     state,
@@ -381,7 +394,6 @@ export default function AgentPage() {
     : workspaceAppState.runningSessionId ?? workspaceAppState.activeSessionId
   const {
     conversationLogs,
-    logEntries,
     progressData,
     resetProgressData,
     workflowLoopProgressEntries,
@@ -389,8 +401,8 @@ export default function AgentPage() {
     activeContext,
     enableConversationLogs: conversationPanelOpen,
     enableConversationLogRefresh: conversationPanelOpen && (visibleRunning || managedVoiceRunning || latestManagedStatus?.status === 'running'),
-    enableRunLogEntries: activeView === 'log',
-    enableStageLogs: activeView === 'log',
+    enableRunLogEntries: false,
+    enableStageLogs: false,
     progressRefreshNonce,
     progressVariant,
     running: visibleRunning || managedVoiceRunning || state === 'transcribing',
@@ -401,8 +413,17 @@ export default function AgentPage() {
     sessionId: conversationLogSessionId,
   })
   resetProgressDataRef.current = resetProgressData
-  const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
   const recorderStatusText = getRecorderStatusText(state, visibleRunning || managedVoiceRunning)
+
+  useEffect(() => {
+    managedPollTokenRef.current += 1
+    clearAgentSpeechDisplay()
+    clearRecorderDisplay()
+    setTextInput('')
+    setTextInputDisplay('')
+    setManagedVoiceRunning(false)
+    setLatestManagedStatus(null)
+  }, [activeWorkspaceSpeechKey, clearAgentSpeechDisplay, clearRecorderDisplay])
 
   useEffect(() => {
     resetProgressData()
@@ -455,11 +476,6 @@ export default function AgentPage() {
         console.warn('Failed to ensure remote desktop mappings', error)
       })
   }, [activeView])
-
-  useEffect(() => {
-    if (selectedLogId && logEntries.some(entry => entry.id === selectedLogId)) return
-    setSelectedLogId(logEntries[0]?.id ?? '')
-  }, [logEntries, selectedLogId])
 
   useEffect(() => {
     const handleViewerMessage = (event: MessageEvent<ViewerComponentMessage>) => {
@@ -600,14 +616,12 @@ export default function AgentPage() {
           createChildBranch={createChildBranch}
           createSiblingBranch={createSiblingBranch}
           handleSelectFile={handleSelectFile}
-          logEntries={logEntries}
           manifestLoading={manifestLoading}
           selectedBom={selectedBom}
           selectedFileError={selectedFileError}
           selectedFileLoading={selectedFileLoading}
           selectedFilePath={selectedFilePath}
           selectedFilePreview={selectedFilePreview}
-          selectedLog={selectedLog}
           setActiveTool={setActiveTool}
           setSelectedBomId={setSelectedBomId}
           setVersionListOpen={() => setVersionListOpen(open => !open)}

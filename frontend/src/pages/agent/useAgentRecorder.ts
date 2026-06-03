@@ -167,7 +167,18 @@ export function useAgentRecorder({ clearAgentSpeechDisplay, runCodex, running }:
     setState('error')
   }, [])
 
+  const clearRecorderDisplay = useCallback(() => {
+    setText('')
+    setError('')
+    setState(current => (
+      current === 'recording' || current === 'transcribing' || current === 'thinking'
+        ? current
+        : 'idle'
+    ))
+  }, [])
+
   return {
+    clearRecorderDisplay,
     error,
     setRecorderError,
     startRecording,

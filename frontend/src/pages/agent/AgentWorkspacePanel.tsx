@@ -5,13 +5,11 @@ import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
 import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
 import { GeneratedFilesTreeCard, type GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
-import { LogStagePanel } from '../workspace/LogStagePanel'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { WorkspaceFilePreviewPanel } from './WorkspaceFilePreviewPanel'
 
 type CurrentWorkspaceCardProps = ComponentProps<typeof CurrentWorkspaceCard>
 type BomStagePanelProps = ComponentProps<typeof BomStagePanel>
-type LogStagePanelProps = ComponentProps<typeof LogStagePanel>
 type GeneratedFilesTreeCardProps = ComponentProps<typeof GeneratedFilesTreeCard>
 
 type AgentWorkspacePanelProps = {
@@ -30,14 +28,12 @@ type AgentWorkspacePanelProps = {
   createChildBranch: CurrentWorkspaceCardProps['onCreateChildBranch']
   createSiblingBranch: CurrentWorkspaceCardProps['onCreateSiblingBranch']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
-  logEntries: LogStagePanelProps['logEntries']
   manifestLoading: boolean
   selectedBom: BomStagePanelProps['selectedBom']
   selectedFileError: string
   selectedFileLoading: boolean
   selectedFilePath: string
   selectedFilePreview: WorkspaceFilePreview | null
-  selectedLog: LogStagePanelProps['selectedLog']
   setActiveTool: (tool: AgentToolView) => void
   setSelectedBomId: BomStagePanelProps['onSelectBom']
   setVersionListOpen: CurrentWorkspaceCardProps['onToggleVersionList']
@@ -78,14 +74,12 @@ export function AgentWorkspacePanel({
   createChildBranch,
   createSiblingBranch,
   handleSelectFile,
-  logEntries,
   manifestLoading,
   selectedBom,
   selectedFileError,
   selectedFileLoading,
   selectedFilePath,
   selectedFilePreview,
-  selectedLog,
   setActiveTool,
   setSelectedBomId,
   setVersionListOpen,
@@ -221,9 +215,7 @@ export function AgentWorkspacePanel({
                   loading={selectedFileLoading}
                   selectedPath={selectedFilePath}
                 />
-              ) : (
-                <LogStagePanel logEntries={logEntries} selectedLog={selectedLog} t={t} />
-              )}
+              ) : null}
             </div>
           </div>
         )}

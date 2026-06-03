@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify"
 import fs from "fs/promises"
 import path from "path"
+import { spawn } from "child_process"
 import { isPathInside } from "../shared/index.js"
 import { resolveProgressFromLatestSessionRun } from "./workspaceRegistry.js"
 import { resolveScopedWorkspaceFilePath } from "./workspaceFiles.js"
@@ -133,6 +134,12 @@ function normalizeRelativeDirectory(value: unknown) {
 
 function formatRelativePath(workspaceDir: string, fullPath: string) {
   return path.relative(workspaceDir, fullPath).split(path.sep).join("/")
+}
+
+function safeArchiveBaseName(query: WorkspaceQuery, workspaceDir: string) {
+  const sourceName = query.versionId || query.workspaceId || path.basename(workspaceDir) || "workspace"
+  const cleaned = sourceName.replace(/[^\p{L}\p{N}._-]+/gu, "_").replace(/^_+|_+$/gu, "")
+  return cleaned || "workspace"
 }
 
 async function readWorkspaceDirectoryEntries(workspaceDir: string, relativePath: unknown) {
@@ -596,6 +603,42 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
       return reply.send(await readWorkspaceFileContent(workspaceDir, req.query.relativePath))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to resolve workspace file")
+    }
+  })
+
+  fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/files/archive", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      const stat = await fs.stat(workspaceDir).catch(() => null)
+      if (!stat?.isDirectory()) {
+        return reply.status(404).send({ error: "workspace directory not found" })
+      }
+
+      const archiveName = `${safeArchiveBaseName(req.query, workspaceDir)}.zip`
+      const zip = spawn("zip", ["-r", "-", "."], {
+        cwd: workspaceDir,
+        stdio: ["ignore", "pipe", "pipe"],
+      })
+      let stderr = ""
+      zip.stderr.setEncoding("utf-8")
+      zip.stderr.on("data", chunk => {
+        stderr += String(chunk)
+      })
+      zip.on("error", err => {
+        req.log.error({ err, workspaceDir }, "workspace archive process failed")
+      })
+      zip.on("close", code => {
+        if (code !== 0) {
+          req.log.error({ code, stderr: stderr.slice(0, 2000), workspaceDir }, "workspace archive process exited with failure")
+        }
+      })
+
+      reply.header("Cache-Control", "no-cache")
+      reply.header("Content-Type", "application/zip")
+      reply.header("Content-Disposition", `attachment; filename="${archiveName}"`)
+      return reply.send(zip.stdout)
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to archive workspace files")
     }
   })
 
