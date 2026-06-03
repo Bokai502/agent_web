@@ -33,6 +33,11 @@ type WorkspaceTextFileQuery = WorkspaceFilesQuery & {
   maxBytes?: string
 }
 
+type WorkspaceTextChunkQuery = WorkspaceFilesQuery & {
+  length?: string
+  offset?: string
+}
+
 const TEXT_FILE_EXTENSIONS = new Set([
   ".cfg",
   ".csv",
@@ -74,6 +79,8 @@ const THERMAL_DB_JSON_RELATIVE_PATH = path.join(
 const MAX_FILE_TREE_ENTRIES = 500
 const MAX_FILE_PREVIEW_BYTES = 1024 * 1024
 const MAX_TEXT_FILE_BYTES = 8 * 1024 * 1024
+const DEFAULT_TEXT_CHUNK_BYTES = 512 * 1024
+const MAX_TEXT_CHUNK_BYTES = 1024 * 1024
 
 type TemperaturePoint = {
   temperature: number
@@ -298,11 +305,59 @@ async function readWorkspaceTextFile(workspaceDir: string, relativePath: unknown
   return {
     content: await fs.readFile(targetPath, "utf-8"),
     encoding: "utf-8",
+    mimeType: extension === ".json" ? "application/json" : extension === ".md" ? "text/markdown" : "text/plain",
     mtimeMs: stat.mtimeMs,
     name: path.basename(targetPath),
     relativePath: normalizedRelativePath,
     size: stat.size,
     type: "text",
+  }
+}
+
+async function readWorkspaceTextChunk(workspaceDir: string, relativePath: unknown, offsetValue: unknown, lengthValue: unknown) {
+  const normalizedRelativePath = normalizeRelativeFile(relativePath)
+  const targetPath = path.resolve(workspaceDir, normalizedRelativePath)
+  if (!isPathInside(path.resolve(workspaceDir), targetPath)) {
+    throw new WorkspaceQueryError("relativePath must stay inside workspaceDir", 400)
+  }
+
+  const stat = await fs.stat(targetPath).catch(() => null)
+  if (!stat?.isFile()) {
+    throw new WorkspaceQueryError("file not found", 404)
+  }
+
+  const extension = path.extname(targetPath).toLowerCase()
+  if (!TEXT_FILE_EXTENSIONS.has(extension) && extension !== ".42") {
+    throw new WorkspaceQueryError("unsupported text file type", 400)
+  }
+
+  const requestedOffset = Number.parseInt(String(offsetValue ?? "0"), 10)
+  const requestedLength = Number.parseInt(String(lengthValue ?? ""), 10)
+  const offset = Number.isFinite(requestedOffset) && requestedOffset > 0 ? Math.min(requestedOffset, stat.size) : 0
+  const length = Number.isFinite(requestedLength) && requestedLength > 0
+    ? Math.min(requestedLength, MAX_TEXT_CHUNK_BYTES)
+    : DEFAULT_TEXT_CHUNK_BYTES
+  const byteLength = Math.max(0, Math.min(length, stat.size - offset))
+  const handle = await fs.open(targetPath, "r")
+  try {
+    const buffer = Buffer.alloc(byteLength)
+    const { bytesRead } = await handle.read(buffer, 0, byteLength, offset)
+    const nextOffset = offset + bytesRead
+    return {
+      contentBase64: buffer.subarray(0, bytesRead).toString("base64"),
+      encoding: "base64",
+      mimeType: extension === ".json" ? "application/json" : extension === ".md" ? "text/markdown" : "text/plain",
+      mtimeMs: stat.mtimeMs,
+      name: path.basename(targetPath),
+      nextOffset,
+      offset,
+      relativePath: normalizedRelativePath,
+      size: stat.size,
+      type: "text-chunk",
+      complete: nextOffset >= stat.size,
+    }
+  } finally {
+    await handle.close()
   }
 }
 
@@ -654,6 +709,16 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
       return reply.send(await readWorkspaceTextFile(workspaceDir, req.query.relativePath, req.query.maxBytes))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to read workspace text file")
+    }
+  })
+
+  fastify.get<{ Querystring: WorkspaceTextChunkQuery }>("/api/workspace/files/text-chunk", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await readWorkspaceTextChunk(workspaceDir, req.query.relativePath, req.query.offset, req.query.length))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to read workspace text chunk")
     }
   })
 
