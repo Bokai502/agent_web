@@ -12,7 +12,7 @@ import { AgentProgressRail } from './agent/AgentProgressRail'
 import { AgentConversationPopover } from './agent/AgentConversationPopover'
 import { AgentRecorderControl } from './agent/AgentRecorderControl'
 import { AgentSideNav } from './agent/AgentSideNav'
-import { AgentTopbar } from './agent/AgentTopbar'
+import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentVoiceExchange } from './agent/AgentVoiceExchange'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex } from './agent/managedRun'
@@ -48,6 +48,9 @@ export default function AgentPage() {
   const [textInput, setTextInput] = useState('')
   const [textInputDisplay, setTextInputDisplay] = useState('')
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
+  const [remoteToolPortStatus, setRemoteToolPortStatus] = useState<RemoteToolPortSummary | null>(null)
+  const [remoteToolPortError, setRemoteToolPortError] = useState('')
+  const [remoteToolPortLoading, setRemoteToolPortLoading] = useState(false)
   const [selectedBomId, setSelectedBomId] = useState('')
   const resetProgressDataRef = useRef<(() => void) | null>(null)
   const remoteToolHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
@@ -123,6 +126,24 @@ export default function AgentPage() {
     comsol: getRemoteToolUrl('comsol', remoteToolHost),
     gnc: getGncToolUrl(),
   }), [remoteToolHost])
+  const refreshRemoteToolPortStatus = useCallback(() => {
+    setRemoteToolPortLoading(true)
+    return fetch(joinApiPath(undefined, '/remote-tools/port-status'), { cache: 'no-store' })
+      .then(async response => {
+        const data = await response.json().catch(() => null) as RemoteToolPortSummary | null
+        if (!data || !Array.isArray(data.ports)) {
+          throw new Error('端口状态响应格式异常')
+        }
+        setRemoteToolPortStatus(data)
+        setRemoteToolPortError('')
+      })
+      .catch(error => {
+        setRemoteToolPortError(error instanceof Error ? error.message : '端口状态获取失败')
+      })
+      .finally(() => {
+        setRemoteToolPortLoading(false)
+      })
+  }, [])
   const progressVariant = useMemo<WorkflowProgressVariant>(() => {
     const marker = [
       activeContext.workspaceId,
@@ -285,6 +306,14 @@ export default function AgentPage() {
   }, [activeContext.versionDir, activeContext.versionId, resetProgressData])
 
   useEffect(() => {
+    refreshRemoteToolPortStatus().catch(() => {})
+    const interval = window.setInterval(() => {
+      refreshRemoteToolPortStatus().catch(() => {})
+    }, 6000)
+    return () => window.clearInterval(interval)
+  }, [refreshRemoteToolPortStatus])
+
+  useEffect(() => {
     if (state === 'done') {
       setProgressRefreshNonce(value => value + 1)
     }
@@ -351,8 +380,6 @@ export default function AgentPage() {
     setActiveView(current => current === nextView ? null : nextView)
   }, [])
   const activeNavIndex = activeView ? NAV_VIEWS.indexOf(activeView) : -1
-  const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  const currentDate = new Date().toLocaleDateString([], { month: 'short', day: '2-digit', year: 'numeric' })
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
   const progressPercent = workflowLoopProgressEntries.length > 0
     ? Math.round(workflowLoopProgressEntries.reduce((total, item) => total + item.percent, 0) / workflowLoopProgressEntries.length)
@@ -400,12 +427,13 @@ export default function AgentPage() {
     <main className={agentPageClassName}>
       <AgentTopbar
         conversationOpen={conversationPanelOpen}
-        currentDate={currentDate}
-        currentTime={currentTime}
         dataSourceLabel={dataSourceLabel}
         inputMode={inputMode}
         onInputModeChange={handleInputModeChange}
         onConversationToggle={() => setConversationPanelOpen(open => !open)}
+        portStatus={remoteToolPortStatus}
+        portStatusError={remoteToolPortError}
+        portStatusLoading={remoteToolPortLoading}
         onProgressToggle={() => setProgressPanelOpen(open => !open)}
         onStopAndSummarize={handleStopAndSummarize}
         progressOpen={progressPanelOpen}
