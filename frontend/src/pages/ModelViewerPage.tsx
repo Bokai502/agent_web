@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import * as THREE from "three/webgpu"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
+import { DeratingMissingItemsPanel } from "./DeratingMissingItemsPanel"
 import {
   ANNOTATION_PALETTES,
   DEFAULT_ANNOTATION_HEIGHT,
@@ -63,7 +64,7 @@ type ViewerComponentMessage = {
   type?: unknown
 }
 
-type ViewerMode = "cad" | "temperature"
+type ViewerMode = "cad" | "temperature" | "derating"
 
 type TemperatureField = {
   attributes?: {
@@ -225,7 +226,9 @@ export default function ModelViewerPage() {
       if (temperatureRoot) temperatureRoot.visible = mode === "temperature"
       annotationLabels.style.display = mode === "cad" ? "block" : "none"
       annotationSvg.style.display = mode === "cad" ? "block" : "none"
-      if (mode === "temperature") {
+      if (domElement) domElement.style.display = mode === "derating" ? "none" : "block"
+      axisSvg.style.display = mode === "derating" ? "none" : "block"
+      if (mode !== "cad") {
         clearModelHighlight()
         setSelectedComponent(null)
       }
@@ -1005,6 +1008,24 @@ export default function ModelViewerPage() {
       }}
     >
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+      {viewerMode === "derating" ? (
+        <div
+          style={{
+            bottom: 0,
+            left: 0,
+            position: "absolute",
+            right: 0,
+            top: 56,
+            zIndex: 4,
+          }}
+        >
+          <DeratingMissingItemsPanel
+            versionId={versionId}
+            workspaceDir={workspaceDir}
+            workspaceId={workspaceId}
+          />
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -1024,6 +1045,7 @@ export default function ModelViewerPage() {
         {([
           ["cad", "CAD"],
           ["temperature", "Thermal"],
+          ["derating", "降额"],
         ] as const).map(([mode, label]) => {
           const active = viewerMode === mode
           return (

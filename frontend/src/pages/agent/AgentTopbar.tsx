@@ -1,15 +1,34 @@
+import { useEffect, useState } from 'react'
 import type { WorkspaceSessionStatus } from '../workspace/workspaceSessionVisibility'
 
 type AgentInputMode = 'voice' | 'text'
 
+export type RemoteToolPortStatus = {
+  ok: boolean
+  tool: 'freecad' | 'paraview' | 'comsol'
+  label: string
+  host: string
+  port: number
+  latencyMs: number | null
+  message: string
+}
+
+export type RemoteToolPortSummary = {
+  ok: boolean
+  checkedAt: string
+  timeoutMs: number
+  ports: RemoteToolPortStatus[]
+}
+
 type AgentTopbarProps = {
   conversationOpen: boolean
-  currentDate: string
-  currentTime: string
   dataSourceLabel: string
   inputMode: AgentInputMode
   onInputModeChange: (nextMode: AgentInputMode) => void
   onConversationToggle: () => void
+  portStatus: RemoteToolPortSummary | null
+  portStatusError: string
+  portStatusLoading: boolean
   onProgressToggle: () => void
   onStopAndSummarize: () => void
   progressOpen: boolean
@@ -24,12 +43,13 @@ type AgentTopbarProps = {
 
 export function AgentTopbar({
   conversationOpen,
-  currentDate,
-  currentTime,
   dataSourceLabel,
   inputMode,
   onInputModeChange,
   onConversationToggle,
+  portStatus,
+  portStatusError,
+  portStatusLoading,
   onProgressToggle,
   onStopAndSummarize,
   progressOpen,
@@ -41,7 +61,32 @@ export function AgentTopbar({
   stopSummaryPending,
   versionLabel,
 }: AgentTopbarProps) {
+  const [portPanelOpen, setPortPanelOpen] = useState(false)
+  const [now, setNow] = useState(() => new Date())
   const showStopButton = sessionStatus === 'running'
+  const healthyPorts = portStatus?.ports.filter(port => port.ok).length ?? 0
+  const totalPorts = portStatus?.ports.length ?? 0
+  const portVariant = portStatusError
+    ? 'bad'
+    : portStatus?.ok
+      ? 'ok'
+      : portStatusLoading && !portStatus
+        ? 'checking'
+        : 'bad'
+  const realtimeLabel = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const portDetailLabel = portStatusError
+    ? '端口不可用'
+    : portStatus
+      ? portStatus.ok ? '远程端口正常' : `端口异常 ${healthyPorts}/${totalPorts}`
+      : '检测端口中'
+  const checkedAtLabel = portStatus?.checkedAt
+    ? `${new Date(portStatus.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} 检测`
+    : '等待检测'
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   return (
     <header className="agent-hud-topbar">
@@ -94,7 +139,7 @@ export function AgentTopbar({
           <span className="agent-progress-value">{progressPercent}%</span>
         </button>
       </div>
-      <div className="agent-topbar-clock">
+      <div className="agent-topbar-port-status">
         <div className="agent-input-mode-switch" role="group" aria-label="输入方式">
           <button
             type="button"
@@ -113,13 +158,46 @@ export function AgentTopbar({
             文字
           </button>
         </div>
-        <div className="agent-clock-card">
-          <span className="agent-clock-icon" aria-hidden="true" />
+        <button
+          type="button"
+          className={`agent-port-card is-${portVariant} ${portPanelOpen ? 'is-open' : ''}`}
+          aria-expanded={portPanelOpen}
+          aria-haspopup="dialog"
+          onClick={() => setPortPanelOpen(open => !open)}
+        >
+          <span className="agent-port-icon" aria-hidden="true" />
           <div>
-            <strong>{currentTime}</strong>
-            <span>{currentDate}</span>
+            <strong>{realtimeLabel}</strong>
+            <span>{portDetailLabel}</span>
           </div>
-        </div>
+        </button>
+        {portPanelOpen ? (
+          <div className="agent-port-popover" role="dialog" aria-label="远程窗口端口状态">
+            <header>
+              <strong>远程窗口端口</strong>
+              <span>{checkedAtLabel}</span>
+            </header>
+            {portStatusError ? (
+              <p className="agent-port-error">{portStatusError}</p>
+            ) : portStatus?.ports.length ? (
+              <div className="agent-port-list">
+                {portStatus.ports.map(port => (
+                  <div className={`agent-port-row ${port.ok ? 'ok' : 'bad'}`} key={port.tool}>
+                    <span className="agent-port-row-dot" />
+                    <div>
+                      <strong>{port.label}</strong>
+                      <small>{port.host}:{port.port}</small>
+                    </div>
+                    <em>{port.ok ? '正常' : '异常'}</em>
+                    <code>{port.ok && port.latencyMs !== null ? `${port.latencyMs}ms` : port.message}</code>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>正在检测 FreeCAD、ParaView、COMSOL 端口...</p>
+            )}
+          </div>
+        ) : null}
       </div>
     </header>
   )

@@ -1,0 +1,284 @@
+.agent-topbar-port-status {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  border-left: 1px solid var(--hud-line-soft);
+  padding: 0 12px;
+}
+
+.agent-port-card {
+  display: inline-grid;
+  grid-template-columns: 22px minmax(72px, 1fr);
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 140px;
+  height: 32px;
+  border: 1px solid rgba(0, 168, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(4, 18, 32, 0.68);
+  box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.1);
+  color: #eaf7ff;
+  cursor: pointer;
+  padding: 4px 12px;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.agent-port-card:hover,
+.agent-port-card.is-open {
+  border-color: rgba(23, 231, 255, 0.58);
+  box-shadow:
+    inset 0 0 24px rgba(0, 168, 255, 0.15),
+    0 0 20px rgba(0, 168, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.agent-port-card.is-ok {
+  border-color: rgba(56, 248, 183, 0.36);
+  background: rgba(7, 48, 44, 0.7);
+}
+
+.agent-port-card.is-bad {
+  border-color: rgba(255, 96, 96, 0.36);
+  background: rgba(54, 16, 24, 0.72);
+}
+
+.agent-port-card.is-checking {
+  border-color: rgba(255, 193, 96, 0.34);
+  background: rgba(54, 36, 10, 0.7);
+}
+
+.agent-port-card strong {
+  display: block;
+  color: #f4fbff;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.05;
+}
+
+.agent-port-card span {
+  display: block;
+  margin-top: 1px;
+  color: rgba(234, 247, 255, 0.6);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.agent-port-icon {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(23, 231, 255, 0.82);
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(0, 168, 255, 0.46);
+}
+
+.agent-port-card.is-ok .agent-port-icon {
+  border-color: rgba(56, 248, 183, 0.86);
+  box-shadow: 0 0 16px rgba(56, 248, 183, 0.46);
+}
+
+.agent-port-card.is-bad .agent-port-icon {
+  border-color: rgba(255, 96, 96, 0.86);
+  box-shadow: 0 0 16px rgba(255, 96, 96, 0.38);
+}
+
+.agent-port-card.is-checking .agent-port-icon {
+  border-color: rgba(255, 193, 96, 0.86);
+  box-shadow: 0 0 16px rgba(255, 193, 96, 0.38);
+}
+
+.agent-port-icon::before,
+.agent-port-icon::after {
+  position: absolute;
+  content: "";
+  border-radius: 50%;
+}
+
+.agent-port-icon::before {
+  inset: 4px;
+  background: rgba(23, 231, 255, 0.9);
+  box-shadow: 0 0 10px rgba(23, 231, 255, 0.5);
+}
+
+.agent-port-card.is-ok .agent-port-icon::before {
+  background: rgba(56, 248, 183, 0.92);
+}
+
+.agent-port-card.is-bad .agent-port-icon::before {
+  background: rgba(255, 96, 96, 0.92);
+}
+
+.agent-port-card.is-checking .agent-port-icon::before {
+  background: rgba(255, 193, 96, 0.92);
+}
+
+.agent-port-icon::after {
+  inset: -6px;
+  border: 1px solid rgba(23, 231, 255, 0.16);
+}
+
+.agent-port-popover {
+  position: absolute;
+  right: 14px;
+  top: calc(100% + 10px);
+  z-index: 40;
+  width: min(390px, calc(100vw - 24px));
+  border: 1px solid rgba(23, 231, 255, 0.22);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(8, 30, 50, 0.96), rgba(3, 12, 22, 0.96));
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.45),
+    inset 0 0 28px rgba(0, 168, 255, 0.08);
+  backdrop-filter: blur(18px);
+  padding: 12px;
+}
+
+.agent-port-popover::before {
+  content: "";
+  position: absolute;
+  right: 30px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-left: 1px solid rgba(23, 231, 255, 0.22);
+  border-top: 1px solid rgba(23, 231, 255, 0.22);
+  background: rgba(8, 30, 50, 0.96);
+  transform: rotate(45deg);
+}
+
+.agent-port-popover header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.agent-port-popover header strong {
+  color: #f4fbff;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.agent-port-popover header span {
+  color: rgba(234, 247, 255, 0.6);
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.agent-port-popover p {
+  margin: 0;
+  border: 1px solid rgba(23, 231, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(4, 18, 32, 0.66);
+  padding: 10px;
+  color: rgba(234, 247, 255, 0.72);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.agent-port-popover .agent-port-error {
+  border-color: rgba(255, 96, 96, 0.24);
+  color: rgba(255, 190, 190, 0.92);
+}
+
+.agent-port-list {
+  display: grid;
+  gap: 7px;
+}
+
+.agent-port-row {
+  display: grid;
+  grid-template-columns: 10px minmax(92px, 1fr) auto minmax(70px, auto);
+  gap: 9px;
+  align-items: center;
+  min-height: 46px;
+  border: 1px solid rgba(23, 231, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 18, 32, 0.64);
+  padding: 8px 10px;
+}
+
+.agent-port-row-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 96, 96, 0.95);
+  box-shadow: 0 0 10px rgba(255, 96, 96, 0.42);
+}
+
+.agent-port-row.ok .agent-port-row-dot {
+  background: rgba(56, 248, 183, 0.95);
+  box-shadow: 0 0 10px rgba(56, 248, 183, 0.42);
+}
+
+.agent-port-row div {
+  min-width: 0;
+}
+
+.agent-port-row strong,
+.agent-port-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-port-row strong {
+  color: #f4fbff;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.agent-port-row small {
+  margin-top: 4px;
+  color: rgba(234, 247, 255, 0.52);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.agent-port-row em {
+  color: rgba(255, 150, 150, 0.95);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.agent-port-row.ok em {
+  color: rgba(56, 248, 183, 0.95);
+}
+
+.agent-port-row code {
+  overflow: hidden;
+  max-width: 112px;
+  border-radius: 6px;
+  background: rgba(23, 231, 255, 0.08);
+  padding: 4px 6px;
+  color: rgba(234, 247, 255, 0.66);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .agent-topbar-port-status {
+    min-height: 42px;
+    justify-content: center;
+    flex-wrap: wrap;
+    border-left: 0;
+    border-bottom: 1px solid var(--hud-line-soft);
+    padding: 8px 12px;
+  }
+}

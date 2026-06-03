@@ -5,7 +5,12 @@ description: Classify electronic components and check Table 5 derating data. Use
 
 # Component Derating Classifier
 
-Run commands from this skill directory unless the user gives another working directory. Use only the standards in `reference/jiange_full.json`; do not invent categories, subclasses, derating parameters, or derating values.
+Use the Open Codex Web execution context `workspace_dir` as the workspace root.
+Run commands from this skill directory so relative script/reference paths resolve
+predictably, but pass `--workspace-dir <workspace_dir>` to the scripts. Keep
+generated analysis files under the workspace, not inside this skill directory.
+Use only the standards in `reference/jiange_full.json`; do not invent categories,
+subclasses, derating parameters, or derating values.
 
 ## Files
 
@@ -13,7 +18,43 @@ Run commands from this skill directory unless the user gives another working dir
 - `reference/rules.md`: derating check rules.
 - `scripts/xlsx_to_json.py`: converts Table 5 XLSX files to JSON.
 - `scripts/analyze_xlsx.py`: applies an AI mapping and performs deterministic numeric checks.
+- `scripts/check_mapping_completeness.py`: writes the required-parameter coverage report for the AI mapping.
 - `scripts/write_selected_subclass.py`: writes reference rows for one selected subclass.
+- `scripts/progress_update.py`: updates `<workspace_dir>/logs/progress.json` using the same `loop_progress/1.0` format as thermal/GNC workflows.
+- `<workspace_dir>/check_outputs/component-derating-classifier/`: default output directory.
+
+## Progress
+
+Keep progress in `<workspace_dir>/logs/progress.json` with schema
+`loop_progress/1.0`. Use these loop names:
+
+- `check_convert_table`
+- `check_ai_mapping`
+- `check_mapping_completeness`
+- `check_rule_analysis`
+
+The conversion and deterministic analysis scripts update progress
+automatically. Around the manual AI mapping step, update progress explicitly:
+
+```bash
+python scripts/progress_update.py \
+  --workspace-dir <workspace_dir> \
+  --loop-name check_ai_mapping \
+  --status ai_mapping_running \
+  --completed false \
+  --percentage 20
+```
+
+After writing `<workspace_dir>/check_outputs/component-derating-classifier/input_ai_mapping.json`, mark it complete:
+
+```bash
+python scripts/progress_update.py \
+  --workspace-dir <workspace_dir> \
+  --loop-name check_ai_mapping \
+  --status ai_mapping_completed \
+  --completed true \
+  --percentage 100
+```
 
 ## Route
 
@@ -26,7 +67,9 @@ Run commands from this skill directory unless the user gives another working dir
 ### 1. Convert The Table
 
 ```bash
-python scripts/xlsx_to_json.py "input.xlsx" -o outputs/input_table.json
+python scripts/xlsx_to_json.py "input.xlsx" \
+  --workspace-dir <workspace_dir> \
+  -o check_outputs/component-derating-classifier/input_table.json
 ```
 
 Expected Table 5 shape:
@@ -76,7 +119,11 @@ For a single-component request, return exactly this JSON object and nothing else
 
 ### 3. Generate The Batch AI Mapping
 
-For an XLSX workflow, apply the same decision contract to each unique component and submitted derating parameter, then write `outputs/input_ai_mapping.json`:
+Before generating the mapping, update `check_ai_mapping` to `ai_mapping_running`.
+Read `<workspace_dir>/check_outputs/component-derating-classifier/input_table.json`
+and `reference/jiange_full.json`. For an XLSX workflow, apply the same decision
+contract to each unique component and submitted derating parameter, then write
+`<workspace_dir>/check_outputs/component-derating-classifier/input_ai_mapping.json`:
 
 ```json
 {
@@ -100,26 +147,63 @@ For an XLSX workflow, apply the same decision contract to each unique component 
 
 AI mapping rules:
 
-- Keep every `元器件名称` exactly as it appears in `outputs/input_table.json`.
+- Keep every `元器件名称` exactly as it appears in `<workspace_dir>/check_outputs/component-derating-classifier/input_table.json`.
 - Prefer the most specific valid subclass implied by component name, model/specification, function, load type, and derating parameter.
 - Use `全类型` only when it is the best valid subclass for a broad component.
 - When reading standard rows, treat `元器件大类 + 元器件子类` as the component type key. Do not match rows by `元器件子类` alone because subclasses such as `全类型` appear under multiple categories.
 - Match parameters by meaning, not exact text only. For example, `工作电压` may map to `直流工作电压`, `电源电压`, or `输入电压` depending on the selected subclass.
 - Omit uncertain `parameter_matches`; the deterministic checker will mark those rows for review.
 - Do not include explanation fields such as `confidence`, `match_method`, or `selection_reason` in the mapping file.
+- After writing the mapping file, update `check_ai_mapping` to `ai_mapping_completed` with `completed true`.
 
-### 4. Run Deterministic Checks
+### 4. Generate Mapping Completeness Report
+
+Always generate a separate mapping completeness JSON after writing
+`<workspace_dir>/check_outputs/component-derating-classifier/input_ai_mapping.json`
+and before running the deterministic checks:
 
 ```bash
-python scripts/analyze_xlsx.py "input.xlsx" --ai-mapping outputs/input_ai_mapping.json
+python scripts/progress_update.py \
+  --workspace-dir <workspace_dir> \
+  --loop-name check_mapping_completeness \
+  --status mapping_completeness_running \
+  --completed false \
+  --percentage 20
+
+python scripts/check_mapping_completeness.py \
+  check_outputs/component-derating-classifier/input_ai_mapping.json \
+  --workspace-dir <workspace_dir> \
+  --no-in-place
+
+python scripts/progress_update.py \
+  --workspace-dir <workspace_dir> \
+  --loop-name check_mapping_completeness \
+  --status mapping_completeness_completed \
+  --completed true \
+  --percentage 100
+```
+
+This writes:
+
+- `<workspace_dir>/check_outputs/component-derating-classifier/input_mapping_completeness.json`
+
+Use `--no-in-place` so the completeness report is a standalone artifact. Do not
+skip this step for XLSX workflows.
+
+### 5. Run Deterministic Checks
+
+```bash
+python scripts/analyze_xlsx.py "input.xlsx" \
+  --workspace-dir <workspace_dir> \
+  --ai-mapping check_outputs/component-derating-classifier/input_ai_mapping.json
 ```
 
 The script writes:
 
-- `outputs/input_table.json`
-- `outputs/input_classification.json`
-- `outputs/input_component_decisions.json`
-- `outputs/input_check_result.json`
+- `<workspace_dir>/check_outputs/component-derating-classifier/input_table.json`
+- `<workspace_dir>/check_outputs/component-derating-classifier/input_classification.json`
+- `<workspace_dir>/check_outputs/component-derating-classifier/input_component_decisions.json`
+- `<workspace_dir>/check_outputs/component-derating-classifier/input_check_result.json`
 
 The checker handles:
 
@@ -163,11 +247,11 @@ PY
 
 ```bash
 python scripts/write_selected_subclass.py \
+  --workspace-dir <workspace_dir> \
   --component-name "用户输入的元器件名称" \
   --category "选择的元器件大类" \
   --subclass "选择的元器件子类" \
-  --reason "简短说明为什么选择该子类" \
-  --output component_derating_result.json
+  --reason "简短说明为什么选择该子类"
 ```
 
 ## Reporting
@@ -176,6 +260,7 @@ For XLSX analysis, report:
 
 - `*_table.json`
 - `*_ai_mapping.json`
+- `*_mapping_completeness.json`
 - `*_classification.json`
 - `*_component_decisions.json`
 - `*_check_result.json`
