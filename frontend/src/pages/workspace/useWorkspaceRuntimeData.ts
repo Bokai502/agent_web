@@ -24,6 +24,7 @@ const CONVERSATION_EVENT_LIMIT = 120
 type RuntimeDataArgs = {
   activeContext: WorkspaceVersionContext
   apiBase?: string
+  enableConversationLogRefresh?: boolean
   enableConversationLogs?: boolean
   enableRunLogEntries?: boolean
   enableStageLogs?: boolean
@@ -70,6 +71,7 @@ function haveSameLogEntries<TEntry extends { detail?: string; id: string; status
 export function useWorkspaceRuntimeData({
   activeContext,
   apiBase,
+  enableConversationLogRefresh = false,
   enableConversationLogs = true,
   enableRunLogEntries = true,
   enableStageLogs = true,
@@ -189,11 +191,13 @@ export function useWorkspaceRuntimeData({
     }
 
     loadConversationLogs()
+    const intervalId = enableConversationLogRefresh ? window.setInterval(loadConversationLogs, 2000) : null
     return () => {
       cancelled = true
       controller?.abort()
+      if (intervalId) window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, enableConversationLogs, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, enableConversationLogRefresh, enableConversationLogs, workspaceRefreshNonce])
 
   const runLogEntries = useMemo(() => (
     enableRunLogEntries ? getRunLogEntries(visibleTurns, visibleCurrentEvents, t) : []

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { MarkdownText } from "../../components/outputMarkdown"
 
 const MAX_RENDERED_SESSIONS = 4
@@ -115,24 +115,33 @@ function ConversationTurn({ turn }: { turn: ConversationTurnView }) {
 
 function ConversationTimeline({ turns }: { turns: ConversationTurnView[] }) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const pendingScrollRestoreRef = useRef<number | null>(null)
   const [visibleTurnCount, setVisibleTurnCount] = useState(() => Math.min(INITIAL_VISIBLE_TURNS, turns.length))
   const visibleTurns = turns.slice(Math.max(0, turns.length - visibleTurnCount))
 
   useEffect(() => {
-    setVisibleTurnCount(Math.min(INITIAL_VISIBLE_TURNS, turns.length))
-  }, [turns])
+    setVisibleTurnCount(count => {
+      if (turns.length === 0) return 0
+      if (count === 0) return Math.min(INITIAL_VISIBLE_TURNS, turns.length)
+      return Math.min(Math.max(count, INITIAL_VISIBLE_TURNS), turns.length)
+    })
+  }, [turns.length])
+
+  useLayoutEffect(() => {
+    const previousHeight = pendingScrollRestoreRef.current
+    if (previousHeight === null) return
+    pendingScrollRestoreRef.current = null
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTop = Math.max(0, el.scrollHeight - previousHeight)
+  }, [turns.length, visibleTurnCount])
 
   const handleScroll = () => {
     const el = scrollRef.current
     if (!el || el.scrollTop > 24 || visibleTurnCount >= turns.length) return
 
-    const previousHeight = el.scrollHeight
+    pendingScrollRestoreRef.current = el.scrollHeight
     setVisibleTurnCount(count => Math.min(turns.length, count + LOAD_MORE_TURN_COUNT))
-    window.requestAnimationFrame(() => {
-      const nextEl = scrollRef.current
-      if (!nextEl) return
-      nextEl.scrollTop = nextEl.scrollHeight - previousHeight
-    })
   }
 
   return (
