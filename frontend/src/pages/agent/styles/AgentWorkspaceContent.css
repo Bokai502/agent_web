@@ -166,6 +166,167 @@
   background: rgba(2, 12, 24, 0.66);
 }
 
+.agent-workspace-body .gnc-dashboard-stage {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.42) transparent;
+}
+
+.agent-workspace-body .gnc-dashboard-plot {
+  min-width: 0;
+  border: 1px solid rgba(0, 168, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(2, 12, 24, 0.66);
+  box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.08);
+}
+
+.agent-workspace-body .gnc-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.agent-workspace-body .gnc-dashboard-plot {
+  overflow: hidden;
+  margin: 0;
+}
+
+.agent-workspace-body .gnc-dashboard-plot figcaption {
+  min-width: 0;
+  border-bottom: 1px solid rgba(0, 168, 255, 0.16);
+  padding: 12px 14px;
+}
+
+.agent-workspace-body .gnc-dashboard-plot figcaption strong {
+  display: block;
+  color: #f4fbff;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.agent-workspace-body .gnc-dashboard-plot figcaption span {
+  display: block;
+  overflow: hidden;
+  margin-top: 4px;
+  color: rgba(234, 247, 255, 0.5);
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .gnc-dashboard-plot img {
+  display: block;
+  width: 100%;
+  min-height: 240px;
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.agent-workspace-body .gnc-d3-chart {
+  display: block;
+  width: 100%;
+  min-height: 260px;
+  background:
+    radial-gradient(circle at 50% 12%, rgba(23, 231, 255, 0.09), transparent 34%),
+    rgba(1, 7, 14, 0.72);
+}
+
+.agent-workspace-body .gnc-grid line {
+  stroke: rgba(234, 247, 255, 0.1);
+  stroke-width: 1;
+}
+
+.agent-workspace-body .gnc-axis line {
+  stroke: rgba(234, 247, 255, 0.42);
+  stroke-width: 1;
+}
+
+.agent-workspace-body .gnc-axis text,
+.agent-workspace-body .gnc-legend text {
+  fill: rgba(234, 247, 255, 0.68);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.agent-workspace-body .gnc-axis text {
+  text-anchor: middle;
+}
+
+.agent-workspace-body .gnc-y-tick text {
+  font-size: 9px;
+  text-anchor: end;
+}
+
+.agent-workspace-body .gnc-legend rect {
+  fill: rgba(1, 7, 14, 0.76);
+  stroke: rgba(23, 231, 255, 0.12);
+}
+
+.agent-workspace-body .gnc-legend.compact text {
+  font-size: 9px;
+}
+
+.agent-workspace-body .gnc-axis-label {
+  fill: var(--hud-cyan) !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+  text-anchor: start !important;
+}
+
+.agent-workspace-body .gnc-mode-bars line {
+  opacity: 0.72;
+}
+
+.agent-workspace-body .gnc-dashboard-error,
+.agent-workspace-body .gnc-dashboard-missing,
+.agent-workspace-body .gnc-dashboard-loading {
+  margin-bottom: 14px;
+  border: 1px solid rgba(255, 184, 92, 0.26);
+  border-radius: 8px;
+  background: rgba(70, 32, 3, 0.5);
+  color: #ffd8a8;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.agent-workspace-body .gnc-dashboard-missing {
+  margin: 14px 0 0;
+}
+
+.agent-workspace-body .wa-stage-empty {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.agent-workspace-body .wa-stage-empty-inner {
+  max-width: 340px;
+}
+
+.agent-workspace-body .wa-stage-empty-inner strong {
+  display: block;
+  color: #f4fbff;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.agent-workspace-body .wa-stage-empty-inner span {
+  display: block;
+  margin-top: 10px;
+  color: rgba(234, 247, 255, 0.62);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
 .agent-workspace-body .wa-log-detail-card {
   max-height: min(68vh, 760px);
   margin-top: 24px;

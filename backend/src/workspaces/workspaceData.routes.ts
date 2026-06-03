@@ -29,6 +29,10 @@ type WorkspaceFilesQuery = WorkspaceQuery & {
 
 type WorkspaceFileContentQuery = WorkspaceFilesQuery
 
+type WorkspaceTextFileQuery = WorkspaceFilesQuery & {
+  maxBytes?: string
+}
+
 const TEXT_FILE_EXTENSIONS = new Set([
   ".cfg",
   ".csv",
@@ -69,6 +73,7 @@ const THERMAL_DB_JSON_RELATIVE_PATH = path.join(
 )
 const MAX_FILE_TREE_ENTRIES = 500
 const MAX_FILE_PREVIEW_BYTES = 1024 * 1024
+const MAX_TEXT_FILE_BYTES = 8 * 1024 * 1024
 
 type TemperaturePoint = {
   temperature: number
@@ -262,6 +267,42 @@ async function readWorkspaceFileContent(workspaceDir: string, relativePath: unkn
     relativePath: normalizedRelativePath,
     size: stat.size,
     type: "binary",
+  }
+}
+
+async function readWorkspaceTextFile(workspaceDir: string, relativePath: unknown, maxBytesValue: unknown) {
+  const normalizedRelativePath = normalizeRelativeFile(relativePath)
+  const targetPath = path.resolve(workspaceDir, normalizedRelativePath)
+  if (!isPathInside(path.resolve(workspaceDir), targetPath)) {
+    throw new WorkspaceQueryError("relativePath must stay inside workspaceDir", 400)
+  }
+
+  const stat = await fs.stat(targetPath).catch(() => null)
+  if (!stat?.isFile()) {
+    throw new WorkspaceQueryError("file not found", 404)
+  }
+
+  const extension = path.extname(targetPath).toLowerCase()
+  if (!TEXT_FILE_EXTENSIONS.has(extension) && extension !== ".42") {
+    throw new WorkspaceQueryError("unsupported text file type", 400)
+  }
+
+  const requestedMaxBytes = Number.parseInt(String(maxBytesValue ?? ""), 10)
+  const maxBytes = Number.isFinite(requestedMaxBytes) && requestedMaxBytes > 0
+    ? Math.min(requestedMaxBytes, MAX_TEXT_FILE_BYTES)
+    : MAX_TEXT_FILE_BYTES
+  if (stat.size > maxBytes) {
+    throw new WorkspaceQueryError(`file too large for text read; size=${stat.size}, maxBytes=${maxBytes}`, 413)
+  }
+
+  return {
+    content: await fs.readFile(targetPath, "utf-8"),
+    encoding: "utf-8",
+    mtimeMs: stat.mtimeMs,
+    name: path.basename(targetPath),
+    relativePath: normalizedRelativePath,
+    size: stat.size,
+    type: "text",
   }
 }
 
@@ -603,6 +644,16 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance) {
       return reply.send(await readWorkspaceFileContent(workspaceDir, req.query.relativePath))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to resolve workspace file")
+    }
+  })
+
+  fastify.get<{ Querystring: WorkspaceTextFileQuery }>("/api/workspace/files/text", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await readWorkspaceTextFile(workspaceDir, req.query.relativePath, req.query.maxBytes))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to read workspace text file")
     }
   })
 

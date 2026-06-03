@@ -305,6 +305,10 @@ export default function AgentPage() {
   }, [activeView])
 
   useEffect(() => {
+    if (!showGncConfig && (activeTool === 'gnc' || activeTool === 'gnc-dashboard')) setActiveTool('cad')
+  }, [activeTool, showGncConfig])
+
+  useEffect(() => {
     const handleViewerMessage = (event: MessageEvent<ViewerComponentMessage>) => {
       if (event.origin !== window.location.origin) return
       if (event.data?.type !== 'viewer3d:component-selected') return

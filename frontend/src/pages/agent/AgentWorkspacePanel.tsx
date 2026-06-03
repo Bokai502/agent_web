@@ -4,6 +4,7 @@ import { GncConfigEditor } from '../../../gnc_config/GncConfigEditor'
 import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
 import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
+import { GncDashboardPanel } from '../workspace/GncDashboardPanel'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
@@ -41,7 +42,7 @@ type AgentWorkspacePanelProps = {
   showGncConfig: boolean
   switchActiveWorkspace: CurrentWorkspaceCardProps['onSelectWorkspace']
   t: TFunction
-  toolUrls: Record<AgentToolView, string>
+  toolUrls: Partial<Record<AgentToolView, string>>
   versionAction: CurrentWorkspaceCardProps['versionAction']
   versionError: CurrentWorkspaceCardProps['versionError']
   versionListOpen: boolean
@@ -103,6 +104,16 @@ export function AgentWorkspacePanel({
     activeView ? 'is-open' : 'is-collapsed',
     activeView ? `is-${activeView}-view` : '',
   ].filter(Boolean).join(' ')
+  const toolTabs: AgentToolView[] = showGncConfig
+    ? ['cad', 'paraview', 'comsol', 'gnc', 'gnc-dashboard']
+    : ['cad', 'paraview', 'comsol']
+  const toolLabel = (tool: AgentToolView) => {
+    if (tool === 'cad') return 'CAD'
+    if (tool === 'paraview') return 'ParaView'
+    if (tool === 'comsol') return 'COMSOL'
+    if (tool === 'gnc-dashboard') return 'GNC 看板'
+    return 'GNC'
+  }
 
   return (
     <section className={panelClassName}>
@@ -141,14 +152,14 @@ export function AgentWorkspacePanel({
         </div>
         {activeView === 'tools' && (
           <div className="agent-tool-tabs">
-            {(['cad', 'paraview', 'comsol', 'gnc'] as const).map(tool => (
+            {toolTabs.map(tool => (
               <button
                 key={tool}
                 type="button"
                 className={activeTool === tool ? 'active' : undefined}
                 onClick={() => setActiveTool(tool)}
               >
-                {tool === 'cad' ? 'CAD' : tool === 'paraview' ? 'ParaView' : tool === 'comsol' ? 'COMSOL' : 'GNC'}
+                {toolLabel(tool)}
               </button>
             ))}
           </div>
@@ -195,8 +206,14 @@ export function AgentWorkspacePanel({
           ) : (
             <div className="agent-empty-state">等待当前工作区生成模型</div>
           )
+        ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
+          <GncDashboardPanel activeContext={activeContext} />
         ) : activeView === 'tools' ? (
-          <iframe className="agent-embed-frame" title={activeTool} src={toolUrls[activeTool]} />
+          toolUrls[activeTool] ? (
+            <iframe className="agent-embed-frame" title={activeTool} src={toolUrls[activeTool]} />
+          ) : (
+            <div className="agent-empty-state">当前工具没有可打开的远程窗口</div>
+          )
         ) : (
           <AgentFilesView
             activeContext={activeContext}
