@@ -109,6 +109,39 @@
   transform: translateY(-1px);
 }
 
+.agent-session-control {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+
+.agent-session-control.has-stop {
+  grid-template-columns: minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid rgba(23, 231, 255, 0.48);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(0, 168, 255, 0.18), rgba(4, 18, 32, 0.56)),
+    rgba(4, 18, 32, 0.78);
+  box-shadow:
+    inset 0 0 16px rgba(0, 168, 255, 0.12),
+    0 0 20px rgba(0, 168, 255, 0.12);
+}
+
+.agent-session-control.has-stop .agent-status-pill--session {
+  border: 0;
+  border-radius: 999px 0 0 999px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.agent-session-control.has-stop .agent-status-pill--session:hover,
+.agent-session-control.has-stop .agent-status-pill--session.is-open {
+  background: rgba(0, 168, 255, 0.08);
+  box-shadow: none;
+  transform: none;
+}
+
 .agent-stop-summary-button {
   display: inline-flex;
   height: 32px;
@@ -150,6 +183,24 @@
 .agent-stop-summary-button:disabled {
   cursor: default;
   opacity: 0.68;
+}
+
+.agent-stop-summary-button--topbar {
+  height: 34px;
+  flex: 0 0 auto;
+  border-width: 0 0 0 1px;
+  border-color: rgba(255, 91, 91, 0.34);
+  border-radius: 0 999px 999px 0;
+  background:
+    linear-gradient(90deg, rgba(255, 59, 48, 0.18), rgba(66, 12, 22, 0.48)),
+    rgba(4, 18, 32, 0.4);
+  box-shadow: inset 0 0 14px rgba(255, 59, 48, 0.08);
+  padding: 0 13px 0 11px;
+}
+
+.agent-stop-summary-button--topbar span {
+  width: 8px;
+  height: 8px;
 }
 
 .agent-input-mode-switch {

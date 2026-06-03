@@ -11,12 +11,14 @@ type AgentTopbarProps = {
   onInputModeChange: (nextMode: AgentInputMode) => void
   onConversationToggle: () => void
   onProgressToggle: () => void
+  onStopAndSummarize: () => void
   progressOpen: boolean
   progressPercent: number
   progressStatusLabel: string
   progressTitle: string
   sessionStatus: WorkspaceSessionStatus
   sessionStatusLabel: string
+  stopSummaryPending: boolean
   versionLabel: string
 }
 
@@ -29,36 +31,54 @@ export function AgentTopbar({
   onInputModeChange,
   onConversationToggle,
   onProgressToggle,
+  onStopAndSummarize,
   progressOpen,
   progressPercent,
   progressStatusLabel,
   progressTitle,
   sessionStatus,
   sessionStatusLabel,
+  stopSummaryPending,
   versionLabel,
 }: AgentTopbarProps) {
+  const showStopButton = sessionStatus === 'running'
+
   return (
     <header className="agent-hud-topbar">
       <div className="agent-brand">
         <img src="/logo_1.png" alt="SATLAB" className="agent-brand-logo" />
       </div>
       <div className="agent-topbar-status">
-        <button
-          type="button"
-          className={`agent-status-pill agent-status-pill--session agent-session-pill is-${sessionStatus} ${conversationOpen ? 'is-open' : ''}`}
-          aria-expanded={conversationOpen}
-          aria-haspopup="dialog"
-          onClick={onConversationToggle}
-        >
-          <span className="agent-session-status">
-            <span className="agent-session-dot" />
-            <span className="agent-session-label">{sessionStatusLabel}</span>
-          </span>
-          <span className="agent-session-copy">
-            <span className="agent-session-source">{dataSourceLabel}</span>
-            <span className="agent-session-version">· {versionLabel}</span>
-          </span>
-        </button>
+        <div className={`agent-session-control ${showStopButton ? 'has-stop' : ''}`}>
+          <button
+            type="button"
+            className={`agent-status-pill agent-status-pill--session agent-session-pill is-${sessionStatus} ${conversationOpen ? 'is-open' : ''}`}
+            aria-expanded={conversationOpen}
+            aria-haspopup="dialog"
+            onClick={onConversationToggle}
+          >
+            <span className="agent-session-status">
+              <span className="agent-session-dot" />
+              <span className="agent-session-label">{sessionStatusLabel}</span>
+            </span>
+            <span className="agent-session-copy">
+              <span className="agent-session-source">{dataSourceLabel}</span>
+              <span className="agent-session-version">· {versionLabel}</span>
+            </span>
+          </button>
+          {showStopButton ? (
+            <button
+              type="button"
+              className="agent-stop-summary-button agent-stop-summary-button--topbar"
+              disabled={stopSummaryPending}
+              onClick={onStopAndSummarize}
+              title="停止当前 Codex pipeline 并生成语音总结"
+            >
+              <span aria-hidden="true" />
+              {stopSummaryPending ? '总结中' : '停止'}
+            </button>
+          ) : null}
+        </div>
         <button
           type="button"
           className={`agent-status-pill agent-status-pill--progress agent-progress-pill ${progressOpen ? 'is-open' : ''}`}

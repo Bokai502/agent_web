@@ -39,6 +39,10 @@ export function AgentRecorderControl({
     setTextDialogOpen(false)
   }
   const handleRobotClick = () => {
+    if (busy) {
+      onButtonClick()
+      return
+    }
     if (inputMode === 'text') {
       setTextDialogOpen(open => {
         if (!open) resetRobotTransform()

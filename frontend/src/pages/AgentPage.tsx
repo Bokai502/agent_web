@@ -485,7 +485,7 @@ export default function AgentPage() {
     }
     if (state === 'recording') {
       stopRecording()
-    } else if (state !== 'transcribing' && state !== 'thinking') {
+    } else if (state !== 'transcribing') {
       void startRecording()
     }
   }, [agentSpeechPlaying, agentSpeechState, startRecording, state, stopAgentSpeechPlayback, stopRecording])
@@ -517,8 +517,8 @@ export default function AgentPage() {
   const progressStatusLabel = activeProgressEntry
     ? `${activeProgressEntry.label} · ${activeProgressEntry.statusLabel}`
     : progressUpdatedAt
-  const recordButtonBusy = state === 'thinking' || visibleRunning || managedVoiceRunning || agentSpeechState === 'synthesizing' || agentSpeechPlaying
-  const recordButtonDisabled = state === 'transcribing' || ((state === 'thinking' || visibleRunning || managedVoiceRunning) && !agentSpeechPlaying && agentSpeechState !== 'synthesizing')
+  const recordButtonBusy = agentSpeechState === 'synthesizing' || agentSpeechPlaying
+  const recordButtonDisabled = state === 'transcribing'
   const textComposerBusy = recordButtonBusy || state === 'transcribing'
   const textRecorderStatusText = textComposerBusy
     ? recorderStatusText
@@ -560,28 +560,18 @@ export default function AgentPage() {
         onInputModeChange={handleInputModeChange}
         onConversationToggle={() => setConversationPanelOpen(open => !open)}
         onProgressToggle={() => setProgressPanelOpen(open => !open)}
+        onStopAndSummarize={handleStopAndSummarize}
         progressOpen={progressPanelOpen}
         progressPercent={progressPercent}
         progressStatusLabel={progressStatusLabel}
         progressTitle={t('workspace.inspector.progressTitle')}
         sessionStatus={displayedSessionStatus}
         sessionStatusLabel={sessionStatusLabel}
+        stopSummaryPending={stopSummaryPending}
         versionLabel={versionLabel}
       />
       {conversationPanelOpen ? (
         <AgentConversationPopover
-          actions={(
-            <button
-              type="button"
-              className="agent-stop-summary-button"
-              disabled={stopSummaryPending}
-              onClick={handleStopAndSummarize}
-              title="停止当前 Codex 进程并生成语音总结"
-            >
-              <span aria-hidden="true" />
-              {stopSummaryPending ? '总结中' : '停止'}
-            </button>
-          )}
           conversationLogs={conversationLogs}
           onClose={() => setConversationPanelOpen(false)}
           title="历史对话"

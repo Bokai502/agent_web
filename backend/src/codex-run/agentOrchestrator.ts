@@ -168,6 +168,11 @@ export async function getLatestManagedStatusForWorkspace(body: RunRequestBody) {
   return matches.sort((a, b) => b.managedRunId.localeCompare(a.managedRunId))[0] ?? null
 }
 
+async function getLatestRunningManagedStatus() {
+  const matches = (await listRecentManagedRunStatuses()).filter(status => status.status === "running")
+  return matches.sort((a, b) => b.managedRunId.localeCompare(a.managedRunId))[0] ?? null
+}
+
 async function normalizeManagedRunBody(body: RunRequestBody) {
   const sessionKey = buildManagedSessionKey(body)
   const existingState = managedSessionStates.get(sessionKey)
@@ -1172,6 +1177,101 @@ export function getManagedRunEvents(managedRunId: string) {
   return managedRunEventBacklog.get(managedRunId) ?? []
 }
 
+async function answerManagedProgressFromDispatch({
+  body,
+  config,
+  inputType,
+  latestStatus,
+  logger,
+  managedRunId,
+  requestId,
+  routing,
+}: {
+  body: RunRequestBody
+  config: AppConfig
+  inputType: "text" | "voice"
+  latestStatus?: ManagedRunStatusResponse | null
+  logger: Logger
+  managedRunId: string
+  requestId?: string
+  routing: ManagedRouting
+}): Promise<ManagedRunResponse> {
+  const sessionId = typeof body.sessionId === "string" && body.sessionId.trim() !== "" ? body.sessionId.trim() : latestStatus?.sessionId ?? null
+  const workspaceDir = typeof body.workspaceDir === "string" && body.workspaceDir.trim() !== "" ? body.workspaceDir.trim() : latestStatus?.workspaceDir ?? null
+  const workspaceId = typeof body.workspaceId === "string" && body.workspaceId.trim() !== "" ? body.workspaceId.trim() : latestStatus?.workspaceId ?? null
+  const turnId = typeof body.turnId === "string" && body.turnId.trim() !== "" ? body.turnId.trim() : managedRunId
+  const resolvedLatestStatus = latestStatus ?? await getLatestManagedStatusForSession(sessionId, workspaceDir)
+  const progressRecord = sessionId && workspaceDir
+    ? await resolveProgressFromLatestSessionRun(sessionId, workspaceDir).catch(() => null)
+    : null
+  const progress = progressRecord?.data ?? null
+  const latestSession = sessionId ? await findWorkspaceSession(sessionId, workspaceDir).catch(() => null) : null
+  const artifacts = getProgressOutputFiles(progress)
+  const manifest = workspaceId || workspaceDir
+    ? await getWorkspaceManifestSnapshotByLocator({
+      sessionId: workspaceId ?? sessionId ?? "workspace",
+      workspaceDir,
+    }).catch(() => null)
+    : null
+  const spokenSummary = await answerProgressQuestion({
+    artifacts,
+    body,
+    config,
+    latestStatus: resolvedLatestStatus,
+    logger,
+    manifest,
+    progress,
+    requestId: `${requestId ?? "request"}:${managedRunId}:progress-answer`,
+    session: latestSession,
+  })
+  const response: ManagedRunResponse = {
+    artifacts,
+    eventCounts: {},
+    issues: resolvedLatestStatus?.error ? [resolvedLatestStatus.error] : [],
+    managedRunId,
+    manifestRun: manifest && typeof manifest === "object" && Array.isArray((manifest as { runs?: unknown }).runs)
+      ? (manifest as { runs: unknown[] }).runs.slice(-1)[0] ?? null
+      : null,
+    progress,
+    routing,
+    sessionId: sessionId ?? "",
+    sessionTurn: null,
+    spokenSummary,
+    status: resolvedLatestStatus?.status === "running" ? "partial" : resolvedLatestStatus?.status ?? "partial",
+    summary: spokenSummary,
+    threadId: resolvedLatestStatus?.threadId ?? (typeof body.threadId === "string" && body.threadId.trim() !== "" ? body.threadId.trim() : null),
+    turnId,
+    workspaceDir,
+    workspaceId,
+  }
+  publishManagedRunEvent({
+    type: response.status === "failed" ? "failed" : "final",
+    managedRunId,
+    status: {
+      managedRunId,
+      routing: response.routing,
+      sessionId: response.sessionId,
+      spokenSummary: response.spokenSummary,
+      status: response.status,
+      summary: response.summary,
+      threadId: response.threadId,
+      turnId,
+      workspaceDir,
+      workspaceId,
+    },
+  })
+  logger.info("managed dispatch returned progress response", {
+    inputType,
+    lockedByManagedRunId: resolvedLatestStatus?.status === "running" ? resolvedLatestStatus.managedRunId : null,
+    managedRunId,
+    requestId,
+    sessionId,
+    status: response.status,
+    workspaceDir,
+  })
+  return response
+}
+
 export async function runAgentTurn(
   { body, inputType = "text" }: AgentTurnInput,
   { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
@@ -1180,6 +1280,38 @@ export async function runAgentTurn(
   const normalized = await normalizeManagedRunBody(body)
   body = normalized.body
   publishManagedRunEvent({ type: "accepted", managedRunId, inputType, requestId })
+
+  const lockedStatus = await getLatestRunningManagedStatus()
+  if (lockedStatus?.status === "running") {
+    const routing: ManagedRouting = { selectedSkills: ["progress-summarizer"], skillScopes: ["public"] }
+    publishManagedRunEvent({ type: "routing", managedRunId, routing })
+    logger.info("managed dispatch downgraded by active pipeline lock", {
+      inputType,
+      lockedByManagedRunId: lockedStatus.managedRunId,
+      managedRunId,
+      requestId,
+      sessionId: lockedStatus.sessionId,
+      workspaceDir: lockedStatus.workspaceDir,
+      workspaceId: lockedStatus.workspaceId,
+    })
+    return answerManagedProgressFromDispatch({
+      body: {
+        ...body,
+        sessionId: lockedStatus.sessionId,
+        threadId: lockedStatus.threadId,
+        workspaceDir: lockedStatus.workspaceDir,
+        workspaceId: lockedStatus.workspaceId,
+      },
+      config,
+      inputType,
+      latestStatus: lockedStatus,
+      logger,
+      managedRunId,
+      requestId,
+      routing,
+    })
+  }
+
   const routing = await routeManagedRunIntent(body, {
     config,
     logger,
@@ -1192,80 +1324,15 @@ export async function runAgentTurn(
   })
 
   if (routing.managedSkills.includes("progress-summarizer")) {
-    const sessionId = typeof body.sessionId === "string" && body.sessionId.trim() !== "" ? body.sessionId.trim() : null
-    const workspaceDir = typeof body.workspaceDir === "string" && body.workspaceDir.trim() !== "" ? body.workspaceDir.trim() : null
-    const workspaceId = typeof body.workspaceId === "string" && body.workspaceId.trim() !== "" ? body.workspaceId.trim() : null
-    const turnId = typeof body.turnId === "string" && body.turnId.trim() !== "" ? body.turnId.trim() : managedRunId
-    const latestStatus = await getLatestManagedStatusForSession(sessionId, workspaceDir)
-    const progressRecord = sessionId && workspaceDir
-      ? await resolveProgressFromLatestSessionRun(sessionId, workspaceDir).catch(() => null)
-      : null
-    const progress = progressRecord?.data ?? null
-    const latestSession = sessionId ? await findWorkspaceSession(sessionId, workspaceDir).catch(() => null) : null
-    const latestMessage = getLatestSessionAgentMessage(latestSession)
-    const artifacts = getProgressOutputFiles(progress)
-    const manifest = workspaceId || workspaceDir
-      ? await getWorkspaceManifestSnapshotByLocator({
-        sessionId: workspaceId ?? sessionId ?? "workspace",
-        workspaceDir,
-      }).catch(() => null)
-      : null
-    const spokenSummary = await answerProgressQuestion({
-      artifacts,
+    return answerManagedProgressFromDispatch({
       body,
       config,
-      latestStatus,
-      logger,
-      manifest,
-      progress,
-      requestId: `${requestId ?? "request"}:${managedRunId}:progress-answer`,
-      session: latestSession,
-    })
-    const response: ManagedRunResponse = {
-      artifacts,
-      eventCounts: {},
-      issues: latestStatus?.error ? [latestStatus.error] : [],
-      managedRunId,
-      manifestRun: manifest && typeof manifest === "object" && Array.isArray((manifest as { runs?: unknown }).runs)
-        ? (manifest as { runs: unknown[] }).runs.slice(-1)[0] ?? null
-        : null,
-      progress,
-      routing: { selectedSkills: routing.selectedSkills, skillScopes: routing.skillScopes },
-      sessionId: sessionId ?? "",
-      sessionTurn: null,
-      spokenSummary,
-      status: latestStatus?.status === "running" ? "partial" : latestStatus?.status ?? "partial",
-      summary: spokenSummary,
-      threadId: latestStatus?.threadId ?? (typeof body.threadId === "string" && body.threadId.trim() !== "" ? body.threadId.trim() : null),
-      turnId,
-      workspaceDir,
-      workspaceId,
-    }
-    publishManagedRunEvent({
-      type: response.status === "failed" ? "failed" : "final",
-      managedRunId,
-      status: {
-        managedRunId,
-        routing: response.routing,
-        sessionId: response.sessionId,
-        spokenSummary: response.spokenSummary,
-        status: response.status,
-        summary: response.summary,
-        threadId: response.threadId,
-        turnId,
-        workspaceDir,
-        workspaceId,
-      },
-    })
-    logger.info("managed dispatch returned progress summary", {
       inputType,
+      logger,
       managedRunId,
       requestId,
-      sessionId,
-      status: response.status,
-      workspaceDir,
+      routing: { selectedSkills: routing.selectedSkills, skillScopes: routing.skillScopes },
     })
-    return response
   }
 
   const prepared = await prepareCodexTurn(body, {
