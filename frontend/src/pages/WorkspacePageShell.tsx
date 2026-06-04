@@ -48,6 +48,21 @@ function getInitialWorkspacePanel(showModel: boolean): ActivePanel {
   return showModel ? "model" : "log"
 }
 
+function isDeratingWorkspaceContext(context: {
+  versionDir?: string | null
+  workspaceId?: string | null
+  workspaceKey?: string | null
+  workspaceName?: string | null
+}) {
+  const marker = [
+    context.workspaceName,
+    context.workspaceId,
+    context.workspaceKey,
+    context.versionDir,
+  ].filter(Boolean).join("\n").toLowerCase()
+  return /derating|降额/u.test(marker)
+}
+
 export interface WorkspacePageShellProps {
   apiBase?: string
   enableGncConfig?: boolean
@@ -212,10 +227,14 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     if (activeContext.workspaceId) params.set("workspaceId", activeContext.workspaceId)
     if (activeContext.versionId) params.set("versionId", activeContext.versionId)
     if (activeContext.versionDir) params.set("workspaceDir", activeContext.versionDir)
+    if (isDeratingWorkspaceContext(activeContext)) {
+      params.set("mode", "derating")
+      params.set("lockMode", "derating")
+    }
     if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, externalModelViewerUrl, workspaceRefreshNonce])
+  }, [activeContext, externalModelViewerUrl, progressVariant, workspaceRefreshNonce])
   const cadHref = getRemoteToolUrl("cad", remoteToolHost)
   const paraviewHref = getRemoteToolUrl("paraview", remoteToolHost)
   const comsolHref = getRemoteToolUrl("comsol", remoteToolHost)

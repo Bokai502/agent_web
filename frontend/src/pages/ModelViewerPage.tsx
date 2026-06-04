@@ -128,6 +128,12 @@ function mapBodyXyzToViewerPositions(positions: number[]) {
   return mapped
 }
 
+function parseViewerMode(value: string | null): ViewerMode | null {
+  if (value === "cad" || value === "temperature" || value === "derating") return value
+  if (value === "thermal") return "temperature"
+  return null
+}
+
 export default function ModelViewerPage() {
   const mountRef = useRef<HTMLDivElement>(null)
   const axisSvgRef = useRef<SVGSVGElement>(null)
@@ -140,10 +146,13 @@ export default function ModelViewerPage() {
   const versionId = pageParams.get("versionId")?.trim() ?? ""
   const workspaceDir = pageParams.get("workspaceDir")?.trim() ?? ""
   const workspaceId = pageParams.get("workspaceId")?.trim() ?? ""
+  const lockedViewerMode = parseViewerMode(pageParams.get("lockMode"))
+  const requestedViewerMode = parseViewerMode(pageParams.get("mode"))
+  const initialViewerMode = lockedViewerMode ?? (requestedViewerMode === "derating" ? "cad" : requestedViewerMode) ?? "cad"
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving CAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [viewerMode, setViewerMode] = useState<ViewerMode>("cad")
+  const [viewerMode, setViewerMode] = useState<ViewerMode>(initialViewerMode)
   const [temperatureRange, setTemperatureRange] = useState<{ max: number; min: number } | null>(null)
   const viewerModeRef = useRef<ViewerMode>("cad")
 
@@ -1042,10 +1051,11 @@ export default function ModelViewerPage() {
           pointerEvents: "auto",
         }}
       >
-        {([
+        {(lockedViewerMode ? [
+          [lockedViewerMode, lockedViewerMode === "derating" ? "降额" : lockedViewerMode === "temperature" ? "Thermal" : "CAD"],
+        ] as const : [
           ["cad", "CAD"],
           ["temperature", "Thermal"],
-          ["derating", "降额"],
         ] as const).map(([mode, label]) => {
           const active = viewerMode === mode
           return (
