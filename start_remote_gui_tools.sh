@@ -5,6 +5,7 @@ DESKTOP_LAUNCHER="${DESKTOP_LAUNCHER:-/usr/local/bin/start-remote-cad-desktop}"
 FREECAD_LAUNCHER="${FREECAD_LAUNCHER:-/usr/local/bin/start-freecad-remote}"
 PARAVIEW_LAUNCHER="${PARAVIEW_LAUNCHER:-/usr/local/bin/start-paraview-remote}"
 COMSOL_LAUNCHER="${COMSOL_LAUNCHER:-/usr/local/bin/start-comsol-remote}"
+COMSOL_SUDO="${COMSOL_SUDO:-sudo}"
 ACTION="${1:-start}"
 LOG_DIR="${HOME}/.remote-cad/logs"
 
@@ -179,7 +180,7 @@ if ! pgrep -u "$(id -un)" -af "(^|/)paraview( |$)" >/dev/null 2>&1; then
   fi
 fi
 if ! pgrep -u "$(id -un)" -af "(^|/)(comsol|comsollauncher)( |$)" >/dev/null 2>&1; then
-  "${COMSOL_LAUNCHER}"
+  "${COMSOL_SUDO}" "${COMSOL_LAUNCHER}"
 fi
 
 echo "Remote GUI tools requested."

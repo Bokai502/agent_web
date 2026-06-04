@@ -128,6 +128,14 @@ function mapBodyXyzToViewerPositions(positions: number[]) {
   return mapped
 }
 
+function shouldShowDeratingMode(params: URLSearchParams, values: string[]) {
+  const explicit = params.get("showDerating") ?? params.get("derating")
+  if (explicit) return /^(1|true|yes)$/iu.test(explicit)
+
+  const context = values.join(" ").toLowerCase()
+  return context.includes("derating") || context.includes("ws_check") || context.includes("check_outputs")
+}
+
 export default function ModelViewerPage() {
   const mountRef = useRef<HTMLDivElement>(null)
   const axisSvgRef = useRef<SVGSVGElement>(null)
@@ -140,6 +148,8 @@ export default function ModelViewerPage() {
   const versionId = pageParams.get("versionId")?.trim() ?? ""
   const workspaceDir = pageParams.get("workspaceDir")?.trim() ?? ""
   const workspaceId = pageParams.get("workspaceId")?.trim() ?? ""
+  const workspaceKey = pageParams.get("workspaceKey")?.trim() ?? ""
+  const showDeratingMode = shouldShowDeratingMode(pageParams, [sessionId, versionId, workspaceDir, workspaceId, workspaceKey])
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving CAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -150,6 +160,14 @@ export default function ModelViewerPage() {
   useEffect(() => {
     viewerModeRef.current = viewerMode
   }, [viewerMode])
+
+  useEffect(() => {
+    if (showDeratingMode && viewerMode !== "derating") {
+      setViewerMode("derating")
+      return
+    }
+    if (!showDeratingMode && viewerMode === "derating") setViewerMode("cad")
+  }, [showDeratingMode, viewerMode])
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") return
@@ -1008,7 +1026,7 @@ export default function ModelViewerPage() {
       }}
     >
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
-      {viewerMode === "derating" ? (
+      {showDeratingMode && viewerMode === "derating" ? (
         <div
           style={{
             bottom: 0,
@@ -1042,11 +1060,13 @@ export default function ModelViewerPage() {
           pointerEvents: "auto",
         }}
       >
-        {([
-          ["cad", "CAD"],
-          ["temperature", "Thermal"],
-          ["derating", "降额"],
-        ] as const).map(([mode, label]) => {
+        {(showDeratingMode
+          ? ([["derating", "降额"]] as const)
+          : ([
+              ["cad", "CAD"],
+              ["temperature", "Thermal"],
+            ] as const)
+        ).map(([mode, label]) => {
           const active = viewerMode === mode
           return (
             <button

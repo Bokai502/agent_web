@@ -1,7 +1,9 @@
 import Fastify from "fastify"
 import cors from "@fastify/cors"
+import path from "node:path"
 import { loadConfig } from "./config.js"
 import { createLogger } from "./logger.js"
+import { resolveRequestUser } from "./server/auth.js"
 import { registerApiRoutes } from "./server/routes.js"
 import { enterRequestContext } from "./server/requestContext.js"
 import { checkCodexEndpoint, refreshSkillsCache } from "./system/index.js"
@@ -10,6 +12,7 @@ const config = loadConfig()
 const logger = createLogger(config.logging)
 const GNC_WORKSPACE_ROOT = "/data/lbk/codex_web/data/input_data"
 const REGION_WORKSPACE_ROOT = "/data/lbk/codex_web/data_jiange"
+const DEFAULT_WORKSPACE_ROOT = "/data/lbk/codex_web/data/input_data"
 
 logger.info("backend starting", {
   baseUrl: config.openai.baseUrl,
@@ -35,11 +38,21 @@ const fastify = Fastify({
 
 fastify.addHook("onRequest", async (request) => {
   const originalUrl = request.originalUrl ?? request.raw.url ?? request.url
+  const isAuthRequest = originalUrl?.startsWith("/api/auth/") === true
   const isGncRequest = originalUrl?.startsWith("/api/gnc/") === true
   const isRegionRequest = originalUrl?.startsWith("/api/region/") === true
+  const baseWorkspaceRoot = isRegionRequest ? REGION_WORKSPACE_ROOT : isGncRequest ? GNC_WORKSPACE_ROOT : DEFAULT_WORKSPACE_ROOT
+  const user = resolveRequestUser(request, config, baseWorkspaceRoot)
+  if (config.auth.enabled && !user.authenticated && !isAuthRequest) {
+    throw Object.assign(new Error("authentication required"), { statusCode: 401 })
+  }
+  const workspaceRootOverride = path.resolve(user.workspaceRoot)
+
   enterRequestContext({
+    userId: user.userId,
+    userWorkspaceRoot: workspaceRootOverride,
     isGncRequest: isGncRequest || isRegionRequest,
-    workspaceRootOverride: isGncRequest ? GNC_WORKSPACE_ROOT : isRegionRequest ? REGION_WORKSPACE_ROOT : undefined,
+    workspaceRootOverride,
   })
 })
 

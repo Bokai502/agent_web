@@ -4,6 +4,7 @@ import { Codex } from "@openai/codex-sdk"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { getWorkspaceManifestSnapshotByLocator } from "../manifests/store.js"
+import { getRequestUserId } from "../server/requestContext.js"
 import { findWorkspaceSession } from "../sessions/sessionStore.js"
 import { readRoutingSkillInstruction, type SkillScope } from "../system/skills.js"
 import { resolveProgressFromLatestSessionRun } from "../workspaces/workspaceRegistry.js"
@@ -61,6 +62,7 @@ export type ManagedRunStatusResponse = {
   summary: string
   threadId: string | null
   turnId: string
+  userId?: string | null
   versionId: string | null
   workspaceDir: string | null
   workspaceId: string | null
@@ -102,6 +104,7 @@ type ManagedSessionState = {
   sessionId: string
   threadId: string | null
   updatedAt: number
+  userId?: string | null
   versionId: string | null
   workspaceDir: string | null
   workspaceId: string | null
@@ -133,16 +136,17 @@ function getOptionalWorkspaceDir(value: unknown) {
 }
 
 function buildManagedSessionKey(body: RunRequestBody) {
+  const userId = getRequestUserId() ?? "anonymous"
   const workspaceDir = getOptionalWorkspaceDir(body.workspaceDir)
   const workspaceId = getOptionalString(body.workspaceId)
   const versionId = getOptionalString(body.versionId)
   const workspaceName = getOptionalString(body.workspaceName)
-  if (workspaceDir) return `dir:${path.resolve(workspaceDir)}`
-  if (workspaceId && versionId) return `workspace:${workspaceId}:version:${versionId}`
-  if (versionId) return `version:${versionId}`
-  if (workspaceId) return `workspace:${workspaceId}`
-  if (workspaceName) return `name:${workspaceName}`
-  return "default"
+  if (workspaceDir) return `user:${userId}:dir:${path.resolve(workspaceDir)}`
+  if (workspaceId && versionId) return `user:${userId}:workspace:${workspaceId}:version:${versionId}`
+  if (versionId) return `user:${userId}:version:${versionId}`
+  if (workspaceId) return `user:${userId}:workspace:${workspaceId}`
+  if (workspaceName) return `user:${userId}:name:${workspaceName}`
+  return `user:${userId}:default`
 }
 
 function rememberManagedSessionState(sessionKey: string, state: Omit<ManagedSessionState, "updatedAt">) {
@@ -151,6 +155,7 @@ function rememberManagedSessionState(sessionKey: string, state: Omit<ManagedSess
     sessionId: state.sessionId,
     threadId: state.threadId ?? existing?.threadId ?? null,
     updatedAt: Date.now(),
+    userId: getRequestUserId(),
     versionId: state.versionId ?? existing?.versionId ?? null,
     workspaceDir: state.workspaceDir ?? existing?.workspaceDir ?? null,
     workspaceId: state.workspaceId ?? existing?.workspaceId ?? null,
@@ -252,6 +257,7 @@ function normalizePersistedManagedStatus(value: unknown): ManagedRunStatusRespon
     summary: typeof record.summary === "string" ? record.summary : "",
     threadId: typeof record.threadId === "string" && record.threadId.trim() !== "" ? record.threadId.trim() : null,
     turnId: record.turnId.trim(),
+    userId: typeof record.userId === "string" && record.userId.trim() !== "" ? record.userId.trim() : null,
     versionId: typeof record.versionId === "string" && record.versionId.trim() !== "" ? record.versionId.trim() : null,
     workspaceDir: typeof record.workspaceDir === "string" && record.workspaceDir.trim() !== "" ? record.workspaceDir.trim() : null,
     workspaceId: typeof record.workspaceId === "string" && record.workspaceId.trim() !== "" ? record.workspaceId.trim() : null,
@@ -282,30 +288,32 @@ async function readPersistedManagedRunStatuses() {
 }
 
 async function listRecentManagedRunStatuses() {
+  const currentUserId = getRequestUserId()
   const byId = new Map<string, ManagedRunStatusResponse>()
   for (const status of await readPersistedManagedRunStatuses()) byId.set(status.managedRunId, status)
   for (const status of managedRunStatuses.values()) byId.set(status.managedRunId, status)
-  return [...byId.values()]
+  return [...byId.values()].filter(status => !currentUserId || !status.userId || status.userId === currentUserId)
 }
 
 function rememberManagedRunStatus(status: ManagedRunStatusResponse, logger?: Logger) {
-  managedRunStatuses.set(status.managedRunId, status)
+  const nextStatus = { ...status, userId: status.userId ?? getRequestUserId() }
+  managedRunStatuses.set(nextStatus.managedRunId, nextStatus)
   const expiresAt = Date.now() + MANAGED_RUN_STATUS_TTL_MS
-  managedRunStatusExpiries.set(status.managedRunId, expiresAt)
+  managedRunStatusExpiries.set(nextStatus.managedRunId, expiresAt)
   setTimeout(() => {
-    if (managedRunStatusExpiries.get(status.managedRunId) !== expiresAt) return
-    managedRunStatusExpiries.delete(status.managedRunId)
-    managedRunStatuses.delete(status.managedRunId)
+    if (managedRunStatusExpiries.get(nextStatus.managedRunId) !== expiresAt) return
+    managedRunStatusExpiries.delete(nextStatus.managedRunId)
+    managedRunStatuses.delete(nextStatus.managedRunId)
   }, MANAGED_RUN_STATUS_TTL_MS).unref()
-  void persistManagedRunStatus(status).catch(err => {
-    logger?.error("managed run status persist failed", { err, managedRunId: status.managedRunId })
+  void persistManagedRunStatus(nextStatus).catch(err => {
+    logger?.error("managed run status persist failed", { err, managedRunId: nextStatus.managedRunId })
   })
-  publishManagedRunEvent({ type: "status", managedRunId: status.managedRunId, status })
-  if (status.status !== "running") {
+  publishManagedRunEvent({ type: "status", managedRunId: nextStatus.managedRunId, status: nextStatus })
+  if (nextStatus.status !== "running") {
     publishManagedRunEvent({
-      type: status.status === "failed" ? "failed" : "final",
-      managedRunId: status.managedRunId,
-      status,
+      type: nextStatus.status === "failed" ? "failed" : "final",
+      managedRunId: nextStatus.managedRunId,
+      status: nextStatus,
     })
   }
 }
@@ -1068,7 +1076,10 @@ async function buildManagedSummary(
 }
 
 export async function getManagedRunStatus(managedRunId: string) {
-  return managedRunStatuses.get(managedRunId) ?? await readPersistedManagedRunStatus(managedRunId)
+  const status = managedRunStatuses.get(managedRunId) ?? await readPersistedManagedRunStatus(managedRunId)
+  const currentUserId = getRequestUserId()
+  if (!status || !currentUserId || !status.userId || status.userId === currentUserId) return status
+  return null
 }
 
 export async function cancelManagedRunAndSummarize(

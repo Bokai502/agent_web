@@ -1,5 +1,7 @@
 import Spline from "@splinetool/react-spline"
+import { useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
+import { APP_NAVIGATION_EVENT } from "../app/sessionUtils"
 import { LanguageSwitch } from "../components/LanguageSwitch"
 
 const SCENE_URL = "https://prod.spline.design/lZmPK4GMpqiyvhx0/scene.splinecode"
@@ -106,6 +108,12 @@ const STYLE = `
   margin: 0 auto;
   padding-top: max(72px, 12vh);
   pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease, visibility 220ms ease;
+}
+.spline-copy.is-hidden {
+  opacity: 0;
+  transform: translateY(-10px);
+  visibility: hidden;
 }
 .spline-kicker {
   color: #315fd3;
@@ -194,11 +202,105 @@ const STYLE = `
   font-size: 13px;
   font-weight: 800;
   text-decoration: none;
+  cursor: pointer;
 }
 .spline-button.primary {
   border-color: #111827;
   background: #111827;
   color: #ffffff;
+}
+.spline-login-panel {
+  position: absolute;
+  left: max(24px, calc((100vw - min(1180px, calc(100vw - 48px))) / 2));
+  top: 50%;
+  z-index: 7;
+  width: min(410px, calc(100vw - 48px));
+  padding: 24px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 26px 80px rgba(30, 42, 70, 0.16);
+  backdrop-filter: blur(24px) saturate(170%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-44%) translateX(-18px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.spline-login-panel.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+.spline-login-panel h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 820;
+  letter-spacing: 0;
+}
+.spline-login-panel p {
+  margin: 8px 0 22px;
+  color: rgba(17, 24, 39, 0.56);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.spline-login-form {
+  display: grid;
+  gap: 14px;
+}
+.spline-login-field {
+  display: grid;
+  gap: 7px;
+}
+.spline-login-field span {
+  color: rgba(17, 24, 39, 0.68);
+  font-size: 12px;
+  font-weight: 780;
+}
+.spline-login-field input {
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #111827;
+  font: 600 14px/1.2 inherit;
+  outline: none;
+  padding: 0 13px;
+}
+.spline-login-field input:focus {
+  border-color: rgba(49, 95, 211, 0.5);
+  box-shadow: 0 0 0 4px rgba(49, 95, 211, 0.1);
+}
+.spline-login-error {
+  min-height: 18px;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 700;
+}
+.spline-login-submit {
+  display: inline-flex;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #111827;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 820;
+}
+.spline-login-submit:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+.spline-login-note {
+  margin-top: 16px;
+  color: rgba(17, 24, 39, 0.48);
+  font-size: 12px;
+  line-height: 1.5;
 }
 @media (max-width: 900px) {
   .spline-topbar {
@@ -248,11 +350,73 @@ const STYLE = `
   .spline-button {
     flex: 1;
   }
+  .spline-login-panel {
+    left: 50%;
+    right: auto;
+    top: 48%;
+    width: min(100vw - 32px, 420px);
+    transform: translate(-50%, -42%);
+  }
+  .spline-login-panel.is-open {
+    transform: translate(-50%, -50%);
+  }
 }
 `
 
+function navigateTo(path: string) {
+  window.history.pushState(null, "", path)
+  window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
+}
+
+function sanitizeUserId(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 96)
+}
+
 export default function HomePage() {
   const { t } = useTranslation()
+  const [loginOpen, setLoginOpen] = useState(false)
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  const openLogin = () => {
+    setLoginOpen(true)
+    setError("")
+  }
+
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const userId = sanitizeUserId(username)
+    if (!userId) {
+      setError("请输入用户名")
+      return
+    }
+    if (!password.trim()) {
+      setError("请输入密码")
+      return
+    }
+
+    setSubmitting(true)
+    setError("")
+    try {
+      const response = await fetch("/api/auth/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      })
+      if (!response.ok) throw new Error("login failed")
+      navigateTo("/agent")
+    } catch {
+      setError("登录失败，请稍后重试")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <main className="spline-page">
@@ -278,13 +442,46 @@ export default function HomePage() {
           </div>
         </header>
 
-        <div className="spline-copy">
+        <div className={`spline-copy ${loginOpen ? "is-hidden" : ""}`}>
           <div className="spline-kicker">{t("landing.kicker")}</div>
           <h1 className="spline-title" id="spline-title">{t("landing.title")}</h1>
           <p className="spline-subtitle">
             {t("landing.subtitle")}
           </p>
         </div>
+
+        <section className={`spline-login-panel ${loginOpen ? "is-open" : ""}`} aria-label="用户登录">
+          <h2>用户登录</h2>
+          <p>登录后将进入专属工作空间，历史会话、模型与运行记录互不影响。</p>
+          <form className="spline-login-form" onSubmit={handleLogin}>
+            <label className="spline-login-field">
+              <span>用户名</span>
+              <input
+                autoComplete="username"
+                value={username}
+                disabled={submitting}
+                onChange={event => setUsername(event.target.value)}
+                placeholder="请输入用户名"
+              />
+            </label>
+            <label className="spline-login-field">
+              <span>密码</span>
+              <input
+                autoComplete="current-password"
+                type="password"
+                value={password}
+                disabled={submitting}
+                onChange={event => setPassword(event.target.value)}
+                placeholder="请输入密码"
+              />
+            </label>
+            <div className="spline-login-error" role="status">{error}</div>
+            <button className="spline-login-submit" type="submit" disabled={submitting}>
+              {submitting ? "登录中" : "进入平台"}
+            </button>
+          </form>
+          <div className="spline-login-note">当前内网模式使用用户名创建隔离工作区。</div>
+        </section>
 
         <aside className="spline-dock" aria-label={t("landing.capabilitiesAria")}>
           <div className="spline-dock-meta">
@@ -302,8 +499,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="spline-actions">
-            <a className="spline-button primary" href="/workspace">{t("landing.actions.workspace")}</a>
-            <a className="spline-button primary" href="/gnc-workspace">{t("landing.actions.gnc")}</a>
+            <button className="spline-button primary" type="button" onClick={openLogin}>进入卫星智能设计平台</button>
           </div>
         </aside>
       </section>
