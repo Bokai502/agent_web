@@ -13,6 +13,8 @@ type WorkspaceFilePreviewPanelProps = {
 }
 
 const IMAGE_EXT_RE = /\.(?:png|jpe?g|gif|webp|svg)(?:[?#].*)?$/iu
+const WORKSPACE_ROOT_RELATIVE_RE = /^(?:00_inputs|01_cad|02_sim|logs|reports|check_outputs)\//u
+const STANDALONE_IMAGE_PATH_RE = /^(\s*)(?:[-*+]\s+)?`?((?:\/|\.{1,2}\/|(?:00_inputs|01_cad|02_sim|logs|reports|check_outputs)\/)[^`\n]+\.(?:png|jpe?g|gif|webp|svg)(?:[?#][^`\n]*)?)`?\s*$/iu
 
 export function normalizeWorkspacePath(path: string) {
   const isAbsolute = path.startsWith('/')
@@ -34,15 +36,27 @@ export function createMarkdownImageResolver(activeContext: WorkspaceContextQuery
     if (!IMAGE_EXT_RE.test(src)) return src
     if (!activeContext.versionDir || file.type !== 'text') return src
     const cleanSrc = src.split(/[?#]/u, 1)[0] ?? src
+    const decodedSrc = decodeURIComponent(cleanSrc)
     const baseDir = file.relativePath.split('/').slice(0, -1).join('/')
-    const relativePath = normalizeWorkspacePath(`${baseDir}/${decodeURIComponent(cleanSrc)}`)
-    const fullPath = normalizeWorkspacePath(`${activeContext.versionDir}/${relativePath}`)
+    const relativePath = WORKSPACE_ROOT_RELATIVE_RE.test(decodedSrc)
+      ? normalizeWorkspacePath(decodedSrc)
+      : normalizeWorkspacePath(`${baseDir}/${decodedSrc}`)
+    const fullPath = decodedSrc.startsWith('/')
+      ? normalizeWorkspacePath(decodedSrc)
+      : normalizeWorkspacePath(`${activeContext.versionDir}/${relativePath}`)
     return `/api/image?path=${encodeURIComponent(fullPath)}`
   }
 }
 
-function normalizeMarkdownPreview(text: string) {
-  return text.replace(/<br\s*\/?>/giu, '\n')
+export function normalizeMarkdownPreview(text: string) {
+  return text
+    .replace(/<br\s*\/?>/giu, '\n')
+    .split('\n')
+    .map(line => line.replace(STANDALONE_IMAGE_PATH_RE, (_match, indent: string, imagePath: string) => {
+      const label = imagePath.split('/').pop() ?? imagePath
+      return `${indent}![${label}](${imagePath})`
+    }))
+    .join('\n')
 }
 
 export function WorkspaceFilePreviewPanel({ activeContext, error, file, loading, selectedPath }: WorkspaceFilePreviewPanelProps) {

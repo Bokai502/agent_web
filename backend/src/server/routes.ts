@@ -7,6 +7,7 @@ import { cosyVoiceRoutes } from "../cosyvoice/index.js"
 import { gncConfigRoutes } from "../gnc_config/index.js"
 import { manifestRoutes } from "../manifests/index.js"
 import { sessionRoutes } from "../sessions/index.js"
+import { authRoutes } from "../system/auth.routes.js"
 import { healthRoutes, remoteToolsRoutes, skillsRoutes } from "../system/index.js"
 import { whisperRoutes } from "../whisper/index.js"
 import { workspaceRoutes, stageLogsRoutes } from "../workspaces/index.js"
@@ -15,6 +16,7 @@ export async function registerApiRoutes(
   fastify: FastifyInstance,
   { config, logger }: { config: AppConfig; logger: Logger },
 ) {
+  await fastify.register(authRoutes, { config })
   await fastify.register(taskRoutes, { config, logger })
   await fastify.register(managedRunRoutes, { config, logger })
   await fastify.register(sessionRoutes, { logger })

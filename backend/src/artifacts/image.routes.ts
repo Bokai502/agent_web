@@ -1,6 +1,8 @@
 import { FastifyInstance } from "fastify"
 import fs from "fs"
 import path from "path"
+import { getWorkspaceRoot } from "../workspaces/workspaceManager.js"
+import { isPathInside } from "../shared/index.js"
 
 const ALLOWED_EXTS: Record<string, string> = {
   ".png":  "image/png",
@@ -18,14 +20,20 @@ export async function imageRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: "path is required" })
     }
 
-    const ext = path.extname(filePath).toLowerCase()
+    const resolvedFilePath = path.resolve(filePath)
+    const workspaceRoot = path.resolve(await getWorkspaceRoot())
+    if (!isPathInside(workspaceRoot, resolvedFilePath)) {
+      return reply.status(403).send({ error: "path must stay inside the current user workspace root" })
+    }
+
+    const ext = path.extname(resolvedFilePath).toLowerCase()
     const mime = ALLOWED_EXTS[ext]
     if (!mime) {
       return reply.status(400).send({ error: "unsupported file type" })
     }
 
     try {
-      const data = await fs.promises.readFile(filePath)
+      const data = await fs.promises.readFile(resolvedFilePath)
       reply.header("Content-Type", mime)
       reply.header("Cache-Control", "no-cache")
       return reply.send(data)

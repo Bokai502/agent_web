@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CurrentUserBadge } from '../../components/CurrentUserBadge'
 import type { WorkspaceSessionStatus } from '../workspace/workspaceSessionVisibility'
 
 type AgentInputMode = 'voice' | 'text'
@@ -140,6 +141,7 @@ export function AgentTopbar({
         </button>
       </div>
       <div className="agent-topbar-port-status">
+        <CurrentUserBadge />
         <div className="agent-input-mode-switch" role="group" aria-label="输入方式">
           <button
             type="button"

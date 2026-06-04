@@ -2,6 +2,8 @@ import { AsyncLocalStorage } from "node:async_hooks"
 
 type RequestContext = {
   isGncRequest?: boolean
+  userId?: string
+  userWorkspaceRoot?: string
   workspaceRootOverride?: string
 }
 
@@ -17,6 +19,14 @@ export function enterRequestContext(context: RequestContext) {
 
 export function getRequestWorkspaceRootOverride() {
   return requestContextStorage.getStore()?.workspaceRootOverride ?? null
+}
+
+export function getRequestUserId() {
+  return requestContextStorage.getStore()?.userId ?? null
+}
+
+export function getRequestUserWorkspaceRoot() {
+  return requestContextStorage.getStore()?.userWorkspaceRoot ?? null
 }
 
 export function isGncRequestContext() {

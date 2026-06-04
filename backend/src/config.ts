@@ -6,6 +6,13 @@ import { fileURLToPath } from "url"
 export type LogLevel = "debug" | "info" | "warn" | "error"
 
 export interface AppConfig {
+  auth: {
+    cookieName: string
+    devUserId: string
+    enabled: boolean
+    headerName: string
+    usersDir: string
+  }
   cosyvoice: {
     apiUrl: string | null
     promptText: string | null
@@ -193,6 +200,7 @@ export function loadConfig(): AppConfig {
   try { new URL(baseUrl) } catch { die(`openai.baseUrl 不是合法 URL: ${baseUrl}`) }
 
   const codex = cfg.codex ?? {} as Partial<AppConfig["codex"]>
+  const auth = cfg.auth ?? {} as Partial<AppConfig["auth"]>
   const server = cfg.server ?? {} as Partial<AppConfig["server"]>
   const workspace = (
     cfg.workspace ??
@@ -210,6 +218,13 @@ export function loadConfig(): AppConfig {
   }
 
   return {
+    auth: {
+      cookieName: optionalString(process.env.CODEX_AUTH_COOKIE_NAME ?? auth.cookieName, "auth.cookieName") ?? "codex_user_id",
+      devUserId: optionalString(process.env.CODEX_DEV_USER_ID ?? auth.devUserId, "auth.devUserId") ?? "default",
+      enabled: optionalBoolean(process.env.CODEX_AUTH_ENABLED ?? auth.enabled, "auth.enabled") ?? false,
+      headerName: optionalString(process.env.CODEX_AUTH_HEADER_NAME ?? auth.headerName, "auth.headerName") ?? "x-codex-user-id",
+      usersDir: optionalString(process.env.CODEX_USERS_DIR ?? auth.usersDir, "auth.usersDir") ?? "users",
+    },
     openai: {
       apiKey,
       baseUrl,
