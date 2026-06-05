@@ -35,6 +35,7 @@ export interface AppConfig {
     modelReasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh"
     approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted"
     sandboxMode: "read-only" | "workspace-write" | "danger-full-access"
+    sandboxWorkspaceWriteNetworkAccess: boolean
     workingDirectory: string
     skipGitRepoCheck: boolean
   }
@@ -49,6 +50,32 @@ export interface AppConfig {
     httpsPort: number
     publicHost: string | null
     strictPort: boolean
+  }
+  tools: {
+    remoteDesktopLauncher: string
+    cad: {
+      bin: string | null
+      displayNum: string
+      launcher: string
+      noVncPort: number
+      vncPort: number
+    }
+    paraview: {
+      displayNum: string
+      launcher: string
+      noVncPort: number
+      vncPort: number
+    }
+    comsol: {
+      displayNum: string
+      launcher: string
+      noVncPort: number
+      sudo: string
+      vncPort: number
+    }
+    gnc: {
+      url: string | null
+    }
   }
   workspace: {
     filesystemGroup: string
@@ -224,6 +251,11 @@ export function loadConfig(): AppConfig {
   const auth = cfg.auth ?? {} as Partial<AppConfig["auth"]>
   const server = cfg.server ?? {} as Partial<AppConfig["server"]>
   const frontend = cfg.frontend ?? {} as Partial<AppConfig["frontend"]>
+  const tools = cfg.tools ?? {} as Partial<AppConfig["tools"]>
+  const cadTool = tools.cad ?? {} as Partial<AppConfig["tools"]["cad"]>
+  const paraviewTool = tools.paraview ?? {} as Partial<AppConfig["tools"]["paraview"]>
+  const comsolTool = tools.comsol ?? {} as Partial<AppConfig["tools"]["comsol"]>
+  const gncTool = tools.gnc ?? {} as Partial<AppConfig["tools"]["gnc"]>
   const workspace = (
     cfg.workspace ??
     (typeof cfg[LEGACY_CAD_CONFIG_KEY] === "object" && cfg[LEGACY_CAD_CONFIG_KEY] !== null
@@ -268,6 +300,10 @@ export function loadConfig(): AppConfig {
       modelReasoningEffort: codex.modelReasoningEffort ?? "medium",
       approvalPolicy: codex.approvalPolicy ?? "never",
       sandboxMode: codex.sandboxMode ?? "danger-full-access",
+      sandboxWorkspaceWriteNetworkAccess: optionalBoolean(
+        codex.sandboxWorkspaceWriteNetworkAccess,
+        "codex.sandboxWorkspaceWriteNetworkAccess",
+      ) ?? false,
       workingDirectory: codex.workingDirectory || os.homedir(),
       skipGitRepoCheck: codex.skipGitRepoCheck ?? true,
     },
@@ -278,6 +314,39 @@ export function loadConfig(): AppConfig {
     },
     frontend: {
       ...frontendConfig,
+    },
+    tools: {
+      remoteDesktopLauncher: optionalString(tools.remoteDesktopLauncher, "tools.remoteDesktopLauncher")
+        ?? die("tools.remoteDesktopLauncher 未设置。"),
+      cad: {
+        bin: optionalString(cadTool.bin, "tools.cad.bin"),
+        displayNum: optionalString(cadTool.displayNum, "tools.cad.displayNum")
+          ?? die("tools.cad.displayNum 未设置。"),
+        launcher: optionalString(cadTool.launcher, "tools.cad.launcher")
+          ?? die("tools.cad.launcher 未设置。"),
+        noVncPort: requiredPositiveInteger(cadTool.noVncPort, "tools.cad.noVncPort"),
+        vncPort: requiredPositiveInteger(cadTool.vncPort, "tools.cad.vncPort"),
+      },
+      paraview: {
+        displayNum: optionalString(paraviewTool.displayNum, "tools.paraview.displayNum")
+          ?? die("tools.paraview.displayNum 未设置。"),
+        launcher: optionalString(paraviewTool.launcher, "tools.paraview.launcher")
+          ?? die("tools.paraview.launcher 未设置。"),
+        noVncPort: requiredPositiveInteger(paraviewTool.noVncPort, "tools.paraview.noVncPort"),
+        vncPort: requiredPositiveInteger(paraviewTool.vncPort, "tools.paraview.vncPort"),
+      },
+      comsol: {
+        displayNum: optionalString(comsolTool.displayNum, "tools.comsol.displayNum")
+          ?? die("tools.comsol.displayNum 未设置。"),
+        launcher: optionalString(comsolTool.launcher, "tools.comsol.launcher")
+          ?? die("tools.comsol.launcher 未设置。"),
+        noVncPort: requiredPositiveInteger(comsolTool.noVncPort, "tools.comsol.noVncPort"),
+        sudo: optionalString(comsolTool.sudo, "tools.comsol.sudo") ?? "sudo",
+        vncPort: requiredPositiveInteger(comsolTool.vncPort, "tools.comsol.vncPort"),
+      },
+      gnc: {
+        url: optionalString(gncTool.url, "tools.gnc.url"),
+      },
     },
     workspace: {
       filesystemGroup: optionalString(process.env.WORKSPACE_FILESYSTEM_GROUP ?? workspace.filesystemGroup, "workspace.filesystemGroup") ?? "xieteam",
@@ -301,9 +370,10 @@ export function loadConfig(): AppConfig {
         "workspace.textFileMaxBytes",
         8 * 1024 * 1024,
       ),
-      workspaceDir: workspace.workspaceDir ?? null,
-      rpcHost: workspace.rpcHost ?? "localhost",
-      rpcPort: workspace.rpcPort ?? 9877,
+      workspaceDir: optionalString(workspace.workspaceDir, "workspace.workspaceDir"),
+      rpcHost: optionalString(workspace.rpcHost, "workspace.rpcHost")
+        ?? die("workspace.rpcHost 未设置。"),
+      rpcPort: requiredPositiveInteger(workspace.rpcPort, "workspace.rpcPort"),
     },
     whisper: {
       bin: optionalString(process.env.WHISPER_CPP_BIN ?? whisper.bin, "whisper.bin"),

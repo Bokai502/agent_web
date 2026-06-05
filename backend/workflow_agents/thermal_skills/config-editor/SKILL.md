@@ -38,7 +38,7 @@ Do not create or modify `<workspace>/logs/progress_percentages.json`.
 Run progress commands from the FreeCAD skill directory:
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill
+cd /path/to/open_codex_web/backend/workflow_agents
 ```
 
 Before editing config:

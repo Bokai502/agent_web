@@ -255,6 +255,7 @@ export default function AgentPage() {
     }
   }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, latestManagedStatus, refreshWorkspaceViews, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
   const {
+    cancelRecording,
     clearRecorderDisplay,
     error,
     startRecording,
@@ -368,11 +369,12 @@ export default function AgentPage() {
 
   const handleInputModeChange = useCallback((nextMode: AgentInputMode) => {
     if (nextMode === inputMode) return
-    if (state === 'recording') stopRecording()
+    if (state === 'recording') cancelRecording()
     if (agentSpeechPlaying || agentSpeechState === 'synthesizing') stopAgentSpeechPlayback()
     clearAgentSpeechDisplay()
+    clearRecorderDisplay()
     setInputMode(nextMode)
-  }, [agentSpeechPlaying, agentSpeechState, clearAgentSpeechDisplay, inputMode, state, stopAgentSpeechPlayback, stopRecording])
+  }, [agentSpeechPlaying, agentSpeechState, cancelRecording, clearAgentSpeechDisplay, clearRecorderDisplay, inputMode, state, stopAgentSpeechPlayback])
 
   const handleNavSelect = useCallback((_item: (typeof NAV_ITEMS)[number], index: number, event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault()

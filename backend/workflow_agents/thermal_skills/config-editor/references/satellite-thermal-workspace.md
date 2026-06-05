@@ -15,21 +15,21 @@ prompt. The important identifiers are:
 - `version_id`: selected version identifier, for example `v0001`.
 - `workspace_dir`: absolute path for the selected workspace version, for
   example
-  `/data/lbk/codex_web/data/input_data/workspaces/ws_demo/versions/v0001`.
+  `<workspace.workspaceDir>/users/<user_id>/workspaces/ws_demo/versions/v0001`.
 - `session_id`, `thread_id`, and `turn_id`: request correlation identifiers.
 
 When all three workspace fields are available, treat `workspace_dir` as the
 path to inspect, but verify it matches the identifiers:
 
 ```text
-<FreeCAD workspace root>/workspaces/<workspace_id>/versions/<version_id>
+<workspace.workspaceDir>/users/<user_id>/workspaces/<workspace_id>/versions/<version_id>
 ```
 
 When `workspace_dir` is missing but `workspace_id` and `version_id` are
 available, derive the expected path from the workspace root:
 
 ```text
-/data/lbk/codex_web/data/input_data/workspaces/<workspace_id>/versions/<version_id>
+<workspace.workspaceDir>/users/<user_id>/workspaces/<workspace_id>/versions/<version_id>
 ```
 
 If `version_id` is missing, use the active version from the workspace manifest

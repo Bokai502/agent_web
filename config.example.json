@@ -19,6 +19,7 @@
     "modelReasoningEffort": "low",
     "approvalPolicy": "never",
     "sandboxMode": "workspace-write",
+    "sandboxWorkspaceWriteNetworkAccess": true,
     "workingDirectory": "/path/to/your/workspace",
     "skipGitRepoCheck": true
   },
@@ -34,13 +35,25 @@
     "strictPort": true
   },
   "tools": {
+    "remoteDesktopLauncher": "/usr/local/bin/start-remote-cad-desktop",
     "cad": {
+      "displayNum": ":1",
+      "launcher": "/usr/local/bin/start-freecad-remote",
+      "bin": "/path/to/freecad",
+      "vncPort": 5901,
       "noVncPort": 6080
     },
     "paraview": {
+      "displayNum": ":2",
+      "launcher": "/usr/local/bin/start-paraview-remote",
+      "vncPort": 5902,
       "noVncPort": 6081
     },
     "comsol": {
+      "displayNum": ":32",
+      "launcher": "/usr/local/bin/start-comsol-remote",
+      "sudo": "sudo",
+      "vncPort": 5932,
       "noVncPort": 6082
     },
     "gnc": {
@@ -92,14 +105,6 @@
     "filesystemGroup": "users",
     "rpcHost": "localhost",
     "rpcPort": 9877,
-    "displayNum": ":21",
-    "vncPort": 5901,
-    "noVncPort": 6080,
-    "logDir": "/tmp/freecad-remote-6080",
-    "bin": "/path/to/freecad",
-    "appRegex": "/path/to/freecad",
-    "startupWaitSeconds": 20,
-    "rpcProbeTimeoutSeconds": 15,
     "componentInfoMaxStepSizeMb": 5,
     "filePreviewMaxBytes": 1048576,
     "textFileMaxBytes": 8388608,

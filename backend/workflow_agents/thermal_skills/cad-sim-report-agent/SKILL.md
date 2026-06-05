@@ -23,7 +23,7 @@ Expected workspace shape:
 1. Resolve the workspace to an absolute path. Do not guess from unrelated repo
    roots when the user provides a specific workspace.
 2. Mark report progress as running with the FreeCAD progress CLI.
-3. Run this skill's report CLI from `/home/lbk/.codex/skills/cad-sim-report-agent`.
+3. Run the skill's report CLI from cad-sim-report-agent.
 4. Mark report progress as completed or failed.
 5. Report the generated artifact paths and the main status/limitations.
 
@@ -35,7 +35,7 @@ Do not create or modify `<workspace>/logs/progress_percentages.json`.
 Progress commands must run from the FreeCAD skill directory:
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill
+cd /path/to/open_codex_web/backend/workflow_agents
 ```
 
 Before the report command:

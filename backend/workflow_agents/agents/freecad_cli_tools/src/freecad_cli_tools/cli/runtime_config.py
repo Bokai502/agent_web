@@ -73,7 +73,7 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help=(
             "Workspace root for this command. Overrides FREECAD_WORKSPACE_DIR and "
-            "/data/lbk/codex_web/open_codex_web/config.json freecad.workspaceDir."
+            "config.json workspace.workspaceDir."
         ),
     )
     parser.add_argument(

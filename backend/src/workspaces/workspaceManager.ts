@@ -8,9 +8,8 @@ const BACKEND_ROOT = path.basename(BACKEND_SRC_DIR) === "workspaces"
   ? path.resolve(BACKEND_SRC_DIR, "..", "..")
   : path.resolve(BACKEND_SRC_DIR, "..")
 const APP_ROOT = path.resolve(BACKEND_ROOT, "..")
-const PROJECT_ROOT = path.resolve(APP_ROOT, "..")
 const APP_CONFIG_JSON = path.join(APP_ROOT, "config.json")
-const DEFAULT_WORKSPACE_ROOT = path.join(PROJECT_ROOT, "data", "input_data")
+const DEFAULT_WORKSPACE_ROOT = path.join(APP_ROOT, "..", "data")
 const WORKSPACES_DIR = "workspaces"
 const CURRENT_WORKSPACE_FILE = ".current-workspace.json"
 const LEGACY_CAD_CONFIG_KEY = ["free", "cad"].join("")
@@ -58,12 +57,7 @@ function getConfiguredWorkspaceDir(config: RootConfig) {
 function getWorkspaceRootFromConfigured(configuredWorkspaceDir: string | null) {
   const workspaceRootOverride = getRequestWorkspaceRootOverride()
   if (workspaceRootOverride) return path.resolve(workspaceRootOverride)
-  if (!configuredWorkspaceDir) return DEFAULT_WORKSPACE_ROOT
-  const relativeToDefaultRoot = path.relative(DEFAULT_WORKSPACE_ROOT, configuredWorkspaceDir)
-  if (relativeToDefaultRoot === "" || (!relativeToDefaultRoot.startsWith("..") && !path.isAbsolute(relativeToDefaultRoot))) {
-    return DEFAULT_WORKSPACE_ROOT
-  }
-  return DEFAULT_WORKSPACE_ROOT
+  return configuredWorkspaceDir ?? DEFAULT_WORKSPACE_ROOT
 }
 
 function getWorkspaceConfig(config: RootConfig) {

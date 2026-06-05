@@ -25,6 +25,7 @@ cp config.example.json config.json
 | `codex.workingDirectory` | Codex 任务默认运行目录。 |
 | `codex.approvalPolicy` | Codex approval policy，例如 `never`、`on-request`。 |
 | `codex.sandboxMode` | Codex sandbox mode，例如 `workspace-write`、`danger-full-access`。 |
+| `codex.sandboxWorkspaceWriteNetworkAccess` | 当 `sandboxMode` 为 `workspace-write` 时是否允许 Agent 命令访问网络；需要连接本机 FreeCAD RPC 或 COMSOL 私有 `mphserver` 时应设为 `true`。 |
 | `server.port` | 后端端口，必填。也可以用 `BACKEND_PORT` 环境变量临时覆盖。 |
 | `server.host` | 后端监听地址，例如 `0.0.0.0` 或 `127.0.0.1`。 |
 | `server.corsOrigin` | 可选。允许访问后端的前端 origin 列表；不配置时会根据 `frontend.port`、`frontend.httpsPort`、`frontend.publicHost` 自动生成。 |
@@ -37,7 +38,13 @@ cp config.example.json config.json
 | `workspace.filesystemGroup` | 创建/写入工作区文件时尝试设置的文件系统组；应配置为运行后端用户所属的组。 |
 | `auth.usersDir` | 用户工作区目录名，默认 `users`；最终用户工作区类似 `<workspace.workspaceDir>/<auth.usersDir>/<userId>`。 |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD 远程 RPC 配置。 |
-| `tools.*.noVncPort` | CAD、ParaView、COMSOL 等远程 GUI 工具的 noVNC 端口。 |
+| `tools.remoteDesktopLauncher` | 后端 `/api/remote-tools/ensure-desktops` 启动 FreeCAD/ParaView 远程桌面的统一 launcher。 |
+| `tools.cad/paraview/comsol.displayNum` | 远程 GUI 工具使用的 X display，例如 `:1`、`:2`、`:32`。 |
+| `tools.cad/paraview/comsol.vncPort` | 远程 GUI 工具本地 VNC 端口。 |
+| `tools.cad/paraview/comsol.noVncPort` | 远程 GUI 工具 noVNC 端口，前端 iframe 和后端端口检查都会读取这里。 |
+| `tools.cad/paraview/comsol.launcher` | 远程 GUI 工具启动脚本路径；后端直接使用 `tools.comsol.launcher` 启动 COMSOL。 |
+| `tools.cad.bin` | `start_remote_gui_tools.sh` 直接启动 FreeCAD GUI 时使用的可执行文件路径；也可以用 `FREECAD_BIN` 环境变量临时覆盖。 |
+| `tools.comsol.sudo` | 调用 COMSOL launcher 时使用的提权命令，默认 `sudo`。 |
 | `gnc.dashboard.telemetryPaths` | GNC 看板读取的遥测文件相对路径。 |
 | `whisper.*` | 语音转写相关配置；不用语音功能时可以保留占位值或设为 `null`。 |
 | `cosyvoice.*` | TTS 服务配置；不用语音播报时可以保留占位值或设为 `null`。 |

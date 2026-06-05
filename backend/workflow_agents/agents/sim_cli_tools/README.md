@@ -12,20 +12,20 @@ sim-run --workspace-dir <workspace_dir>
 
 In Open Codex Web, workspace/version selection is request-scoped. Use the
 `workspace_dir` provided in the execution context and pass it explicitly with
-`--workspace-dir`. Do not rely on `/data/lbk/codex_web/open_codex_web/config.json` defaults for
+`--workspace-dir`. Do not rely on the project root `config.json` defaults for
 Web-triggered runs.
 
 Install:
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools
+cd /path/to/open_codex_web/backend/workflow_agents/agents/sim_cli_tools
 make install-local
 ```
 
 Module entry point, matching the FreeCAD CLI style:
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill/sim_skills/sim_cli_tools
+cd /path/to/open_codex_web/backend/workflow_agents/agents/sim_cli_tools
 PYTHONPATH=src python -m sim_cli_tools.cli.main --help
 PYTHONPATH=src python -m sim_cli_tools.cli.main --json doctor --workspace-dir <workspace_dir>
 ```
@@ -87,10 +87,9 @@ Resource controls:
   successful simulation. Add `--no-open-tools` for headless runs. Omit
   `--async-open-tools` only for manual CLI runs that explicitly need to wait
   for launcher completion.
-- COMSOL GUI loading is managed by `external_tool_launchers.py` through
-  `/usr/local/bin/start-comsol-remote` on `DISPLAY=:32`, VNC `5932`, noVNC
-  `6082`. Keep that launcher aligned with those ports so it does not collide
-  with the shared noVNC mapping.
+- COMSOL/ParaView GUI loading is managed by `external_tool_launchers.py`.
+  Launcher paths and remote display settings come from the project root
+  `config.json` fields `tools.comsol.*` and `tools.paraview.*`.
 
 Example controlled COMSOL run:
 

@@ -1,13 +1,60 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DESKTOP_LAUNCHER="${DESKTOP_LAUNCHER:-/usr/local/bin/start-remote-cad-desktop}"
-FREECAD_LAUNCHER="${FREECAD_LAUNCHER:-/usr/local/bin/start-freecad-remote}"
-PARAVIEW_LAUNCHER="${PARAVIEW_LAUNCHER:-/usr/local/bin/start-paraview-remote}"
-COMSOL_LAUNCHER="${COMSOL_LAUNCHER:-/usr/local/bin/start-comsol-remote}"
-COMSOL_SUDO="${COMSOL_SUDO:-sudo}"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${CONFIG_FILE:-${APP_DIR}/config.json}"
 ACTION="${1:-start}"
 LOG_DIR="${HOME}/.remote-cad/logs"
+
+read_config() {
+  node -e '
+const fs = require("fs")
+const file = process.argv[1]
+const key = process.argv[2]
+const fallback = process.argv[3] ?? ""
+const config = JSON.parse(fs.readFileSync(file, "utf8"))
+const value = key.split(".").reduce((current, part) => current?.[part], config)
+if (value === undefined || value === null || value === "") {
+  process.stdout.write(fallback)
+} else if (typeof value === "object") {
+  process.stdout.write(JSON.stringify(value))
+} else {
+  process.stdout.write(String(value))
+}
+' "${CONFIG_FILE}" "$1" "${2:-}"
+}
+
+require_config() {
+  local value
+  value="$(read_config "$1")"
+  if [[ -z "${value}" ]]; then
+    echo "config.json 缺少 $1" >&2
+    exit 1
+  fi
+  printf '%s' "${value}"
+}
+
+if [[ ! -f "${CONFIG_FILE}" ]]; then
+  echo "配置文件不存在：${CONFIG_FILE}" >&2
+  exit 1
+fi
+
+DESKTOP_LAUNCHER="${DESKTOP_LAUNCHER:-$(require_config tools.remoteDesktopLauncher)}"
+FREECAD_LAUNCHER="${FREECAD_LAUNCHER:-$(require_config tools.cad.launcher)}"
+PARAVIEW_LAUNCHER="${PARAVIEW_LAUNCHER:-$(require_config tools.paraview.launcher)}"
+COMSOL_LAUNCHER="${COMSOL_LAUNCHER:-$(require_config tools.comsol.launcher)}"
+COMSOL_SUDO="${COMSOL_SUDO:-$(read_config tools.comsol.sudo sudo)}"
+
+FREECAD_DISPLAY="$(require_config tools.cad.displayNum)"
+FREECAD_VNC_PORT="$(require_config tools.cad.vncPort)"
+FREECAD_NOVNC_PORT="$(require_config tools.cad.noVncPort)"
+PARAVIEW_DISPLAY="$(require_config tools.paraview.displayNum)"
+PARAVIEW_VNC_PORT="$(require_config tools.paraview.vncPort)"
+PARAVIEW_NOVNC_PORT="$(require_config tools.paraview.noVncPort)"
+COMSOL_DISPLAY="$(require_config tools.comsol.displayNum)"
+COMSOL_VNC_PORT="$(require_config tools.comsol.vncPort)"
+COMSOL_NOVNC_PORT="$(require_config tools.comsol.noVncPort)"
+FREECAD_CONFIG_BIN="$(read_config tools.cad.bin)"
 
 require_executable() {
   local file="$1"
@@ -122,19 +169,19 @@ case "${ACTION}" in
     ;;
   stop|restart|status)
     if [[ "${ACTION}" == "status" ]]; then
-      pgrep -af "Xvfb :(1|2|32)( |$)|x11vnc .* -display :(1|2|32)|websockify .* (6080 localhost:5901|6081 localhost:5902|6082 localhost:5932)|launch.sh --vnc localhost:(5901|5902|5932)|(^|/)(freecad|paraview|comsol|comsollauncher)( |$)" || true
+      pgrep -af "Xvfb (${FREECAD_DISPLAY}|${PARAVIEW_DISPLAY}|${COMSOL_DISPLAY})( |$)|x11vnc .* -display (${FREECAD_DISPLAY}|${PARAVIEW_DISPLAY}|${COMSOL_DISPLAY})|websockify .* (${FREECAD_NOVNC_PORT} localhost:${FREECAD_VNC_PORT}|${PARAVIEW_NOVNC_PORT} localhost:${PARAVIEW_VNC_PORT}|${COMSOL_NOVNC_PORT} localhost:${COMSOL_VNC_PORT})|launch.sh --vnc localhost:(${FREECAD_VNC_PORT}|${PARAVIEW_VNC_PORT}|${COMSOL_VNC_PORT})|(^|/)(freecad|paraview|comsol|comsollauncher)( |$)" || true
     else
-      stop_desktop ":1" "5901" "6080" "(^|/)(freecad|FreeCAD)( |$)"
-      stop_desktop ":2" "5902" "6081" "(^|/)paraview( |$)"
+      stop_desktop "${FREECAD_DISPLAY}" "${FREECAD_VNC_PORT}" "${FREECAD_NOVNC_PORT}" "(^|/)(freecad|FreeCAD)( |$)"
+      stop_desktop "${PARAVIEW_DISPLAY}" "${PARAVIEW_VNC_PORT}" "${PARAVIEW_NOVNC_PORT}" "(^|/)paraview( |$)"
     fi
     if [[ "${ACTION}" == "status" ]]; then
-      pgrep -af "Xvfb :32|x11vnc .*5932|websockify .*6082 localhost:5932|launch.sh --vnc localhost:5932|(^|/)(comsol|comsollauncher)( |$)" || true
+      pgrep -af "Xvfb ${COMSOL_DISPLAY}|x11vnc .*${COMSOL_VNC_PORT}|websockify .*${COMSOL_NOVNC_PORT} localhost:${COMSOL_VNC_PORT}|launch.sh --vnc localhost:${COMSOL_VNC_PORT}|(^|/)(comsol|comsollauncher)( |$)" || true
     else
-      pkill -u "$(id -un)" -f "websockify --web .* 6082 localhost:5932|launch.sh --vnc localhost:5932 --listen 6082" >/dev/null 2>&1 || true
-      pkill -u "$(id -un)" -f "x11vnc .* -display :32 .* -rfbport 5932" >/dev/null 2>&1 || true
-      pkill -u "$(id -un)" -f "Xvfb :32 " >/dev/null 2>&1 || true
+      pkill -u "$(id -un)" -f "websockify --web .* ${COMSOL_NOVNC_PORT} localhost:${COMSOL_VNC_PORT}|launch.sh --vnc localhost:${COMSOL_VNC_PORT} --listen ${COMSOL_NOVNC_PORT}" >/dev/null 2>&1 || true
+      pkill -u "$(id -un)" -f "x11vnc .* -display ${COMSOL_DISPLAY} .* -rfbport ${COMSOL_VNC_PORT}" >/dev/null 2>&1 || true
+      pkill -u "$(id -un)" -f "Xvfb ${COMSOL_DISPLAY} " >/dev/null 2>&1 || true
       pkill -u "$(id -un)" -f "(^|/)(comsol|comsollauncher)( |$)" >/dev/null 2>&1 || true
-      tmux kill-session -t comsol-remote-6082 >/dev/null 2>&1 || true
+      tmux kill-session -t "comsol-remote-${COMSOL_NOVNC_PORT}" >/dev/null 2>&1 || true
     fi
     [[ "${ACTION}" == "restart" ]] || exit 0
     ;;
@@ -144,15 +191,17 @@ case "${ACTION}" in
     ;;
 esac
 
-ensure_desktop "freecad" ":1" "5901" "6080" "freecad"
-ensure_desktop "paraview" ":2" "5902" "6081" "paraview"
+ensure_desktop "freecad" "${FREECAD_DISPLAY}" "${FREECAD_VNC_PORT}" "${FREECAD_NOVNC_PORT}" "freecad"
+ensure_desktop "paraview" "${PARAVIEW_DISPLAY}" "${PARAVIEW_VNC_PORT}" "${PARAVIEW_NOVNC_PORT}" "paraview"
 
-export DISPLAY=":1"
+export DISPLAY="${FREECAD_DISPLAY}"
 export LIBGL_ALWAYS_SOFTWARE=1
 export MESA_GL_VERSION_OVERRIDE=3.3
 if ! pgrep -u "$(id -un)" -af "(^|/)(freecad|FreeCAD)( |$)" >/dev/null 2>&1; then
+  FREECAD_ENV_BIN="${FREECAD_BIN:-}"
   FREECAD_BIN=""
-  for candidate in /data/lbk/codex_web/FreeCAD_data/bin/freecad-1.1.1 FreeCAD freecad; do
+  for candidate in "${FREECAD_ENV_BIN}" "${FREECAD_CONFIG_BIN}" FreeCAD freecad; do
+    [[ -n "${candidate}" ]] || continue
     if [[ -x "${candidate}" ]]; then
       FREECAD_BIN="${candidate}"
       break
@@ -170,7 +219,7 @@ if ! pgrep -u "$(id -un)" -af "(^|/)(freecad|FreeCAD)( |$)" >/dev/null 2>&1; the
   fi
 fi
 
-export DISPLAY=":2"
+export DISPLAY="${PARAVIEW_DISPLAY}"
 if ! pgrep -u "$(id -un)" -af "(^|/)paraview( |$)" >/dev/null 2>&1; then
   if command -v paraview >/dev/null 2>&1; then
     setsid "$(command -v paraview)" >"${LOG_DIR}/paraview.log" 2>&1 < /dev/null &
@@ -184,6 +233,6 @@ if ! pgrep -u "$(id -un)" -af "(^|/)(comsol|comsollauncher)( |$)" >/dev/null 2>&
 fi
 
 echo "Remote GUI tools requested."
-echo "FreeCAD:  http://$(hostname -I 2>/dev/null | awk '{print $1}'):6080/vnc.html?autoconnect=true&resize=scale&path=websockify"
-echo "ParaView: http://$(hostname -I 2>/dev/null | awk '{print $1}'):6081/vnc.html?autoconnect=true&resize=scale&path=websockify"
-echo "COMSOL:   http://$(hostname -I 2>/dev/null | awk '{print $1}'):6082/vnc.html?autoconnect=true&resize=scale&path=websockify"
+echo "FreeCAD:  http://$(hostname -I 2>/dev/null | awk '{print $1}'):${FREECAD_NOVNC_PORT}/vnc.html?autoconnect=true&resize=scale&path=websockify"
+echo "ParaView: http://$(hostname -I 2>/dev/null | awk '{print $1}'):${PARAVIEW_NOVNC_PORT}/vnc.html?autoconnect=true&resize=scale&path=websockify"
+echo "COMSOL:   http://$(hostname -I 2>/dev/null | awk '{print $1}'):${COMSOL_NOVNC_PORT}/vnc.html?autoconnect=true&resize=scale&path=websockify"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -7,10 +8,44 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_COMSOL_LAUNCHER = Path("/usr/local/bin/start-comsol-remote")
-DEFAULT_PARAVIEW_LAUNCHER = Path("/usr/local/bin/start-paraview-remote")
-PARAVIEW_DISPLAY = ":2"
-COMSOL_REMOTE_DISPLAY = ":32"
+APP_CONFIG_PATH = Path(
+    os.getenv(
+        "CODEX_WEB_CONFIG_PATH",
+        Path(__file__).resolve().parents[6] / "config.json",
+    )
+)
+
+
+def _load_config() -> dict[str, Any]:
+    try:
+        payload = json.loads(APP_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _tool_config(name: str) -> dict[str, Any]:
+    tools = _load_config().get("tools", {})
+    if not isinstance(tools, dict):
+        return {}
+    tool = tools.get(name, {})
+    return tool if isinstance(tool, dict) else {}
+
+
+def _tool_path(name: str, key: str, fallback: str) -> Path:
+    value = _tool_config(name).get(key)
+    return Path(str(value).strip()) if value else Path(fallback)
+
+
+def _tool_string(name: str, key: str, fallback: str) -> str:
+    value = _tool_config(name).get(key)
+    return str(value).strip() if value else fallback
+
+
+DEFAULT_COMSOL_LAUNCHER = _tool_path("comsol", "launcher", "start-comsol-remote")
+DEFAULT_PARAVIEW_LAUNCHER = _tool_path("paraview", "launcher", "start-paraview-remote")
+PARAVIEW_DISPLAY = _tool_string("paraview", "displayNum", ":2")
+COMSOL_REMOTE_DISPLAY = _tool_string("comsol", "displayNum", ":32")
 
 
 def load_simulation_outputs_in_remote_tools(

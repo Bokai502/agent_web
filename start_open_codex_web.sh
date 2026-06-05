@@ -45,9 +45,9 @@ BACKEND_PORT="$(require_config server.port)"
 FRONTEND_HOST="$(read_config frontend.host 0.0.0.0)"
 FRONTEND_PORT="$(require_config frontend.httpsPort)"
 FRONTEND_PUBLIC_HOST="$(read_config frontend.publicHost)"
-FREECAD_WORKSPACE_DIR="$(read_config workspace.workspaceDir "$(read_config freecad.workspaceDir)")"
-FREECAD_RPC_HOST="$(read_config workspace.rpcHost "$(read_config freecad.rpcHost localhost)")"
-FREECAD_RPC_PORT="$(read_config workspace.rpcPort "$(read_config freecad.rpcPort 9876)")"
+FREECAD_WORKSPACE_DIR="$(require_config workspace.workspaceDir)"
+FREECAD_RPC_HOST="$(require_config workspace.rpcHost)"
+FREECAD_RPC_PORT="$(require_config workspace.rpcPort)"
 
 if [[ -z "${FREECAD_WORKSPACE_DIR}" ]]; then
   echo "config.json 缺少 workspace.workspaceDir" >&2

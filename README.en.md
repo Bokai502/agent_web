@@ -25,6 +25,7 @@ Common fields:
 | `codex.workingDirectory` | Default working directory for Codex tasks. |
 | `codex.approvalPolicy` | Codex approval policy, such as `never` or `on-request`. |
 | `codex.sandboxMode` | Codex sandbox mode, such as `workspace-write` or `danger-full-access`. |
+| `codex.sandboxWorkspaceWriteNetworkAccess` | Allows network access for Agent commands when `sandboxMode` is `workspace-write`; set to `true` when commands must connect to local FreeCAD RPC or a private COMSOL `mphserver`. |
 | `server.port` | Required backend port. Can be temporarily overridden by `BACKEND_PORT`. |
 | `server.host` | Backend listen address, such as `0.0.0.0` or `127.0.0.1`. |
 | `server.corsOrigin` | Optional list of frontend origins allowed to call the backend. If omitted, it is generated from `frontend.port`, `frontend.httpsPort`, and `frontend.publicHost`. |
@@ -37,7 +38,13 @@ Common fields:
 | `workspace.filesystemGroup` | Filesystem group applied to workspace files where possible. Use a group that the backend user belongs to. |
 | `auth.usersDir` | Per-user workspace directory name, defaulting to `users`; user roots look like `<workspace.workspaceDir>/<auth.usersDir>/<userId>`. |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD remote RPC settings. |
-| `tools.*.noVncPort` | noVNC ports for remote GUI tools such as CAD, ParaView, and COMSOL. |
+| `tools.remoteDesktopLauncher` | Shared launcher used by `/api/remote-tools/ensure-desktops` for FreeCAD and ParaView. |
+| `tools.cad/paraview/comsol.displayNum` | X display used by each remote GUI tool, such as `:1`, `:2`, or `:32`. |
+| `tools.cad/paraview/comsol.vncPort` | Local VNC port for each remote GUI tool. |
+| `tools.cad/paraview/comsol.noVncPort` | noVNC port used by both frontend iframes and backend port checks. |
+| `tools.cad/paraview/comsol.launcher` | Launcher path for each remote GUI tool; the backend calls `tools.comsol.launcher` directly for COMSOL. |
+| `tools.cad.bin` | FreeCAD GUI executable used by `start_remote_gui_tools.sh`; can be temporarily overridden with `FREECAD_BIN`. |
+| `tools.comsol.sudo` | Privilege command used when calling the COMSOL launcher, defaulting to `sudo`. |
 | `gnc.dashboard.telemetryPaths` | Relative telemetry file paths used by the GNC dashboard. |
 | `whisper.*` | Speech-to-text settings. Keep placeholders or set values to `null` if speech is not needed. |
 | `cosyvoice.*` | TTS service settings. Keep placeholders or set values to `null` if speech playback is not needed. |

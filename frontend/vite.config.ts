@@ -27,10 +27,11 @@ type RootConfig = {
     strictPort?: boolean
   }
   tools?: {
-    cad?: { noVncPort?: number; url?: string }
-    comsol?: { noVncPort?: number; url?: string }
+    cad?: { bin?: string; displayNum?: string; launcher?: string; noVncPort?: number; url?: string; vncPort?: number }
+    comsol?: { displayNum?: string; launcher?: string; noVncPort?: number; sudo?: string; url?: string; vncPort?: number }
     gnc?: { url?: string }
-    paraview?: { noVncPort?: number; url?: string }
+    paraview?: { displayNum?: string; launcher?: string; noVncPort?: number; url?: string; vncPort?: number }
+    remoteDesktopLauncher?: string
   }
 }
 

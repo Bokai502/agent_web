@@ -9,7 +9,6 @@ import {
   getConfiguredWorkspaceDirFromConfig,
   getWorkspaceRoot,
   resolveWorkspaceDir,
-  setWorkspaceDir,
 } from "../workspaces/workspaceManager.js"
 import type {
   ArtifactRecord,
@@ -24,9 +23,9 @@ import type {
 
 const MANIFEST_FILE = "workspace_manifest.json"
 const WORKSPACES_DIR = "workspaces"
-const DEFAULT_WORKSPACE_GROUP = "xieteam"
 const execFileAsync = promisify(execFile)
 const WORKSPACE_FILESYSTEM_GROUP = loadConfig().workspace.filesystemGroup
+const DEFAULT_WORKSPACE_GROUP = WORKSPACE_FILESYSTEM_GROUP
 
 function nowIso() {
   return new Date().toISOString()
@@ -349,8 +348,6 @@ export async function getWorkspaceManifestByLocator(options: {
 }
 
 async function syncConfigToActiveVersion(manifest: WorkspaceManifest) {
-  const activeVersion = manifest.versions.find(version => version.id === manifest.activeVersionId) ?? null
-  if (activeVersion && !getRequestWorkspaceRootOverride()) await setWorkspaceDir(activeVersion.workspaceDir)
   return manifest
 }
 

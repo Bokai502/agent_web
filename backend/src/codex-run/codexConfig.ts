@@ -10,6 +10,12 @@ export function buildCodexConfig(config: AppConfig): CodexConfigObject {
     show_raw_agent_reasoning: true,
   }
 
+  if (config.codex.sandboxWorkspaceWriteNetworkAccess) {
+    codexConfig.sandbox_workspace_write = {
+      network_access: true,
+    }
+  }
+
   const providerId = config.openai.modelProvider
   if (providerId) {
     codexConfig.model_provider = providerId

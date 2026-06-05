@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import shutil
 from dataclasses import dataclass
@@ -14,6 +15,17 @@ from typing import Any
 HEADER_RE = re.compile(r"^=+")
 TRUE_FALSE_RE = re.compile(r"^(TRUE|FALSE)\b", re.IGNORECASE)
 FLOAT_RE = re.compile(r"[-+]?\d+(?:\.\d+)?(?:[Ee][-+]?\d+)?")
+
+
+def default_aignc_root(workspace_dir: Path) -> Path:
+    configured = os.environ.get("AIGNC_ROOT")
+    if configured:
+        return Path(configured)
+    for parent in (workspace_dir, *workspace_dir.parents):
+        candidate = parent / "AIGNC"
+        if candidate.exists():
+            return candidate
+    return Path.cwd() / "AIGNC"
 
 
 @dataclass
@@ -1284,11 +1296,11 @@ def validate_case(workspace_dir: Path, aignc_root: Path) -> tuple[dict[str, Any]
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workspace-dir", required=True, help="Path to the active version workspace directory")
-    parser.add_argument("--aignc-root", default="/data/lbk/codex_web/AIGNC", help="Path to the AIGNC repository root")
+    parser.add_argument("--aignc-root", default=None, help="Path to the AIGNC repository root. Defaults to AIGNC_ROOT or a nearby AIGNC directory.")
     args = parser.parse_args()
 
     workspace_dir = Path(args.workspace_dir).resolve()
-    aignc_root = Path(args.aignc_root).resolve()
+    aignc_root = Path(args.aignc_root).resolve() if args.aignc_root else default_aignc_root(workspace_dir).resolve()
     summary, report, requirement_trace, trace_md = validate_case(workspace_dir, aignc_root)
 
     workflow_dir = workspace_dir / "AIGNC_Workflow"

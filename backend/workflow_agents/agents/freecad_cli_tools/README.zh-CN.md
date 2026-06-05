@@ -10,14 +10,14 @@
 ### 方式一：从源码安装
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill/freecad_cli_tools
+cd /path/to/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools
 python -m pip install -e .
 ```
 
 ### 方式二：构建并安装 wheel
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill/freecad_cli_tools
+cd /path/to/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools
 python -m pip install build
 python -m build
 python -m pip install dist/freecad_cli_tools-*.whl
@@ -28,7 +28,7 @@ python -m pip install dist/freecad_cli_tools-*.whl
 从源码检出目录中，进入包目录后运行统一 CLI 模块：
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill/freecad_cli_tools
+cd /path/to/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools
 
 # 配置
 python -m freecad_cli_tools.cli.main config show
@@ -47,9 +47,8 @@ python -m freecad_cli_tools.cli.main layout safe-move --component P002 --install
 
 完成 editable 或 wheel 安装后，`freecad-tools` 可作为相同命令的短 console-script 别名。
 
-工作区相关命令会从 `/data/lbk/codex_web/open_codex_web/config.json` 的
-`freecad.workspaceDir` 字段解析相对路径。`--workspace` 仅作为弃用兼容选项保留，
-不会覆盖配置中的工作区。
+工作区相关命令默认从项目根目录 `config.json` 的 `workspace.workspaceDir`
+字段解析相对路径。传入 `--workspace` / `--workspace-dir` 时，会覆盖该命令的默认工作区。
 
 `python -m freecad_cli_tools.cli.main assembly create-from-component-info` 会读取
 `./00_inputs/real_bom.json`、`./00_inputs/layout_topology.json` 和
