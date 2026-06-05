@@ -99,6 +99,24 @@ npm run dev:https -- --host "$(node -p "require('../config.json').frontend.host"
 
 前端 Vite 代理会读取同一个 `config.json` 的 `server.port`。如果手动用 `BACKEND_PORT` 覆盖后端端口，也要给前端启动命令传入相同的 `BACKEND_PORT`。
 
+## Agent CLI 模块
+
+后端启动 Codex Agent 时会把仓库内置的 FreeCAD 和仿真 CLI 源码目录加入该次运行的 `PYTHONPATH`，并授权给 Codex 读取：
+
+```text
+backend/workflow_agents/agents/freecad_cli_tools/src
+backend/workflow_agents/agents/sim_cli_tools/src
+```
+
+因此技能里应直接使用：
+
+```bash
+python -m freecad_cli_tools.cli.main ...
+python -m sim_cli_tools.cli.main ...
+```
+
+如果出现 `ModuleNotFoundError: freecad_cli_tools` 或 `ModuleNotFoundError: sim_cli_tools`，优先检查后端是否已重启到最新代码，以及 Agent 命令中的 `PYTHONPATH` 是否包含上述两个 `src` 目录。不要依赖机器上全局安装的 `freecad-tools`、`sim-run` 或旧仓库的 editable install；它们可能指向过期路径。
+
 ## 构建检查
 
 ```bash

@@ -9,6 +9,7 @@ description: "FreeCAD CLI/RPC workflow for the current 00_inputs -> 01_cad CAD s
 
 - Before running a workflow command, call `python -m freecad_cli_tools.cli.main config show --workspace-dir <workspace_dir>` to read the resolved workspace, RPC settings, default input paths, default output paths, and component-info STEP size limit.
 - Expect FreeCAD RPC at the `rpc_host` and `rpc_port` reported by `python -m freecad_cli_tools.cli.main config show`, unless the active workflow command is given explicit `--host` or `--port` overrides. If RPC is unavailable, report the connection problem clearly instead of guessing.
+- Open Codex Web injects the bundled CLI source directory into `PYTHONPATH` for agent runs. If `ModuleNotFoundError: freecad_cli_tools` appears, verify `PYTHONPATH` includes `open_codex_web/backend/workflow_agents/agents/freecad_cli_tools/src` before changing commands or searching for alternate modules.
 
 ## User Updates
 

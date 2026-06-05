@@ -35,11 +35,9 @@ Use `templates/config_editor_report_template.md` for the output shape.
 Use the FreeCAD progress CLI to update `<workspace>/logs/progress.json` only.
 Do not create or modify `<workspace>/logs/progress_percentages.json`.
 
-Run progress commands from the FreeCAD skill directory:
-
-```bash
-cd /path/to/open_codex_web/backend/workflow_agents
-```
+Open Codex Web injects the bundled FreeCAD CLI source directory into
+`PYTHONPATH` for agent runs, so the progress CLI should be invoked directly as
+`python -m freecad_cli_tools.cli.main ...` from the current working directory.
 
 Before editing config:
 

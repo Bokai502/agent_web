@@ -43,6 +43,7 @@ function buildPromptPrefix(
     "When creating a new workspace or version through APIs or artifacts, use group xieteam.",
     "The Versioning API checkout/branch operation changes the active version in the workspace manifest; it does not rewrite open_codex_web/config.json.",
     "If a CLI supports --workspace-dir, pass this workspace_dir explicitly; do not rely on config.json defaults for versioned work.",
+    "Bundled FreeCAD and simulation CLIs are exposed through PYTHONPATH for this run; prefer `python -m freecad_cli_tools.cli.main` and `python -m sim_cli_tools.cli.main` over globally installed wrappers.",
     "When invoking CLI commands, pass these correlation values through environment variables:",
     `- WORKSPACE_SESSION_ID=${context.sessionId}`,
     `- WORKSPACE_THREAD_ID=${context.threadId ?? ""}`,
