@@ -135,14 +135,14 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     <section className="wa-info-card wa-file-tree-card">
       <div className="wa-file-tree-head">
         <div>
-          <h3>生成文件</h3>
+          <h3>运行结果</h3>
         </div>
         <button
           type="button"
           className="wa-file-tree-download"
           disabled={!versionDir || downloading}
           onClick={downloadWorkspaceArchive}
-          title="下载全部生成文件"
+          title="下载全部运行结果"
         >
           {downloading ? "打包中" : "下载"}
         </button>
