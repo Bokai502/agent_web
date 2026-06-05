@@ -10,9 +10,10 @@ import { checkCodexEndpoint, refreshSkillsCache } from "./system/index.js"
 
 const config = loadConfig()
 const logger = createLogger(config.logging)
-const GNC_WORKSPACE_ROOT = "/data/lbk/codex_web/data/input_data"
-const REGION_WORKSPACE_ROOT = "/data/lbk/codex_web/data_jiange"
-const DEFAULT_WORKSPACE_ROOT = "/data/lbk/codex_web/data/input_data"
+const configuredWorkspaceRoot = path.resolve(config.workspace.workspaceDir ?? path.resolve(process.cwd(), "..", "data"))
+const GNC_WORKSPACE_ROOT = configuredWorkspaceRoot
+const REGION_WORKSPACE_ROOT = configuredWorkspaceRoot
+const DEFAULT_WORKSPACE_ROOT = configuredWorkspaceRoot
 
 logger.info("backend starting", {
   baseUrl: config.openai.baseUrl,

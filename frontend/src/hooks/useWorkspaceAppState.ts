@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { joinApiPath } from "../app/apiBase"
+import { getBackendPort } from "../app/runtimeConfig"
 import { useCodexStream } from "./useTaskStream"
 import type { CodexInputItem, Session, ThreadEvent, Turn } from "../types"
 import { shouldSuppressEvent } from "../utils/codexEventFilter"
@@ -66,10 +67,11 @@ async function deleteSessionRequest(sessionId: string, apiBase?: string) {
   const apiUrls = apiRequests.flatMap(request => {
     const urls = [{ ...request, url: request.path }]
 
-    if (window.location.hostname && window.location.protocol === "http:") {
+    const backendPort = getBackendPort()
+    if (backendPort && window.location.hostname && window.location.protocol === "http:") {
       urls.push({
         ...request,
-        url: `http://${window.location.hostname}:${__BACKEND_PORT__}${request.path}`,
+        url: `http://${window.location.hostname}:${backendPort}${request.path}`,
       })
     }
 

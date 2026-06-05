@@ -23,6 +23,7 @@ type RootConfig = {
     host?: string
     port?: number
     httpsPort?: number
+    publicHost?: string
     strictPort?: boolean
   }
   tools?: {
@@ -33,8 +34,6 @@ type RootConfig = {
   }
 }
 
-const DEFAULT_BACKEND_PORT = 3001
-
 function loadRootConfig(): RootConfig {
   const configPath = path.resolve(__dirname, "..", "config.json")
   try {
@@ -44,22 +43,35 @@ function loadRootConfig(): RootConfig {
   }
 }
 
+function requiredPort(value: unknown, field: string) {
+  const port = typeof value === "number" ? value : Number(value)
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error(`${field} must be a positive integer in config.json`)
+  }
+  return port
+}
+
 export default defineConfig(({ mode }) => {
   const useHttps = mode === "https-dev"
   const rootConfig = loadRootConfig()
   const envBackendPort = process.env.BACKEND_PORT ? Number(process.env.BACKEND_PORT) : null
   const backendPort = envBackendPort && Number.isInteger(envBackendPort) && envBackendPort > 0
     ? envBackendPort
-    : rootConfig.server?.port ?? DEFAULT_BACKEND_PORT
+    : requiredPort(rootConfig.server?.port, "server.port")
   const frontend = rootConfig.frontend ?? {}
+  const frontendPort = requiredPort(frontend.port, "frontend.port")
+  const frontendHttpsPort = requiredPort(frontend.httpsPort, "frontend.httpsPort")
   const publicConfig = {
+    frontend: rootConfig.frontend,
     gnc: rootConfig.gnc,
+    server: {
+      port: backendPort,
+    },
     tools: rootConfig.tools,
   }
 
   return {
     define: {
-      __BACKEND_PORT__: JSON.stringify(backendPort),
       __APP_CONFIG__: JSON.stringify(publicConfig),
     },
     plugins: [
@@ -69,7 +81,7 @@ export default defineConfig(({ mode }) => {
     ].filter(Boolean),
     server: {
       host: frontend.host ?? "0.0.0.0",
-      port: useHttps ? (frontend.httpsPort ?? 5175) : (frontend.port ?? 5174),
+      port: useHttps ? frontendHttpsPort : frontendPort,
       strictPort: frontend.strictPort ?? true,
       ...(useHttps ? { https: {} } : {}),
       proxy: {

@@ -8,27 +8,29 @@
     "wireApi": "responses",
     "supportsWebsockets": false
   },
+  "auth": {
+    "enabled": false,
+    "headerName": "x-codex-user-id",
+    "cookieName": "codex_user_id",
+    "devUserId": "default",
+    "usersDir": "users"
+  },
   "codex": {
-    "modelReasoningEffort": "high",
+    "modelReasoningEffort": "low",
     "approvalPolicy": "never",
     "sandboxMode": "workspace-write",
     "workingDirectory": "/path/to/your/workspace",
     "skipGitRepoCheck": true
   },
   "server": {
-    "port": 3002,
-    "host": "0.0.0.0",
-    "corsOrigin": [
-      "http://localhost:5174",
-      "http://127.0.0.1:5174",
-      "https://localhost:5175",
-      "https://127.0.0.1:5175"
-    ]
+    "port": 3102,
+    "host": "0.0.0.0"
   },
   "frontend": {
     "host": "0.0.0.0",
-    "port": 5174,
-    "httpsPort": 5175,
+    "publicHost": "localhost",
+    "port": 5274,
+    "httpsPort": 5275,
     "strictPort": true
   },
   "tools": {

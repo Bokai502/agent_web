@@ -1,7 +1,13 @@
 /// <reference types="vite/client" />
 
-declare const __BACKEND_PORT__: number
 declare const __APP_CONFIG__: {
+  frontend?: {
+    host?: string
+    port?: number
+    httpsPort?: number
+    publicHost?: string
+    strictPort?: boolean
+  }
   gnc?: {
     dashboard?: {
       telemetryMaxBytes?: number
@@ -11,6 +17,9 @@ declare const __APP_CONFIG__: {
         wheel?: string
       }
     }
+  }
+  server?: {
+    port?: number
   }
   tools?: {
     comsol?: {

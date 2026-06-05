@@ -26,14 +26,25 @@ if (value === undefined || value === null || value === "") {
 ' "${CONFIG_FILE}" "$1" "${2:-}"
 }
 
+require_config() {
+  local value
+  value="$(read_config "$1")"
+  if [[ -z "${value}" ]]; then
+    echo "config.json 缺少 $1" >&2
+    exit 1
+  fi
+  printf '%s' "${value}"
+}
+
 if [[ ! -f "${CONFIG_FILE}" ]]; then
   echo "配置文件不存在：${CONFIG_FILE}" >&2
   exit 1
 fi
 
-BACKEND_PORT="$(read_config server.port 3001)"
+BACKEND_PORT="$(require_config server.port)"
 FRONTEND_HOST="$(read_config frontend.host 0.0.0.0)"
-FRONTEND_PORT="$(read_config frontend.httpsPort 5175)"
+FRONTEND_PORT="$(require_config frontend.httpsPort)"
+FRONTEND_PUBLIC_HOST="$(read_config frontend.publicHost)"
 FREECAD_WORKSPACE_DIR="$(read_config workspace.workspaceDir "$(read_config freecad.workspaceDir)")"
 FREECAD_RPC_HOST="$(read_config workspace.rpcHost "$(read_config freecad.rpcHost localhost)")"
 FREECAD_RPC_PORT="$(read_config workspace.rpcPort "$(read_config freecad.rpcPort 9876)")"
@@ -98,5 +109,10 @@ tmux new-session -d -s "${BACKEND_SESSION}" -c "${BACKEND_DIR}" \
 tmux new-session -d -s "${FRONTEND_SESSION}" -c "${FRONTEND_DIR}" \
   "BACKEND_PORT='${BACKEND_PORT}' npm run dev:https -- --host '${FRONTEND_HOST}' --port '${FRONTEND_PORT}' --strictPort"
 
+DISPLAY_FRONTEND_HOST="${FRONTEND_PUBLIC_HOST:-${FRONTEND_HOST}}"
+if [[ "${DISPLAY_FRONTEND_HOST}" == "0.0.0.0" ]]; then
+  DISPLAY_FRONTEND_HOST="localhost"
+fi
+
 echo "backend:  http://localhost:${BACKEND_PORT}  tmux=${BACKEND_SESSION}"
-echo "frontend: https://10.110.10.11:${FRONTEND_PORT}  tmux=${FRONTEND_SESSION}"
+echo "frontend: https://${DISPLAY_FRONTEND_HOST}:${FRONTEND_PORT}  tmux=${FRONTEND_SESSION}"

@@ -9,6 +9,10 @@ const DEFAULT_TOOL_PORTS: Record<RemoteToolName, number> = {
 
 export const runtimeConfig = typeof __APP_CONFIG__ === 'object' && __APP_CONFIG__ ? __APP_CONFIG__ : {}
 
+export function getBackendPort() {
+  return runtimeConfig.server?.port
+}
+
 export function getRemoteToolUrl(tool: RemoteToolName, host: string) {
   const configured = runtimeConfig.tools?.[tool]
   if (configured?.url) return configured.url
@@ -17,7 +21,7 @@ export function getRemoteToolUrl(tool: RemoteToolName, host: string) {
 }
 
 export function getGncToolUrl() {
-  return runtimeConfig.tools?.gnc?.url ?? 'http://10.110.10.11:8765/'
+  return runtimeConfig.tools?.gnc?.url ?? `http://${window.location.hostname || 'localhost'}:8765/`
 }
 
 export function getGncTelemetryPaths() {

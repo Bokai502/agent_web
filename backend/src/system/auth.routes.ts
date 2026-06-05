@@ -19,7 +19,6 @@ type WorkspaceSeedStatus = UserSeedStatus & {
   workspaceId: string
 }
 
-const INPUT_DATA_ROOT = "/data/lbk/codex_web/data/input_data"
 const USER_TEMPLATE_DIRS = [
   { name: "derating", sessionId: "derating", workspaceId: "ws_derating" },
   { name: "gnc", sessionId: "gnc", workspaceId: "ws_gnc" },
@@ -30,13 +29,13 @@ async function pathExists(filePath: string) {
   return fs.access(filePath).then(() => true).catch(() => false)
 }
 
-async function seedUserData(userId: string, usersDir: string): Promise<UserSeedStatus[]> {
-  const userRoot = path.join(INPUT_DATA_ROOT, usersDir, userId)
+async function seedUserData(inputDataRoot: string, userId: string, usersDir: string): Promise<UserSeedStatus[]> {
+  const userRoot = path.join(inputDataRoot, usersDir, userId)
   await fs.mkdir(userRoot, { recursive: true })
 
   const statuses: UserSeedStatus[] = []
   for (const { name } of USER_TEMPLATE_DIRS) {
-    const source = path.join(INPUT_DATA_ROOT, name)
+    const source = path.join(inputDataRoot, name)
     const target = path.join(userRoot, name)
 
     if (!await pathExists(source)) {
@@ -78,8 +77,8 @@ async function writeJsonObject(filePath: string, value: Record<string, unknown>)
   await fs.rename(tmpPath, filePath)
 }
 
-async function seedUserWorkspaceVersions(userId: string, usersDir: string): Promise<WorkspaceSeedStatus[]> {
-  const userRoot = path.join(INPUT_DATA_ROOT, usersDir, userId)
+async function seedUserWorkspaceVersions(inputDataRoot: string, userId: string, usersDir: string): Promise<WorkspaceSeedStatus[]> {
+  const userRoot = path.join(inputDataRoot, usersDir, userId)
   const statuses: WorkspaceSeedStatus[] = []
 
   for (const { name, sessionId, workspaceId } of USER_TEMPLATE_DIRS) {
@@ -164,6 +163,8 @@ async function seedUserWorkspaceVersions(userId: string, usersDir: string): Prom
 }
 
 export async function authRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  const inputDataRoot = path.resolve(config.workspace.workspaceDir ?? process.cwd())
+
   fastify.get("/api/auth/me", async (_req, reply) => {
     return reply.send({
       authEnabled: config.auth.enabled,
@@ -179,8 +180,8 @@ export async function authRoutes(fastify: FastifyInstance, { config }: { config:
     }
     const rawUserId = typeof req.body?.userId === "string" ? req.body.userId : null
     const userId = sanitizeUserId(rawUserId, config.auth.devUserId)
-    const seeded = await seedUserData(userId, config.auth.usersDir)
-    const workspaces = await seedUserWorkspaceVersions(userId, config.auth.usersDir)
+    const seeded = await seedUserData(inputDataRoot, userId, config.auth.usersDir)
+    const workspaces = await seedUserWorkspaceVersions(inputDataRoot, userId, config.auth.usersDir)
     reply.header("Set-Cookie", buildUserCookie(config, userId))
     return reply.send({ seeded, userId, workspaces })
   })

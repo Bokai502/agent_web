@@ -74,13 +74,13 @@ open_codex_web/
 └── package-lock.json
 ```
 
-项目根目录 `/data/lbk/codex_web/open_codex_web/config.json` 是运行配置主文件；`/data/lbk/codex_web/open_codex_web/start_open_codex_web.sh` 是推荐启动脚本。
+项目根目录 `config.json` 是运行配置主文件；`start_open_codex_web.sh` 是推荐启动脚本。
 
 ---
 
 ## 配置
 
-后端优先读取 `/data/lbk/codex_web/open_codex_web/config.json`，如果不存在才读取 `open_codex_web/backend/config.json`。关键字段：
+后端和前端都读取项目根目录 `config.json`。端口配置以该文件为唯一来源；`server.port`、`frontend.port`、`frontend.httpsPort` 都是必填项，源码和启动脚本不会再内置默认端口。关键字段：
 
 | 字段 | 说明 |
 |------|------|
@@ -90,19 +90,22 @@ open_codex_web/
 | `codex.modelReasoningEffort` | 推理强度 |
 | `codex.approvalPolicy` | Codex approval policy |
 | `codex.sandboxMode` | Codex sandbox mode |
-| `server.port` / `BACKEND_PORT` | 后端端口，环境变量可覆盖 |
+| `server.port` / `BACKEND_PORT` | 后端端口，必填；环境变量可临时覆盖 |
 | `server.host` | 后端监听地址 |
-| `server.corsOrigin` | 允许访问后端的前端 origin 列表 |
+| `server.corsOrigin` | 可选，允许访问后端的前端 origin 列表；不配置时根据 `frontend.port`、`frontend.httpsPort`、`frontend.publicHost` 自动生成 |
 | `frontend.host` | Vite 监听地址 |
-| `frontend.port` | HTTP 开发端口 |
-| `frontend.httpsPort` | HTTPS 开发端口 |
+| `frontend.publicHost` | 前端对外访问主机名或 IP，用于启动脚本输出 URL 和自动 CORS |
+| `frontend.port` | HTTP 开发端口，必填 |
+| `frontend.httpsPort` | HTTPS 开发端口，必填 |
+| `frontend.strictPort` | 是否要求 Vite 只使用配置端口，建议保持 `true` |
 | `tools.cad/paraview/comsol.noVncPort` | 前端工具面板 noVNC 端口 |
 | `tools.cad/paraview/comsol.url` | 可选，直接覆盖工具 iframe URL |
 | `tools.gnc.url` | 外部 GNC 页面 URL |
 | `gnc.dashboard.telemetryPaths` | GNC 看板 CSV 遥测路径 |
 | `gnc.dashboard.telemetryMaxBytes` | GNC 看板单文件读取上限 |
-| `workspace.workspaceDir` | 默认工程工作区版本目录 |
-| `workspace.filesystemGroup` | 新建 workspace/version 目录和 manifest 文件的 Linux 文件系统 group，默认 `xieteam`，可用 `WORKSPACE_FILESYSTEM_GROUP` 覆盖 |
+| `workspace.workspaceDir` | 工程工作区根目录；Web 会在该目录下按用户创建版本化工作区副本 |
+| `workspace.filesystemGroup` | 新建 workspace/version 目录和 manifest 文件的 Linux 文件系统 group，应配置为后端运行用户所属的组，可用 `WORKSPACE_FILESYSTEM_GROUP` 覆盖 |
+| `auth.usersDir` | 用户工作区目录名，默认 `users`；用户根目录类似 `<workspace.workspaceDir>/<auth.usersDir>/<userId>` |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD MCP RPC 连接配置 |
 | `workspace.filePreviewMaxBytes` | 普通文件预览大小上限 |
 | `workspace.textFileMaxBytes` | 文本文件整读上限 |
@@ -121,10 +124,10 @@ open_codex_web/
 ## 安装依赖
 
 ```bash
-cd /data/lbk/codex_web/open_codex_web/backend
+cd /path/to/open_codex_web/backend
 npm install
 
-cd /data/lbk/codex_web/open_codex_web/frontend
+cd /path/to/open_codex_web/frontend
 npm install
 ```
 
@@ -144,13 +147,13 @@ codex --version
 推荐从项目根目录使用统一脚本：
 
 ```bash
-cd /data/lbk/codex_web/open_codex_web
+cd /path/to/open_codex_web
 ./start_open_codex_web.sh
 ```
 
 该脚本会：
 
-- 读取 `/data/lbk/codex_web/open_codex_web/config.json`。
+- 读取项目根目录 `config.json`。
 - 关闭旧的 `ocw-backend*` / `ocw-frontend*` tmux 会话。
 - 释放后端端口。
 - 在 tmux 中启动后端 `npm run dev`。
@@ -160,32 +163,32 @@ cd /data/lbk/codex_web/open_codex_web
 
 ```text
 backend:  http://localhost:<server.port>  tmux=ocw-backend
-frontend: https://10.110.10.11:<frontend.httpsPort>  tmux=ocw-frontend
+frontend: https://<frontend.publicHost 或 frontend.host>:<frontend.httpsPort>  tmux=ocw-frontend
 ```
 
-如果按当前根配置运行，后端端口来自 `server.port`，前端 HTTPS 端口来自 `frontend.httpsPort`。不要假定一定是 `3001` 或 `5174`。
+后端端口来自 `server.port`，前端 HTTPS 端口来自 `frontend.httpsPort`。不要假定固定端口。
 
 手动调试也可以分开启动：
 
 ```bash
-cd /data/lbk/codex_web/open_codex_web/backend
-npm run dev
+cd /path/to/open_codex_web/backend
+BACKEND_PORT="$(node -p "require('../config.json').server.port")" npm run dev
 ```
 
 ```bash
-cd /data/lbk/codex_web/open_codex_web/frontend
-npm run dev
-# 或 HTTPS
-npm run dev:https -- --host 0.0.0.0 --port 5175 --strictPort
+cd /path/to/open_codex_web/frontend
+npm run dev:https -- --host "$(node -p "require('../config.json').frontend.host")" --port "$(node -p "require('../config.json').frontend.httpsPort")" --strictPort
 ```
+
+前端 Vite 代理会读取同一个 `config.json` 的 `server.port`。如果手动用 `BACKEND_PORT` 覆盖后端端口，也要给前端启动命令传入相同的 `BACKEND_PORT`。
 
 构建验证：
 
 ```bash
-cd /data/lbk/codex_web/open_codex_web/backend
+cd /path/to/open_codex_web/backend
 npm run build
 
-cd /data/lbk/codex_web/open_codex_web/frontend
+cd /path/to/open_codex_web/frontend
 npm run build
 ```
 
@@ -238,7 +241,7 @@ GNC 工作区识别逻辑在 `AgentPage.tsx` 中通过工作区标识匹配 `gnc
 | CAD | noVNC：`http://<当前主机>:6080/vnc.html?autoconnect=true&resize=scale&path=websockify` |
 | ParaView | noVNC：`http://<当前主机>:6081/vnc.html?autoconnect=true&resize=scale&path=websockify` |
 | COMSOL | noVNC：`http://<当前主机>:6082/vnc.html?autoconnect=true&resize=scale&path=websockify` |
-| GNC | 外部页面 `http://10.110.10.11:8765/` |
+| GNC | 外部页面，来自 `config.json` 的 `tools.gnc.url` |
 | GNC 看板 | 本地前端 D3/SVG 遥测图表 |
 
 GNC 看板不读取 Python 生成的 PNG，而是直接读取当前工作区运行数据并在前端渲染。入口文件：
@@ -297,8 +300,8 @@ GNC 配置编辑器位于：
 
 所有 API 注册在 `backend/src/server/routes.ts`。后端还支持路径重写：
 
-- `/api/gnc/*` 会重写到 `/api/*`，并把工作区根目录覆盖为 `/data/lbk/codex_web/data/input_data`。
-- `/api/region/*` 会重写到 `/api/*`，并把工作区根目录覆盖为 `/data/lbk/codex_web/data_jiange`。
+- `/api/gnc/*` 会重写到 `/api/*`，工作区根目录来自 `config.json` 的 `workspace.workspaceDir`。
+- `/api/region/*` 会重写到 `/api/*`，工作区根目录同样来自 `workspace.workspaceDir`。
 
 ### Codex 运行
 
@@ -358,7 +361,9 @@ GNC 配置编辑器位于：
 示例：
 
 ```bash
-curl 'http://localhost:3002/api/workspace/files/text?workspaceDir=/data/lbk/codex_web/data/input_data/workspaces/ws_gnc/versions/v0001&relativePath=02_sim/42_run/runtime_case/InOut/Sc.csv'
+BACKEND_PORT="$(node -p "require('./config.json').server.port")"
+WORKSPACE_DIR="$(node -p "require('./config.json').workspace.workspaceDir")/users/default/workspaces/ws_gnc/versions/v0001"
+curl "http://localhost:${BACKEND_PORT}/api/workspace/files/text?workspaceDir=${WORKSPACE_DIR}&relativePath=02_sim/42_run/runtime_case/InOut/Sc.csv"
 ```
 
 ### Workspace Manifest
@@ -417,9 +422,9 @@ curl 'http://localhost:3002/api/workspace/files/text?workspaceDir=/data/lbk/code
 常用命令：
 
 ```bash
-/data/lbk/codex_web/open_codex_web/start_remote_gui_tools.sh start
-/data/lbk/codex_web/open_codex_web/start_remote_gui_tools.sh status
-/data/lbk/codex_web/open_codex_web/start_remote_gui_tools.sh restart
+./start_remote_gui_tools.sh start
+./start_remote_gui_tools.sh status
+./start_remote_gui_tools.sh restart
 ```
 
 Agent 工具面板只负责 iframe 嵌入这些 noVNC 页面；远程桌面进程是否启动由后端系统接口和外部脚本保证。
@@ -449,19 +454,19 @@ FreeCAD CAD 构建仍应使用 GUI FreeCAD 的 MCP RPC，不使用 `freecadcmd` 
 ## 常见问题
 
 **启动后端提示配置文件不存在**  
-确认 `/data/lbk/codex_web/open_codex_web/config.json` 存在，或在 `open_codex_web/backend/config.json` 提供本地配置。
+确认项目根目录 `config.json` 存在。
 
 **后端端口和 README 示例不同**  
-以 `/data/lbk/codex_web/open_codex_web/config.json` 的 `server.port` 或环境变量 `BACKEND_PORT` 为准。当前统一脚本不会固定使用 `3001`。
+以项目根目录 `config.json` 的 `server.port` 或环境变量 `BACKEND_PORT` 为准。当前统一脚本不会固定使用旧默认端口。
 
 **前端访问被 CORS 拦截**  
-把实际访问的 origin 加入根配置 `server.corsOrigin`。HTTPS 开发模式通常需要加入 `https://<host>:5175`。
+优先配置 `frontend.publicHost`，后端会根据 `frontend.port` 和 `frontend.httpsPort` 自动生成 CORS origin。只有需要额外 origin 时，再手动设置 `server.corsOrigin`。
 
 **GNC 看板没有图**  
 检查当前工作区版本目录下是否存在 `Sc.csv`、`AcWhl.csv`、`ModeTrace_SC0.csv`，并确认 `/api/workspace/files/text` 能读取这些文件。
 
 **GNC 工具外部页面打不开**  
-`GNC` 标签是 iframe 到 `http://10.110.10.11:8765/`，需要该服务本身可从浏览器所在机器访问。
+`GNC` 标签使用 `tools.gnc.url`，需要该服务本身可从浏览器所在机器访问。
 
 **语音转写不可用**  
 检查 `WHISPER_CPP_BIN`、`WHISPER_MODEL_PATH`、`WHISPER_FFMPEG_BIN` 和 CUDA/CPU 构建是否可用。纯文字 Agent 不依赖这些配置。

@@ -43,6 +43,13 @@ export interface AppConfig {
     host: string
     corsOrigin: string | string[]
   }
+  frontend: {
+    host: string
+    port: number
+    httpsPort: number
+    publicHost: string | null
+    strictPort: boolean
+  }
   workspace: {
     filesystemGroup: string
     filePreviewMaxBytes: number
@@ -75,12 +82,6 @@ const PROJECT_ROOT = path.resolve(BACKEND_ROOT, "..")
 const PROJECT_CONFIG_FILE = path.join(PROJECT_ROOT, "config.json")
 const LOCAL_CONFIG_FILE = path.resolve(process.cwd(), "config.json")
 const CONFIG_FILE = fs.existsSync(PROJECT_CONFIG_FILE) ? PROJECT_CONFIG_FILE : LOCAL_CONFIG_FILE
-const DEFAULT_CORS_ORIGINS = [
-  "http://localhost:5174",
-  "http://127.0.0.1:5174",
-  "https://localhost:5175",
-  "https://127.0.0.1:5175",
-]
 
 type RawOpenAiConfig = Partial<AppConfig["openai"]> & {
   base_url?: unknown
@@ -102,10 +103,22 @@ function die(msg: string): never {
   process.exit(1)
 }
 
+function buildDefaultCorsOrigins(frontend: AppConfig["frontend"]): string[] {
+  const hosts = new Set(["localhost", "127.0.0.1"])
+  const publicHost = frontend.publicHost?.trim()
+  if (publicHost && publicHost !== "0.0.0.0") hosts.add(publicHost)
+  if (frontend.host && frontend.host !== "0.0.0.0") hosts.add(frontend.host)
+  return [...hosts].flatMap(host => [
+    `http://${host}:${frontend.port}`,
+    `https://${host}:${frontend.httpsPort}`,
+  ])
+}
+
 function normalizeCorsOrigin(
   value: Partial<AppConfig["server"]>["corsOrigin"],
+  fallback: string[],
 ): string | string[] {
-  if (value == null) return DEFAULT_CORS_ORIGINS
+  if (value == null) return fallback
 
   if (typeof value === "string") {
     const origin = value.trim()
@@ -161,6 +174,14 @@ function positiveInteger(value: unknown, field: string, fallback: number): numbe
   return integer
 }
 
+function requiredPositiveInteger(value: unknown, field: string): number {
+  const numeric = optionalNumber(value, field)
+  if (numeric == null) die(`${field} 未设置。`)
+  const integer = Math.trunc(numeric)
+  if (integer <= 0) die(`${field} 必须是正整数。`)
+  return integer
+}
+
 export function loadConfig(): AppConfig {
   if (!fs.existsSync(CONFIG_FILE)) {
     die(
@@ -202,6 +223,7 @@ export function loadConfig(): AppConfig {
   const codex = cfg.codex ?? {} as Partial<AppConfig["codex"]>
   const auth = cfg.auth ?? {} as Partial<AppConfig["auth"]>
   const server = cfg.server ?? {} as Partial<AppConfig["server"]>
+  const frontend = cfg.frontend ?? {} as Partial<AppConfig["frontend"]>
   const workspace = (
     cfg.workspace ??
     (typeof cfg[LEGACY_CAD_CONFIG_KEY] === "object" && cfg[LEGACY_CAD_CONFIG_KEY] !== null
@@ -215,6 +237,14 @@ export function loadConfig(): AppConfig {
 
   if (envServerPort !== null && (!Number.isInteger(envServerPort) || envServerPort <= 0)) {
     die(`BACKEND_PORT 必须是正整数: ${process.env.BACKEND_PORT}`)
+  }
+
+  const frontendConfig = {
+    host: optionalString(frontend.host, "frontend.host") ?? "0.0.0.0",
+    port: requiredPositiveInteger(frontend.port, "frontend.port"),
+    httpsPort: requiredPositiveInteger(frontend.httpsPort, "frontend.httpsPort"),
+    publicHost: optionalString(frontend.publicHost, "frontend.publicHost"),
+    strictPort: optionalBoolean(frontend.strictPort, "frontend.strictPort") ?? true,
   }
 
   return {
@@ -242,9 +272,12 @@ export function loadConfig(): AppConfig {
       skipGitRepoCheck: codex.skipGitRepoCheck ?? true,
     },
     server: {
-      port: envServerPort ?? server.port ?? 3001,
+      port: envServerPort ?? requiredPositiveInteger(server.port, "server.port"),
       host: server.host ?? "0.0.0.0",
-      corsOrigin: normalizeCorsOrigin(server.corsOrigin),
+      corsOrigin: normalizeCorsOrigin(server.corsOrigin, buildDefaultCorsOrigins(frontendConfig)),
+    },
+    frontend: {
+      ...frontendConfig,
     },
     workspace: {
       filesystemGroup: optionalString(process.env.WORKSPACE_FILESYSTEM_GROUP ?? workspace.filesystemGroup, "workspace.filesystemGroup") ?? "xieteam",
