@@ -1,10 +1,10 @@
 import type { ModelVariant, ResolvedModel, ViewerModelSource } from "./types"
 
-export function buildViewerModelSource(variant: ModelVariant): ViewerModelSource | null {
+export function buildViewerModelSource(variant: ModelVariant, glbPathOverride?: string): ViewerModelSource | null {
   const params = new URLSearchParams(window.location.search)
   const sessionId = params.get("sessionId")?.trim() ?? ""
   const runId = params.get("runId")?.trim() ?? ""
-  const glbPath = params.get("glbPath")?.trim() ?? ""
+  const glbPath = glbPathOverride?.trim() ?? params.get("glbPath")?.trim() ?? ""
   const versionId = params.get("versionId")?.trim() ?? ""
   const workspaceDir = params.get("workspaceDir")?.trim() ?? ""
   const workspaceId = params.get("workspaceId")?.trim() ?? ""

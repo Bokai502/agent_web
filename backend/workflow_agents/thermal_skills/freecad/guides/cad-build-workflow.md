@@ -7,8 +7,9 @@ Build the CAD-stage bundle from the Open Codex Web execution-context workspace:
 - `00_inputs/geom.json`
 
 The CLI entry point is `python -m freecad_cli_tools.cli.main cad build`. It prepares non-FreeCAD CAD
-stage artifacts, creates or refreshes the FreeCAD assembly through RPC, exports
-STEP/GLB, and updates progress.
+stage artifacts, creates or refreshes the placeholder FreeCAD assembly through RPC, exports
+thermal-simulation STEP/GLB, exports supplemental real-CAD STEP/GLB with the
+hybrid App::Link backend for normal satellite/full-model assembly, and updates progress.
 
 ## Core Rules
 
@@ -24,6 +25,10 @@ STEP/GLB, and updates progress.
   non-Web/manual CLI use.
 - Default inputs are under `<workspace>/00_inputs`.
 - Default outputs are under `<workspace>/01_cad`.
+- Normal satellite/full-model assembly is complete only when both output pairs
+  exist:
+  - placeholder/simulation: `geometry_after.step` and `geometry_after.glb`
+  - real CAD display: `geometry_after_real_cad.step` and `geometry_after_real_cad.glb`
 - The command must not write root-level `01_cad/coord.txt` or
   `01_cad/channels_input.npz`; COMSOL input files belong under
   `01_cad/comsol_inputs`.
@@ -37,8 +42,13 @@ python -m freecad_cli_tools.cli.main config show \
 
 ```bash
 python -m freecad_cli_tools.cli.main cad build \
-  --workspace-dir <workspace_dir>
+  --workspace-dir <workspace_dir> \
+  --real-cad-backend hybrid-link
 ```
+
+Use `--real-cad-backend none` only when the user explicitly asks to skip the
+supplemental real-CAD export. Use `--real-cad-backend static` only to debug the
+direct real-CAD assembly without App::Link replacement.
 
 Use explicit `--real-bom`, `--layout-topology`, `--geom`, `--input-dir`, or
 `--output-dir` only when intentionally overriding individual files or
@@ -50,6 +60,9 @@ Check these outputs under `<workspace>/01_cad`:
 
 - `geometry_after.step`
 - `geometry_after.glb`
+- `geometry_after_real_cad.step`
+- `geometry_after_real_cad.glb`
+- `geometry_after_real_cad.hybrid_summary.json`
 - `simulation_input.json`
 - `cad_agent_output.json`
 - `geometry_after.layout_topology.json`
@@ -83,8 +96,9 @@ The command also updates:
 Report builds in this order:
 
 1. State that the CAD-stage bundle was built from `00_inputs`.
-2. State the output STEP and GLB paths.
+2. State the placeholder STEP and GLB paths.
 3. State `simulation_input.json` and `cad_agent_output.json` paths.
-4. State `layout_completion_percent`, `modeling_percent`, and `export_file_percent`.
-5. State `progress_json_path`.
-6. Mention any missing output or partial export as partial success, not full success.
+4. State the supplemental real-CAD STEP/GLB paths when present.
+5. State `layout_completion_percent`, `modeling_percent`, and `export_file_percent`.
+6. State `progress_json_path`.
+7. Mention any missing output or partial export as partial success, not full success.

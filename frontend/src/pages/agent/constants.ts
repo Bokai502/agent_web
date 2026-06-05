@@ -10,7 +10,7 @@ export const NAV_ITEMS = [
   { label: '文件', href: '#log', meta: 'Files' },
 ]
 export const NAV_VIEWS: AgentWorkspaceView[] = ['workspace', 'bom', 'model', 'tools', 'log']
-export const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = '02_geometry_edit/geometry_after.glb'
+export const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = '01_cad/geometry_after.glb'
 export const CONVERSATION_HISTORY_RELATIVE_PATH = 'logs/conversation-history.json'
 export const CONVERSATION_PREVIEW_SESSION_LIMIT = 3
 export const CONVERSATION_PREVIEW_TURN_LIMIT = 12

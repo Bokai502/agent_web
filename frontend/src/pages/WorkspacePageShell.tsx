@@ -30,7 +30,7 @@ import { useWorkspaceVersionState } from "./workspace/useWorkspaceVersionState"
 import "./workspace/WorkspaceSessionPage.css"
 
 const WORKSPACE_HOME_PATH = "/workspace"
-const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "02_geometry_edit/geometry_after.glb"
+const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "01_cad/geometry_after.glb"
 const WORKSPACE_PANEL_PARAM_VALUES = ["bom", "log", "model", "cad", "paraview", "comsol", "gnc-config"] as const
 
 type ViewerComponentMessage = {
