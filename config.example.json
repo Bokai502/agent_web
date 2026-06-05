@@ -34,6 +34,10 @@
     "httpsPort": 5275,
     "strictPort": true
   },
+  "tmux": {
+    "backendSession": "ocw-backend",
+    "frontendSession": "ocw-frontend"
+  },
   "tools": {
     "remoteDesktopLauncher": "/usr/local/bin/start-remote-cad-desktop",
     "cad": {
