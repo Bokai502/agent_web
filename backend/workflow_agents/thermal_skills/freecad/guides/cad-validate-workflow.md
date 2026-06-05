@@ -12,12 +12,12 @@ checks, screenshot capture, or wants validation results written into
 
 - Resolve the workspace from the Open Codex Web execution context
   `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`,
-  checkout, and branch do not update `/data/lbk/codex_web/open_codex_web/config.json`.
+  checkout, and branch do not update `project root config.json`.
 - Always pass the execution context workspace explicitly with
   `--workspace-dir <workspace_dir>` for `config show`, `cad validate`, and any
   progress updates. Do not rely on `config.json`, process `cwd`, or CLI
   defaults during Open Codex Web runs.
-- `/data/lbk/codex_web/open_codex_web/config.json` field `freecad.workspaceDir`,
+- `project root config.json` field `workspace.workspaceDir`,
   `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
   non-Web/manual CLI use.
 - Default validation inputs are `<workspace>/00_inputs` and

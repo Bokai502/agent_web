@@ -17,7 +17,6 @@ RUNTIME_ROOT = TOOL_ROOT / "runtime"
 CODEX_AGENTS_ROOT = RUNTIME_ROOT / "codex_agents"
 EXTRA_PYTHONPATH = Path("/tmp/codex_openpyxl_py313")
 
-DEFAULT_WORKSPACE = Path("/data/lbk/codex_web/data/input_data/v9_data")
 APP_CONFIG_PATH = Path(os.getenv("CODEX_WEB_CONFIG_PATH", TOOL_ROOT.parents[3] / "config.json"))
 DEFAULT_PYTHON = Path("/data/conda/bin/python")
 DEFAULT_SAMPLE_ID = "930001"
@@ -154,12 +153,18 @@ def resolve_default_workspace() -> Path:
     if APP_CONFIG_PATH.exists():
         try:
             config = json.loads(APP_CONFIG_PATH.read_text(encoding="utf-8"))
-            workspace = config.get("freecad", {}).get("workspaceDir")
+            workspace_config = config.get("workspace", {})
+            legacy_freecad_config = config.get("freecad", {})
+            workspace = None
+            if isinstance(workspace_config, dict):
+                workspace = workspace_config.get("workspaceDir")
+            if workspace is None and isinstance(legacy_freecad_config, dict):
+                workspace = legacy_freecad_config.get("workspaceDir")
             if workspace:
                 return Path(workspace)
         except (OSError, json.JSONDecodeError):
             pass
-    return DEFAULT_WORKSPACE
+    return Path.cwd()
 
 
 def handle_doctor(args: argparse.Namespace) -> int:

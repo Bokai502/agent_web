@@ -1,6 +1,6 @@
 @media (max-width: 1180px) {
   .agent-hud-topbar {
-    grid-template-columns: 104px minmax(0, 1fr) 268px;
+    grid-template-columns: 164px minmax(0, 1fr) minmax(344px, auto);
   }
 
   .agent-progress-pill {
@@ -39,6 +39,10 @@
 
   .agent-brand-logo {
     height: 26px;
+  }
+
+  .agent-user-badge {
+    max-width: min(160px, calc(100vw - 24px));
   }
 
   .agent-topbar-status {

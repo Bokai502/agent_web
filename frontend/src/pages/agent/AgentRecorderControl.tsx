@@ -50,6 +50,7 @@ export function AgentRecorderControl({
       })
       return
     }
+    if (inputMode !== 'voice') return
     onButtonClick()
   }
   const handleTextSubmitClick = () => {

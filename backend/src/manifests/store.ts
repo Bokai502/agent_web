@@ -4,7 +4,12 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import { loadConfig } from "../config.js"
 import { getString, isPathInside } from "../shared/index.js"
-import { getWorkspaceRoot, resolveWorkspaceDir, setWorkspaceDir } from "../workspaces/workspaceManager.js"
+import { getRequestWorkspaceRootOverride } from "../server/requestContext.js"
+import {
+  getConfiguredWorkspaceDirFromConfig,
+  getWorkspaceRoot,
+  resolveWorkspaceDir,
+} from "../workspaces/workspaceManager.js"
 import type {
   ArtifactRecord,
   CheckpointRecord,
@@ -18,9 +23,9 @@ import type {
 
 const MANIFEST_FILE = "workspace_manifest.json"
 const WORKSPACES_DIR = "workspaces"
-const DEFAULT_WORKSPACE_GROUP = "xieteam"
 const execFileAsync = promisify(execFile)
 const WORKSPACE_FILESYSTEM_GROUP = loadConfig().workspace.filesystemGroup
+const DEFAULT_WORKSPACE_GROUP = WORKSPACE_FILESYSTEM_GROUP
 
 function nowIso() {
   return new Date().toISOString()
@@ -343,8 +348,6 @@ export async function getWorkspaceManifestByLocator(options: {
 }
 
 async function syncConfigToActiveVersion(manifest: WorkspaceManifest) {
-  const activeVersion = manifest.versions.find(version => version.id === manifest.activeVersionId) ?? null
-  if (activeVersion) await setWorkspaceDir(activeVersion.workspaceDir)
   return manifest
 }
 
@@ -359,7 +362,7 @@ async function ensureInitialVersion(manifest: WorkspaceManifest, sourceWorkspace
 
   const sourceWorkspace = sourceWorkspaceDir
     ? await assertPathInsideWorkspaceRoot(sourceWorkspaceDir, "sourceWorkspaceDir")
-    : await assertPathInsideWorkspaceRoot(await resolveWorkspaceDir(), "sourceWorkspaceDir")
+    : path.resolve(await getConfiguredWorkspaceDirFromConfig() ?? await resolveWorkspaceDir())
   const versionId = "v0001"
   const workspaceDir = path.join(manifest.rootDir, "versions", versionId)
   await copyWorkspaceInputs(sourceWorkspace, workspaceDir)

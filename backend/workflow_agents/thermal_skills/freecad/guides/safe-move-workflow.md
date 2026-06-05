@@ -103,11 +103,11 @@ Collect these before running a move:
 
 Resolve the workspace from the Open Codex Web execution context `workspace_dir`.
 Workspace/version selection is request-scoped; `/api/run`, checkout, and branch
-do not update `/data/lbk/codex_web/open_codex_web/config.json`. Always pass the execution
+do not update `project root config.json`. Always pass the execution
 context workspace explicitly with `--workspace-dir <workspace_dir>` for
 `config show`, `layout safe-move`, progress updates, and follow-up validation.
 Do not rely on `config.json`, process `cwd`, or CLI defaults during Open Codex
-Web runs. `/data/lbk/codex_web/open_codex_web/config.json` field `freecad.workspaceDir`,
+Web runs. `project root config.json` field `workspace.workspaceDir`,
 `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
 non-Web/manual CLI use.
 

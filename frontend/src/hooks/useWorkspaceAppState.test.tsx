@@ -18,7 +18,7 @@ const sessions: Session[] = [
     turns: [],
     createdAt: 100,
     dismissedAskUserId: null,
-    workspaceDir: "/data/lbk/codex_web/data/input_data/workspaces/ws_v10_data/versions/v0001",
+    workspaceDir: "/tmp/open-codex-web/data/workspaces/ws_v10_data/versions/v0001",
     workspaceId: "ws_v10_data",
     workspaceName: "v10_data",
     versionId: "v0001",
@@ -34,7 +34,7 @@ const sessions: Session[] = [
     }],
     createdAt: 200,
     dismissedAskUserId: null,
-    workspaceDir: "/data/lbk/codex_web/data/input_data/workspaces/ws_v10_data/versions/v0001",
+    workspaceDir: "/tmp/open-codex-web/data/workspaces/ws_v10_data/versions/v0001",
     workspaceId: "ws_v10_data",
     workspaceName: "v10_data",
     versionId: "v0001",
@@ -67,7 +67,7 @@ describe("useWorkspaceAppState", () => {
 
     act(() => {
       result.current.handleSelectWorkspaceSession({
-        workspaceDir: "/data/lbk/codex_web/data/input_data/workspaces/ws_v10_data/versions/v0001",
+        workspaceDir: "/tmp/open-codex-web/data/workspaces/ws_v10_data/versions/v0001",
         workspaceId: "ws_v10_data",
         workspaceName: "v10_data",
         versionId: "v0001",

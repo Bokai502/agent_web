@@ -6,6 +6,13 @@ import { fileURLToPath } from "url"
 export type LogLevel = "debug" | "info" | "warn" | "error"
 
 export interface AppConfig {
+  auth: {
+    cookieName: string
+    devUserId: string
+    enabled: boolean
+    headerName: string
+    usersDir: string
+  }
   cosyvoice: {
     apiUrl: string | null
     promptText: string | null
@@ -28,6 +35,7 @@ export interface AppConfig {
     modelReasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh"
     approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted"
     sandboxMode: "read-only" | "workspace-write" | "danger-full-access"
+    sandboxWorkspaceWriteNetworkAccess: boolean
     workingDirectory: string
     skipGitRepoCheck: boolean
   }
@@ -35,6 +43,39 @@ export interface AppConfig {
     port: number
     host: string
     corsOrigin: string | string[]
+  }
+  frontend: {
+    host: string
+    port: number
+    httpsPort: number
+    publicHost: string | null
+    strictPort: boolean
+  }
+  tools: {
+    remoteDesktopLauncher: string
+    cad: {
+      bin: string | null
+      displayNum: string
+      launcher: string
+      noVncPort: number
+      vncPort: number
+    }
+    paraview: {
+      displayNum: string
+      launcher: string
+      noVncPort: number
+      vncPort: number
+    }
+    comsol: {
+      displayNum: string
+      launcher: string
+      noVncPort: number
+      sudo: string
+      vncPort: number
+    }
+    gnc: {
+      url: string | null
+    }
   }
   workspace: {
     filesystemGroup: string
@@ -68,12 +109,6 @@ const PROJECT_ROOT = path.resolve(BACKEND_ROOT, "..")
 const PROJECT_CONFIG_FILE = path.join(PROJECT_ROOT, "config.json")
 const LOCAL_CONFIG_FILE = path.resolve(process.cwd(), "config.json")
 const CONFIG_FILE = fs.existsSync(PROJECT_CONFIG_FILE) ? PROJECT_CONFIG_FILE : LOCAL_CONFIG_FILE
-const DEFAULT_CORS_ORIGINS = [
-  "http://localhost:5174",
-  "http://127.0.0.1:5174",
-  "https://localhost:5175",
-  "https://127.0.0.1:5175",
-]
 
 type RawOpenAiConfig = Partial<AppConfig["openai"]> & {
   base_url?: unknown
@@ -95,10 +130,22 @@ function die(msg: string): never {
   process.exit(1)
 }
 
+function buildDefaultCorsOrigins(frontend: AppConfig["frontend"]): string[] {
+  const hosts = new Set(["localhost", "127.0.0.1"])
+  const publicHost = frontend.publicHost?.trim()
+  if (publicHost && publicHost !== "0.0.0.0") hosts.add(publicHost)
+  if (frontend.host && frontend.host !== "0.0.0.0") hosts.add(frontend.host)
+  return [...hosts].flatMap(host => [
+    `http://${host}:${frontend.port}`,
+    `https://${host}:${frontend.httpsPort}`,
+  ])
+}
+
 function normalizeCorsOrigin(
   value: Partial<AppConfig["server"]>["corsOrigin"],
+  fallback: string[],
 ): string | string[] {
-  if (value == null) return DEFAULT_CORS_ORIGINS
+  if (value == null) return fallback
 
   if (typeof value === "string") {
     const origin = value.trim()
@@ -154,6 +201,14 @@ function positiveInteger(value: unknown, field: string, fallback: number): numbe
   return integer
 }
 
+function requiredPositiveInteger(value: unknown, field: string): number {
+  const numeric = optionalNumber(value, field)
+  if (numeric == null) die(`${field} 未设置。`)
+  const integer = Math.trunc(numeric)
+  if (integer <= 0) die(`${field} 必须是正整数。`)
+  return integer
+}
+
 export function loadConfig(): AppConfig {
   if (!fs.existsSync(CONFIG_FILE)) {
     die(
@@ -193,7 +248,14 @@ export function loadConfig(): AppConfig {
   try { new URL(baseUrl) } catch { die(`openai.baseUrl 不是合法 URL: ${baseUrl}`) }
 
   const codex = cfg.codex ?? {} as Partial<AppConfig["codex"]>
+  const auth = cfg.auth ?? {} as Partial<AppConfig["auth"]>
   const server = cfg.server ?? {} as Partial<AppConfig["server"]>
+  const frontend = cfg.frontend ?? {} as Partial<AppConfig["frontend"]>
+  const tools = cfg.tools ?? {} as Partial<AppConfig["tools"]>
+  const cadTool = tools.cad ?? {} as Partial<AppConfig["tools"]["cad"]>
+  const paraviewTool = tools.paraview ?? {} as Partial<AppConfig["tools"]["paraview"]>
+  const comsolTool = tools.comsol ?? {} as Partial<AppConfig["tools"]["comsol"]>
+  const gncTool = tools.gnc ?? {} as Partial<AppConfig["tools"]["gnc"]>
   const workspace = (
     cfg.workspace ??
     (typeof cfg[LEGACY_CAD_CONFIG_KEY] === "object" && cfg[LEGACY_CAD_CONFIG_KEY] !== null
@@ -209,7 +271,22 @@ export function loadConfig(): AppConfig {
     die(`BACKEND_PORT 必须是正整数: ${process.env.BACKEND_PORT}`)
   }
 
+  const frontendConfig = {
+    host: optionalString(frontend.host, "frontend.host") ?? "0.0.0.0",
+    port: requiredPositiveInteger(frontend.port, "frontend.port"),
+    httpsPort: requiredPositiveInteger(frontend.httpsPort, "frontend.httpsPort"),
+    publicHost: optionalString(frontend.publicHost, "frontend.publicHost"),
+    strictPort: optionalBoolean(frontend.strictPort, "frontend.strictPort") ?? true,
+  }
+
   return {
+    auth: {
+      cookieName: optionalString(process.env.CODEX_AUTH_COOKIE_NAME ?? auth.cookieName, "auth.cookieName") ?? "codex_user_id",
+      devUserId: optionalString(process.env.CODEX_DEV_USER_ID ?? auth.devUserId, "auth.devUserId") ?? "default",
+      enabled: optionalBoolean(process.env.CODEX_AUTH_ENABLED ?? auth.enabled, "auth.enabled") ?? false,
+      headerName: optionalString(process.env.CODEX_AUTH_HEADER_NAME ?? auth.headerName, "auth.headerName") ?? "x-codex-user-id",
+      usersDir: optionalString(process.env.CODEX_USERS_DIR ?? auth.usersDir, "auth.usersDir") ?? "users",
+    },
     openai: {
       apiKey,
       baseUrl,
@@ -223,13 +300,53 @@ export function loadConfig(): AppConfig {
       modelReasoningEffort: codex.modelReasoningEffort ?? "medium",
       approvalPolicy: codex.approvalPolicy ?? "never",
       sandboxMode: codex.sandboxMode ?? "danger-full-access",
+      sandboxWorkspaceWriteNetworkAccess: optionalBoolean(
+        codex.sandboxWorkspaceWriteNetworkAccess,
+        "codex.sandboxWorkspaceWriteNetworkAccess",
+      ) ?? false,
       workingDirectory: codex.workingDirectory || os.homedir(),
       skipGitRepoCheck: codex.skipGitRepoCheck ?? true,
     },
     server: {
-      port: envServerPort ?? server.port ?? 3001,
+      port: envServerPort ?? requiredPositiveInteger(server.port, "server.port"),
       host: server.host ?? "0.0.0.0",
-      corsOrigin: normalizeCorsOrigin(server.corsOrigin),
+      corsOrigin: normalizeCorsOrigin(server.corsOrigin, buildDefaultCorsOrigins(frontendConfig)),
+    },
+    frontend: {
+      ...frontendConfig,
+    },
+    tools: {
+      remoteDesktopLauncher: optionalString(tools.remoteDesktopLauncher, "tools.remoteDesktopLauncher")
+        ?? die("tools.remoteDesktopLauncher 未设置。"),
+      cad: {
+        bin: optionalString(cadTool.bin, "tools.cad.bin"),
+        displayNum: optionalString(cadTool.displayNum, "tools.cad.displayNum")
+          ?? die("tools.cad.displayNum 未设置。"),
+        launcher: optionalString(cadTool.launcher, "tools.cad.launcher")
+          ?? die("tools.cad.launcher 未设置。"),
+        noVncPort: requiredPositiveInteger(cadTool.noVncPort, "tools.cad.noVncPort"),
+        vncPort: requiredPositiveInteger(cadTool.vncPort, "tools.cad.vncPort"),
+      },
+      paraview: {
+        displayNum: optionalString(paraviewTool.displayNum, "tools.paraview.displayNum")
+          ?? die("tools.paraview.displayNum 未设置。"),
+        launcher: optionalString(paraviewTool.launcher, "tools.paraview.launcher")
+          ?? die("tools.paraview.launcher 未设置。"),
+        noVncPort: requiredPositiveInteger(paraviewTool.noVncPort, "tools.paraview.noVncPort"),
+        vncPort: requiredPositiveInteger(paraviewTool.vncPort, "tools.paraview.vncPort"),
+      },
+      comsol: {
+        displayNum: optionalString(comsolTool.displayNum, "tools.comsol.displayNum")
+          ?? die("tools.comsol.displayNum 未设置。"),
+        launcher: optionalString(comsolTool.launcher, "tools.comsol.launcher")
+          ?? die("tools.comsol.launcher 未设置。"),
+        noVncPort: requiredPositiveInteger(comsolTool.noVncPort, "tools.comsol.noVncPort"),
+        sudo: optionalString(comsolTool.sudo, "tools.comsol.sudo") ?? "sudo",
+        vncPort: requiredPositiveInteger(comsolTool.vncPort, "tools.comsol.vncPort"),
+      },
+      gnc: {
+        url: optionalString(gncTool.url, "tools.gnc.url"),
+      },
     },
     workspace: {
       filesystemGroup: optionalString(process.env.WORKSPACE_FILESYSTEM_GROUP ?? workspace.filesystemGroup, "workspace.filesystemGroup") ?? "xieteam",
@@ -253,9 +370,10 @@ export function loadConfig(): AppConfig {
         "workspace.textFileMaxBytes",
         8 * 1024 * 1024,
       ),
-      workspaceDir: workspace.workspaceDir ?? null,
-      rpcHost: workspace.rpcHost ?? "localhost",
-      rpcPort: workspace.rpcPort ?? 9877,
+      workspaceDir: optionalString(workspace.workspaceDir, "workspace.workspaceDir"),
+      rpcHost: optionalString(workspace.rpcHost, "workspace.rpcHost")
+        ?? die("workspace.rpcHost 未设置。"),
+      rpcPort: requiredPositiveInteger(workspace.rpcPort, "workspace.rpcPort"),
     },
     whisper: {
       bin: optionalString(process.env.WHISPER_CPP_BIN ?? whisper.bin, "whisper.bin"),

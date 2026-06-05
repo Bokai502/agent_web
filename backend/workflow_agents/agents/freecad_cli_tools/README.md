@@ -11,14 +11,14 @@ Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 ### Method 1: Install from source
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill/freecad_cli_tools
+cd /path/to/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools
 python -m pip install -e .
 ```
 
 ### Method 2: Build and install wheel
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill/freecad_cli_tools
+cd /path/to/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools
 python -m pip install build
 python -m build
 python -m pip install dist/freecad_cli_tools-*.whl
@@ -29,7 +29,7 @@ python -m pip install dist/freecad_cli_tools-*.whl
 From a source checkout, run the unified CLI module from the package directory:
 
 ```bash
-cd /data/lbk/codex_web/freecad_skills/freecad-skill/freecad_cli_tools
+cd /path/to/open_codex_web/backend/workflow_agents/agents/freecad_cli_tools
 
 # Configuration
 python -m freecad_cli_tools.cli.main config show
@@ -50,9 +50,9 @@ After editable or wheel installation, `freecad-tools` is available as the
 short console-script alias for the same commands.
 
 Workspace-scoped commands resolve relative paths from
-`/data/lbk/codex_web/open_codex_web/config.json` field `freecad.workspaceDir`. The
-`--workspace` flag is kept only as a deprecated compatibility option and does
-not override the configured workspace.
+the project root `config.json` field `workspace.workspaceDir` by default. Pass
+`--workspace` / `--workspace-dir` to override that default for a specific
+command.
 
 `python -m freecad_cli_tools.cli.main assembly create-from-component-info` reads
 `./00_inputs/real_bom.json`, `./00_inputs/layout_topology.json`, and
@@ -163,7 +163,7 @@ to reading from `./00_inputs` and writing new dataset files plus
 source dataset remains unchanged unless the user explicitly overrides the paths.
 
 Workspace resolution is deterministic: configure
-`/data/lbk/codex_web/open_codex_web/config.json` field `freecad.workspaceDir`, then use
+`project root config.json` field `workspace.workspaceDir`, then use
 `python -m freecad_cli_tools.cli.main config show` to inspect the resolved absolute paths.
 
 ## Development Layout
@@ -185,7 +185,7 @@ Workspace resolution is deterministic: configure
 ## Requirements
 
 - For RPC commands: FreeCAD with the MCP addon running on the host/port from the CLI flags or environment
-- Relative input and output paths are resolved against `freecad.workspaceDir` from `/data/lbk/codex_web/open_codex_web/config.json`
+- Relative input and output paths are resolved against `workspace.workspaceDir` from `project root config.json`
 - For offline layout-dataset use of `python -m freecad_cli_tools.cli.main layout safe-move`: Python 3.9+ only
 - Python 3.9+
 

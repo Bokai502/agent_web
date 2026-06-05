@@ -8,9 +8,10 @@ const BACKEND_ROOT = path.basename(BACKEND_SRC_DIR) === "workspaces"
   ? path.resolve(BACKEND_SRC_DIR, "..", "..")
   : path.resolve(BACKEND_SRC_DIR, "..")
 const APP_ROOT = path.resolve(BACKEND_ROOT, "..")
-const PROJECT_ROOT = path.resolve(APP_ROOT, "..")
 const APP_CONFIG_JSON = path.join(APP_ROOT, "config.json")
-const DEFAULT_WORKSPACE_ROOT = path.join(PROJECT_ROOT, "data", "input_data")
+const DEFAULT_WORKSPACE_ROOT = path.join(APP_ROOT, "..", "data")
+const WORKSPACES_DIR = "workspaces"
+const CURRENT_WORKSPACE_FILE = ".current-workspace.json"
 const LEGACY_CAD_CONFIG_KEY = ["free", "cad"].join("")
 const WORKSPACE_CONFIG_KEY = "workspace"
 
@@ -56,12 +57,7 @@ function getConfiguredWorkspaceDir(config: RootConfig) {
 function getWorkspaceRootFromConfigured(configuredWorkspaceDir: string | null) {
   const workspaceRootOverride = getRequestWorkspaceRootOverride()
   if (workspaceRootOverride) return path.resolve(workspaceRootOverride)
-  if (!configuredWorkspaceDir) return DEFAULT_WORKSPACE_ROOT
-  const relativeToDefaultRoot = path.relative(DEFAULT_WORKSPACE_ROOT, configuredWorkspaceDir)
-  if (relativeToDefaultRoot === "" || (!relativeToDefaultRoot.startsWith("..") && !path.isAbsolute(relativeToDefaultRoot))) {
-    return DEFAULT_WORKSPACE_ROOT
-  }
-  return DEFAULT_WORKSPACE_ROOT
+  return configuredWorkspaceDir ?? DEFAULT_WORKSPACE_ROOT
 }
 
 function getWorkspaceConfig(config: RootConfig) {
@@ -82,6 +78,27 @@ function setConfiguredWorkspaceDir(config: RootConfig, workspaceDir: string) {
 
 async function pathExists(filePath: string) {
   return fs.access(filePath).then(() => true).catch(() => false)
+}
+
+async function ensureWorkspaceRoot(root: string) {
+  await fs.mkdir(path.join(root, WORKSPACES_DIR), { recursive: true })
+}
+
+async function readCurrentWorkspaceName(root: string) {
+  try {
+    const parsed = JSON.parse(await fs.readFile(path.join(root, CURRENT_WORKSPACE_FILE), "utf-8")) as { name?: unknown }
+    return isNonEmptyString(parsed.name) ? parsed.name.trim() : null
+  } catch {
+    return null
+  }
+}
+
+async function writeCurrentWorkspaceName(root: string, name: string) {
+  await ensureWorkspaceRoot(root)
+  const filePath = path.join(root, CURRENT_WORKSPACE_FILE)
+  const tmpPath = `${filePath}.tmp-${process.pid}-${Date.now()}`
+  await fs.writeFile(tmpPath, `${JSON.stringify({ name }, null, 2)}\n`, "utf-8")
+  await fs.rename(tmpPath, filePath)
 }
 
 function isVersionWorkspaceDir(workspaceDir: string | null | undefined) {
@@ -107,7 +124,7 @@ async function inspectWorkspace(root: string, name: string): Promise<WorkspaceIt
     } : {}),
     name,
     path: versionedWorkspace?.activeVersionDir ?? workspacePath,
-    valid: missing.length === 0,
+    valid: versionedWorkspace ? true : missing.length === 0,
     missing,
   }
 }
@@ -178,7 +195,9 @@ async function findVersionedWorkspaceForName(root: string, name: string) {
 
 export async function getWorkspaceRoot() {
   const config = await readRootConfig().catch(() => ({} as RootConfig))
-  return getWorkspaceRootFromConfigured(getConfiguredWorkspaceDir(config))
+  const root = getWorkspaceRootFromConfigured(getConfiguredWorkspaceDir(config))
+  await ensureWorkspaceRoot(root).catch(() => {})
+  return root
 }
 
 export async function getConfiguredWorkspaceDirFromConfig() {
@@ -198,6 +217,7 @@ export async function listWorkspaces() {
   const workspaceRootOverride = getRequestWorkspaceRootOverride()
   const effectiveWorkspaceDir = await resolveWorkspaceDir()
   const root = getWorkspaceRootFromConfigured(configuredWorkspaceDir)
+  await ensureWorkspaceRoot(root).catch(() => {})
   const configuredName = configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
     ? path.basename(configuredWorkspaceDir)
     : null
@@ -205,15 +225,29 @@ export async function listWorkspaces() {
     ? await findVersionedWorkspaceForName(root, configuredName)
     : await findVersionedWorkspaceFromConfigured(configuredWorkspaceDir)
   const dirents = await fs.readdir(root, { withFileTypes: true }).catch(() => [])
+  const workspaceDirents = await fs.readdir(path.join(root, WORKSPACES_DIR), { withFileTypes: true }).catch(() => [])
+  const candidateNames = new Set<string>()
+  for (const dirent of dirents) {
+    if (dirent.isDirectory() && !dirent.name.startsWith(".") && dirent.name !== WORKSPACES_DIR) {
+      candidateNames.add(dirent.name)
+    }
+  }
+  for (const dirent of workspaceDirents) {
+    if (dirent.isDirectory() && !dirent.name.startsWith(".")) {
+      candidateNames.add(dirent.name.startsWith("ws_") ? dirent.name.slice(3) : dirent.name)
+    }
+  }
   const items = await Promise.all(
-    dirents
-      .filter(dirent => dirent.isDirectory() && !dirent.name.startsWith("."))
-      .map(dirent => inspectWorkspace(root, dirent.name)),
+    [...candidateNames].map(name => inspectWorkspace(root, name)),
   )
   const availableItems = items.filter(item => item.valid)
   availableItems.sort((left, right) => left.name.localeCompare(right.name))
   if (workspaceRootOverride) {
-    const firstWorkspace = availableItems[0] ?? null
+    const selectedWorkspaceName = await readCurrentWorkspaceName(root)
+    const selectedWorkspace = selectedWorkspaceName
+      ? availableItems.find(item => item.name === selectedWorkspaceName) ?? null
+      : null
+    const firstWorkspace = selectedWorkspace ?? availableItems[0] ?? null
     return {
       root,
       current: firstWorkspace?.path ?? null,
@@ -269,7 +303,9 @@ export async function setWorkspace(name: unknown) {
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new Error("workspace must be under the configured workspace data root")
   }
-  if (!getRequestWorkspaceRootOverride()) {
+  if (getRequestWorkspaceRootOverride()) {
+    await writeCurrentWorkspaceName(root, workspace.name)
+  } else {
     setConfiguredWorkspaceDir(config, workspace.path)
     await writeRootConfig(config)
   }

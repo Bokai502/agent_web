@@ -1,23 +1,23 @@
 type RemoteToolName = 'cad' | 'comsol' | 'paraview'
 
 const NOVNC_URL_PARAMS = 'vnc.html?autoconnect=true&resize=scale&path=websockify'
-const DEFAULT_TOOL_PORTS: Record<RemoteToolName, number> = {
-  cad: 6080,
-  comsol: 6082,
-  paraview: 6081,
-}
 
 export const runtimeConfig = typeof __APP_CONFIG__ === 'object' && __APP_CONFIG__ ? __APP_CONFIG__ : {}
+
+export function getBackendPort() {
+  return runtimeConfig.server?.port
+}
 
 export function getRemoteToolUrl(tool: RemoteToolName, host: string) {
   const configured = runtimeConfig.tools?.[tool]
   if (configured?.url) return configured.url
-  const port = configured?.noVncPort ?? DEFAULT_TOOL_PORTS[tool]
+  const port = configured?.noVncPort
+  if (!port) return 'about:blank'
   return `http://${host}:${port}/${NOVNC_URL_PARAMS}`
 }
 
 export function getGncToolUrl() {
-  return runtimeConfig.tools?.gnc?.url ?? 'http://10.110.10.11:8765/'
+  return runtimeConfig.tools?.gnc?.url ?? 'about:blank'
 }
 
 export function getGncTelemetryPaths() {

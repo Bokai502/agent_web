@@ -15,12 +15,12 @@ hybrid App::Link backend for normal satellite/full-model assembly, and updates p
 
 - Resolve the workspace from the Open Codex Web execution context
   `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`,
-  checkout, and branch do not update `/data/lbk/codex_web/open_codex_web/config.json`.
+  checkout, and branch do not update `project root config.json`.
 - Always pass the execution context workspace explicitly with
   `--workspace-dir <workspace_dir>` for `config show`, `cad build`, progress
   updates, and follow-up validation. Do not rely on `config.json`, process
   `cwd`, or CLI defaults during Open Codex Web runs.
-- `/data/lbk/codex_web/open_codex_web/config.json` field `freecad.workspaceDir`,
+- `project root config.json` field `workspace.workspaceDir`,
   `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
   non-Web/manual CLI use.
 - Default inputs are under `<workspace>/00_inputs`.

@@ -5,8 +5,6 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${APP_DIR}/config.json"
 BACKEND_DIR="${APP_DIR}/backend"
 FRONTEND_DIR="${APP_DIR}/frontend"
-BACKEND_SESSION="${BACKEND_SESSION:-ocw-backend}"
-FRONTEND_SESSION="${FRONTEND_SESSION:-ocw-frontend}"
 
 read_config() {
   node -e '
@@ -26,17 +24,30 @@ if (value === undefined || value === null || value === "") {
 ' "${CONFIG_FILE}" "$1" "${2:-}"
 }
 
+require_config() {
+  local value
+  value="$(read_config "$1")"
+  if [[ -z "${value}" ]]; then
+    echo "config.json 缺少 $1" >&2
+    exit 1
+  fi
+  printf '%s' "${value}"
+}
+
 if [[ ! -f "${CONFIG_FILE}" ]]; then
   echo "配置文件不存在：${CONFIG_FILE}" >&2
   exit 1
 fi
 
-BACKEND_PORT="$(read_config server.port 3001)"
+BACKEND_PORT="$(require_config server.port)"
 FRONTEND_HOST="$(read_config frontend.host 0.0.0.0)"
-FRONTEND_PORT="$(read_config frontend.httpsPort 5175)"
-FREECAD_WORKSPACE_DIR="$(read_config workspace.workspaceDir "$(read_config freecad.workspaceDir)")"
-FREECAD_RPC_HOST="$(read_config workspace.rpcHost "$(read_config freecad.rpcHost localhost)")"
-FREECAD_RPC_PORT="$(read_config workspace.rpcPort "$(read_config freecad.rpcPort 9876)")"
+FRONTEND_PORT="$(require_config frontend.httpsPort)"
+FRONTEND_PUBLIC_HOST="$(read_config frontend.publicHost)"
+BACKEND_SESSION="${BACKEND_SESSION:-$(read_config tmux.backendSession ocw-backend)}"
+FRONTEND_SESSION="${FRONTEND_SESSION:-$(read_config tmux.frontendSession ocw-frontend)}"
+FREECAD_WORKSPACE_DIR="$(require_config workspace.workspaceDir)"
+FREECAD_RPC_HOST="$(require_config workspace.rpcHost)"
+FREECAD_RPC_PORT="$(require_config workspace.rpcPort)"
 
 if [[ -z "${FREECAD_WORKSPACE_DIR}" ]]; then
   echo "config.json 缺少 workspace.workspaceDir" >&2
@@ -81,14 +92,18 @@ stop_session() {
   fi
 }
 
-for session in $(tmux ls -F '#S' 2>/dev/null | grep -E '^ocw-backend($|-)|^ocw-frontend($|-)' || true); do
-  stop_session "${session}"
-done
+stop_session "${BACKEND_SESSION}"
+stop_session "${FRONTEND_SESSION}"
 
 close_port "${BACKEND_PORT}"
+close_port "${FRONTEND_PORT}"
 
 if ! port_available "${BACKEND_PORT}"; then
   echo "无法关闭后端端口 ${BACKEND_PORT}。" >&2
+  exit 1
+fi
+if ! port_available "${FRONTEND_PORT}"; then
+  echo "无法关闭前端端口 ${FRONTEND_PORT}。" >&2
   exit 1
 fi
 
@@ -98,5 +113,10 @@ tmux new-session -d -s "${BACKEND_SESSION}" -c "${BACKEND_DIR}" \
 tmux new-session -d -s "${FRONTEND_SESSION}" -c "${FRONTEND_DIR}" \
   "BACKEND_PORT='${BACKEND_PORT}' npm run dev:https -- --host '${FRONTEND_HOST}' --port '${FRONTEND_PORT}' --strictPort"
 
+DISPLAY_FRONTEND_HOST="${FRONTEND_PUBLIC_HOST:-${FRONTEND_HOST}}"
+if [[ "${DISPLAY_FRONTEND_HOST}" == "0.0.0.0" ]]; then
+  DISPLAY_FRONTEND_HOST="localhost"
+fi
+
 echo "backend:  http://localhost:${BACKEND_PORT}  tmux=${BACKEND_SESSION}"
-echo "frontend: https://10.110.10.11:${FRONTEND_PORT}  tmux=${FRONTEND_SESSION}"
+echo "frontend: https://${DISPLAY_FRONTEND_HOST}:${FRONTEND_PORT}  tmux=${FRONTEND_SESSION}"

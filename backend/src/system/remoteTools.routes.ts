@@ -1,19 +1,21 @@
 import { spawn } from "node:child_process"
 import net from "node:net"
 import type { FastifyInstance } from "fastify"
+import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 
-const DESKTOP_LAUNCHER = "/usr/local/bin/start-remote-cad-desktop"
-const COMSOL_LAUNCHER = "/usr/local/bin/start-comsol-remote"
 const REMOTE_DESKTOP_TOOLS = ["freecad", "paraview", "comsol"] as const
-const REMOTE_TOOL_PORTS = [
-  { tool: "freecad", label: "FreeCAD", host: "127.0.0.1", port: 6080 },
-  { tool: "paraview", label: "ParaView", host: "127.0.0.1", port: 6081 },
-  { tool: "comsol", label: "COMSOL", host: "127.0.0.1", port: 6082 },
-] as const
 const TCP_CHECK_TIMEOUT_MS = 1200
 
 type RemoteDesktopTool = typeof REMOTE_DESKTOP_TOOLS[number]
+type RemoteToolConfigKey = "cad" | "paraview" | "comsol"
+
+type RemoteToolPortConfig = {
+  tool: RemoteDesktopTool
+  label: string
+  host: string
+  port: number
+}
 
 type LauncherResult = {
   ok: boolean
@@ -36,9 +38,26 @@ type RemoteToolPortStatus = {
   message: string
 }
 
-function runLauncher(tool: RemoteDesktopTool): Promise<LauncherResult> {
-  const executable = tool === "comsol" ? COMSOL_LAUNCHER : DESKTOP_LAUNCHER
-  const args = tool === "comsol" ? [] : [tool, "start"]
+function toolConfigKey(tool: RemoteDesktopTool): RemoteToolConfigKey {
+  return tool === "freecad" ? "cad" : tool
+}
+
+function buildRemoteToolPorts(config: AppConfig): RemoteToolPortConfig[] {
+  return [
+    { tool: "freecad", label: "FreeCAD", host: "127.0.0.1", port: config.tools.cad.noVncPort },
+    { tool: "paraview", label: "ParaView", host: "127.0.0.1", port: config.tools.paraview.noVncPort },
+    { tool: "comsol", label: "COMSOL", host: "127.0.0.1", port: config.tools.comsol.noVncPort },
+  ]
+}
+
+function runLauncher(tool: RemoteDesktopTool, config: AppConfig): Promise<LauncherResult> {
+  let executable = config.tools.remoteDesktopLauncher
+  let args: string[] = [tool, "start"]
+  if (tool === "comsol") {
+    const sudoCommand = config.tools.comsol.sudo.trim()
+    executable = sudoCommand || config.tools.comsol.launcher
+    args = sudoCommand ? [config.tools.comsol.launcher] : []
+  }
   const command = [executable, ...args]
 
   return new Promise(resolve => {
@@ -78,7 +97,7 @@ function runLauncher(tool: RemoteDesktopTool): Promise<LauncherResult> {
   })
 }
 
-function checkTcpPort(tool: typeof REMOTE_TOOL_PORTS[number]): Promise<RemoteToolPortStatus> {
+function checkTcpPort(tool: RemoteToolPortConfig): Promise<RemoteToolPortStatus> {
   const startedAt = process.hrtime.bigint()
 
   return new Promise(resolve => {
@@ -111,10 +130,10 @@ function checkTcpPort(tool: typeof REMOTE_TOOL_PORTS[number]): Promise<RemoteToo
 
 export async function remoteToolsRoutes(
   fastify: FastifyInstance,
-  { logger }: { logger: Logger },
+  { config, logger }: { config: AppConfig; logger: Logger },
 ) {
   fastify.get("/api/remote-tools/port-status", async (_req, reply) => {
-    const ports = await Promise.all(REMOTE_TOOL_PORTS.map(tool => checkTcpPort(tool)))
+    const ports = await Promise.all(buildRemoteToolPorts(config).map(tool => checkTcpPort(tool)))
     const ok = ports.every(port => port.ok)
 
     if (!ok) {
@@ -140,13 +159,15 @@ export async function remoteToolsRoutes(
     const results: LauncherResult[] = []
 
     for (const tool of REMOTE_DESKTOP_TOOLS) {
-      const result = await runLauncher(tool)
+      const result = await runLauncher(tool, config)
       results.push(result)
+      const configKey = toolConfigKey(tool)
       if (result.ok) {
-        logger.info("remote desktop ensured", { tool, command: result.command })
+        logger.info("remote desktop ensured", { tool, configKey, command: result.command })
       } else {
         logger.warn("remote desktop ensure failed", {
           tool,
+          configKey,
           command: result.command,
           code: result.code,
           signal: result.signal,

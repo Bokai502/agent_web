@@ -38,10 +38,10 @@ def _get_freecad_config_value(key: str, default: str | None = None) -> str | Non
     workspace_config = config.get("workspace", {})
 
     value = None
-    if isinstance(freecad_config, dict):
-        value = freecad_config.get(key)
-    if value is None and isinstance(workspace_config, dict):
+    if isinstance(workspace_config, dict):
         value = workspace_config.get(key)
+    if value is None and isinstance(freecad_config, dict):
+        value = freecad_config.get(key)
     if value is None:
         return default
     if isinstance(value, str) and not value.strip():
@@ -111,7 +111,7 @@ def get_default_workspace_dir() -> Path:
     if raw is None or not raw.strip():
         raise RuntimeError(
             "FreeCAD workspace is not configured. Pass --workspace, set "
-            f"FREECAD_WORKSPACE_DIR, or configure freecad.workspaceDir in {CODEX_WEB_CONFIG_PATH} "
+            f"FREECAD_WORKSPACE_DIR, or configure workspace.workspaceDir in {CODEX_WEB_CONFIG_PATH} "
             "before running workspace-scoped commands."
         )
     return Path(raw).expanduser().resolve()

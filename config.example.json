@@ -8,37 +8,56 @@
     "wireApi": "responses",
     "supportsWebsockets": false
   },
+  "auth": {
+    "enabled": false,
+    "headerName": "x-codex-user-id",
+    "cookieName": "codex_user_id",
+    "devUserId": "default",
+    "usersDir": "users"
+  },
   "codex": {
-    "modelReasoningEffort": "high",
+    "modelReasoningEffort": "low",
     "approvalPolicy": "never",
     "sandboxMode": "workspace-write",
+    "sandboxWorkspaceWriteNetworkAccess": true,
     "workingDirectory": "/path/to/your/workspace",
     "skipGitRepoCheck": true
   },
   "server": {
-    "port": 3002,
-    "host": "0.0.0.0",
-    "corsOrigin": [
-      "http://localhost:5174",
-      "http://127.0.0.1:5174",
-      "https://localhost:5175",
-      "https://127.0.0.1:5175"
-    ]
+    "port": 3102,
+    "host": "0.0.0.0"
   },
   "frontend": {
     "host": "0.0.0.0",
-    "port": 5174,
-    "httpsPort": 5175,
+    "publicHost": "localhost",
+    "port": 5274,
+    "httpsPort": 5275,
     "strictPort": true
   },
+  "tmux": {
+    "backendSession": "ocw-backend",
+    "frontendSession": "ocw-frontend"
+  },
   "tools": {
+    "remoteDesktopLauncher": "/usr/local/bin/start-remote-cad-desktop",
     "cad": {
+      "displayNum": ":1",
+      "launcher": "/usr/local/bin/start-freecad-remote",
+      "bin": "/path/to/freecad",
+      "vncPort": 5901,
       "noVncPort": 6080
     },
     "paraview": {
+      "displayNum": ":2",
+      "launcher": "/usr/local/bin/start-paraview-remote",
+      "vncPort": 5902,
       "noVncPort": 6081
     },
     "comsol": {
+      "displayNum": ":32",
+      "launcher": "/usr/local/bin/start-comsol-remote",
+      "sudo": "sudo",
+      "vncPort": 5932,
       "noVncPort": 6082
     },
     "gnc": {
@@ -90,14 +109,6 @@
     "filesystemGroup": "users",
     "rpcHost": "localhost",
     "rpcPort": 9877,
-    "displayNum": ":21",
-    "vncPort": 5901,
-    "noVncPort": 6080,
-    "logDir": "/tmp/freecad-remote-6080",
-    "bin": "/path/to/freecad",
-    "appRegex": "/path/to/freecad",
-    "startupWaitSeconds": 20,
-    "rpcProbeTimeoutSeconds": 15,
     "componentInfoMaxStepSizeMb": 5,
     "filePreviewMaxBytes": 1048576,
     "textFileMaxBytes": 8388608,

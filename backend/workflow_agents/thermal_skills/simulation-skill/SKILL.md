@@ -16,7 +16,8 @@ The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes 
 ## Core Rules
 
 - Use `python -m sim_cli_tools.cli.main` as the first-class simulation entry point. The installed `sim-run` wrapper is an alias for the same module. Use `sim-comsol-progress` for COMSOL progress inspection or manual resync. Do not call copied runtime modules directly unless debugging internals.
-- Resolve the workspace from the Open Codex Web execution context `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`, checkout, and branch do not update `/data/lbk/codex_web/open_codex_web/config.json`.
+- Open Codex Web injects the bundled simulation CLI source directory into `PYTHONPATH` for agent runs. If `ModuleNotFoundError: sim_cli_tools` appears, verify `PYTHONPATH` includes `open_codex_web/backend/workflow_agents/agents/sim_cli_tools/src` before falling back to global installs or copied runtime modules.
+- Resolve the workspace from the Open Codex Web execution context `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`, checkout, and branch do not update `project root config.json`.
 - Always pass the execution context workspace explicitly with `--workspace-dir <workspace_dir>` for `doctor` and `run`. Do not rely on `config.json`, process `cwd`, or CLI defaults.
 - Before running `run`, inspect the selected workspace by running `--json doctor --workspace-dir <workspace_dir>`. If the reported `workspace_dir` differs from the prompt `workspace_dir`, stop and report the mismatch instead of running simulation into the wrong workspace.
 - Required inputs live under:
@@ -35,7 +36,7 @@ The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes 
 - For normal simulation runs, always pass `--async-open-tools` so COMSOL and
   ParaView GUI loaders open through the detached remote-tool flow after the run
   succeeds.
-- Never call `/usr/local/bin/start-comsol-remote` to open `work.mph`. That legacy launcher uses the old `DISPLAY=:3` / `5903` path and can steal or terminate the shared COMSOL noVNC session on port `6082`. To view a COMSOL result, use the simulation CLI's built-in loader or open the file on the stable remote desktop session: `DISPLAY=:32`, VNC `5932`, noVNC `6082`.
+- Never call the COMSOL remote launcher directly to open `work.mph`. Use the simulation CLI's built-in loader, which reads `tools.comsol.*` and `tools.paraview.*` from the project root `config.json`, or open the file on the configured shared COMSOL noVNC session.
 - Do not delete or recreate the workspace unless the user explicitly asks.
 
 ## Commands

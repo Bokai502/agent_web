@@ -1,4 +1,7 @@
 import { Codex } from "@openai/codex-sdk"
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { getString } from "../shared/index.js"
@@ -38,6 +41,45 @@ type PreparedRun = {
   runContext: RunContext
   sdkInput: string | RunInputItem[]
   threadIdForResume: string | null
+}
+
+const CODEX_RUN_DIR = path.dirname(fileURLToPath(import.meta.url))
+const BACKEND_BUILD_DIR = path.resolve(CODEX_RUN_DIR, "..")
+const BACKEND_ROOT = ["src", "dist"].includes(path.basename(BACKEND_BUILD_DIR))
+  ? path.resolve(BACKEND_BUILD_DIR, "..")
+  : path.resolve(process.cwd())
+
+function getBundledAgentCliSrcDirs() {
+  return [
+    path.join(BACKEND_ROOT, "workflow_agents", "agents", "freecad_cli_tools", "src"),
+    path.join(BACKEND_ROOT, "workflow_agents", "agents", "sim_cli_tools", "src"),
+  ].filter(dir => fs.existsSync(dir))
+}
+
+function prependPathList(existing: string | undefined, entries: string[]) {
+  const seen = new Set<string>()
+  const values = [...entries, ...(existing ? existing.split(path.delimiter) : [])]
+    .map(value => value.trim())
+    .filter(value => value.length > 0)
+    .filter(value => {
+      const key = path.resolve(value)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  return values.join(path.delimiter)
+}
+
+function buildCodexEnv() {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  )
+  const bundledCliSrcDirs = getBundledAgentCliSrcDirs()
+  if (bundledCliSrcDirs.length > 0) {
+    env.PYTHONPATH = prependPathList(env.PYTHONPATH, bundledCliSrcDirs)
+    env.CODEX_WEB_AGENT_PYTHONPATH = bundledCliSrcDirs.join(path.delimiter)
+  }
+  return env
 }
 
 export type RunCodexTurnResult = {
@@ -150,6 +192,7 @@ export async function prepareCodexTurn(
   const promptTextForHistory = getPromptTextForHistory(prompt, sdkInputBase)
   const injectSessionPrefix = await shouldInjectPromptPrefixForSession(trimmedSessionId, runContext.workspaceDir)
   const skillScopes = forcedSkillScopes ?? getWorkspaceSkillScopes(isGncRequestContext())
+  const bundledCliSrcDirs = getBundledAgentCliSrcDirs()
   const selectedAutoSkillNames = (selectedSkillNames ?? [])
     .filter(s => typeof s === "string" && s.trim() !== "")
     .map(s => s.trim())
@@ -235,6 +278,7 @@ export async function prepareCodexTurn(
     workspaceName: requestedWorkspaceName,
     approvalPolicy: config.codex.approvalPolicy,
     sandboxMode: config.codex.sandboxMode,
+    bundledCliSrcDirs,
     promptChars: typeof prompt === "string" ? prompt.length : 0,
     sdkInputTextChars: getInputTextLength(Array.isArray(sdkInput) ? sdkInput : sdkInputBase),
     promptPrefixInjected: injectPromptPrefix,
@@ -334,14 +378,17 @@ export async function executeCodexTurn(
 
   try {
     const codexConfig = buildCodexConfig(config)
+    const bundledCliSrcDirs = getBundledAgentCliSrcDirs()
     const codex = new Codex({
       apiKey: config.openai.apiKey,
       baseUrl: config.openai.baseUrl,
       config: codexConfig,
+      env: buildCodexEnv(),
     })
 
     const threadOptions = {
       ...(config.openai.model ? { model: config.openai.model } : {}),
+      ...(bundledCliSrcDirs.length > 0 ? { additionalDirectories: bundledCliSrcDirs } : {}),
       workingDirectory: config.codex.workingDirectory,
       approvalPolicy: config.codex.approvalPolicy,
       skipGitRepoCheck: config.codex.skipGitRepoCheck,

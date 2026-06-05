@@ -20,6 +20,22 @@ export function getRecorderStatusText(state: RecorderState, running: boolean) {
   return '点击开始语音输入'
 }
 
+function formatRecorderError(error: unknown) {
+  if (!(error instanceof Error)) return '无法打开麦克风'
+  const name = error.name.toLowerCase()
+  const message = error.message.toLowerCase()
+  if (name === 'notallowederror' || name === 'permissiondismissederror' || message.includes('permission dismissed')) {
+    return '麦克风权限未开启，请在浏览器地址栏允许麦克风后重试'
+  }
+  if (name === 'notfounderror' || message.includes('requested device not found')) {
+    return '没有检测到可用麦克风'
+  }
+  if (name === 'notreadableerror') {
+    return '麦克风正被其他程序占用'
+  }
+  return error.message || '无法打开麦克风'
+}
+
 export function useAgentRecorder({ clearAgentSpeechDisplay, runCodex, running }: UseAgentRecorderOptions) {
   const [state, setState] = useState<RecorderState>('idle')
   const [text, setText] = useState('')
@@ -130,7 +146,7 @@ export function useAgentRecorder({ clearAgentSpeechDisplay, runCodex, running }:
       setState('recording')
     } catch (err) {
       resetAudioGraph()
-      setError(err instanceof Error ? err.message : '无法打开麦克风')
+      setError(formatRecorderError(err))
       setState('error')
     }
   }, [clearAgentSpeechDisplay, resetAudioGraph])
@@ -162,6 +178,14 @@ export function useAgentRecorder({ clearAgentSpeechDisplay, runCodex, running }:
     })
   }, [resetAudioGraph, uploadAudio])
 
+  const cancelRecording = useCallback(() => {
+    resetAudioGraph()
+    samplesRef.current = []
+    setText('')
+    setError('')
+    setState('idle')
+  }, [resetAudioGraph])
+
   const setRecorderError = useCallback((message: string) => {
     setError(message)
     setState('error')
@@ -179,6 +203,7 @@ export function useAgentRecorder({ clearAgentSpeechDisplay, runCodex, running }:
 
   return {
     clearRecorderDisplay,
+    cancelRecording,
     error,
     setRecorderError,
     startRecording,
