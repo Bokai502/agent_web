@@ -456,7 +456,7 @@ export const resources = {
         inspector: {
           title: "产物与 BOM",
           subtitle: "当前会话沉淀的关键输出",
-          progressTitle: "工作流进度",
+          progressTitle: "任务进度",
           updatedAt: "更新时间：{{time}}",
           waitingUpdate: "等待更新",
           bomTitle: "组件清单",

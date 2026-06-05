@@ -607,6 +607,19 @@ function compactForSpeech(text: string) {
   return compact.slice(0, 30)
 }
 
+function isLikelyTruncatedSummary(text: string) {
+  const trimmed = text.trim()
+  if (!trimmed) return true
+  if (/[。！？.!?）)\]】]$/u.test(trimmed)) return false
+
+  const tail = trimmed.split(/\s+/u).at(-1) ?? trimmed
+  if (/^[a-z_]{1,24}$/iu.test(tail)) return true
+  if (/[=:：-]$/u.test(trimmed)) return true
+  if (/[，、；;]$/u.test(trimmed)) return true
+
+  return false
+}
+
 function getFinalResponse(turn: unknown) {
   if (turn && typeof turn === "object" && "finalResponse" in turn) {
     const response = (turn as { finalResponse?: unknown }).finalResponse
@@ -931,7 +944,7 @@ async function summarizePipelineCompletion({
       createResponseText({
         config,
         logger,
-        maxOutputTokens: 180,
+        maxOutputTokens: 360,
         prompt,
         purpose: "managed-pipeline-completion-summary",
         requestId,
@@ -945,6 +958,16 @@ async function summarizePipelineCompletion({
       .replace(/\s+/gu, " ")
       .trim()
     if (cleanedSummary) {
+      if (isLikelyTruncatedSummary(cleanedSummary)) {
+        logger.warn("managed pipeline completion summary discarded", {
+          model: MANAGED_SUMMARY_MODEL,
+          requestId,
+          skill: skill.name,
+          summaryLength: cleanedSummary.length,
+          tail: cleanedSummary.slice(-80),
+        })
+        return buildCompletionFallbackSummary({ artifacts, issues, latestMessage, manifestRun, progress, status })
+      }
       logger.info("managed pipeline completion summary generated", {
         model: MANAGED_SUMMARY_MODEL,
         requestId,
