@@ -1,11 +1,11 @@
 @media (max-width: 1180px) {
   .agent-hud-topbar {
-    grid-template-columns: 164px minmax(0, 1fr) minmax(344px, auto);
+    grid-template-columns: 164px minmax(0, 1fr) minmax(500px, auto);
   }
 
   .agent-progress-pill {
     min-width: 190px;
-    max-width: min(320px, 42vw);
+    max-width: 280px;
   }
 
   .agent-stage {
@@ -217,8 +217,8 @@
   }
 
   .agent-panel--robot.is-docked {
-    --robot-size: 78px;
-    --robot-radius: 20px;
+    --robot-size: 68px;
+    --robot-radius: 17px;
   }
 
   .agent-input-mode-switch button {

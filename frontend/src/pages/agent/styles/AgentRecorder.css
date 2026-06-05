@@ -257,7 +257,7 @@
 }
 
 .agent-panel.is-docked .agent-recorder-status {
-  top: calc(50% + 48px);
+  top: calc(50% + 40px);
   font-size: 11px;
 }
 
@@ -279,11 +279,11 @@
 }
 
 .agent-panel--robot.is-docked {
-  --robot-size: 86px;
-  --robot-radius: 22px;
+  --robot-size: 74px;
+  --robot-radius: 19px;
   --robot-chat-width: 280px;
-  height: 168px;
-  min-height: 168px;
+  height: 148px;
+  min-height: 148px;
 }
 
 .agent-robot-button {

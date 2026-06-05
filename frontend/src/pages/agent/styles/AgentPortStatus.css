@@ -11,21 +11,20 @@
 }
 
 .agent-port-card {
-  display: inline-grid;
-  grid-template-columns: 22px minmax(72px, 1fr);
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 9px;
   flex: 0 0 auto;
-  min-width: 140px;
-  height: 32px;
+  min-width: 76px;
+  height: 34px;
   border: 1px solid rgba(0, 168, 255, 0.18);
-  border-radius: 999px;
+  border-radius: 4px;
   background: rgba(4, 18, 32, 0.68);
   box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.1);
   color: #eaf7ff;
   cursor: pointer;
-  padding: 4px 12px;
-  text-align: left;
+  padding: 4px 9px;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
@@ -53,76 +52,89 @@
   background: rgba(54, 36, 10, 0.7);
 }
 
-.agent-port-card strong {
-  display: block;
+.agent-port-user-initial {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid rgba(56, 248, 183, 0.42);
+  border-radius: 4px;
+  background: rgba(56, 248, 183, 0.1);
   color: #f4fbff;
-  font-size: 12px;
-  font-weight: 850;
-  line-height: 1.05;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px rgba(56, 248, 183, 0.18);
 }
 
-.agent-port-card span {
-  display: block;
-  margin-top: 1px;
-  color: rgba(234, 247, 255, 0.6);
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1.05;
-  white-space: nowrap;
-}
-
-.agent-port-icon {
+.agent-input-mode-icon {
   position: relative;
+  display: inline-block;
   width: 18px;
-  height: 18px;
-  border: 2px solid rgba(23, 231, 255, 0.82);
-  border-radius: 50%;
-  box-shadow: 0 0 16px rgba(0, 168, 255, 0.46);
+  height: 20px;
+  color: rgba(23, 231, 255, 0.92);
 }
 
-.agent-port-card.is-ok .agent-port-icon {
-  border-color: rgba(56, 248, 183, 0.86);
-  box-shadow: 0 0 16px rgba(56, 248, 183, 0.46);
-}
-
-.agent-port-card.is-bad .agent-port-icon {
-  border-color: rgba(255, 96, 96, 0.86);
-  box-shadow: 0 0 16px rgba(255, 96, 96, 0.38);
-}
-
-.agent-port-card.is-checking .agent-port-icon {
-  border-color: rgba(255, 193, 96, 0.86);
-  box-shadow: 0 0 16px rgba(255, 193, 96, 0.38);
-}
-
-.agent-port-icon::before,
-.agent-port-icon::after {
-  position: absolute;
+.agent-input-mode-icon::before {
   content: "";
-  border-radius: 50%;
+  position: absolute;
+  left: 6px;
+  top: 1px;
+  width: 6px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  background: rgba(23, 231, 255, 0.12);
+  box-shadow: 0 0 10px rgba(23, 231, 255, 0.28);
 }
 
-.agent-port-icon::before {
-  inset: 4px;
-  background: rgba(23, 231, 255, 0.9);
-  box-shadow: 0 0 10px rgba(23, 231, 255, 0.5);
+.agent-input-mode-icon::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  width: 12px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
 }
 
-.agent-port-card.is-ok .agent-port-icon::before {
-  background: rgba(56, 248, 183, 0.92);
+.agent-input-mode-icon.is-muted {
+  color: rgba(255, 174, 174, 0.92);
 }
 
-.agent-port-card.is-bad .agent-port-icon::before {
-  background: rgba(255, 96, 96, 0.92);
+.agent-input-mode-icon.is-live {
+  color: rgba(56, 248, 183, 0.92);
 }
 
-.agent-port-card.is-checking .agent-port-icon::before {
-  background: rgba(255, 193, 96, 0.92);
+.agent-input-mode-icon.is-live::before,
+.agent-input-mode-icon.is-live::after {
+  box-shadow: 0 0 10px rgba(56, 248, 183, 0.24);
 }
 
-.agent-port-icon::after {
-  inset: -6px;
-  border: 1px solid rgba(23, 231, 255, 0.16);
+.agent-input-mode-icon.is-muted::before,
+.agent-input-mode-icon.is-muted::after {
+  box-shadow: 0 0 10px rgba(255, 96, 96, 0.22);
+}
+
+.agent-input-muted-slash {
+  position: absolute;
+  left: 1px;
+  top: 9px;
+  display: none;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 0 8px rgba(255, 96, 96, 0.3);
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+
+.agent-input-mode-icon.is-muted .agent-input-muted-slash {
+  display: block;
 }
 
 .agent-port-popover {
@@ -130,15 +142,16 @@
   right: 14px;
   top: calc(100% + 10px);
   z-index: 40;
-  width: min(390px, calc(100vw - 24px));
-  border: 1px solid rgba(23, 231, 255, 0.22);
+  width: min(224px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid rgba(23, 231, 255, 0.16);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(8, 30, 50, 0.96), rgba(3, 12, 22, 0.96));
+  background: rgba(3, 12, 22, 0.96);
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.45),
     inset 0 0 28px rgba(0, 168, 255, 0.08);
   backdrop-filter: blur(18px);
-  padding: 12px;
+  padding: 0;
 }
 
 .agent-port-popover::before {
@@ -150,103 +163,80 @@
   height: 10px;
   border-left: 1px solid rgba(23, 231, 255, 0.22);
   border-top: 1px solid rgba(23, 231, 255, 0.22);
-  background: rgba(8, 30, 50, 0.96);
+  background: rgba(3, 12, 22, 0.96);
   transform: rotate(45deg);
 }
 
-.agent-port-popover header {
-  display: flex;
+.agent-account-menu-header {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 9px;
+  min-height: 54px;
+  padding: 10px 12px;
 }
 
 .agent-port-settings-section {
   display: grid;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 0;
+  margin: 0;
   border-bottom: 1px solid rgba(23, 231, 255, 0.12);
-  padding-bottom: 10px;
+  border-top: 1px solid rgba(23, 231, 255, 0.12);
+  padding: 4px 0;
 }
 
-.agent-port-user-row {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  gap: 9px;
-  align-items: center;
-  min-height: 40px;
-  border: 1px solid rgba(23, 231, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(4, 18, 32, 0.58);
-  padding: 7px 8px;
-}
-
-.agent-port-user-row div {
+.agent-account-menu-header div {
   min-width: 0;
 }
 
-.agent-port-user-row strong,
-.agent-port-user-row small {
+.agent-account-menu-header strong,
+.agent-account-menu-header small {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.agent-port-user-row strong {
+.agent-account-menu-header strong {
   color: #f4fbff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 850;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
-.agent-port-user-row small {
+.agent-account-menu-header small {
   margin-top: 2px;
   color: rgba(234, 247, 255, 0.52);
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.agent-port-user-row button {
-  min-height: 28px;
-  border: 1px solid rgba(255, 96, 96, 0.28);
-  border-radius: 7px;
-  background: rgba(64, 14, 22, 0.72);
-  color: rgba(255, 222, 222, 0.95);
-  cursor: pointer;
-  padding: 0 10px;
   font-size: 11px;
-  font-weight: 850;
-  white-space: nowrap;
-}
-
-.agent-port-user-row button:hover:not(:disabled) {
-  border-color: rgba(255, 120, 120, 0.5);
-  background: rgba(92, 18, 30, 0.86);
-}
-
-.agent-port-user-row button:disabled {
-  cursor: wait;
-  opacity: 0.65;
+  font-weight: 750;
 }
 
 .agent-port-mode-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 38px;
-  border: 1px solid rgba(23, 231, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(4, 18, 32, 0.5);
-  padding: 6px 8px 6px 10px;
+  gap: 10px;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  padding: 6px 10px 6px 14px;
 }
 
 .agent-port-mode-row > span {
   color: rgba(234, 247, 255, 0.58);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
+}
+
+.agent-port-popover .agent-input-mode-switch {
+  gap: 3px;
+  padding: 3px;
+}
+
+.agent-port-popover .agent-input-mode-switch button {
+  min-width: 42px;
+  height: 24px;
+  font-size: 10px;
 }
 
 .agent-port-popover header strong {
@@ -255,11 +245,29 @@
   font-weight: 850;
 }
 
-.agent-port-popover header span {
-  color: rgba(234, 247, 255, 0.6);
-  font-size: 10px;
-  font-weight: 750;
-  white-space: nowrap;
+.agent-account-logout-row {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: #ff5f6d;
+  cursor: pointer;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 850;
+  text-align: left;
+}
+
+.agent-account-logout-row:hover:not(:disabled) {
+  background: rgba(255, 96, 96, 0.1);
+}
+
+.agent-account-logout-row:disabled {
+  cursor: wait;
+  opacity: 0.64;
 }
 
 .agent-port-popover p {
@@ -280,12 +288,12 @@
 
 .agent-port-list {
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
 .agent-port-row {
   display: grid;
-  grid-template-columns: 10px minmax(92px, 1fr) auto minmax(70px, auto);
+  grid-template-columns: 10px minmax(118px, 1fr) 42px;
   gap: 9px;
   align-items: center;
   min-height: 46px;
@@ -312,8 +320,7 @@
   min-width: 0;
 }
 
-.agent-port-row strong,
-.agent-port-row small {
+.agent-port-row strong {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -327,13 +334,6 @@
   line-height: 1.2;
 }
 
-.agent-port-row small {
-  margin-top: 4px;
-  color: rgba(234, 247, 255, 0.52);
-  font-size: 10px;
-  font-weight: 700;
-}
-
 .agent-port-row em {
   color: rgba(255, 150, 150, 0.95);
   font-style: normal;
@@ -343,20 +343,6 @@
 
 .agent-port-row.ok em {
   color: rgba(56, 248, 183, 0.95);
-}
-
-.agent-port-row code {
-  overflow: hidden;
-  max-width: 112px;
-  border-radius: 6px;
-  background: rgba(23, 231, 255, 0.08);
-  padding: 4px 6px;
-  color: rgba(234, 247, 255, 0.66);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 10px;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 @media (max-width: 860px) {

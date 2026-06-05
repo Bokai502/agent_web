@@ -35,9 +35,18 @@ import { useWorkspaceFilePreview } from './agent/useWorkspaceFilePreview'
 import './AgentPage.css'
 
 type AgentInputMode = 'voice' | 'text'
+type AgentTheme = 'dark' | 'light'
+
+const AGENT_THEME_STORAGE_KEY = 'agent-theme'
+
+function getInitialAgentTheme(): AgentTheme {
+  if (typeof window === 'undefined') return 'dark'
+  return window.localStorage.getItem(AGENT_THEME_STORAGE_KEY) === 'light' ? 'light' : 'dark'
+}
 
 export default function AgentPage() {
   const { t } = useTranslation()
+  const [agentTheme, setAgentTheme] = useState<AgentTheme>(() => getInitialAgentTheme())
   const [activeView, setActiveView] = useState<AgentWorkspaceView | null>(null)
   const [activeTool, setActiveTool] = useState<AgentToolView>('cad')
   const [conversationPanelOpen, setConversationPanelOpen] = useState(false)
@@ -313,10 +322,6 @@ export default function AgentPage() {
 
   useEffect(() => {
     refreshRemoteToolPortStatus().catch(() => {})
-    const interval = window.setInterval(() => {
-      refreshRemoteToolPortStatus().catch(() => {})
-    }, 6000)
-    return () => window.clearInterval(interval)
   }, [refreshRemoteToolPortStatus])
 
   useEffect(() => {
@@ -434,6 +439,7 @@ export default function AgentPage() {
   const versionLabel = activeContext.versionId || '未选择版本'
   const agentPageClassName = [
     'agent-page',
+    `is-${agentTheme}-theme`,
     showGncConfig ? 'is-gnc-agent' : '',
     progressVariant === 'thermal' ? 'is-thermal-agent' : '',
     progressVariant === 'check' ? 'is-derating-agent' : '',
@@ -443,12 +449,21 @@ export default function AgentPage() {
     conversationPanelOpen || progressPanelOpen ? 'has-floating-panel' : '',
   ].filter(Boolean).join(' ')
 
+  const handleAgentThemeChange = useCallback((nextTheme: AgentTheme) => {
+    setAgentTheme(nextTheme)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(AGENT_THEME_STORAGE_KEY, nextTheme)
+    }
+  }, [])
+
   return (
     <main className={agentPageClassName}>
       <AgentTopbar
         conversationOpen={conversationPanelOpen}
         dataSourceLabel={dataSourceLabel}
+        agentTheme={agentTheme}
         inputMode={inputMode}
+        onAgentThemeChange={handleAgentThemeChange}
         onInputModeChange={handleInputModeChange}
         onConversationToggle={() => setConversationPanelOpen(open => !open)}
         portStatus={remoteToolPortStatus}
