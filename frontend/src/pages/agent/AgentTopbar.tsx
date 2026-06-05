@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
-import { CurrentUserBadge } from '../../components/CurrentUserBadge'
+import { APP_NAVIGATION_EVENT } from '../../app/sessionUtils'
 import type { WorkspaceSessionStatus } from '../workspace/workspaceSessionVisibility'
 
 type AgentInputMode = 'voice' | 'text'
+
+type AuthMe = {
+  userId: string
+}
 
 export type RemoteToolPortStatus = {
   ok: boolean
@@ -64,6 +68,8 @@ export function AgentTopbar({
 }: AgentTopbarProps) {
   const [portPanelOpen, setPortPanelOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [userId, setUserId] = useState('default')
   const showStopButton = sessionStatus === 'running'
   const healthyPorts = portStatus?.ports.filter(port => port.ok).length ?? 0
   const totalPorts = portStatus?.ports.length ?? 0
@@ -83,11 +89,41 @@ export function AgentTopbar({
   const checkedAtLabel = portStatus?.checkedAt
     ? `${new Date(portStatus.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} 检测`
     : '等待检测'
+  const initials = userId.trim().slice(0, 1).toUpperCase() || 'U'
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(intervalId)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then(async response => response.ok ? await response.json() as AuthMe : null)
+      .then(data => {
+        if (!data || cancelled) return
+        setUserId(data.userId)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // Continue navigation even if the logout request fails.
+    } finally {
+      setPortPanelOpen(false)
+      setLoggingOut(false)
+      window.history.pushState(null, '', '/home')
+      window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
+    }
+  }
 
   return (
     <header className="agent-hud-topbar">
@@ -141,25 +177,6 @@ export function AgentTopbar({
         </button>
       </div>
       <div className="agent-topbar-port-status">
-        <CurrentUserBadge />
-        <div className="agent-input-mode-switch" role="group" aria-label="输入方式">
-          <button
-            type="button"
-            className={inputMode === 'voice' ? 'is-active' : ''}
-            aria-pressed={inputMode === 'voice'}
-            onClick={() => onInputModeChange('voice')}
-          >
-            语音
-          </button>
-          <button
-            type="button"
-            className={inputMode === 'text' ? 'is-active' : ''}
-            aria-pressed={inputMode === 'text'}
-            onClick={() => onInputModeChange('text')}
-          >
-            文字
-          </button>
-        </div>
         <button
           type="button"
           className={`agent-port-card is-${portVariant} ${portPanelOpen ? 'is-open' : ''}`}
@@ -174,11 +191,44 @@ export function AgentTopbar({
           </div>
         </button>
         {portPanelOpen ? (
-          <div className="agent-port-popover" role="dialog" aria-label="远程窗口端口状态">
+          <div className="agent-port-popover" role="dialog" aria-label="状态与设置">
             <header>
-              <strong>远程窗口端口</strong>
+              <strong>状态与设置</strong>
               <span>{checkedAtLabel}</span>
             </header>
+            <section className="agent-port-settings-section">
+              <div className="agent-port-user-row">
+                <span className="agent-user-avatar" aria-hidden="true">{initials}</span>
+                <div>
+                  <strong>{userId}</strong>
+                  <small>当前用户</small>
+                </div>
+                <button type="button" disabled={loggingOut} onClick={handleLogout}>
+                  {loggingOut ? '退出中' : '退出登录'}
+                </button>
+              </div>
+              <div className="agent-port-mode-row">
+                <span>输入方式</span>
+                <div className="agent-input-mode-switch" role="group" aria-label="输入方式">
+                  <button
+                    type="button"
+                    className={inputMode === 'voice' ? 'is-active' : ''}
+                    aria-pressed={inputMode === 'voice'}
+                    onClick={() => onInputModeChange('voice')}
+                  >
+                    语音
+                  </button>
+                  <button
+                    type="button"
+                    className={inputMode === 'text' ? 'is-active' : ''}
+                    aria-pressed={inputMode === 'text'}
+                    onClick={() => onInputModeChange('text')}
+                  >
+                    文字
+                  </button>
+                </div>
+              </div>
+            </section>
             {portStatusError ? (
               <p className="agent-port-error">{portStatusError}</p>
             ) : portStatus?.ports.length ? (

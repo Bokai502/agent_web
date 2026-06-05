@@ -13,8 +13,8 @@ describe("front-end redesign targets", () => {
     render(<WorkspaceSessionPage homePath="/workspace" />)
 
     expect(screen.getByRole("button", { name: "返回主页" })).toBeInTheDocument()
-    expect(screen.getByText("3D 模型预览")).toBeInTheDocument()
-    expect(screen.getByText("BOM 清单")).toBeInTheDocument()
+    expect(screen.getByText("结构预览")).toBeInTheDocument()
+    expect(screen.getByText("组件清单")).toBeInTheDocument()
     expect(screen.queryByText("第一个对话")).not.toBeInTheDocument()
   })
 

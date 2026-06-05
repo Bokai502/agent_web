@@ -162,6 +162,93 @@
   margin-bottom: 10px;
 }
 
+.agent-port-settings-section {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(23, 231, 255, 0.12);
+  padding-bottom: 10px;
+}
+
+.agent-port-user-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 40px;
+  border: 1px solid rgba(23, 231, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 18, 32, 0.58);
+  padding: 7px 8px;
+}
+
+.agent-port-user-row div {
+  min-width: 0;
+}
+
+.agent-port-user-row strong,
+.agent-port-user-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-port-user-row strong {
+  color: #f4fbff;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.agent-port-user-row small {
+  margin-top: 2px;
+  color: rgba(234, 247, 255, 0.52);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.agent-port-user-row button {
+  min-height: 28px;
+  border: 1px solid rgba(255, 96, 96, 0.28);
+  border-radius: 7px;
+  background: rgba(64, 14, 22, 0.72);
+  color: rgba(255, 222, 222, 0.95);
+  cursor: pointer;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.agent-port-user-row button:hover:not(:disabled) {
+  border-color: rgba(255, 120, 120, 0.5);
+  background: rgba(92, 18, 30, 0.86);
+}
+
+.agent-port-user-row button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.agent-port-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+  border: 1px solid rgba(23, 231, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 18, 32, 0.5);
+  padding: 6px 8px 6px 10px;
+}
+
+.agent-port-mode-row > span {
+  color: rgba(234, 247, 255, 0.58);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .agent-port-popover header strong {
   color: #f4fbff;
   font-size: 13px;

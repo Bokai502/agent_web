@@ -44,7 +44,7 @@ export default function AgentPage() {
   const [progressPanelOpen, setProgressPanelOpen] = useState(false)
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
-  const [inputMode, setInputMode] = useState<AgentInputMode>('voice')
+  const [inputMode, setInputMode] = useState<AgentInputMode>('text')
   const [textInput, setTextInput] = useState('')
   const [textInputDisplay, setTextInputDisplay] = useState('')
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
@@ -62,7 +62,7 @@ export default function AgentPage() {
     setProgressRefreshNonce(value => value + 1)
   }, [])
   const versionState = useWorkspaceVersionState({
-    fallbackWorkspaceName: '当前工作区',
+    fallbackWorkspaceName: '当前任务',
     onRefreshWorkspaceViews: refreshWorkspaceViews,
     onReloadSessions: () => {},
     workspaceRefreshNonce,
@@ -156,13 +156,18 @@ export default function AgentPage() {
   }, [activeContext.versionDir, activeContext.workspaceId, activeContext.workspaceKey])
   const showGncConfig = progressVariant === "gnc"
   const navItems = useMemo(() => {
+    if (progressVariant === 'check') {
+      return NAV_ITEMS.filter(item => item.href !== '#bom' && item.href !== '#tools')
+    }
     if (!showGncConfig) return NAV_ITEMS
-    return NAV_ITEMS.map(item => (
-      item.href === '#bom'
-        ? { ...item, label: '配置文件', meta: 'Config' }
-        : item
-    ))
-  }, [showGncConfig])
+    return NAV_ITEMS
+      .filter(item => item.href !== '#model')
+      .map(item => (
+        item.href === '#bom'
+          ? { ...item, label: 'GNC 配置', meta: 'Config' }
+          : item
+      ))
+  }, [progressVariant, showGncConfig])
   const {
     handleSelectFile,
     selectedFileError,
@@ -322,6 +327,8 @@ export default function AgentPage() {
 
   useEffect(() => {
     if (activeView !== 'tools') return
+    if (showGncConfig) return
+    if (progressVariant === 'check') return
 
     fetch(joinApiPath(undefined, '/remote-tools/ensure-desktops'), { method: 'POST' })
       .then(response => {
@@ -332,11 +339,19 @@ export default function AgentPage() {
       .catch(error => {
         console.warn('Failed to ensure remote desktop mappings', error)
       })
-  }, [activeView])
+  }, [activeView, progressVariant, showGncConfig])
 
   useEffect(() => {
+    if (progressVariant === 'check' && activeTool !== 'cad') setActiveTool('cad')
+    if (showGncConfig && (activeTool === 'cad' || activeTool === 'paraview' || activeTool === 'comsol')) setActiveTool('gnc')
     if (!showGncConfig && (activeTool === 'gnc' || activeTool === 'gnc-dashboard')) setActiveTool('cad')
-  }, [activeTool, showGncConfig])
+  }, [activeTool, progressVariant, showGncConfig])
+
+  useEffect(() => {
+    if (!activeView) return
+    if (navItems.some(item => item.href === `#${activeView}`)) return
+    setActiveView('workspace')
+  }, [activeView, navItems])
 
   useEffect(() => {
     const handleViewerMessage = (event: MessageEvent<ViewerComponentMessage>) => {
@@ -376,12 +391,12 @@ export default function AgentPage() {
     setInputMode(nextMode)
   }, [agentSpeechPlaying, agentSpeechState, cancelRecording, clearAgentSpeechDisplay, clearRecorderDisplay, inputMode, state, stopAgentSpeechPlayback])
 
-  const handleNavSelect = useCallback((_item: (typeof NAV_ITEMS)[number], index: number, event: MouseEvent<HTMLAnchorElement>) => {
+  const handleNavSelect = useCallback((item: (typeof NAV_ITEMS)[number], _index: number, event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault()
-    const nextView = NAV_VIEWS[index] ?? 'model'
+    const nextView = NAV_VIEWS.find(view => item.href === `#${view}`) ?? 'workspace'
     setActiveView(current => current === nextView ? null : nextView)
   }, [])
-  const activeNavIndex = activeView ? NAV_VIEWS.indexOf(activeView) : -1
+  const activeNavIndex = activeView ? navItems.findIndex(item => item.href === `#${activeView}`) : -1
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
   const progressPercent = workflowLoopProgressEntries.length > 0
     ? Math.round(workflowLoopProgressEntries.reduce((total, item) => total + item.percent, 0) / workflowLoopProgressEntries.length)
@@ -419,6 +434,9 @@ export default function AgentPage() {
   const versionLabel = activeContext.versionId || '未选择版本'
   const agentPageClassName = [
     'agent-page',
+    showGncConfig ? 'is-gnc-agent' : '',
+    progressVariant === 'thermal' ? 'is-thermal-agent' : '',
+    progressVariant === 'check' ? 'is-derating-agent' : '',
     activeView ? 'has-workspace-view' : '',
     conversationPanelOpen ? 'has-left-floating-panel' : '',
     progressPanelOpen ? 'has-right-floating-panel' : '',

@@ -1403,6 +1403,12 @@ button.wa-run-card.selected {
   justify-content: space-between;
   gap: 10px;
 }
+.wa-task-card-header p {
+  margin: 4px 0 0;
+  color: #8d8d92;
+  font-size: 12px;
+  font-weight: 650;
+}
 .wa-current-context {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1561,6 +1567,28 @@ button.wa-run-card.selected {
   font-weight: 700;
 }
 .wa-version-create-actions button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+.wa-version-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.wa-version-header-actions button {
+  min-height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.075);
+  color: #1d1d1f;
+  cursor: pointer;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.wa-version-header-actions button:disabled {
   cursor: default;
   opacity: 0.48;
 }

@@ -55,11 +55,11 @@ type AgentWorkspacePanelProps = {
 }
 
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showGncConfig: boolean) {
-  if (activeView === 'workspace') return '当前工作区'
-  if (activeView === 'bom') return showGncConfig ? '配置文件' : 'BOM'
-  if (activeView === 'model') return '模型'
-  if (activeView === 'tools') return '工具'
-  if (activeView === 'log') return '文件'
+  if (activeView === 'workspace') return '当前任务'
+  if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '组件清单'
+  if (activeView === 'model') return '结构预览'
+  if (activeView === 'tools') return showGncConfig ? 'GNC 工具' : '仿真工具'
+  if (activeView === 'log') return '运行结果'
   return '语音对话'
 }
 
@@ -105,7 +105,7 @@ export function AgentWorkspacePanel({
     activeView ? `is-${activeView}-view` : '',
   ].filter(Boolean).join(' ')
   const toolTabs: AgentToolView[] = showGncConfig
-    ? ['cad', 'paraview', 'comsol', 'gnc', 'gnc-dashboard']
+    ? ['gnc', 'gnc-dashboard']
     : ['cad', 'paraview', 'comsol']
   const toolLabel = (tool: AgentToolView) => {
     if (tool === 'cad') return 'CAD'
@@ -148,7 +148,7 @@ export function AgentWorkspacePanel({
       <div className="agent-workspace-header">
         <div>
           <strong>{getWorkspacePanelTitle(activeView, showGncConfig)}</strong>
-          <span>{activeView ? `${activeContext.workspaceName}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : '选择左侧功能展开工作区'}</span>
+          <span>{activeView ? `${activeContext.workspaceName}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : '选择左侧模块展开当前任务'}</span>
         </div>
         {activeView === 'tools' && (
           <div className="agent-tool-tabs">
@@ -167,13 +167,13 @@ export function AgentWorkspacePanel({
       </div>
       <div className="agent-workspace-body">
         {!activeView ? (
-          <div className="agent-empty-state">工作区已收回，点击左侧功能重新展开</div>
+          <div className="agent-empty-state">当前任务已收回，点击左侧模块重新展开</div>
         ) : activeView === 'workspace' ? (
           <div className="agent-workspace-card-stage">
             <CurrentWorkspaceCard
               activeManifestVersion={activeManifestVersion}
               branchManifest={branchManifest}
-              currentWorkspaceName={activeContext.workspaceName ?? '当前工作区'}
+              currentWorkspaceName={activeContext.workspaceName ?? '当前任务'}
               manifestLoading={manifestLoading}
               onCheckoutVersion={checkoutVersion}
               onCreateChildBranch={createChildBranch}
@@ -202,9 +202,9 @@ export function AgentWorkspacePanel({
           />
         ) : activeView === 'model' ? (
           activeContext.versionDir ? (
-            <iframe className="agent-embed-frame" title="模型" src={viewerHref} />
+            <iframe className="agent-embed-frame" title="结构预览" src={viewerHref} />
           ) : (
-            <div className="agent-empty-state">等待当前工作区生成模型</div>
+            <div className="agent-empty-state">等待当前任务生成结构预览</div>
           )
         ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
           <GncDashboardPanel activeContext={activeContext} />
@@ -212,7 +212,7 @@ export function AgentWorkspacePanel({
           toolUrls[activeTool] ? (
             <iframe className="agent-embed-frame" title={activeTool} src={toolUrls[activeTool]} />
           ) : (
-            <div className="agent-empty-state">当前工具没有可打开的远程窗口</div>
+            <div className="agent-empty-state">当前仿真工具没有可打开的远程窗口</div>
           )
         ) : (
           <AgentFilesView
