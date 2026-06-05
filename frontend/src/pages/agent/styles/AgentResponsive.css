@@ -41,10 +41,6 @@
     height: 26px;
   }
 
-  .agent-user-badge {
-    max-width: min(160px, calc(100vw - 24px));
-  }
-
   .agent-topbar-status {
     justify-content: center;
     flex-wrap: wrap;
