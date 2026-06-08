@@ -83,9 +83,12 @@ def build_geom_component_info_from_real_bom(
         color = geom_component.get("color")
         if isinstance(color, list):
             entry["color"] = color
+        source_ref = item.get("source_ref") if isinstance(item.get("source_ref"), dict) else {}
+        step_path = _step_path_from_source_ref(source_ref, csv_path)
         semantic_name = item.get("semantic_name")
         row = csv_by_semantic_name.get(semantic_name) if isinstance(semantic_name, str) else None
-        step_path = _step_path_from_template_row(row, csv_path) if row else None
+        if not step_path and row:
+            step_path = _step_path_from_template_row(row, csv_path)
         if step_path:
             entry["display_info"] = {"assets": {"cad_rotated_path": step_path}}
         components.append(entry)
@@ -196,6 +199,22 @@ def normalize_component_info_assembly(
         "envelope": {
             "outer_size": bbox_size(outer_shell.get("outer_bbox"), "geom.outer_shell.outer_bbox"),
             "inner_size": bbox_size(outer_shell.get("inner_bbox"), "geom.outer_shell.inner_bbox"),
+            "outer_min": vector3(
+                outer_shell.get("outer_bbox", {}).get("min"),
+                "geom.outer_shell.outer_bbox.min",
+            ),
+            "outer_max": vector3(
+                outer_shell.get("outer_bbox", {}).get("max"),
+                "geom.outer_shell.outer_bbox.max",
+            ),
+            "inner_min": vector3(
+                outer_shell.get("inner_bbox", {}).get("min"),
+                "geom.outer_shell.inner_bbox.min",
+            ),
+            "inner_max": vector3(
+                outer_shell.get("inner_bbox", {}).get("max"),
+                "geom.outer_shell.inner_bbox.max",
+            ),
             "shell_thickness": float(outer_shell.get("thickness") or 0.0),
         },
         "components": normalized_components,
@@ -260,6 +279,15 @@ def _step_path_from_template_row(row: dict[str, str] | None, csv_path: Path | No
     return None
 
 
+def _step_path_from_source_ref(source_ref: dict[str, Any], csv_path: Path | None) -> str | None:
+    for field in ("cad_rotated_path", "cad_major_path", "cad_path", "CAD_ROTATED_PATH", "CAD_MAJOR_PATH"):
+        raw_path = source_ref.get(field)
+        resolved = _resolve_template_step_path(raw_path, csv_path)
+        if resolved is not None:
+            return str(resolved)
+    return None
+
+
 def _resolve_template_step_path(raw_path: str | None, csv_path: Path | None) -> Path | None:
     if not isinstance(raw_path, str) or not raw_path.strip():
         return None
@@ -270,7 +298,13 @@ def _resolve_template_step_path(raw_path: str | None, csv_path: Path | None) -> 
     else:
         if csv_path is not None:
             candidates.extend([csv_path.parent / candidate, csv_path.parent.parent / candidate])
-        candidates.append(resolve_workspace_path(candidate))
+            if len(candidate.parts) > 1:
+                candidates.append(csv_path.parent.parent / Path(*candidate.parts[1:]))
+            candidates.append(csv_path.parent.parent.parent / candidate)
+        try:
+            candidates.append(resolve_workspace_path(candidate))
+        except RuntimeError:
+            pass
     for path in candidates:
         if path.exists() and path.suffix.lower() in {".step", ".stp"}:
             return path.resolve()

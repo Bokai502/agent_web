@@ -352,11 +352,6 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
     <div style={{ ...pageStyle, ...themeVars }}>
       <div style={topbarStyle}>
         <strong>降额检查</strong>
-        <span>降额清单：</span>
-        <select style={selectStyle} disabled><option>{resultSourcePath || "input_check_result.json"}</option></select>
-        <span>元器件清单：</span>
-        <select style={selectStyle} disabled><option>{missingSourcePath || "input_mapping_completeness.json"}</option></select>
-        <button type="button" onClick={loadAll} style={toolbarButtonStyle}>重新开始</button>
         <span style={statusTextStyle}>{status}</span>
       </div>
 
@@ -740,16 +735,6 @@ const topbarStyle = {
   minHeight: 44,
   paddingBottom: 12,
   flexWrap: "wrap",
-} satisfies CSSProperties
-
-const selectStyle = {
-  background: HUD_CONTROL_BG,
-  border: `1px solid ${HUD_LINE}`,
-  borderRadius: 6,
-  color: HUD_MUTED,
-  height: 28,
-  minWidth: 260,
-  padding: "0 8px",
 } satisfies CSSProperties
 
 const sectionStyle = {

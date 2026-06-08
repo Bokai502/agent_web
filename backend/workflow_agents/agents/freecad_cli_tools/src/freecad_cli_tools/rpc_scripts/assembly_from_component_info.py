@@ -15,6 +15,119 @@ SAVE_PATH = __SAVE_PATH__
 EXPORT_GLB = __EXPORT_GLB__
 FIT_VIEW = __FIT_VIEW__
 VIEW_NAME = __VIEW_NAME__
+TIMINGS = {
+    "exports": {},
+    "step_template_seconds": {},
+    "build_seconds": {},
+}
+
+FACE_DEFINITIONS = {
+    0: ("-x", 0, -1),
+    1: ("x", 0, 1),
+    2: ("-y", 1, -1),
+    3: ("y", 1, 1),
+    4: ("-z", 2, -1),
+    5: ("z", 2, 1),
+    6: ("ext-x", 0, -1),
+    7: ("ext+x", 0, 1),
+    8: ("ext-y", 1, -1),
+    9: ("ext+y", 1, 1),
+    10: ("ext-z", 2, -1),
+    11: ("ext+z", 2, 1),
+}
+IDENTITY_ROTATION_ROWS = [
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0],
+]
+
+
+def determinant3(matrix_rows):
+    return (
+        matrix_rows[0][0] * (matrix_rows[1][1] * matrix_rows[2][2] - matrix_rows[1][2] * matrix_rows[2][1])
+        - matrix_rows[0][1] * (matrix_rows[1][0] * matrix_rows[2][2] - matrix_rows[1][2] * matrix_rows[2][0])
+        + matrix_rows[0][2] * (matrix_rows[1][0] * matrix_rows[2][1] - matrix_rows[1][1] * matrix_rows[2][0])
+    )
+
+
+def signed_permutation_rotations():
+    rotations = []
+    import itertools
+
+    for perm in itertools.permutations(range(3)):
+        for signs in itertools.product((-1, 1), repeat=3):
+            matrix_rows = [[0.0, 0.0, 0.0] for _ in range(3)]
+            for row, col in enumerate(perm):
+                matrix_rows[row][col] = float(signs[row])
+            if determinant3(matrix_rows) == 1:
+                rotations.append(matrix_rows)
+    return rotations
+
+
+ROTATION_ROWS = signed_permutation_rotations()
+
+
+def face_normal(face_id):
+    _, axis, direction = FACE_DEFINITIONS[int(face_id)]
+    normal = [0.0, 0.0, 0.0]
+    normal[axis] = float(direction)
+    return normal
+
+
+def apply_rotation_rows(rotation_rows, point):
+    return [
+        sum(float(rotation_rows[row][col]) * float(point[col]) for col in range(3))
+        for row in range(3)
+    ]
+
+
+def multiply_rotation_rows(left_rows, right_rows):
+    return [
+        [
+            sum(float(left_rows[row][k]) * float(right_rows[k][col]) for k in range(3))
+            for col in range(3)
+        ]
+        for row in range(3)
+    ]
+
+
+def installation_contact_world_face(install_face):
+    install_face = int(install_face)
+    if install_face >= 6:
+        return (install_face - 6) ^ 1
+    return install_face
+
+
+def choose_rotation_rows(component_face, target_envelope_face):
+    source = face_normal(component_face)
+    target = face_normal(installation_contact_world_face(target_envelope_face))
+    candidates = [
+        matrix_rows
+        for matrix_rows in ROTATION_ROWS
+        if apply_rotation_rows(matrix_rows, source) == target
+    ]
+    if not candidates:
+        raise RuntimeError("No valid orthogonal rotation found for requested face change.")
+    candidates.sort(key=lambda rows: sum(rows[i][i] for i in range(3)), reverse=True)
+    return candidates[0]
+
+
+def rotation_about_axis(axis_index, quarter_turns):
+    turns = int(quarter_turns) % 4
+    if turns == 0:
+        return [row[:] for row in IDENTITY_ROTATION_ROWS]
+    if axis_index == 0:
+        step = [[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]]
+    elif axis_index == 1:
+        step = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]]
+    elif axis_index == 2:
+        step = [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
+    else:
+        raise RuntimeError(f"Invalid rotation axis index {axis_index!r}")
+    result = [row[:] for row in IDENTITY_ROTATION_ROWS]
+    for _ in range(turns):
+        result = multiply_rotation_rows(step, result)
+    return result
 
 
 def normalize_spin_quarter_turns(angle_degrees):
@@ -59,8 +172,14 @@ def build_envelope(doc, assembly, data):
     if not outer_size or not inner_size or shell_thickness is None:
         return None
 
-    outer_min = [-(float(v) / 2.0) for v in outer_size]
-    inner_min = [-(float(v) / 2.0) for v in inner_size]
+    outer_min = envelope.get("outer_min")
+    inner_min = envelope.get("inner_min")
+    if not outer_min or not inner_min:
+        outer_min = [-(float(v) / 2.0) for v in outer_size]
+        inner_min = [-(float(v) / 2.0) for v in inner_size]
+    else:
+        outer_min = [float(v) for v in outer_min]
+        inner_min = [float(v) for v in inner_min]
     outer_shape = Part.makeBox(
         float(outer_size[0]),
         float(outer_size[1]),

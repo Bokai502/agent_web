@@ -289,18 +289,27 @@ export async function routeManagedRunIntent(
     )
     const parsed = parseRoutingJson(responseText)
     if (parsed) {
+      const fallback = fallbackRouting(body)
+      const shouldUseWorkspaceFallback =
+        fallback.intent !== "general" &&
+        parsed.intent === "general" &&
+        !parsed.managedSkills.includes("progress-summarizer")
+      const routed = shouldUseWorkspaceFallback
+        ? fallback
+        : parsed
       logger.info("managed run intent routed", {
-        intent: parsed.intent,
+        fallbackReason: routed === fallback ? "workspace-scope-override" : undefined,
+        intent: routed.intent,
         model: INTENT_ROUTER_MODEL,
-        managedSkills: parsed.managedSkills,
+        managedSkills: routed.managedSkills,
         requestId,
-        selectedSkills: parsed.selectedSkills,
-        skillScopes: parsed.skillScopes,
+        selectedSkills: routed.selectedSkills,
+        skillScopes: routed.skillScopes,
         routingSkillFile: skill.file,
-        source: parsed.source,
+        source: routed === fallback ? fallback.source : parsed.source,
         timeoutMs: INTENT_ROUTER_TIMEOUT_MS,
       })
-      return parsed
+      return routed
     }
   } catch (err) {
     logger.warn("managed run intent routing fallback", { err, requestId })

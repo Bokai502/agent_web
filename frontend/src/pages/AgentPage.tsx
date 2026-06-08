@@ -119,17 +119,6 @@ export default function AgentPage() {
     runningWorkspace: workspaceAppState.runningWorkspace,
     turns: workspaceAppState.turns,
   })
-  const viewerHref = useMemo(() => {
-    const params = new URLSearchParams()
-    params.set('glbPath', WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
-    params.set('theme', agentTheme)
-    if (activeContext.workspaceKey) params.set('workspaceKey', activeContext.workspaceKey)
-    if (activeContext.workspaceId) params.set('workspaceId', activeContext.workspaceId)
-    if (activeContext.versionId) params.set('versionId', activeContext.versionId)
-    if (activeContext.versionDir) params.set('workspaceDir', activeContext.versionDir)
-    if (workspaceRefreshNonce > 0) params.set('workspaceVersion', String(workspaceRefreshNonce))
-    return `/viewer?${params.toString()}`
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, agentTheme, workspaceRefreshNonce])
   const toolUrls = useMemo(() => ({
     cad: getRemoteToolUrl('cad', remoteToolHost),
     paraview: getRemoteToolUrl('paraview', remoteToolHost),
@@ -156,14 +145,39 @@ export default function AgentPage() {
   }, [])
   const progressVariant = useMemo<WorkflowProgressVariant>(() => {
     const marker = [
+      activeContext.workspaceName,
       activeContext.workspaceId,
       activeContext.workspaceKey,
       activeContext.versionDir,
     ].filter(Boolean).join("\n").toLowerCase()
-    if (/derating|降额|check/.test(marker)) return "check"
+    if (/derating|降额/.test(marker)) return "check"
     if (/gnc|aignc|adcs|region/.test(marker)) return "gnc"
     return "thermal"
-  }, [activeContext.versionDir, activeContext.workspaceId, activeContext.workspaceKey])
+  }, [activeContext.versionDir, activeContext.workspaceId, activeContext.workspaceKey, activeContext.workspaceName])
+  const lockViewerToDerating = useMemo(() => {
+    const marker = [
+      activeContext.workspaceName,
+      activeContext.workspaceId,
+      activeContext.workspaceKey,
+      activeContext.versionDir,
+    ].filter(Boolean).join("\n").toLowerCase()
+    return /derating|降额/.test(marker)
+  }, [activeContext.versionDir, activeContext.workspaceId, activeContext.workspaceKey, activeContext.workspaceName])
+  const viewerHref = useMemo(() => {
+    const params = new URLSearchParams()
+    params.set('glbPath', WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
+    params.set('theme', agentTheme)
+    if (activeContext.workspaceKey) params.set('workspaceKey', activeContext.workspaceKey)
+    if (activeContext.workspaceId) params.set('workspaceId', activeContext.workspaceId)
+    if (activeContext.versionId) params.set('versionId', activeContext.versionId)
+    if (activeContext.versionDir) params.set('workspaceDir', activeContext.versionDir)
+    if (lockViewerToDerating) {
+      params.set('mode', 'derating')
+      params.set('lockMode', 'derating')
+    }
+    if (workspaceRefreshNonce > 0) params.set('workspaceVersion', String(workspaceRefreshNonce))
+    return `/viewer?${params.toString()}`
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, agentTheme, lockViewerToDerating, workspaceRefreshNonce])
   const showGncConfig = progressVariant === "gnc"
   const navItems = useMemo(() => {
     if (progressVariant === 'check') {

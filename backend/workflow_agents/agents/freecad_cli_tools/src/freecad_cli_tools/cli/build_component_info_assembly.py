@@ -78,6 +78,20 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--view", default="Isometric", help="Preferred GUI view after creation.")
     parser.add_argument("--no-fit-view", action="store_true", help="Skip GUI fit/view adjustment.")
+    parser.add_argument(
+        "--export-backend",
+        choices=("static", "hybrid-link"),
+        default="static",
+        help=(
+            "CAD export backend. 'static' exports the direct assembly; 'hybrid-link' first "
+            "builds the direct assembly, then re-exports repeated STEP assets using App::Link."
+        ),
+    )
+    parser.add_argument(
+        "--include-envelope",
+        action="store_true",
+        help="Keep Envelope_part in the hybrid-link export. Static export always follows the base assembly script.",
+    )
     add_connection_args(parser)
     add_registry_args(parser)
     return parser.parse_args()
@@ -147,6 +161,10 @@ def collect_runtime_exports(staged_output: Path, final_output: Path) -> None:
     if staged_glb.exists():
         final_glb = final_output.with_suffix(".glb")
         copy_runtime_export(staged_glb, final_glb)
+    staged_hybrid_summary = staged_output.with_suffix(".hybrid_summary.json")
+    if staged_hybrid_summary.exists():
+        final_hybrid_summary = final_output.with_suffix(".hybrid_summary.json")
+        copy_runtime_export(staged_hybrid_summary, final_hybrid_summary)
 
 
 def registry_inputs(
@@ -165,6 +183,8 @@ def registry_inputs(
         "view": args.view,
         "fit_view": not args.no_fit_view,
         "max_step_size_mb": args.max_step_size_mb,
+        "export_backend": args.export_backend,
+        "include_envelope": args.include_envelope,
         "layout_topology_path": str(layout_topology_path),
         "geom_path": str(geom_path),
         "geom_component_info_path": str(geom_component_info_path) if geom_component_info_path else None,
@@ -253,6 +273,34 @@ def main() -> None:
             logger.info("executing FreeCAD component-info export: host=%s port=%s", args.host, args.port)
             payload = execute_script_payload(args.host, args.port, code)
             logger.info("FreeCAD component-info export returned: success=%s error=%s", payload.get("success"), payload.get("error"))
+        if payload.get("success") and args.export_backend == "hybrid-link":
+            hybrid_code = render_rpc_script(
+                "export_component_info_hybrid_link.py",
+                {
+                    "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
+                    "__DOC_NAME__": json.dumps(args.doc_name),
+                    "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_output_path)),
+                    "__EXPORT_GLB__": "True",
+                    "__INCLUDE_ENVELOPE__": "True" if args.include_envelope else "False",
+                },
+            )
+            with pipeline_step("component_info_hybrid_link_export"):
+                logger.info(
+                    "executing hybrid App::Link component-info export: host=%s port=%s include_envelope=%s",
+                    args.host,
+                    args.port,
+                    args.include_envelope,
+                )
+                hybrid_payload = execute_script_payload(args.host, args.port, hybrid_code)
+                logger.info(
+                    "Hybrid App::Link export returned: success=%s error=%s",
+                    hybrid_payload.get("success"),
+                    hybrid_payload.get("error"),
+                )
+            if hybrid_payload.get("success"):
+                payload = {**payload, "static_export": payload, **hybrid_payload}
+            else:
+                payload = hybrid_payload
         if payload.get("success"):
             collect_runtime_exports(staged_output_path, output_path)
             payload["save_path"] = str(output_path)
