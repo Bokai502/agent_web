@@ -110,7 +110,7 @@ open_codex_web/
 | `tools.gnc.url` | 外部 GNC 页面 URL |
 | `gnc.dashboard.telemetryPaths` | GNC 看板 CSV 遥测路径 |
 | `gnc.dashboard.telemetryMaxBytes` | GNC 看板单文件读取上限 |
-| `workspace.templateDir` | 示例输入/工作区模板根目录，例如 `open_codex_web/data/input_data`；旧字段 `workspace.workspaceDir` 仍作为兼容 fallback |
+| `workspace.templateDir` | 示例输入/工作区模板根目录，例如 `open_codex_web/data/input_data` |
 | `workspace.filesystemGroup` | 新建 workspace/version 目录和 manifest 文件的 Linux 文件系统 group，应配置为后端运行用户所属的组，可用 `WORKSPACE_FILESYSTEM_GROUP` 覆盖 |
 | `workspace.usersRoot` | 用户工作区根目录，例如 `/data/lbk/codex_web/data/users`；旧字段 `auth.usersDir` 仍作为兼容 fallback |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD MCP RPC 连接配置 |

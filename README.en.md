@@ -22,7 +22,6 @@ Common fields:
 | `openai.apiKey` | API key for OpenAI or an OpenAI-compatible service. Can be overridden by `OPENAI_API_KEY`. |
 | `openai.baseUrl` | API base URL for OpenAI or an OpenAI-compatible service. Can be overridden by `OPENAI_BASE_URL`. |
 | `openai.model` | Default model used by Codex. |
-| `codex.workingDirectory` | Default working directory for Codex tasks. |
 | `codex.approvalPolicy` | Codex approval policy, such as `never` or `on-request`. |
 | `codex.sandboxMode` | Codex sandbox mode, such as `workspace-write` or `danger-full-access`. |
 | `codex.sandboxWorkspaceWriteNetworkAccess` | Allows network access for Agent commands when `sandboxMode` is `workspace-write`; set to `true` when commands must connect to local FreeCAD RPC or a private COMSOL `mphserver`. |
@@ -34,7 +33,7 @@ Common fields:
 | `frontend.port` | Required frontend HTTP development port. |
 | `frontend.httpsPort` | Required frontend HTTPS development port. The startup script uses this by default. |
 | `frontend.strictPort` | Whether Vite must use the configured port. Keeping this `true` avoids port drift. |
-| `workspace.templateDir` | Template/input data root, for example `open_codex_web/data/input_data`. Legacy `workspace.workspaceDir` is still supported as a fallback. |
+| `workspace.templateDir` | Template/input data root, for example `open_codex_web/data/input_data`. |
 | `workspace.filesystemGroup` | Filesystem group applied to workspace files where possible. Use a group that the backend user belongs to. |
 | `workspace.usersRoot` | Per-user workspace root, for example `/data/lbk/codex_web/data/users`. Legacy `auth.usersDir` is still supported as a fallback. |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD remote RPC settings. |

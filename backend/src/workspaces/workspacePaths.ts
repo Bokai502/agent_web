@@ -4,7 +4,7 @@ import type { AppConfig } from "../config.js"
 export type WorkspacePathConfig = Pick<AppConfig, "auth" | "workspace">
 
 export function resolveWorkspaceTemplateRoot(config: Pick<AppConfig, "workspace">) {
-  return path.resolve(config.workspace.templateDir ?? config.workspace.workspaceDir ?? path.resolve(process.cwd(), "..", "data"))
+  return path.resolve(config.workspace.templateDir ?? path.resolve(process.cwd(), "..", "data", "input_data"))
 }
 
 export function resolveUsersRootFromConfig(config: WorkspacePathConfig) {

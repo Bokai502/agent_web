@@ -20,7 +20,6 @@
     "approvalPolicy": "never",
     "sandboxMode": "workspace-write",
     "sandboxWorkspaceWriteNetworkAccess": true,
-    "workingDirectory": "/path/to/open_codex_web/data/input_data",
     "skipGitRepoCheck": true
   },
   "server": {
@@ -112,7 +111,6 @@
   "workspace": {
     "templateDir": "/path/to/open_codex_web/data/input_data",
     "usersRoot": "/path/to/codex_web/data/users",
-    "workspaceDir": "/path/to/open_codex_web/data/input_data",
     "filesystemGroup": "users",
     "rpcHost": "localhost",
     "rpcPort": 9877,

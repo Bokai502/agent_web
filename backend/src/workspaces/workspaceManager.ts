@@ -236,7 +236,6 @@ export async function resolveWorkspaceDir() {
 export async function listWorkspaces() {
   const config = await readRootConfig().catch(() => ({} as RootConfig))
   const configuredWorkspaceDir = getConfiguredWorkspaceDir(config)
-  const workspaceRootOverride = getRequestWorkspaceRootOverride()
   const effectiveWorkspaceDir = await resolveWorkspaceDir()
   const root = getWorkspaceRootFromConfigured(configuredWorkspaceDir)
   await ensureWorkspaceRoot(root).catch(() => {})
@@ -264,39 +263,32 @@ export async function listWorkspaces() {
   )
   const availableItems = items.filter(item => item.valid)
   availableItems.sort((left, right) => left.name.localeCompare(right.name))
-  if (workspaceRootOverride) {
-    const selectedWorkspaceName = await readCurrentWorkspaceName(root)
-    const selectedWorkspace = selectedWorkspaceName
-      ? availableItems.find(item => item.name === selectedWorkspaceName) ?? null
-      : null
-    const firstWorkspace = selectedWorkspace ?? availableItems[0] ?? null
-    return {
-      root,
-      current: firstWorkspace?.path ?? null,
-      currentName: firstWorkspace?.name ?? null,
-      effective: firstWorkspace?.path ?? effectiveWorkspaceDir,
-      envOverride: false,
-      items: availableItems,
-    }
-  }
+  const selectedWorkspaceName = await readCurrentWorkspaceName(root)
+  const selectedWorkspace = selectedWorkspaceName
+    ? availableItems.find(item => item.name === selectedWorkspaceName) ?? null
+    : null
   const activeWorkspaceItem = versionedWorkspace
     ? availableItems.find(item => item.manifestRoot === versionedWorkspace.rootDir)
     : null
-  const current = versionedWorkspace
+  const fallbackCurrent = versionedWorkspace
     ? versionedWorkspace.activeVersionDir ??
       activeWorkspaceItem?.path ??
       (isVersionWorkspaceDir(configuredWorkspaceDir) ? null : configuredWorkspaceDir)
     : isVersionWorkspaceDir(configuredWorkspaceDir) ? null : configuredWorkspaceDir
+  const currentItem = selectedWorkspace ?? activeWorkspaceItem ?? null
+  const current = currentItem?.path ?? fallbackCurrent
 
   return {
     root,
     current,
-    currentName: versionedWorkspace
-      ? configuredName ?? activeWorkspaceItem?.name ?? path.basename(versionedWorkspace.rootDir)
+    currentName: currentItem?.name ?? (
+      versionedWorkspace
+        ? configuredName ?? activeWorkspaceItem?.name ?? path.basename(versionedWorkspace.rootDir)
       : configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
       ? path.basename(configuredWorkspaceDir)
-      : null,
-    effective: effectiveWorkspaceDir,
+      : null
+    ),
+    effective: current ?? effectiveWorkspaceDir,
     envOverride: false,
     items: availableItems,
   }
@@ -325,12 +317,7 @@ export async function setWorkspace(name: unknown) {
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new Error("workspace must be under the configured workspace data root")
   }
-  if (getRequestWorkspaceRootOverride()) {
-    await writeCurrentWorkspaceName(root, workspace.name)
-  } else {
-    setConfiguredWorkspaceDir(config, workspace.path)
-    await writeRootConfig(config)
-  }
+  await writeCurrentWorkspaceName(root, workspace.name)
 
   return {
     root,
