@@ -105,7 +105,7 @@ export function AgentWorkspacePanel({
     activeView ? `is-${activeView}-view` : '',
   ].filter(Boolean).join(' ')
   const toolTabs: AgentToolView[] = showGncConfig
-    ? ['gnc', 'gnc-dashboard']
+    ? ['gnc-dashboard', 'gnc']
     : ['cad', 'paraview', 'comsol']
   const toolLabel = (tool: AgentToolView) => {
     if (tool === 'cad') return 'CAD'

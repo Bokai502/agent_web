@@ -12,9 +12,14 @@ declare const __APP_CONFIG__: {
     dashboard?: {
       telemetryMaxBytes?: number
       telemetryPaths?: {
-        mode?: string
-        sc?: string
-        wheel?: string
+        hwhl?: string
+        modeSummary?: string
+        mtb?: string
+        posn?: string
+        qbn?: string
+        time?: string
+        veln?: string
+        wbn?: string
       }
     }
   }

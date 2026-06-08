@@ -23,9 +23,14 @@ export function getGncToolUrl() {
 export function getGncTelemetryPaths() {
   const configured = runtimeConfig.gnc?.dashboard?.telemetryPaths ?? {}
   return {
-    mode: configured.mode ?? '02_sim/42_run/runtime_case/InOut/ModeTrace_SC0.csv',
-    sc: configured.sc ?? '02_sim/42_run/runtime_case/InOut/Sc.csv',
-    wheel: configured.wheel ?? '02_sim/42_run/runtime_case/InOut/AcWhl.csv',
+    hwhl: configured.hwhl ?? '02_sim/42_run/runtime_case/InOut/Hwhl.42',
+    modeSummary: configured.modeSummary ?? 'AIGNC_Workflow/08_run/run_summary.json',
+    mtb: configured.mtb ?? '02_sim/42_run/runtime_case/InOut/MTB.42',
+    posn: configured.posn ?? '02_sim/42_run/runtime_case/InOut/PosN.42',
+    qbn: configured.qbn ?? '02_sim/42_run/runtime_case/InOut/qbn.42',
+    time: configured.time ?? '02_sim/42_run/runtime_case/InOut/time.42',
+    veln: configured.veln ?? '02_sim/42_run/runtime_case/InOut/VelN.42',
+    wbn: configured.wbn ?? '02_sim/42_run/runtime_case/InOut/wbn.42',
   }
 }
 
