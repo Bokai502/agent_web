@@ -285,6 +285,65 @@
   color: #55555a;
 }
 
+.agent-page.is-light-theme .agent-task-row span,
+.agent-page.is-light-theme .agent-task-row small {
+  color: #3f3f44;
+}
+
+.agent-page.is-light-theme .agent-task-row em {
+  color: #0066cc;
+}
+
+.agent-page.is-light-theme .agent-task-row i {
+  background: linear-gradient(90deg, #007aff, #0a84ff);
+  box-shadow: 0 0 10px rgba(0, 122, 255, 0.24);
+}
+
+.agent-page.is-light-theme .agent-task-row.is-completed em {
+  color: #0f7f56;
+}
+
+.agent-page.is-light-theme .agent-task-row.is-completed i {
+  background: linear-gradient(90deg, #0f9f6e, #0a84ff);
+  box-shadow: 0 0 10px rgba(15, 127, 86, 0.2);
+}
+
+.agent-page.is-light-theme .agent-task-row.is-running em {
+  color: #0066cc;
+}
+
+.agent-page.is-light-theme .agent-task-row.is-running i {
+  background: linear-gradient(90deg, #007aff, #17b8d8);
+  box-shadow: 0 0 12px rgba(0, 122, 255, 0.28);
+}
+
+.agent-page.is-light-theme .agent-task-row.is-failed em {
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .agent-task-row.is-failed i {
+  background: linear-gradient(90deg, #d94b3d, #ff9500);
+  box-shadow: 0 0 10px rgba(217, 75, 61, 0.22);
+}
+
+.agent-page.is-light-theme .agent-task-row.is-pending span,
+.agent-page.is-light-theme .agent-task-row.is-pending small,
+.agent-page.is-light-theme .agent-task-row.is-unknown span,
+.agent-page.is-light-theme .agent-task-row.is-unknown small {
+  color: #6e6e73;
+}
+
+.agent-page.is-light-theme .agent-task-row.is-pending em,
+.agent-page.is-light-theme .agent-task-row.is-unknown em {
+  color: #59636f;
+}
+
+.agent-page.is-light-theme .agent-task-row.is-pending i,
+.agent-page.is-light-theme .agent-task-row.is-unknown i {
+  background: linear-gradient(90deg, rgba(110, 118, 129, 0.32), rgba(0, 122, 255, 0.34));
+  box-shadow: none;
+}
+
 .agent-page.is-light-theme .agent-stop-summary-button,
 .agent-page.is-light-theme .agent-stop-summary-button--topbar {
   border-color: rgba(217, 75, 61, 0.24);
@@ -340,4 +399,438 @@
 .agent-page.is-light-theme .agent-progress-popover button.wa-run-card.selected,
 .agent-page.is-light-theme .agent-progress-popover button.wa-run-card:hover {
   background: rgba(0, 122, 255, 0.06);
+}
+
+.agent-page.is-light-theme {
+  --light-text: #1d1d1f;
+  --light-text-muted: #6e6e73;
+  --light-text-faint: #86868b;
+  --light-panel: rgba(255, 255, 255, 0.86);
+  --light-panel-strong: rgba(255, 255, 255, 0.96);
+  --light-surface: rgba(245, 245, 247, 0.86);
+  --light-blue-soft: rgba(0, 122, 255, 0.08);
+}
+
+.agent-page.is-light-theme .agent-side-nav,
+.agent-page.is-light-theme.is-gnc-agent .agent-side-nav,
+.agent-page.is-light-theme.is-thermal-agent .agent-side-nav,
+.agent-page.is-light-theme.is-derating-agent .agent-side-nav,
+.agent-page.is-light-theme .agent-right-rail,
+.agent-page.is-light-theme .agent-progress-popover,
+.agent-page.is-light-theme .agent-conversation-popover {
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.1);
+}
+
+.agent-page.is-light-theme .agent-side-nav a,
+.agent-page.is-light-theme.is-gnc-agent .agent-side-nav a,
+.agent-page.is-light-theme.is-thermal-agent .agent-side-nav a,
+.agent-page.is-light-theme.is-derating-agent .agent-side-nav a {
+  border-color: rgba(0, 0, 0, 0.07);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+
+.agent-page.is-light-theme .agent-side-nav a:hover,
+.agent-page.is-light-theme .agent-side-nav a.active,
+.agent-page.is-light-theme.is-gnc-agent .agent-side-nav a:hover,
+.agent-page.is-light-theme.is-gnc-agent .agent-side-nav a.active,
+.agent-page.is-light-theme.is-thermal-agent .agent-side-nav a:hover,
+.agent-page.is-light-theme.is-thermal-agent .agent-side-nav a.active,
+.agent-page.is-light-theme.is-derating-agent .agent-side-nav a:hover,
+.agent-page.is-light-theme.is-derating-agent .agent-side-nav a.active {
+  border-color: rgba(0, 122, 255, 0.22);
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.agent-page.is-light-theme .agent-side-nav span,
+.agent-page.is-light-theme.is-gnc-agent .agent-side-nav span,
+.agent-page.is-light-theme.is-thermal-agent .agent-side-nav span,
+.agent-page.is-light-theme.is-derating-agent .agent-side-nav span,
+.agent-page.is-light-theme .wa-bom-stage h2,
+.agent-page.is-light-theme .wa-log-stage h2,
+.agent-page.is-light-theme .wa-bom-detail-card h3,
+.agent-page.is-light-theme .wa-bom-stage-grid strong,
+.agent-page.is-light-theme .wa-log-detail-card h3,
+.agent-page.is-light-theme .wa-bom-field strong,
+.agent-page.is-light-theme .wa-stage-empty-inner strong,
+.agent-page.is-light-theme .wa-file-tree-head h3,
+.agent-page.is-light-theme .agent-file-preview header strong,
+.agent-page.is-light-theme .agent-file-preview.is-empty strong,
+.agent-page.is-light-theme .agent-file-preview-unavailable strong,
+.agent-page.is-light-theme .wa-log-detail-field strong,
+.agent-page.is-light-theme .wa-conversation-session-head strong,
+.agent-page.is-light-theme .wa-conversation-agent-head,
+.agent-page.is-light-theme .gnc-dashboard-plot figcaption strong,
+.agent-page.is-light-theme .agent-port-row strong,
+.agent-page.is-light-theme .agent-clock-card strong {
+  color: var(--light-text);
+  text-shadow: none;
+}
+
+.agent-page.is-light-theme .agent-side-nav small,
+.agent-page.is-light-theme.is-gnc-agent .agent-side-nav small,
+.agent-page.is-light-theme.is-thermal-agent .agent-side-nav small,
+.agent-page.is-light-theme.is-derating-agent .agent-side-nav small,
+.agent-page.is-light-theme .wa-bom-stage p,
+.agent-page.is-light-theme .wa-log-stage p,
+.agent-page.is-light-theme .wa-bom-stage-grid small,
+.agent-page.is-light-theme .wa-log-detail-card p,
+.agent-page.is-light-theme .wa-stage-empty-inner span,
+.agent-page.is-light-theme .wa-file-tree-head p,
+.agent-page.is-light-theme .agent-file-preview header span,
+.agent-page.is-light-theme .agent-file-preview.is-empty span,
+.agent-page.is-light-theme .agent-file-preview-unavailable span,
+.agent-page.is-light-theme .wa-conversation-session-inline,
+.agent-page.is-light-theme .gnc-dashboard-plot figcaption span,
+.agent-page.is-light-theme .agent-clock-card span,
+.agent-page.is-light-theme .agent-port-popover p {
+  color: var(--light-text-muted);
+  text-shadow: none;
+}
+
+.agent-page.is-light-theme .wa-bom-stage,
+.agent-page.is-light-theme .wa-log-stage,
+.agent-page.is-light-theme .agent-file-tree-card,
+.agent-page.is-light-theme .agent-file-preview,
+.agent-page.is-light-theme .wa-bom-detail-card,
+.agent-page.is-light-theme .wa-bom-stage-grid button,
+.agent-page.is-light-theme .wa-log-detail-card,
+.agent-page.is-light-theme .wa-file,
+.agent-page.is-light-theme .gnc-editor-top,
+.agent-page.is-light-theme .gnc-editor-card,
+.agent-page.is-light-theme .gnc-editor-preview,
+.agent-page.is-light-theme .gnc-editor-empty,
+.agent-page.is-light-theme .gnc-dashboard-plot,
+.agent-page.is-light-theme .wa-log-markdown,
+.agent-page.is-light-theme .wa-log-raw,
+.agent-page.is-light-theme .wa-conversation-shell,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-shell,
+.agent-page.is-light-theme .wa-conversation-session-head,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-session-head,
+.agent-page.is-light-theme .wa-conversation-load-hint,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-load-hint,
+.agent-page.is-light-theme .agent-port-popover p,
+.agent-page.is-light-theme .agent-clock-card {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: var(--light-panel);
+  box-shadow: none;
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-bom-field,
+.agent-page.is-light-theme .wa-log-detail-field,
+.agent-page.is-light-theme .wa-file-tree-body {
+  border-color: rgba(0, 0, 0, 0.07);
+  background: var(--light-surface);
+}
+
+.agent-page.is-light-theme .wa-bom-field span,
+.agent-page.is-light-theme .wa-bom-id,
+.agent-page.is-light-theme .wa-log-detail-field span,
+.agent-page.is-light-theme .agent-file-preview header small,
+.agent-page.is-light-theme .wa-file-tree-icon,
+.agent-page.is-light-theme .wa-conversation-shell span,
+.agent-page.is-light-theme .wa-conversation-shell small,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-shell span,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-shell small {
+  color: #0066cc;
+}
+
+.agent-page.is-light-theme .wa-file-tree-row {
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-file-tree-row:disabled,
+.agent-page.is-light-theme .wa-file-tree-row small,
+.agent-page.is-light-theme .wa-file-tree-empty {
+  color: var(--light-text-faint);
+}
+
+.agent-page.is-light-theme .wa-file-tree-row.is-directory:hover,
+.agent-page.is-light-theme .wa-file-tree-row.is-file:not(:disabled):hover,
+.agent-page.is-light-theme .wa-file-tree-row.selected {
+  background: rgba(0, 122, 255, 0.08);
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .gnc-editor-shell {
+  color: #1d1d1f;
+}
+
+.agent-page.is-light-theme .gnc-editor-top span,
+.agent-page.is-light-theme .gnc-editor-preview span {
+  color: #0b6f48;
+}
+
+.agent-page.is-light-theme .gnc-editor-top strong,
+.agent-page.is-light-theme .gnc-editor-preview strong,
+.agent-page.is-light-theme .gnc-editor-card-head strong {
+  color: #1d1d1f;
+}
+
+.agent-page.is-light-theme .gnc-editor-top small,
+.agent-page.is-light-theme .gnc-editor-card-head span {
+  color: #4f5965;
+}
+
+.agent-page.is-light-theme .gnc-editor-status {
+  border-color: rgba(15, 127, 86, 0.22);
+  background: rgba(15, 127, 86, 0.09);
+  color: #0b6f48;
+}
+
+.agent-page.is-light-theme .gnc-editor-field > span,
+.agent-page.is-light-theme .gnc-editor-toggle > span {
+  color: #52606f;
+}
+
+.agent-page.is-light-theme .gnc-editor-field input,
+.agent-page.is-light-theme .gnc-editor-field select,
+.agent-page.is-light-theme .gnc-editor-toolbar select,
+.agent-page.is-light-theme .gnc-vector-grid input {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  color: #1d1d1f;
+}
+
+.agent-page.is-light-theme .gnc-editor-field select,
+.agent-page.is-light-theme .gnc-editor-toolbar select {
+  color-scheme: light;
+}
+
+.agent-page.is-light-theme .gnc-editor-field input::placeholder,
+.agent-page.is-light-theme .gnc-vector-grid input::placeholder {
+  color: #6e7781;
+}
+
+.agent-page.is-light-theme .gnc-vector-grid label span {
+  color: #5f6b7a;
+}
+
+.agent-page.is-light-theme .gnc-editor-toggle {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.agent-page.is-light-theme .gnc-editor-preview pre {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(245, 245, 247, 0.96);
+  color: #24292f;
+}
+
+.agent-page.is-light-theme .wa-file-tree-error,
+.agent-page.is-light-theme .agent-file-preview.is-error strong {
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .wa-log-markdown {
+  --blue: #0066cc;
+  --border: rgba(0, 0, 0, 0.1);
+  --code-bg: rgba(245, 245, 247, 0.96);
+  --code-text: #1d1d1f;
+  --text: var(--light-text);
+  --text-2: #3f3f44;
+  --text-3: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .wa-log-markdown,
+.agent-page.is-light-theme .wa-log-markdown .markdown-body,
+.agent-page.is-light-theme .wa-conversation-agent,
+.agent-page.is-light-theme .wa-conversation-agent .markdown-body,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-agent,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-agent .markdown-body {
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-log-markdown :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div),
+.agent-page.is-light-theme .wa-log-markdown .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div),
+.agent-page.is-light-theme .wa-conversation-agent > div:not(.wa-conversation-agent-head),
+.agent-page.is-light-theme .wa-conversation-agent > div:not(.wa-conversation-agent-head) *,
+.agent-page.is-light-theme .wa-conversation-agent .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div),
+.agent-page.is-light-theme .agent-conversation-popover .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div),
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-agent .markdown-body :where(h1, h2, h3, h4, h5, h6, p, li, th, td, blockquote, strong, em, span, div) {
+  color: var(--light-text) !important;
+}
+
+.agent-page.is-light-theme .wa-log-markdown :where(a),
+.agent-page.is-light-theme .agent-conversation-popover .markdown-body :where(a),
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-agent .markdown-body :where(a) {
+  color: #0066cc !important;
+}
+
+.agent-page.is-light-theme .wa-log-markdown :where(table) {
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-log-markdown .markdown-body :where(code, pre),
+.agent-page.is-light-theme .wa-conversation-agent .markdown-body :where(code, pre),
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-agent .markdown-body :where(code, pre),
+.agent-page.is-light-theme .agent-file-preview-body pre,
+.agent-page.is-light-theme .agent-shiki-code pre {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(245, 245, 247, 0.96);
+  color: #24292f;
+}
+
+.agent-page.is-light-theme .wa-conversation-user {
+  border-color: rgba(0, 122, 255, 0.16);
+  background: rgba(0, 122, 255, 0.08);
+  box-shadow: none;
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-conversation-agent,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-agent {
+  border-left-color: rgba(0, 122, 255, 0.35);
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-conversation-agent-icon,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-agent-icon {
+  border-color: rgba(0, 122, 255, 0.16);
+  background: rgba(0, 122, 255, 0.08);
+  box-shadow: none;
+  color: #0066cc;
+}
+
+.agent-page.is-light-theme .wa-conversation-expand,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-expand {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: var(--light-panel);
+  color: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .wa-conversation-expand:hover,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-expand:hover {
+  border-color: rgba(0, 122, 255, 0.22);
+  background: rgba(0, 122, 255, 0.08);
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-conversation-shell code,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-shell code {
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-conversation-shell small.ok,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-shell small.ok {
+  color: #0f7f56;
+}
+
+.agent-page.is-light-theme .wa-conversation-shell small.bad,
+.agent-page.is-light-theme .agent-conversation-popover .wa-conversation-shell small.bad {
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .gnc-d3-chart {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.agent-page.is-light-theme .gnc-grid line {
+  stroke: rgba(0, 0, 0, 0.08);
+}
+
+.agent-page.is-light-theme .gnc-axis line {
+  stroke: rgba(0, 0, 0, 0.28);
+}
+
+.agent-page.is-light-theme .gnc-axis text,
+.agent-page.is-light-theme .gnc-legend text {
+  fill: #3f3f44;
+}
+
+.agent-page.is-light-theme .gnc-legend rect {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: rgba(0, 0, 0, 0.08);
+}
+
+.agent-page.is-light-theme .gnc-dashboard-error,
+.agent-page.is-light-theme .gnc-dashboard-missing,
+.agent-page.is-light-theme .gnc-dashboard-loading {
+  border-color: rgba(179, 88, 6, 0.18);
+  background: rgba(255, 245, 230, 0.9);
+  color: #8a4b08;
+}
+
+.agent-page.is-light-theme .agent-port-card.is-ok {
+  border-color: rgba(15, 127, 86, 0.22);
+  background: rgba(15, 127, 86, 0.08);
+}
+
+.agent-page.is-light-theme .agent-port-card.is-bad {
+  border-color: rgba(217, 75, 61, 0.22);
+  background: rgba(217, 75, 61, 0.08);
+}
+
+.agent-page.is-light-theme .agent-port-card.is-checking {
+  border-color: rgba(179, 88, 6, 0.2);
+  background: rgba(255, 149, 0, 0.1);
+}
+
+.agent-page.is-light-theme .agent-port-row {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .agent-port-popover .agent-port-error {
+  border-color: rgba(217, 75, 61, 0.2);
+  background: rgba(217, 75, 61, 0.07);
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .agent-voice-exchange article,
+.agent-page.is-light-theme .agent-voice-exchange article.is-user,
+.agent-page.is-light-theme .agent-voice-exchange article.is-agent,
+.agent-page.is-light-theme .agent-voice-exchange-body > p {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+.agent-page.is-light-theme .agent-voice-exchange article.is-agent span,
+.agent-page.is-light-theme .agent-voice-exchange article.is-user span {
+  color: #0066cc;
+}
+
+.agent-page.is-light-theme .agent-voice-exchange-body > p.is-error {
+  border-color: rgba(217, 75, 61, 0.2);
+  background: rgba(217, 75, 61, 0.07);
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .agent-voice-exchange article p,
+.agent-page.is-light-theme .agent-voice-exchange-body > p {
+  color: var(--light-text);
+  text-shadow: none;
+}
+
+.agent-page.is-light-theme .agent-workspace-card-stage .wa-info-card,
+.agent-page.is-light-theme .wa-info-card,
+.agent-page.is-light-theme .wa-current-context,
+.agent-page.is-light-theme .wa-context-popover,
+.agent-page.is-light-theme .wa-version-header-actions button,
+.agent-page.is-light-theme .wa-branch-workspace-row,
+.agent-page.is-light-theme .wa-version-row {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: none;
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-version-card-header h3,
+.agent-page.is-light-theme .wa-task-card-header p,
+.agent-page.is-light-theme .wa-info-card p,
+.agent-page.is-light-theme .wa-current-context span,
+.agent-page.is-light-theme .wa-branch-workspace-row small,
+.agent-page.is-light-theme .wa-branch-workspace-row em,
+.agent-page.is-light-theme .wa-version-empty {
+  color: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .wa-current-context strong,
+.agent-page.is-light-theme .wa-branch-workspace-row strong,
+.agent-page.is-light-theme .wa-version-row strong {
+  color: var(--light-text);
 }
