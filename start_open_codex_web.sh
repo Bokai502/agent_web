@@ -45,12 +45,12 @@ FRONTEND_PORT="$(require_config frontend.httpsPort)"
 FRONTEND_PUBLIC_HOST="$(read_config frontend.publicHost)"
 BACKEND_SESSION="${BACKEND_SESSION:-$(read_config tmux.backendSession ocw-backend)}"
 FRONTEND_SESSION="${FRONTEND_SESSION:-$(read_config tmux.frontendSession ocw-frontend)}"
-FREECAD_WORKSPACE_DIR="$(require_config workspace.workspaceDir)"
+FREECAD_WORKSPACE_DIR="$(require_config workspace.templateDir)"
 FREECAD_RPC_HOST="$(require_config workspace.rpcHost)"
 FREECAD_RPC_PORT="$(require_config workspace.rpcPort)"
 
 if [[ -z "${FREECAD_WORKSPACE_DIR}" ]]; then
-  echo "config.json 缺少 workspace.workspaceDir" >&2
+  echo "config.json 缺少 workspace.templateDir" >&2
   exit 1
 fi
 
