@@ -1,6 +1,5 @@
 import fs from "fs"
 import path from "path"
-import os from "os"
 import { fileURLToPath } from "url"
 
 export type LogLevel = "debug" | "info" | "warn" | "error"
@@ -36,7 +35,6 @@ export interface AppConfig {
     approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted"
     sandboxMode: "read-only" | "workspace-write" | "danger-full-access"
     sandboxWorkspaceWriteNetworkAccess: boolean
-    workingDirectory: string
     skipGitRepoCheck: boolean
   }
   server: {
@@ -80,10 +78,11 @@ export interface AppConfig {
   workspace: {
     filesystemGroup: string
     filePreviewMaxBytes: number
+    templateDir: string | null
     textChunkBytes: number
     textChunkMaxBytes: number
     textFileMaxBytes: number
-    workspaceDir: string | null
+    usersRoot: string | null
     rpcHost: string
     rpcPort: number
   }
@@ -304,7 +303,6 @@ export function loadConfig(): AppConfig {
         codex.sandboxWorkspaceWriteNetworkAccess,
         "codex.sandboxWorkspaceWriteNetworkAccess",
       ) ?? false,
-      workingDirectory: codex.workingDirectory || os.homedir(),
       skipGitRepoCheck: codex.skipGitRepoCheck ?? true,
     },
     server: {
@@ -370,7 +368,8 @@ export function loadConfig(): AppConfig {
         "workspace.textFileMaxBytes",
         8 * 1024 * 1024,
       ),
-      workspaceDir: optionalString(workspace.workspaceDir, "workspace.workspaceDir"),
+      templateDir: optionalString(workspace.templateDir, "workspace.templateDir"),
+      usersRoot: optionalString(workspace.usersRoot, "workspace.usersRoot"),
       rpcHost: optionalString(workspace.rpcHost, "workspace.rpcHost")
         ?? die("workspace.rpcHost 未设置。"),
       rpcPort: requiredPositiveInteger(workspace.rpcPort, "workspace.rpcPort"),

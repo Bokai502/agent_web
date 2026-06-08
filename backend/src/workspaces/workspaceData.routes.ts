@@ -48,13 +48,24 @@ type WorkspaceTextChunkQuery = WorkspaceFilesQuery & {
 }
 
 const TEXT_FILE_EXTENSIONS = new Set([
+  ".42",
+  ".c",
+  ".cc",
   ".cfg",
+  ".cpp",
+  ".cxx",
   ".csv",
+  ".h",
+  ".hh",
+  ".hpp",
+  ".hxx",
   ".ini",
   ".json",
   ".log",
   ".md",
+  ".out",
   ".py",
+  ".sh",
   ".txt",
   ".xml",
   ".yaml",
@@ -313,7 +324,7 @@ async function readWorkspaceTextFile(workspaceDir: string, relativePath: unknown
   }
 
   const extension = path.extname(targetPath).toLowerCase()
-  if (!TEXT_FILE_EXTENSIONS.has(extension) && extension !== ".42") {
+  if (!TEXT_FILE_EXTENSIONS.has(extension)) {
     throw new WorkspaceQueryError("unsupported text file type", 400)
   }
 

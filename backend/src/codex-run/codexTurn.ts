@@ -7,6 +7,7 @@ import type { Logger } from "../logger.js"
 import { getString } from "../shared/index.js"
 import { initializeWorkspaceProgressForSession } from "../workspaces/workspaceProgressInit.js"
 import { resolveWorkspaceDir } from "../workspaces/workspaceManager.js"
+import { resolveWorkspaceTemplateRoot } from "../workspaces/workspacePaths.js"
 import { createRun, patchRun, resolveRunWorkspaceContext } from "../manifests/store.js"
 import { isGncRequestContext } from "../server/requestContext.js"
 import { getWorkspaceSkillScopes, readScopedSkillInstructions, readSkillInstructions, type SkillInstruction, type SkillScope } from "../system/skills.js"
@@ -31,6 +32,7 @@ export class RunRequestError extends Error {
 type PreparedRun = {
   config: AppConfig
   enabledSkills: string[]
+  effectiveWorkingDirectory: string
   logger: Logger
   manifestRunId: string | null
   normalizedInput: RunInputItem[]
@@ -189,6 +191,7 @@ export async function prepareCodexTurn(
     turnId: trimmedTurnId,
     versionId: resolvedWorkspaceContext?.versionId ?? requestedVersionId,
   }
+  const effectiveWorkingDirectory = runContext.workspaceDir ?? resolveWorkspaceTemplateRoot(config)
   const promptTextForHistory = getPromptTextForHistory(prompt, sdkInputBase)
   const injectSessionPrefix = await shouldInjectPromptPrefixForSession(trimmedSessionId, runContext.workspaceDir)
   const skillScopes = forcedSkillScopes ?? getWorkspaceSkillScopes(isGncRequestContext())
@@ -273,7 +276,7 @@ export async function prepareCodexTurn(
     wireApi: config.openai.wireApi,
     supportsWebsockets: config.openai.supportsWebsockets,
     modelReasoningEffort: config.codex.modelReasoningEffort,
-    workingDirectory: config.codex.workingDirectory,
+    workingDirectory: effectiveWorkingDirectory,
     workspaceDir: runContext.workspaceDir,
     workspaceName: requestedWorkspaceName,
     approvalPolicy: config.codex.approvalPolicy,
@@ -304,6 +307,7 @@ export async function prepareCodexTurn(
   return {
     config,
     enabledSkills: skillNames,
+    effectiveWorkingDirectory,
     logger,
     manifestRunId,
     normalizedInput: sdkInputBase,
@@ -330,6 +334,7 @@ export async function executeCodexTurn(
   const {
     config,
     enabledSkills,
+    effectiveWorkingDirectory,
     logger,
     manifestRunId,
     normalizedInput,
@@ -389,7 +394,7 @@ export async function executeCodexTurn(
     const threadOptions = {
       ...(config.openai.model ? { model: config.openai.model } : {}),
       ...(bundledCliSrcDirs.length > 0 ? { additionalDirectories: bundledCliSrcDirs } : {}),
-      workingDirectory: config.codex.workingDirectory,
+      workingDirectory: effectiveWorkingDirectory,
       approvalPolicy: config.codex.approvalPolicy,
       skipGitRepoCheck: config.codex.skipGitRepoCheck,
       modelReasoningEffort: config.codex.modelReasoningEffort,

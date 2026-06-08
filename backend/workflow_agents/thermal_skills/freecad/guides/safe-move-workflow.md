@@ -107,7 +107,7 @@ do not update `project root config.json`. Always pass the execution
 context workspace explicitly with `--workspace-dir <workspace_dir>` for
 `config show`, `layout safe-move`, progress updates, and follow-up validation.
 Do not rely on `config.json`, process `cwd`, or CLI defaults during Open Codex
-Web runs. `project root config.json` field `workspace.workspaceDir`,
+Web runs. `project root config.json` field `workspace.templateDir`,
 `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
 non-Web/manual CLI use.
 

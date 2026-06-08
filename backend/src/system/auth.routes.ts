@@ -2,8 +2,9 @@ import type { FastifyInstance } from "fastify"
 import fs from "node:fs/promises"
 import path from "node:path"
 import type { AppConfig } from "../config.js"
-import { buildUserCookie, sanitizeUserId } from "../server/auth.js"
+import { buildUserCookie, resolveUsersRoot, sanitizeUserId } from "../server/auth.js"
 import { getRequestUserId, getRequestWorkspaceRootOverride } from "../server/requestContext.js"
+import { resolveWorkspaceTemplateRoot } from "../workspaces/workspacePaths.js"
 
 type SwitchUserBody = {
   userId?: unknown
@@ -29,8 +30,8 @@ async function pathExists(filePath: string) {
   return fs.access(filePath).then(() => true).catch(() => false)
 }
 
-async function seedUserData(inputDataRoot: string, userId: string, usersDir: string): Promise<UserSeedStatus[]> {
-  const userRoot = path.join(inputDataRoot, usersDir, userId)
+async function seedUserData(inputDataRoot: string, usersRoot: string, userId: string): Promise<UserSeedStatus[]> {
+  const userRoot = path.join(usersRoot, userId)
   await fs.mkdir(userRoot, { recursive: true })
 
   const statuses: UserSeedStatus[] = []
@@ -77,8 +78,8 @@ async function writeJsonObject(filePath: string, value: Record<string, unknown>)
   await fs.rename(tmpPath, filePath)
 }
 
-async function seedUserWorkspaceVersions(inputDataRoot: string, userId: string, usersDir: string): Promise<WorkspaceSeedStatus[]> {
-  const userRoot = path.join(inputDataRoot, usersDir, userId)
+async function seedUserWorkspaceVersions(inputDataRoot: string, usersRoot: string, userId: string): Promise<WorkspaceSeedStatus[]> {
+  const userRoot = path.join(usersRoot, userId)
   const statuses: WorkspaceSeedStatus[] = []
 
   for (const { name, sessionId, workspaceId } of USER_TEMPLATE_DIRS) {
@@ -163,7 +164,8 @@ async function seedUserWorkspaceVersions(inputDataRoot: string, userId: string, 
 }
 
 export async function authRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
-  const inputDataRoot = path.resolve(config.workspace.workspaceDir ?? process.cwd())
+  const inputDataRoot = resolveWorkspaceTemplateRoot(config)
+  const usersRoot = resolveUsersRoot(config)
 
   fastify.get("/api/auth/me", async (_req, reply) => {
     return reply.send({
@@ -180,8 +182,8 @@ export async function authRoutes(fastify: FastifyInstance, { config }: { config:
     }
     const rawUserId = typeof req.body?.userId === "string" ? req.body.userId : null
     const userId = sanitizeUserId(rawUserId, config.auth.devUserId)
-    const seeded = await seedUserData(inputDataRoot, userId, config.auth.usersDir)
-    const workspaces = await seedUserWorkspaceVersions(inputDataRoot, userId, config.auth.usersDir)
+    const seeded = await seedUserData(inputDataRoot, usersRoot, userId)
+    const workspaces = await seedUserWorkspaceVersions(inputDataRoot, usersRoot, userId)
     reply.header("Set-Cookie", buildUserCookie(config, userId))
     return reply.send({ seeded, userId, workspaces })
   })

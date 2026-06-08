@@ -20,7 +20,7 @@ hybrid App::Link backend for normal satellite/full-model assembly, and updates p
   `--workspace-dir <workspace_dir>` for `config show`, `cad build`, progress
   updates, and follow-up validation. Do not rely on `config.json`, process
   `cwd`, or CLI defaults during Open Codex Web runs.
-- `project root config.json` field `workspace.workspaceDir`,
+- `project root config.json` field `workspace.templateDir`,
   `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
   non-Web/manual CLI use.
 - Default inputs are under `<workspace>/00_inputs`.

@@ -52,6 +52,18 @@ function getRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
+function remapVersionWorkspaceDir(value: unknown, rootDir: string, versionId: unknown) {
+  if (typeof value !== "string" || !value.trim()) return undefined
+  const resolvedValue = path.resolve(value)
+  const versionsRoot = path.join(rootDir, "versions")
+  if (isPathInside(versionsRoot, resolvedValue)) return resolvedValue
+
+  const id = typeof versionId === "string" && versionId.trim()
+    ? versionId.trim()
+    : path.basename(resolvedValue)
+  return path.join(versionsRoot, id)
+}
+
 function getWorkspaceId(sessionId: string) {
   const sanitized = sanitizeIdPart(sessionId).slice(0, 96)
   return sanitized.startsWith("ws_") ? sanitized : `ws_${sanitized}`
@@ -165,8 +177,12 @@ function normalizeVersionRecords(versions: unknown, rootDir: string): VersionRec
     if (typeof record.id !== "string" || !record.id.trim()) return false
     if (record.parentVersionId !== null && record.parentVersionId !== undefined && typeof record.parentVersionId !== "string") return false
     if (typeof record.workspaceDir !== "string" || !record.workspaceDir.trim()) return false
-    const resolvedWorkspaceDir = path.resolve(record.workspaceDir)
-    if (!isPathInside(versionsRoot, resolvedWorkspaceDir)) return false
+    const resolvedWorkspaceDir = path.resolve(remapVersionWorkspaceDir(record.workspaceDir, rootDir, record.id) as string)
+    if (!isPathInside(versionsRoot, resolvedWorkspaceDir)) {
+      record.workspaceDir = path.join(versionsRoot, record.id)
+      return true
+    }
+    record.workspaceDir = resolvedWorkspaceDir
     return true
   })
 }
@@ -181,11 +197,16 @@ function normalizeRecordArray<T extends { id: string }>(value: unknown): T[] {
 
 async function readManifestFile(rootDir: string, sessionIdFallback: string) {
   const resolvedRootDir = await assertManifestRootAllowed(rootDir)
-  return await pruneMissingVersionWorkspaces(normalizeManifest(
-    JSON.parse(await fs.readFile(manifestPath(resolvedRootDir), "utf-8")),
+  const rawManifest = JSON.parse(await fs.readFile(manifestPath(resolvedRootDir), "utf-8")) as unknown
+  const manifest = await pruneMissingVersionWorkspaces(normalizeManifest(
+    rawManifest,
     sessionIdFallback,
     resolvedRootDir,
   ))
+  if (JSON.stringify(rawManifest) !== JSON.stringify(manifest)) {
+    await writeManifest(manifest)
+  }
+  return manifest
 }
 
 async function pruneMissingVersionWorkspaces(manifest: WorkspaceManifest) {
@@ -282,6 +303,15 @@ function normalizeManifest(value: unknown, sessionId: string, rootDir: string): 
   const fallback = emptyManifest(sessionId, rootDir)
   if (!value || typeof value !== "object" || Array.isArray(value)) return fallback
   const record = value as Record<string, unknown>
+  const versions = normalizeVersionRecords(record.versions, resolvedRootDir)
+  const versionDirById = new Map(versions.map(version => [version.id, version.workspaceDir]))
+  const runs = normalizeRecordArray<RunRecord>(record.runs).map(run => {
+    const versionWorkspaceDir = typeof run.versionId === "string" ? versionDirById.get(run.versionId) : undefined
+    return {
+      ...run,
+      workspaceDir: versionWorkspaceDir ?? remapVersionWorkspaceDir(run.workspaceDir, resolvedRootDir, run.versionId) ?? run.workspaceDir,
+    }
+  })
   return {
     ...fallback,
     ...record,
@@ -291,11 +321,11 @@ function normalizeManifest(value: unknown, sessionId: string, rootDir: string): 
     sessionId: typeof record.sessionId === "string" && record.sessionId ? record.sessionId : sessionId,
     rootDir: resolvedRootDir,
     activeVersionId: typeof record.activeVersionId === "string" && record.activeVersionId ? record.activeVersionId : null,
-    versions: normalizeVersionRecords(record.versions, resolvedRootDir),
+    versions,
     artifacts: normalizeRecordArray<ArtifactRecord>(record.artifacts),
     checkpoints: normalizeRecordArray<CheckpointRecord>(record.checkpoints),
     createdAt: typeof record.createdAt === "string" ? record.createdAt : fallback.createdAt,
-    runs: normalizeRecordArray<RunRecord>(record.runs),
+    runs,
     scores: normalizeRecordArray<ScoreRecord>(record.scores),
     updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : fallback.updatedAt,
   }

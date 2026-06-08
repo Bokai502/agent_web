@@ -20,7 +20,6 @@
     "approvalPolicy": "never",
     "sandboxMode": "workspace-write",
     "sandboxWorkspaceWriteNetworkAccess": true,
-    "workingDirectory": "/path/to/your/workspace",
     "skipGitRepoCheck": true
   },
   "server": {
@@ -68,9 +67,14 @@
     "dashboard": {
       "telemetryMaxBytes": 8388608,
       "telemetryPaths": {
-        "sc": "02_sim/42_run/runtime_case/InOut/Sc.csv",
-        "mode": "02_sim/42_run/runtime_case/InOut/ModeTrace_SC0.csv",
-        "wheel": "02_sim/42_run/runtime_case/InOut/AcWhl.csv"
+        "time": "02_sim/42_run/runtime_case/InOut/time.42",
+        "wbn": "02_sim/42_run/runtime_case/InOut/wbn.42",
+        "qbn": "02_sim/42_run/runtime_case/InOut/qbn.42",
+        "posn": "02_sim/42_run/runtime_case/InOut/PosN.42",
+        "veln": "02_sim/42_run/runtime_case/InOut/VelN.42",
+        "hwhl": "02_sim/42_run/runtime_case/InOut/Hwhl.42",
+        "mtb": "02_sim/42_run/runtime_case/InOut/MTB.42",
+        "modeSummary": "AIGNC_Workflow/08_run/run_summary.json"
       }
     }
   },
@@ -105,14 +109,15 @@
     "alsoStdout": true
   },
   "workspace": {
-    "workspaceDir": "/path/to/your/workspace/version",
+    "templateDir": "/path/to/open_codex_web/data/input_data",
+    "usersRoot": "/path/to/codex_web/data/users",
     "filesystemGroup": "users",
     "rpcHost": "localhost",
     "rpcPort": 9877,
     "componentInfoMaxStepSizeMb": 5,
-    "filePreviewMaxBytes": 1048576,
-    "textFileMaxBytes": 8388608,
-    "textChunkBytes": 524288,
-    "textChunkMaxBytes": 1048576
+    "filePreviewMaxBytes": 5242880,
+    "textFileMaxBytes": 67108864,
+    "textChunkBytes": 1048576,
+    "textChunkMaxBytes": 2097152
   }
 }

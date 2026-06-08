@@ -8,7 +8,7 @@ import type { Logger } from "../logger.js"
 
 const BACKEND_ROOT = path.resolve(process.cwd())
 const DEFAULT_COSYVOICE_ROOT = path.join(BACKEND_ROOT, "cosyvoice3", "CosyVoice")
-const PREGENERATED_TASK_ACCEPTED_AUDIO = path.join(BACKEND_ROOT, "..", "docs", "agent-task-accepted.wav")
+const PREGENERATED_TASK_ACCEPTED_AUDIO = path.join(BACKEND_ROOT, "..", "data", "agent-task-accepted.wav")
 const DEFAULT_COSYVOICE_URL = "http://127.0.0.1:50000/inference_zero_shot"
 const DEFAULT_PROMPT_TEXT = "You are a helpful assistant.<|endofprompt|>希望你以后能够做的比我还好呦。"
 const defaultPromptWav = (root: string) => path.join(root, "asset", "zero_shot_prompt.wav")

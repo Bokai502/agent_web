@@ -59,7 +59,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showGncCo
   if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '组件清单'
   if (activeView === 'model') return '结果预览'
   if (activeView === 'tools') return showGncConfig ? 'GNC 工具' : '仿真工具'
-  if (activeView === 'log') return '运行结果'
+  if (activeView === 'log') return '工作区文件'
   return '语音对话'
 }
 
@@ -105,7 +105,7 @@ export function AgentWorkspacePanel({
     activeView ? `is-${activeView}-view` : '',
   ].filter(Boolean).join(' ')
   const toolTabs: AgentToolView[] = showGncConfig
-    ? ['gnc', 'gnc-dashboard']
+    ? ['gnc-dashboard', 'gnc']
     : ['cad', 'paraview', 'comsol']
   const toolLabel = (tool: AgentToolView) => {
     if (tool === 'cad') return 'CAD'

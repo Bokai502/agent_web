@@ -69,7 +69,7 @@ open_codex_web/
 │   │   └── app/                     # API base、session、workspace 配置工具
 │   ├── gnc_config/                  # GNC 配置编辑器组件与样式
 │   └── vite.config.ts
-├── docs/                            # 提示音、示例输入数据等
+├── data/                            # 提示音、示例输入数据等
 ├── start_remote_gui_tools.sh        # GUI 工具启动/状态/重启脚本
 └── package-lock.json
 ```
@@ -110,13 +110,13 @@ open_codex_web/
 | `tools.gnc.url` | 外部 GNC 页面 URL |
 | `gnc.dashboard.telemetryPaths` | GNC 看板 CSV 遥测路径 |
 | `gnc.dashboard.telemetryMaxBytes` | GNC 看板单文件读取上限 |
-| `workspace.workspaceDir` | 工程工作区根目录；Web 会在该目录下按用户创建版本化工作区副本 |
+| `workspace.templateDir` | 示例输入/工作区模板根目录，例如 `open_codex_web/data/input_data` |
 | `workspace.filesystemGroup` | 新建 workspace/version 目录和 manifest 文件的 Linux 文件系统 group，应配置为后端运行用户所属的组，可用 `WORKSPACE_FILESYSTEM_GROUP` 覆盖 |
-| `auth.usersDir` | 用户工作区目录名，默认 `users`；用户根目录类似 `<workspace.workspaceDir>/<auth.usersDir>/<userId>` |
+| `workspace.usersRoot` | 用户工作区根目录，例如 `/data/lbk/codex_web/data/users`；旧字段 `auth.usersDir` 仍作为兼容 fallback |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD MCP RPC 连接配置 |
-| `workspace.filePreviewMaxBytes` | 普通文件预览大小上限 |
-| `workspace.textFileMaxBytes` | 文本文件整读上限 |
-| `workspace.textChunkBytes` / `workspace.textChunkMaxBytes` | 超大文本/JSON 分块读取默认块大小和单块上限 |
+| `workspace.filePreviewMaxBytes` | 普通文件预览大小上限，可用 `WORKSPACE_FILE_PREVIEW_MAX_BYTES` 覆盖 |
+| `workspace.textFileMaxBytes` | 文本文件整读上限，可用 `WORKSPACE_TEXT_FILE_MAX_BYTES` 覆盖 |
+| `workspace.textChunkBytes` / `workspace.textChunkMaxBytes` | 超大文本/JSON 分块读取默认块大小和单块上限，可用 `WORKSPACE_TEXT_CHUNK_BYTES` / `WORKSPACE_TEXT_CHUNK_MAX_BYTES` 覆盖 |
 | `whisper.modelPath` / `whisper.ffmpegBin` | whisper.cpp 模型和 ffmpeg 配置 |
 | `whisper.bin` / `whisper.cudaVisibleDevices` / `whisper.defaultLanguage` | whisper.cpp 可执行文件、GPU 和默认语言 |
 | `cosyvoice.apiUrl` / `cosyvoice.promptWav` / `cosyvoice.promptText` | CosyVoice 服务与零样本提示配置 |
@@ -307,8 +307,8 @@ GNC 配置编辑器位于：
 
 所有 API 注册在 `backend/src/server/routes.ts`。后端还支持路径重写：
 
-- `/api/gnc/*` 会重写到 `/api/*`，工作区根目录来自 `config.json` 的 `workspace.workspaceDir`。
-- `/api/region/*` 会重写到 `/api/*`，工作区根目录同样来自 `workspace.workspaceDir`。
+- `/api/gnc/*` 会重写到 `/api/*`，工作区模板根目录来自 `config.json` 的 `workspace.templateDir`，用户工作区根目录来自 `workspace.usersRoot`。
+- `/api/region/*` 会重写到 `/api/*`，路径规则同上。
 
 ### Codex 运行
 
@@ -369,7 +369,7 @@ GNC 配置编辑器位于：
 
 ```bash
 BACKEND_PORT="$(node -p "require('./config.json').server.port")"
-WORKSPACE_DIR="$(node -p "require('./config.json').workspace.workspaceDir")/users/default/workspaces/ws_gnc/versions/v0001"
+WORKSPACE_DIR="$(node -p "require('./config.json').workspace.usersRoot")/default/workspaces/ws_gnc/versions/v0001"
 curl "http://localhost:${BACKEND_PORT}/api/workspace/files/text?workspaceDir=${WORKSPACE_DIR}&relativePath=02_sim/42_run/runtime_case/InOut/Sc.csv"
 ```
 
