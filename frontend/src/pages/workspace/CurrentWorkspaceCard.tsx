@@ -69,10 +69,15 @@ export function CurrentWorkspaceCard({
     )
   }, [branchManifest?.activeVersionId, onCheckoutVersion, versionAction])
 
+  const activeVersionId = branchManifest?.activeVersionId ?? "-"
+
   return (
-    <section className="wa-info-card">
-      <div className="wa-version-card-header">
-        <h3>当前工作区</h3>
+    <section className="wa-info-card wa-task-card">
+      <div className="wa-version-card-header wa-task-card-header">
+        <div>
+          <h3>当前任务</h3>
+          <p>{currentWorkspaceName} · {activeVersionId}</p>
+        </div>
       </div>
       {manifestLoading && <p>正在加载版本状态...</p>}
       <div className="wa-current-context">
@@ -81,9 +86,9 @@ export function CurrentWorkspaceCard({
           disabled={workspaceChanging}
           onClick={onToggleWorkspaceList}
           aria-expanded={workspaceListOpen}
-          aria-label={workspaceListOpen ? "收起数据源" : "选择数据源"}
+          aria-label={workspaceListOpen ? "收起任务" : "选择任务"}
         >
-          <span>数据源</span>
+          <span>任务</span>
           <strong>{currentWorkspaceName}</strong>
           <em>{workspaceListOpen ? "⌃" : "⌄"}</em>
         </button>
@@ -93,15 +98,15 @@ export function CurrentWorkspaceCard({
           aria-expanded={versionListOpen}
           aria-label={versionListOpen ? "收起版本" : "选择版本"}
         >
-          <span>版本</span>
-          <strong>{branchManifest?.activeVersionId ?? "-"}</strong>
+          <span>当前版本</span>
+          <strong>{activeVersionId}</strong>
           <em>{versionListOpen ? "⌃" : "⌄"}</em>
         </button>
       </div>
       {workspaceListOpen && (
-        <div className="wa-context-popover">
+        <div className="wa-context-popover wa-task-picker">
           <div className="wa-context-popover-header">
-            <span>选择数据源</span>
+            <span>选择任务</span>
             <strong>{workspaceItems.length}</strong>
           </div>
           {workspaceItems.length > 0 ? workspaceItems.map(item => (
@@ -122,32 +127,32 @@ export function CurrentWorkspaceCard({
               <em>{item.name === currentWorkspaceName ? "当前" : "切换"}</em>
             </button>
           )) : (
-            <span className="wa-version-empty">暂无工作区</span>
+            <span className="wa-version-empty">暂无任务</span>
           )}
         </div>
       )}
       {versionError && <p className="wa-version-error">{versionError}</p>}
       {versionListOpen && (
-        <div className="wa-context-popover">
+        <div className="wa-context-popover wa-version-picker">
           <div className="wa-context-popover-header">
             <span>选择版本</span>
-            <strong>{branchManifest?.versions?.length ?? 0}</strong>
-          </div>
-          <div className="wa-version-create-actions">
-            <button
-              type="button"
-              disabled={!branchManifest?.activeVersionId || versionAction !== null}
-              onClick={() => onCreateChildBranch(branchManifest?.activeVersionId ?? undefined)}
-            >
-              {versionAction === "branch" ? "创建中..." : "新建子版本"}
-            </button>
-            <button
-              type="button"
-              disabled={!activeManifestVersion?.parentVersionId || versionAction !== null}
-              onClick={onCreateSiblingBranch}
-            >
-              {activeManifestVersion?.parentVersionId ? "新建同级版本" : "无父版本"}
-            </button>
+            <div className="wa-version-header-actions">
+              <strong>{branchManifest?.versions?.length ?? 0}</strong>
+              <button
+                type="button"
+                disabled={!branchManifest?.activeVersionId || versionAction !== null}
+                onClick={() => onCreateChildBranch(branchManifest?.activeVersionId ?? undefined)}
+              >
+                {versionAction === "branch" ? "创建中..." : "基于当前新建"}
+              </button>
+              <button
+                type="button"
+                disabled={!activeManifestVersion?.parentVersionId || versionAction !== null}
+                onClick={onCreateSiblingBranch}
+              >
+                {activeManifestVersion?.parentVersionId ? "新建并列版本" : "无父版本"}
+              </button>
+            </div>
           </div>
           <div className="wa-version-tree">
             {versionTreeRoots.map(root => renderVersionNode(root))}

@@ -3,11 +3,11 @@ import type { AgentWorkspaceView } from './types'
 export const TARGET_SAMPLE_RATE = 16000
 export const DEFAULT_LANGUAGE = 'zh-en'
 export const NAV_ITEMS = [
-  { label: '工作区', href: '#workspace', meta: 'Source' },
-  { label: 'BOM', href: '#bom', meta: 'Parts' },
-  { label: '模型', href: '#model', meta: 'Viewer' },
-  { label: '工具', href: '#tools', meta: 'Remote' },
-  { label: '文件', href: '#log', meta: 'Files' },
+  { label: '当前任务', href: '#workspace', meta: 'Workspace' },
+  { label: '组件清单', href: '#bom', meta: 'Components' },
+  { label: '结构预览', href: '#model', meta: 'Preview' },
+  { label: '仿真工具', href: '#tools', meta: 'Tools' },
+  { label: '运行结果', href: '#log', meta: 'Outputs' },
 ]
 export const NAV_VIEWS: AgentWorkspaceView[] = ['workspace', 'bom', 'model', 'tools', 'log']
 export const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = '01_cad/geometry_after.glb'
