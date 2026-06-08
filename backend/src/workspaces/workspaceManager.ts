@@ -2,6 +2,9 @@ import fs from "fs/promises"
 import path from "path"
 import { fileURLToPath } from "url"
 import { getRequestWorkspaceRootOverride } from "../server/requestContext.js"
+import { isPathInside } from "../shared/index.js"
+import { loadConfig } from "../config.js"
+import { resolveUserWorkspaceRoot, resolveWorkspaceTemplateRoot } from "./workspacePaths.js"
 
 const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
 const BACKEND_ROOT = path.basename(BACKEND_SRC_DIR) === "workspaces"
@@ -9,7 +12,6 @@ const BACKEND_ROOT = path.basename(BACKEND_SRC_DIR) === "workspaces"
   : path.resolve(BACKEND_SRC_DIR, "..")
 const APP_ROOT = path.resolve(BACKEND_ROOT, "..")
 const APP_CONFIG_JSON = path.join(APP_ROOT, "config.json")
-const DEFAULT_WORKSPACE_ROOT = path.join(APP_ROOT, "..", "data")
 const WORKSPACES_DIR = "workspaces"
 const CURRENT_WORKSPACE_FILE = ".current-workspace.json"
 const LEGACY_CAD_CONFIG_KEY = ["free", "cad"].join("")
@@ -54,10 +56,19 @@ function getConfiguredWorkspaceDir(config: RootConfig) {
   return isNonEmptyString(configured) ? path.resolve(configured) : null
 }
 
-function getWorkspaceRootFromConfigured(configuredWorkspaceDir: string | null) {
+function getDefaultUserWorkspaceRoot() {
+  const config = loadConfig()
+  return resolveUserWorkspaceRoot(config, config.auth.devUserId)
+}
+
+function getTemplateRootFromConfig() {
+  return resolveWorkspaceTemplateRoot(loadConfig())
+}
+
+function getWorkspaceRootFromConfigured(_configuredWorkspaceDir: string | null) {
   const workspaceRootOverride = getRequestWorkspaceRootOverride()
   if (workspaceRootOverride) return path.resolve(workspaceRootOverride)
-  return configuredWorkspaceDir ?? DEFAULT_WORKSPACE_ROOT
+  return getDefaultUserWorkspaceRoot()
 }
 
 function getWorkspaceConfig(config: RootConfig) {
@@ -131,18 +142,29 @@ async function inspectWorkspace(root: string, name: string): Promise<WorkspaceIt
 
 async function readWorkspaceManifestSummary(manifestPath: string) {
   const raw = await fs.readFile(manifestPath, "utf-8")
+  const manifestRoot = path.dirname(manifestPath)
   const parsed = JSON.parse(raw) as {
     activeVersionId?: unknown
     rootDir?: unknown
     versions?: unknown
   }
   const versions = Array.isArray(parsed.versions) ? parsed.versions as Array<{ id?: unknown; workspaceDir?: unknown }> : []
-  const activeVersionDir = typeof parsed.activeVersionId === "string"
+  let activeVersionDir = typeof parsed.activeVersionId === "string"
     ? versions.find(version => version.id === parsed.activeVersionId && typeof version.workspaceDir === "string")?.workspaceDir as string | undefined
     : undefined
+  if (
+    typeof parsed.activeVersionId === "string" &&
+    (
+      !activeVersionDir ||
+      !isPathInside(path.join(manifestRoot, "versions"), path.resolve(activeVersionDir)) ||
+      !await pathExists(activeVersionDir)
+    )
+  ) {
+    activeVersionDir = path.join(manifestRoot, "versions", parsed.activeVersionId)
+  }
   return {
     activeVersionDir: activeVersionDir && await pathExists(activeVersionDir) ? activeVersionDir : undefined,
-    rootDir: typeof parsed.rootDir === "string" ? parsed.rootDir : path.dirname(manifestPath),
+    rootDir: manifestRoot,
   }
 }
 
@@ -208,7 +230,7 @@ export async function getConfiguredWorkspaceDirFromConfig() {
 export async function resolveWorkspaceDir() {
   const workspaceRootOverride = getRequestWorkspaceRootOverride()
   if (workspaceRootOverride) return path.resolve(workspaceRootOverride)
-  return await getConfiguredWorkspaceDirFromConfig() ?? DEFAULT_WORKSPACE_ROOT
+  return getTemplateRootFromConfig()
 }
 
 export async function listWorkspaces() {

@@ -16,7 +16,7 @@ def add_workspace_arg(parser: argparse.ArgumentParser) -> None:
         dest="workspace",
         help=(
             "Workspace root for this command. Overrides FREECAD_WORKSPACE_DIR and "
-            "config.json workspace.workspaceDir."
+            "config.json workspace.templateDir."
         ),
     )
 

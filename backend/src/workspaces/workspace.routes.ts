@@ -6,6 +6,7 @@ import {
 } from "./workspaceManager.js"
 import { registerModelRoutes } from "./model.routes.js"
 import { registerWorkspaceDataRoutes } from "./workspaceData.routes.js"
+import { registerWorkspaceUploadRoutes } from "./workspaceUpload.routes.js"
 
 export async function workspaceRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
   fastify.get("/api/workspace/workspaces", async (_req, reply) => {
@@ -28,5 +29,6 @@ export async function workspaceRoutes(fastify: FastifyInstance, { config }: { co
   })
 
   registerWorkspaceDataRoutes(fastify, { config })
+  await registerWorkspaceUploadRoutes(fastify)
   registerModelRoutes(fastify)
 }

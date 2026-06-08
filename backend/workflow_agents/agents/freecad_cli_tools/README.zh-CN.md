@@ -47,7 +47,7 @@ python -m freecad_cli_tools.cli.main layout safe-move --component P002 --install
 
 完成 editable 或 wheel 安装后，`freecad-tools` 可作为相同命令的短 console-script 别名。
 
-工作区相关命令默认从项目根目录 `config.json` 的 `workspace.workspaceDir`
+工作区相关命令默认从项目根目录 `config.json` 的 `workspace.templateDir`
 字段解析相对路径。传入 `--workspace` / `--workspace-dir` 时，会覆盖该命令的默认工作区。
 
 `python -m freecad_cli_tools.cli.main assembly create-from-component-info` 会读取

@@ -34,9 +34,9 @@ Common fields:
 | `frontend.port` | Required frontend HTTP development port. |
 | `frontend.httpsPort` | Required frontend HTTPS development port. The startup script uses this by default. |
 | `frontend.strictPort` | Whether Vite must use the configured port. Keeping this `true` avoids port drift. |
-| `workspace.workspaceDir` | Workspace data root. The web app creates per-user versioned workspace copies under this directory. The startup script requires this field to be non-empty. |
+| `workspace.templateDir` | Template/input data root, for example `open_codex_web/data/input_data`. Legacy `workspace.workspaceDir` is still supported as a fallback. |
 | `workspace.filesystemGroup` | Filesystem group applied to workspace files where possible. Use a group that the backend user belongs to. |
-| `auth.usersDir` | Per-user workspace directory name, defaulting to `users`; user roots look like `<workspace.workspaceDir>/<auth.usersDir>/<userId>`. |
+| `workspace.usersRoot` | Per-user workspace root, for example `/data/lbk/codex_web/data/users`. Legacy `auth.usersDir` is still supported as a fallback. |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD remote RPC settings. |
 | `tools.remoteDesktopLauncher` | Shared launcher used by `/api/remote-tools/ensure-desktops` for FreeCAD and ParaView. |
 | `tools.cad/paraview/comsol.displayNum` | X display used by each remote GUI tool, such as `:1`, `:2`, or `:32`. |

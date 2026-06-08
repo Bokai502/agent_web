@@ -80,9 +80,11 @@ export interface AppConfig {
   workspace: {
     filesystemGroup: string
     filePreviewMaxBytes: number
+    templateDir: string | null
     textChunkBytes: number
     textChunkMaxBytes: number
     textFileMaxBytes: number
+    usersRoot: string | null
     workspaceDir: string | null
     rpcHost: string
     rpcPort: number
@@ -370,7 +372,9 @@ export function loadConfig(): AppConfig {
         "workspace.textFileMaxBytes",
         8 * 1024 * 1024,
       ),
-      workspaceDir: optionalString(workspace.workspaceDir, "workspace.workspaceDir"),
+      templateDir: optionalString(workspace.templateDir ?? workspace.workspaceDir, "workspace.templateDir"),
+      usersRoot: optionalString(workspace.usersRoot, "workspace.usersRoot"),
+      workspaceDir: optionalString(workspace.templateDir ?? workspace.workspaceDir, "workspace.workspaceDir"),
       rpcHost: optionalString(workspace.rpcHost, "workspace.rpcHost")
         ?? die("workspace.rpcHost 未设置。"),
       rpcPort: requiredPositiveInteger(workspace.rpcPort, "workspace.rpcPort"),

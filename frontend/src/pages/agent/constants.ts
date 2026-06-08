@@ -7,7 +7,7 @@ export const NAV_ITEMS = [
   { label: '组件清单', href: '#bom', meta: 'Components' },
   { label: '结果预览', href: '#model', meta: 'Preview' },
   { label: '仿真工具', href: '#tools', meta: 'Tools' },
-  { label: '运行结果', href: '#log', meta: 'Outputs' },
+  { label: '工作区文件', href: '#log', meta: 'Files' },
 ]
 export const NAV_VIEWS: AgentWorkspaceView[] = ['workspace', 'bom', 'model', 'tools', 'log']
 export const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = '02_geometry_edit/geometry_after.glb'

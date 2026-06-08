@@ -34,9 +34,9 @@ cp config.example.json config.json
 | `frontend.port` | 前端 HTTP 开发端口，必填。 |
 | `frontend.httpsPort` | 前端 HTTPS 开发端口，必填；启动脚本默认启动 HTTPS 端口。 |
 | `frontend.strictPort` | 是否要求 Vite 只使用配置端口，建议保持 `true`，避免端口漂移。 |
-| `workspace.workspaceDir` | 工程工作区根目录。Web 会在该目录下按 `auth.usersDir` 和用户 ID 创建版本化工作区副本。启动脚本要求该字段非空。 |
+| `workspace.templateDir` | 示例输入/工作区模板根目录，例如 `open_codex_web/data/input_data`；旧字段 `workspace.workspaceDir` 仍作为兼容 fallback。 |
 | `workspace.filesystemGroup` | 创建/写入工作区文件时尝试设置的文件系统组；应配置为运行后端用户所属的组。 |
-| `auth.usersDir` | 用户工作区目录名，默认 `users`；最终用户工作区类似 `<workspace.workspaceDir>/<auth.usersDir>/<userId>`。 |
+| `workspace.usersRoot` | 用户工作区根目录，例如 `/data/lbk/codex_web/data/users`；旧字段 `auth.usersDir` 仍作为兼容 fallback。 |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD 远程 RPC 配置。 |
 | `tools.remoteDesktopLauncher` | 后端 `/api/remote-tools/ensure-desktops` 启动 FreeCAD/ParaView 远程桌面的统一 launcher。 |
 | `tools.cad/paraview/comsol.displayNum` | 远程 GUI 工具使用的 X display，例如 `:1`、`:2`、`:32`。 |

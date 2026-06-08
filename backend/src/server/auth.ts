@@ -1,6 +1,7 @@
 import path from "node:path"
 import type { FastifyRequest } from "fastify"
 import type { AppConfig } from "../config.js"
+import { resolveUserWorkspaceRoot, resolveUsersRootFromConfig } from "../workspaces/workspacePaths.js"
 
 const MAX_USER_ID_LENGTH = 96
 
@@ -37,10 +38,14 @@ export function sanitizeUserId(value: string | null | undefined, fallback: strin
   return sanitized || fallback
 }
 
+export function resolveUsersRoot(config: Pick<AppConfig, "auth" | "workspace">) {
+  return resolveUsersRootFromConfig(config)
+}
+
 export function resolveRequestUser(
   request: FastifyRequest,
   config: AppConfig,
-  baseWorkspaceRoot: string,
+  _baseWorkspaceRoot: string,
 ) {
   const fallbackUserId = sanitizeUserId(config.auth.devUserId, "default")
   const headerUserId = getHeaderValue(request, config.auth.headerName)
@@ -53,7 +58,7 @@ export function resolveRequestUser(
   return {
     authenticated: !!(headerUserId ?? cookieUserId),
     userId,
-    workspaceRoot: path.join(baseWorkspaceRoot, config.auth.usersDir, userId),
+    workspaceRoot: resolveUserWorkspaceRoot(config, userId),
   }
 }
 

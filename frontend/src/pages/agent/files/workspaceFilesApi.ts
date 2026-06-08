@@ -49,6 +49,7 @@ type WorkspaceFileQueryOptions = {
   maxBytes?: number
   offset?: number
   relativePath?: string
+  targetDir?: string
 }
 
 export function buildWorkspaceFilesQuery(context: WorkspaceContextQuery, options: WorkspaceFileQueryOptions = {}) {
@@ -57,6 +58,7 @@ export function buildWorkspaceFilesQuery(context: WorkspaceContextQuery, options
   if (context.workspaceId) params.set('workspaceId', context.workspaceId)
   if (context.versionId) params.set('versionId', context.versionId)
   if (options.relativePath) params.set('relativePath', options.relativePath)
+  if (options.targetDir) params.set('targetDir', options.targetDir)
   if (options.maxBytes) params.set('maxBytes', String(options.maxBytes))
   if (options.offset !== undefined) params.set('offset', String(options.offset))
   if (options.length !== undefined) params.set('length', String(options.length))
