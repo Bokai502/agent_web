@@ -166,6 +166,7 @@ export default function AgentPage() {
   const viewerHref = useMemo(() => {
     const params = new URLSearchParams()
     params.set('glbPath', WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
+    params.set('theme', agentTheme)
     if (activeContext.workspaceKey) params.set('workspaceKey', activeContext.workspaceKey)
     if (activeContext.workspaceId) params.set('workspaceId', activeContext.workspaceId)
     if (activeContext.versionId) params.set('versionId', activeContext.versionId)
@@ -176,7 +177,7 @@ export default function AgentPage() {
     }
     if (workspaceRefreshNonce > 0) params.set('workspaceVersion', String(workspaceRefreshNonce))
     return `/viewer?${params.toString()}`
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, lockViewerToDerating, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, agentTheme, lockViewerToDerating, workspaceRefreshNonce])
   const showGncConfig = progressVariant === "gnc"
   const navItems = useMemo(() => {
     if (progressVariant === 'check') {

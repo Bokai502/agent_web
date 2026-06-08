@@ -57,7 +57,7 @@ type AgentWorkspacePanelProps = {
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showGncConfig: boolean) {
   if (activeView === 'workspace') return '当前任务'
   if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '组件清单'
-  if (activeView === 'model') return '结构预览'
+  if (activeView === 'model') return '结果预览'
   if (activeView === 'tools') return showGncConfig ? 'GNC 工具' : '仿真工具'
   if (activeView === 'log') return '运行结果'
   return '语音对话'
@@ -202,9 +202,9 @@ export function AgentWorkspacePanel({
           />
         ) : activeView === 'model' ? (
           activeContext.versionDir ? (
-            <iframe className="agent-embed-frame" title="结构预览" src={viewerHref} />
+            <iframe className="agent-embed-frame" title="结果预览" src={viewerHref} />
           ) : (
-            <div className="agent-empty-state">等待当前任务生成结构预览</div>
+            <div className="agent-empty-state">等待当前任务生成结果预览</div>
           )
         ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
           <GncDashboardPanel activeContext={activeContext} />

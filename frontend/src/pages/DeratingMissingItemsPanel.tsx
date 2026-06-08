@@ -11,7 +11,10 @@ type DeratingPayload = {
   summary?: Record<string, unknown>
 }
 
+type DeratingThemeVars = CSSProperties & Record<`--derating-${string}`, string>
+
 type DeratingMissingItemsPanelProps = {
+  theme?: "dark" | "light"
   versionId: string
   workspaceDir: string
   workspaceId: string
@@ -235,6 +238,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
   const [savingResults, setSavingResults] = useState(false)
   const [finalGenerated, setFinalGenerated] = useState(false)
   const query = useMemo(() => buildWorkspaceQuery(props), [props.versionId, props.workspaceDir, props.workspaceId])
+  const themeVars = props.theme === "light" ? lightThemeVars : darkThemeVars
 
   const loadAll = useCallback(() => {
     setStatus("加载中...")
@@ -345,7 +349,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
   }
 
   return (
-    <div style={pageStyle}>
+    <div style={{ ...pageStyle, ...themeVars }}>
       <div style={topbarStyle}>
         <strong>降额检查</strong>
         <span style={statusTextStyle}>{status}</span>
@@ -534,9 +538,9 @@ function stickyRightStyle(key: string, offsets: Map<string, number>, header: boo
   if (right === undefined) return {}
 
   return {
-    background: header ? "rgba(10, 35, 56, 0.98)" : "rgba(3, 13, 24, 0.96)",
+    background: header ? HUD_TABLE_HEADER : HUD_TABLE_CELL,
     boxShadow: right === 0
-      ? "-12px 0 22px rgba(0, 0, 0, 0.28)"
+      ? `-12px 0 22px ${HUD_STICKY_SHADOW}`
       : `-1px 0 0 ${HUD_LINE}`,
     position: "sticky",
     right,
@@ -621,17 +625,93 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url)
 }
 
-const HUD_BG = "#06111d"
-const HUD_PANEL = "rgba(4, 18, 32, 0.82)"
-const HUD_PANEL_SOFT = "rgba(7, 24, 40, 0.74)"
-const HUD_LINE = "rgba(23, 231, 255, 0.18)"
-const HUD_LINE_SOFT = "rgba(23, 231, 255, 0.1)"
-const HUD_TEXT = "#eaf7ff"
-const HUD_MUTED = "rgba(234, 247, 255, 0.62)"
-const HUD_DIM = "rgba(234, 247, 255, 0.42)"
-const HUD_CYAN = "#17e7ff"
-const HUD_GREEN = "#38f8b7"
-const HUD_RED = "#ff7b8c"
+const HUD_BG = "var(--derating-bg)"
+const HUD_PAGE_TOP = "var(--derating-page-top)"
+const HUD_PANEL = "var(--derating-panel)"
+const HUD_PANEL_SOFT = "var(--derating-panel-soft)"
+const HUD_LINE = "var(--derating-line)"
+const HUD_LINE_SOFT = "var(--derating-line-soft)"
+const HUD_TEXT = "var(--derating-text)"
+const HUD_MUTED = "var(--derating-muted)"
+const HUD_DIM = "var(--derating-dim)"
+const HUD_CYAN = "var(--derating-cyan)"
+const HUD_GREEN = "var(--derating-green)"
+const HUD_RED = "var(--derating-red)"
+const HUD_CONTROL_BG = "var(--derating-control-bg)"
+const HUD_PRIMARY_BG = "var(--derating-primary-bg)"
+const HUD_PRIMARY_BORDER = "var(--derating-primary-border)"
+const HUD_PRIMARY_TEXT = "var(--derating-primary-text)"
+const HUD_PRIMARY_SHADOW = "var(--derating-primary-shadow)"
+const HUD_SECTION_SHADOW = "var(--derating-section-shadow)"
+const HUD_TABLE_BG = "var(--derating-table-bg)"
+const HUD_TABLE_HEADER = "var(--derating-table-header)"
+const HUD_TABLE_CELL = "var(--derating-table-cell)"
+const HUD_TABLE_HEADER_TEXT = "var(--derating-table-header-text)"
+const HUD_INPUT_BG = "var(--derating-input-bg)"
+const HUD_LABEL_BG = "var(--derating-label-bg)"
+const HUD_STICKY_SHADOW = "var(--derating-sticky-shadow)"
+const HUD_SCROLLBAR = "var(--derating-scrollbar)"
+const HUD_OPTION_BG = "var(--derating-option-bg)"
+
+const darkThemeVars = {
+  "--derating-bg": "#06111d",
+  "--derating-control-bg": "rgba(2, 8, 16, 0.72)",
+  "--derating-cyan": "#17e7ff",
+  "--derating-dim": "rgba(234, 247, 255, 0.42)",
+  "--derating-green": "#38f8b7",
+  "--derating-input-bg": "rgba(2, 8, 16, 0.16)",
+  "--derating-label-bg": "transparent",
+  "--derating-line": "rgba(23, 231, 255, 0.18)",
+  "--derating-line-soft": "rgba(23, 231, 255, 0.1)",
+  "--derating-muted": "rgba(234, 247, 255, 0.62)",
+  "--derating-option-bg": "#06111d",
+  "--derating-page-top": "rgba(2, 8, 16, 0.96)",
+  "--derating-panel": "rgba(4, 18, 32, 0.82)",
+  "--derating-panel-soft": "rgba(7, 24, 40, 0.74)",
+  "--derating-primary-bg": "linear-gradient(90deg, rgba(0, 168, 255, 0.48), rgba(23, 231, 255, 0.22))",
+  "--derating-primary-border": "rgba(23, 231, 255, 0.62)",
+  "--derating-primary-shadow": "0 0 18px rgba(0, 168, 255, 0.16)",
+  "--derating-primary-text": "#f4fbff",
+  "--derating-red": "#ff7b8c",
+  "--derating-scrollbar": "rgba(23, 231, 255, 0.42)",
+  "--derating-section-shadow": "inset 0 0 22px rgba(0, 168, 255, 0.06)",
+  "--derating-sticky-shadow": "rgba(0, 0, 0, 0.28)",
+  "--derating-table-bg": "rgba(2, 8, 16, 0.64)",
+  "--derating-table-cell": "rgba(3, 13, 24, 0.96)",
+  "--derating-table-header": "rgba(10, 35, 56, 0.98)",
+  "--derating-table-header-text": "rgba(234, 247, 255, 0.72)",
+  "--derating-text": "#eaf7ff",
+} satisfies DeratingThemeVars
+
+const lightThemeVars = {
+  "--derating-bg": "#f6f8fb",
+  "--derating-control-bg": "#ffffff",
+  "--derating-cyan": "#0066cc",
+  "--derating-dim": "#7b8794",
+  "--derating-green": "#0f7f56",
+  "--derating-input-bg": "rgba(255, 255, 255, 0.86)",
+  "--derating-label-bg": "#f3f7fb",
+  "--derating-line": "rgba(35, 82, 124, 0.16)",
+  "--derating-line-soft": "rgba(35, 82, 124, 0.1)",
+  "--derating-muted": "#596574",
+  "--derating-option-bg": "#ffffff",
+  "--derating-page-top": "#fbfcfe",
+  "--derating-panel": "rgba(255, 255, 255, 0.92)",
+  "--derating-panel-soft": "rgba(248, 251, 255, 0.92)",
+  "--derating-primary-bg": "#0066cc",
+  "--derating-primary-border": "#0066cc",
+  "--derating-primary-shadow": "0 8px 18px rgba(0, 102, 204, 0.18)",
+  "--derating-primary-text": "#ffffff",
+  "--derating-red": "#b42318",
+  "--derating-scrollbar": "rgba(0, 102, 204, 0.28)",
+  "--derating-section-shadow": "0 12px 32px rgba(18, 34, 51, 0.06)",
+  "--derating-sticky-shadow": "rgba(18, 34, 51, 0.12)",
+  "--derating-table-bg": "#ffffff",
+  "--derating-table-cell": "#ffffff",
+  "--derating-table-header": "#eef6ff",
+  "--derating-table-header-text": "#344054",
+  "--derating-text": "#1f2937",
+} satisfies DeratingThemeVars
 
 const greenText = { color: HUD_GREEN }
 const redText = { color: HUD_RED }
@@ -640,7 +720,7 @@ const hintTextStyle = { color: HUD_CYAN, fontWeight: 800 } satisfies CSSProperti
 const statusTextStyle = { color: HUD_MUTED, marginLeft: "auto" } satisfies CSSProperties
 
 const pageStyle = {
-  background: `linear-gradient(180deg, rgba(2, 8, 16, 0.96), ${HUD_BG})`,
+  background: `linear-gradient(180deg, ${HUD_PAGE_TOP} 0%, ${HUD_BG} 100%)`,
   color: HUD_TEXT,
   height: "100%",
   overflow: "auto",
@@ -654,13 +734,16 @@ const topbarStyle = {
   gap: 10,
   minHeight: 44,
   paddingBottom: 12,
+  flexWrap: "wrap",
 } satisfies CSSProperties
 
 const sectionStyle = {
   background: HUD_PANEL,
   border: `1px solid ${HUD_LINE}`,
-  boxShadow: "inset 0 0 22px rgba(0, 168, 255, 0.06)",
+  borderRadius: 8,
+  boxShadow: HUD_SECTION_SHADOW,
   marginTop: 14,
+  overflow: "hidden",
 } satisfies CSSProperties
 
 const summaryStyle = {
@@ -687,13 +770,14 @@ const metricsStyle = {
 } satisfies CSSProperties
 
 const tableWrapStyle = {
-  background: "rgba(2, 8, 16, 0.64)",
+  background: HUD_TABLE_BG,
   border: `1px solid ${HUD_LINE}`,
-  boxShadow: "inset 0 0 28px rgba(0, 168, 255, 0.06)",
+  borderRadius: 6,
+  boxShadow: HUD_SECTION_SHADOW,
   maxHeight: 360,
   minHeight: 0,
   overflow: "auto",
-  scrollbarColor: "rgba(23, 231, 255, 0.42) transparent",
+  scrollbarColor: `${HUD_SCROLLBAR} transparent`,
 } satisfies CSSProperties
 
 const actionsStyle = {
@@ -704,9 +788,9 @@ const actionsStyle = {
 } satisfies CSSProperties
 
 const toolbarButtonStyle = {
-  background: "rgba(4, 18, 32, 0.84)",
+  background: HUD_CONTROL_BG,
   border: `1px solid ${HUD_LINE}`,
-  borderRadius: 4,
+  borderRadius: 6,
   color: HUD_TEXT,
   cursor: "pointer",
   fontSize: 13,
@@ -717,17 +801,17 @@ const toolbarButtonStyle = {
 
 const primaryButtonStyle = {
   ...toolbarButtonStyle,
-  background: "linear-gradient(90deg, rgba(0, 168, 255, 0.48), rgba(23, 231, 255, 0.22))",
-  border: "1px solid rgba(23, 231, 255, 0.62)",
-  boxShadow: "0 0 18px rgba(0, 168, 255, 0.16)",
-  color: "#f4fbff",
+  background: HUD_PRIMARY_BG,
+  border: `1px solid ${HUD_PRIMARY_BORDER}`,
+  boxShadow: HUD_PRIMARY_SHADOW,
+  color: HUD_PRIMARY_TEXT,
 } satisfies CSSProperties
 
 const headerCellStyle = {
-  background: "rgba(10, 35, 56, 0.94)",
+  background: HUD_TABLE_HEADER,
   border: `1px solid ${HUD_LINE_SOFT}`,
-  boxShadow: `0 1px 0 ${HUD_LINE}, 0 8px 18px rgba(0, 0, 0, 0.24)`,
-  color: "rgba(234, 247, 255, 0.72)",
+  boxShadow: `0 1px 0 ${HUD_LINE}`,
+  color: HUD_TABLE_HEADER_TEXT,
   fontSize: 12,
   fontWeight: 800,
   padding: "9px 8px",
@@ -738,7 +822,7 @@ const headerCellStyle = {
 } satisfies CSSProperties
 
 const bodyCellStyle = {
-  background: "rgba(3, 13, 24, 0.72)",
+  background: HUD_TABLE_CELL,
   border: `1px solid ${HUD_LINE_SOFT}`,
   fontSize: 12,
   padding: 0,
@@ -746,7 +830,7 @@ const bodyCellStyle = {
 } satisfies CSSProperties
 
 const cellInputStyle = {
-  background: "rgba(2, 8, 16, 0.16)",
+  background: HUD_INPUT_BG,
   border: 0,
   boxSizing: "border-box",
   color: HUD_TEXT,
@@ -756,7 +840,7 @@ const cellInputStyle = {
   outline: "none",
   padding: "8px",
   resize: "vertical",
-  scrollbarColor: "rgba(23, 231, 255, 0.42) transparent",
+  scrollbarColor: `${HUD_SCROLLBAR} transparent`,
   width: "100%",
 } satisfies CSSProperties
 
@@ -772,9 +856,9 @@ const readOnlyCellStyle = {
 } satisfies CSSProperties
 
 const selectCellStyle = {
-  background: "rgba(2, 8, 16, 0.72)",
+  background: HUD_CONTROL_BG,
   border: `1px solid ${HUD_LINE}`,
-  borderRadius: 4,
+  borderRadius: 6,
   boxSizing: "border-box",
   font: "inherit",
   fontWeight: 800,
@@ -802,6 +886,7 @@ const comparisonRowStyle = {
 const comparisonLabelStyle = {
   alignSelf: "start",
   border: `1px solid ${HUD_LINE_SOFT}`,
+  background: HUD_LABEL_BG,
   borderRadius: 4,
   color: HUD_DIM,
   fontSize: 10,
@@ -840,7 +925,7 @@ const comparisonEditorTextStyle = {
 
 const comparisonTextareaStyle = {
   ...cellInputStyle,
-  background: "rgba(2, 8, 16, 0.38)",
+  background: HUD_CONTROL_BG,
   border: `1px solid ${HUD_LINE_SOFT}`,
   borderRadius: 4,
   minHeight: 30,
@@ -854,6 +939,6 @@ const emptyCellStyle = {
 } satisfies CSSProperties
 
 const optionStyle = {
-  background: "#06111d",
+  background: HUD_OPTION_BG,
   color: HUD_TEXT,
 } satisfies CSSProperties

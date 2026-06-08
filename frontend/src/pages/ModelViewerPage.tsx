@@ -204,6 +204,13 @@ function shouldShowDeratingMode(params: URLSearchParams, values: string[]) {
   return context.includes("derating") || context.includes("ws_check") || context.includes("check_outputs")
 }
 
+function getViewerTheme(params: URLSearchParams): "dark" | "light" {
+  const explicit = params.get("theme")?.trim().toLowerCase()
+  if (explicit === "light") return "light"
+  if (explicit === "dark") return "dark"
+  return window.localStorage.getItem("agent-theme") === "light" ? "light" : "dark"
+}
+
 export default function ModelViewerPage() {
   const mountRef = useRef<HTMLDivElement>(null)
   const axisSvgRef = useRef<SVGSVGElement>(null)
@@ -221,6 +228,7 @@ export default function ModelViewerPage() {
   const requestedViewerMode = parseViewerMode(pageParams.get("lockMode")) ?? parseViewerMode(pageParams.get("mode"))
   const lockedViewerMode = showDeratingMode ? "derating" : requestedViewerMode === "derating" ? null : requestedViewerMode
   const initialViewerMode = lockedViewerMode ?? "cad"
+  const viewerTheme = getViewerTheme(pageParams)
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving CAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -1091,12 +1099,15 @@ export default function ModelViewerPage() {
     window.dispatchEvent(new Event("viewer3d:mode-change"))
   }, [viewerMode])
 
+  const isDeratingMode = showDeratingMode && viewerMode === "derating"
+  const isLightDeratingMode = isDeratingMode && viewerTheme === "light"
+
   return (
     <div
       style={{
         width: "100vw",
         height: "100vh",
-        background: "#111318",
+        background: isLightDeratingMode ? "#f6f8fb" : "#111318",
         position: "relative",
         overflow: "hidden",
       }}
@@ -1111,9 +1122,11 @@ export default function ModelViewerPage() {
             right: 0,
             top: 56,
             zIndex: 4,
+            background: isLightDeratingMode ? "#f6f8fb" : "#06111d",
           }}
         >
           <DeratingMissingItemsPanel
+            theme={viewerTheme}
             versionId={versionId}
             workspaceDir={workspaceDir}
             workspaceId={workspaceId}
@@ -1130,8 +1143,9 @@ export default function ModelViewerPage() {
           gap: 6,
           padding: 4,
           borderRadius: 8,
-          background: "rgba(6, 12, 27, 0.74)",
-          border: "1px solid rgba(122, 148, 212, 0.28)",
+          background: isLightDeratingMode ? "rgba(255, 255, 255, 0.84)" : "rgba(6, 12, 27, 0.74)",
+          border: isLightDeratingMode ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(122, 148, 212, 0.28)",
+          boxShadow: isLightDeratingMode ? "0 8px 24px rgba(18, 34, 51, 0.08)" : undefined,
           backdropFilter: "blur(12px)",
           pointerEvents: "auto",
         }}
@@ -1164,10 +1178,14 @@ export default function ModelViewerPage() {
               style={{
                 minWidth: 92,
                 height: 32,
-                border: "1px solid rgba(143, 172, 230, 0.28)",
+                border: isLightDeratingMode ? "1px solid rgba(0, 102, 204, 0.24)" : "1px solid rgba(143, 172, 230, 0.28)",
                 borderRadius: 6,
-                background: active ? "rgba(65, 167, 255, 0.24)" : "rgba(11, 21, 45, 0.68)",
-                color: active ? "#f4f9ff" : "rgba(211, 226, 255, 0.78)",
+                background: isLightDeratingMode
+                  ? active ? "#e8f2ff" : "#ffffff"
+                  : active ? "rgba(65, 167, 255, 0.24)" : "rgba(11, 21, 45, 0.68)",
+                color: isLightDeratingMode
+                  ? active ? "#003f88" : "#344054"
+                  : active ? "#f4f9ff" : "rgba(211, 226, 255, 0.78)",
                 cursor: "pointer",
                 fontFamily: "\"IBM Plex Sans\", system-ui, sans-serif",
                 fontSize: 13,

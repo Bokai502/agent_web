@@ -5,7 +5,7 @@ export const DEFAULT_LANGUAGE = 'zh-en'
 export const NAV_ITEMS = [
   { label: '当前任务', href: '#workspace', meta: 'Workspace' },
   { label: '组件清单', href: '#bom', meta: 'Components' },
-  { label: '结构预览', href: '#model', meta: 'Preview' },
+  { label: '结果预览', href: '#model', meta: 'Preview' },
   { label: '仿真工具', href: '#tools', meta: 'Tools' },
   { label: '运行结果', href: '#log', meta: 'Outputs' },
 ]
