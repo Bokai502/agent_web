@@ -209,6 +209,7 @@ export default function AgentPage() {
     setProgressRefreshNonce,
     showSpeechText,
     speakText,
+    periodicSummarySpeechBusy: agentSpeechPlaying || agentSpeechState === 'synthesizing',
     workspaceAppState,
     workspaces,
   })

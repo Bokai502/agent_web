@@ -774,7 +774,23 @@
   color: var(--light-text);
 }
 
+.agent-page.is-light-theme .agent-port-row span:not(.agent-port-row-dot) {
+  color: rgba(37, 45, 58, 0.68);
+}
+
 .agent-page.is-light-theme .agent-port-popover .agent-port-error {
+  border-color: rgba(217, 75, 61, 0.2);
+  background: rgba(217, 75, 61, 0.07);
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .agent-port-check-note.is-ok {
+  border-color: rgba(15, 127, 86, 0.18);
+  background: rgba(15, 127, 86, 0.08);
+  color: #0b6b49;
+}
+
+.agent-page.is-light-theme .agent-port-check-note.is-bad {
   border-color: rgba(217, 75, 61, 0.2);
   background: rgba(217, 75, 61, 0.07);
   color: #b42318;

@@ -96,6 +96,7 @@ const MANAGED_RUN_STATUS_DIR = path.resolve(process.cwd(), "logs", "managed-runs
 const MANAGED_RUN_ID_PATTERN = /^managed_[a-z0-9]+_[a-z0-9]+$/iu
 const MANAGED_SUMMARY_MODEL = process.env.CODEX_MANAGED_SUMMARY_MODEL?.trim() || "gpt-5.5"
 const MANAGED_SUMMARY_TIMEOUT_MS = 10_000
+const MANAGED_GENERAL_ANSWER_TIMEOUT_MS = Number(process.env.CODEX_MANAGED_GENERAL_ANSWER_TIMEOUT_MS ?? 18_000)
 const MANAGED_PROGRESS_ANSWER_TIMEOUT_MS = Number(process.env.CODEX_MANAGED_PROGRESS_ANSWER_TIMEOUT_MS ?? 18_000)
 const MANAGED_START_SUMMARY = "当前任务已接收，正在分析。"
 const RESPONSES_API_TEXT_MAX_CHARS = 20_000
@@ -1346,6 +1347,140 @@ async function answerManagedProgressFromDispatch({
   return response
 }
 
+async function answerGeneralQuestionFromDispatch({
+  body,
+  config,
+  inputType,
+  logger,
+  managedRunId,
+  normalized,
+  requestId,
+  routing,
+}: {
+  body: RunRequestBody
+  config: AppConfig
+  inputType: "text" | "voice"
+  logger: Logger
+  managedRunId: string
+  normalized: { sessionKey: string }
+  requestId?: string
+  routing: ManagedRouting
+}): Promise<ManagedRunResponse> {
+  const question = getUserQuestion(body)
+  const sessionId = getOptionalString(body.sessionId) ?? makeManagedSessionId()
+  const threadId = getOptionalString(body.threadId)
+  const turnId = getOptionalString(body.turnId) ?? makeManagedTurnId()
+  const workspaceDir = getOptionalWorkspaceDir(body.workspaceDir)
+  const workspaceId = getOptionalString(body.workspaceId)
+  const versionId = getOptionalString(body.versionId)
+  const workspaceName = getOptionalString(body.workspaceName)
+  let answer = ""
+
+  try {
+    const prompt = [
+      "你是 Agent 页面的轻量问答助手。",
+      "当前请求已被路由为 general，说明它是闲聊、普通知识问答、天气/事实查询或不需要修改工作区的轻量问题。",
+      "请直接回答用户，不要启动或描述 Codex pipeline，不要声称执行了命令、修改了文件或读取了工作区。",
+      "如果问题涉及今天、明天、最新情况、天气、新闻、价格、政策等实时信息，请基于可用能力谨慎回答；如果无法可靠确认实时数据，要明确说明不确定性。",
+      "用中文自然回答，1-4 句；不要 Markdown；不要列点。",
+      "",
+      workspaceName ? `当前页面任务：${workspaceName}` : "",
+      workspaceId ? `workspaceId：${workspaceId}` : "",
+      versionId ? `versionId：${versionId}` : "",
+      "",
+      `用户问题：${question}`,
+    ].filter(Boolean).join("\n")
+    const abort = new AbortController()
+    answer = await withTimeout(
+      createResponseText({
+        config,
+        logger,
+        maxOutputTokens: 360,
+        prompt,
+        purpose: "managed-general-answer",
+        requestId: `${requestId ?? "request"}:${managedRunId}:general-answer`,
+        signal: abort.signal,
+      }),
+      MANAGED_GENERAL_ANSWER_TIMEOUT_MS,
+      () => abort.abort(),
+    )
+    answer = answer
+      .replace(/```[\s\S]*?```/gu, "")
+      .replace(/\s+/gu, " ")
+      .trim()
+  } catch (err) {
+    logger.warn("managed general answer fallback", { err, managedRunId, requestId })
+  }
+
+  const spokenSummary = answer || "这个问题暂时没有生成有效回答。"
+  const response: ManagedRunResponse = {
+    artifacts: [],
+    eventCounts: {},
+    issues: answer ? [] : ["general answer was empty"],
+    managedRunId,
+    manifestRun: null,
+    progress: null,
+    routing,
+    sessionId,
+    sessionTurn: null,
+    spokenSummary,
+    status: answer ? "completed" : "partial",
+    summary: spokenSummary,
+    threadId,
+    turnId,
+    versionId,
+    workspaceDir,
+    workspaceId,
+  }
+  rememberManagedRunStatus({
+    managedRunId,
+    routing,
+    sessionId,
+    spokenSummary,
+    status: response.status,
+    summary: response.summary,
+    threadId,
+    turnId,
+    versionId,
+    workspaceDir,
+    workspaceId,
+  }, logger)
+  rememberManagedSessionState(normalized.sessionKey, {
+    sessionId,
+    threadId,
+    versionId,
+    workspaceDir,
+    workspaceId,
+  })
+  publishManagedRunEvent({
+    type: "final",
+    managedRunId,
+    status: {
+      managedRunId,
+      routing,
+      sessionId,
+      spokenSummary,
+      status: response.status,
+      summary: response.summary,
+      threadId,
+      turnId,
+      versionId,
+      workspaceDir,
+      workspaceId,
+    },
+  })
+  logger.info("managed dispatch returned general response", {
+    answerLength: spokenSummary.length,
+    inputType,
+    managedRunId,
+    requestId,
+    sessionId,
+    workspaceDir,
+    workspaceId,
+  })
+  return response
+}
+
 export async function runAgentTurn(
   { body, inputType = "text" }: AgentTurnInput,
   { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
@@ -1405,6 +1540,19 @@ export async function runAgentTurn(
       inputType,
       logger,
       managedRunId,
+      requestId,
+      routing: { selectedSkills: routing.selectedSkills, skillScopes: routing.skillScopes },
+    })
+  }
+
+  if (routing.intent === "general") {
+    return answerGeneralQuestionFromDispatch({
+      body,
+      config,
+      inputType,
+      logger,
+      managedRunId,
+      normalized,
       requestId,
       routing: { selectedSkills: routing.selectedSkills, skillScopes: routing.skillScopes },
     })

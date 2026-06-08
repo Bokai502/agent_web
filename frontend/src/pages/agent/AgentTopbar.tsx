@@ -9,6 +9,25 @@ type AuthMe = {
   userId: string
 }
 
+function formatCheckedAt(value?: string) {
+  if (!value) return ''
+  const timestamp = Date.parse(value)
+  if (!Number.isFinite(timestamp)) return value
+  return new Date(timestamp).toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+function formatPortDetail(port: RemoteToolPortStatus) {
+  const endpoint = `${port.host}:${port.port}`
+  const tcpStatus = port.tcpOk ? 'TCP 已连接' : 'TCP 未连接'
+  const httpStatus = port.httpOk
+    ? `HTTP 正常${port.httpStatus ? ` ${port.httpStatus}` : ''}`
+    : port.httpStatus
+      ? `HTTP 异常 ${port.httpStatus}`
+      : 'HTTP 未检测'
+  const latency = port.latencyMs == null ? '' : `，${port.latencyMs}ms`
+  return `${endpoint} · ${tcpStatus} · ${httpStatus}${latency} · ${port.message}`
+}
+
 export type RemoteToolPortStatus = {
   ok: boolean
   tool: 'freecad' | 'paraview' | 'comsol'
@@ -87,6 +106,7 @@ export function AgentTopbar({
         ? 'checking'
         : 'bad'
   const failedPorts = portStatus?.ports.filter(port => !port.ok) ?? []
+  const checkedAtLabel = formatCheckedAt(portStatus?.checkedAt)
   const initials = userId.trim().slice(0, 1).toUpperCase() || 'U'
   const inputModeLabel = inputMode === 'voice' ? '语音输入' : '文字输入'
 
@@ -247,19 +267,26 @@ export function AgentTopbar({
             {portStatusError ? (
               <p className="agent-port-error">{portStatusError}</p>
             ) : failedPorts.length ? (
-              <div className="agent-port-list">
-                {failedPorts.map(port => (
+              <>
+                <div className="agent-port-list">
+                  {failedPorts.map(port => (
                   <div className={`agent-port-row ${port.ok ? 'ok' : 'bad'}`} key={port.tool}>
                     <span className="agent-port-row-dot" />
                     <div>
                       <strong>{port.label}</strong>
+                      <span>{formatPortDetail(port)}</span>
                     </div>
                     <em>{port.ok ? '正常' : '异常'}</em>
                   </div>
-                ))}
-              </div>
-            ) : portStatus?.ports.length ? null : (
-              <p>正在检测 FreeCAD、ParaView、COMSOL 端口...</p>
+                  ))}
+                </div>
+                <p className="agent-port-check-note is-bad">
+                  {`检测到 ${failedPorts.length} 个远程工具端口异常`}
+                  {checkedAtLabel ? ` · ${checkedAtLabel}` : ''}
+                </p>
+              </>
+            ) : (
+              portStatusLoading ? <p>正在检测 FreeCAD、ParaView、COMSOL 端口...</p> : null
             )}
           </div>
         ) : null}

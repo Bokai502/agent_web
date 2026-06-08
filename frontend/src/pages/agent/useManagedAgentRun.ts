@@ -11,6 +11,7 @@ import {
   dispatchManagedCodex,
   getManagedCodexStatus,
   subscribeManagedCodexStatus,
+  summarizeManagedCodex,
   type ManagedRunStatusResponse,
 } from './managedRun'
 
@@ -28,12 +29,15 @@ type ManagedAgentRunOptions = {
   setProgressRefreshNonce: (updater: (value: number) => number) => void
   showSpeechText: (text: string) => void
   speakText: (text: string, speechId?: string) => void | Promise<void>
+  periodicSummarySpeechBusy?: boolean
   workspaces: WorkspacesResponse | null
   workspaceAppState: {
     handleSelect: (sessionId: string) => void
     reloadSessions: () => Promise<SessionLike[]>
   }
 }
+
+const PERIODIC_PROGRESS_SUMMARY_INTERVAL_MS = 60_000
 
 function workspaceSpeechKey(context: WorkspaceVersionContext) {
   return [
@@ -51,11 +55,14 @@ export function useManagedAgentRun({
   setProgressRefreshNonce,
   showSpeechText,
   speakText,
+  periodicSummarySpeechBusy = false,
   workspaces,
   workspaceAppState,
 }: ManagedAgentRunOptions) {
   const [managedVoiceRunning, setManagedVoiceRunning] = useState(false)
   const managedPollTokenRef = useRef(0)
+  const managedWatchCleanupRef = useRef<(() => void) | null>(null)
+  const periodicSummarySpeechBusyRef = useRef(periodicSummarySpeechBusy)
   const activeWorkspaceSpeechKey = workspaceSpeechKey(activeContext)
   const activeWorkspaceSpeechKeyRef = useRef(activeWorkspaceSpeechKey)
 
@@ -63,9 +70,20 @@ export function useManagedAgentRun({
     activeWorkspaceSpeechKeyRef.current = activeWorkspaceSpeechKey
   }, [activeWorkspaceSpeechKey])
 
+  useEffect(() => {
+    periodicSummarySpeechBusyRef.current = periodicSummarySpeechBusy
+  }, [periodicSummarySpeechBusy])
+
   const invalidateManagedRun = useCallback(() => {
     managedPollTokenRef.current += 1
+    managedWatchCleanupRef.current?.()
+    managedWatchCleanupRef.current = null
     setManagedVoiceRunning(false)
+  }, [])
+
+  useEffect(() => () => {
+    managedWatchCleanupRef.current?.()
+    managedWatchCleanupRef.current = null
   }, [])
 
   const runCodex = useCallback(async (transcript: string, inputType: AgentInputMode = 'voice') => {
@@ -102,13 +120,26 @@ export function useManagedAgentRun({
       void speakText(speechText, `${managedRunId}:finished:${startedTurnId}`)
     }
 
-    const watchManagedCompletion = (managedRunId: string, startedTurnId: string, token: number) => {
+    const watchManagedCompletion = (
+      managedRunId: string,
+      startedTurnId: string,
+      token: number,
+      context: WorkspaceVersionContext,
+      sessionId?: string | null,
+      threadId?: string | null,
+    ) => {
       let closed = false
       let fallbackTimer: number | null = null
+      let periodicSummaryTimer: number | null = null
+      let periodicSummaryInFlight = false
+      let lastPeriodicSummary = ''
       const close = () => {
+        if (closed) return
         closed = true
         if (fallbackTimer !== null) window.clearTimeout(fallbackTimer)
+        if (periodicSummaryTimer !== null) window.clearInterval(periodicSummaryTimer)
         unsubscribe()
+        if (managedWatchCleanupRef.current === close) managedWatchCleanupRef.current = null
       }
       const scheduleFallback = () => {
         if (fallbackTimer !== null) return
@@ -124,6 +155,35 @@ export function useManagedAgentRun({
           void handleManagedCompletion(managedRunId, startedTurnId, token, status)
         }, 5000)
       }
+      const summarizeWithoutBlockingRun = async () => {
+        if (closed || managedPollTokenRef.current !== token || !isCurrentWorkspaceRun()) return
+        if (periodicSummaryInFlight || periodicSummarySpeechBusyRef.current) return
+        periodicSummaryInFlight = true
+        try {
+          const result = await summarizeManagedCodex({
+            input: '请用一句中文简短总结当前 Codex pipeline 的实时进度，适合语音播报，不要 Markdown。',
+            sessionId,
+            threadId,
+            workspace: {
+              workspaceDir: context.versionDir,
+              workspaceId: context.workspaceId,
+              workspaceName: context.workspaceName,
+              versionId: context.versionId,
+            },
+          })
+          if (closed || managedPollTokenRef.current !== token || !isCurrentWorkspaceRun()) return
+          if (result.status !== 'partial') return
+          if (periodicSummarySpeechBusyRef.current) return
+          const speechText = (result.spokenSummary || result.summary || '').trim()
+          if (!speechText || speechText === lastPeriodicSummary) return
+          lastPeriodicSummary = speechText
+          void speakText(speechText, `${managedRunId}:periodic:${Date.now()}`)
+        } catch {
+          // Periodic summaries are best-effort and must never interrupt the running pipeline.
+        } finally {
+          periodicSummaryInFlight = false
+        }
+      }
       const unsubscribe = subscribeManagedCodexStatus(
         managedRunId,
         (status) => {
@@ -136,6 +196,11 @@ export function useManagedAgentRun({
           if (!closed) scheduleFallback()
         },
       )
+      periodicSummaryTimer = window.setInterval(() => {
+        void summarizeWithoutBlockingRun()
+      }, PERIODIC_PROGRESS_SUMMARY_INTERVAL_MS)
+      managedWatchCleanupRef.current?.()
+      managedWatchCleanupRef.current = close
     }
 
     const runManagedWithContext = async (context: WorkspaceVersionContext) => {
@@ -164,7 +229,7 @@ export function useManagedAgentRun({
         backgroundRunStarted = true
         const pollToken = managedPollTokenRef.current + 1
         managedPollTokenRef.current = pollToken
-        watchManagedCompletion(result.managedRunId, result.turnId, pollToken)
+        watchManagedCompletion(result.managedRunId, result.turnId, pollToken, context, result.sessionId, result.threadId)
       } else {
         setManagedVoiceRunning(false)
       }
