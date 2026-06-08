@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react"
 import { getGncTelemetryMaxBytes, getGncTelemetryPaths } from "../../app/runtimeConfig"
 import { fetchWorkspaceTextFile } from "../agent/files/workspaceFilesApi"
-import { GncTelemetryCharts, parseTelemetryCsv, type TelemetryRow } from "./GncTelemetryCharts"
+import {
+  GncTelemetryCharts,
+  modeRowsFromRunSummary,
+  parseGnc42Telemetry,
+  type Gnc42TelemetryTexts,
+  type TelemetryRow,
+} from "./GncTelemetryCharts"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 
 type GncDashboardPanelProps = {
@@ -12,6 +18,7 @@ type GncDashboardPanelProps = {
 export function GncDashboardPanel({ activeContext, apiBase }: GncDashboardPanelProps) {
   const [scRows, setScRows] = useState<TelemetryRow[]>([])
   const [modeRows, setModeRows] = useState<TelemetryRow[]>([])
+  const [mtbRows, setMtbRows] = useState<TelemetryRow[]>([])
   const [wheelRows, setWheelRows] = useState<TelemetryRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -23,6 +30,7 @@ export function GncDashboardPanel({ activeContext, apiBase }: GncDashboardPanelP
     let cancelled = false
     setScRows([])
     setModeRows([])
+    setMtbRows([])
     setWheelRows([])
     setError("")
     if (!versionDir) return
@@ -32,15 +40,31 @@ export function GncDashboardPanel({ activeContext, apiBase }: GncDashboardPanelP
     const telemetryMaxBytes = getGncTelemetryMaxBytes()
     setLoading(true)
     Promise.all([
-      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.sc }),
-      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.mode }),
-      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.wheel }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.time }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.wbn }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.qbn }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.posn }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.veln }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.hwhl }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.mtb }),
+      fetchWorkspaceTextFile({ apiBase, context, maxBytes: telemetryMaxBytes, relativePath: telemetryPaths.modeSummary }),
     ])
-      .then(([sc, mode, wheel]) => {
+      .then(([time, wbn, qbn, posn, veln, hwhl, mtb, modeSummary]) => {
         if (cancelled) return
-        setScRows(parseTelemetryCsv(sc.content ?? ""))
-        setModeRows(parseTelemetryCsv(mode.content ?? ""))
-        setWheelRows(parseTelemetryCsv(wheel.content ?? ""))
+        const telemetryTexts: Gnc42TelemetryTexts = {
+          hwhl: hwhl.content ?? "",
+          posn: posn.content ?? "",
+          qbn: qbn.content ?? "",
+          time: time.content ?? "",
+          veln: veln.content ?? "",
+          wbn: wbn.content ?? "",
+          mtb: mtb.content ?? "",
+        }
+        const parsed = parseGnc42Telemetry(telemetryTexts)
+        setScRows(parsed.scRows)
+        setMtbRows(parsed.mtbRows)
+        setWheelRows(parsed.wheelRows)
+        setModeRows(modeRowsFromRunSummary(modeSummary.content ?? "", parsed.finalTime))
       })
       .catch(err => {
         if (!cancelled) setError(err instanceof Error ? err.message : "GNC 遥测读取失败")
@@ -71,7 +95,7 @@ export function GncDashboardPanel({ activeContext, apiBase }: GncDashboardPanelP
     <div className="gnc-dashboard-stage">
       {error && <div className="gnc-dashboard-error">{error}</div>}
       {loading && <div className="gnc-dashboard-loading">读取遥测数据...</div>}
-      {!error && !loading && <GncTelemetryCharts modeRows={modeRows} scRows={scRows} wheelRows={wheelRows} />}
+      {!error && !loading && <GncTelemetryCharts modeRows={modeRows} mtbRows={mtbRows} scRows={scRows} wheelRows={wheelRows} />}
     </div>
   )
 }

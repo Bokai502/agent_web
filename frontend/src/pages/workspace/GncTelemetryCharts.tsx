@@ -2,6 +2,16 @@ import * as d3 from "d3"
 
 export type TelemetryRow = Record<string, number | string>
 
+export type Gnc42TelemetryTexts = {
+  hwhl: string
+  mtb: string
+  posn: string
+  qbn: string
+  time: string
+  veln: string
+  wbn: string
+}
+
 type SeriesPoint = {
   t: number
   y: number
@@ -35,6 +45,130 @@ export function parseTelemetryCsv(text: string, maxRows = 2400) {
     }
     return parsed
   })
+}
+
+function parseNumericTable(text: string) {
+  return text.split(/\r?\n/u).flatMap(line => {
+    const trimmed = line.trim()
+    if (!trimmed) return []
+    const values = trimmed.split(/\s+/u).map(value => Number(value))
+    return values.every(Number.isFinite) ? [values] : []
+  })
+}
+
+function sampleIndexes(length: number, maxRows = 2400) {
+  const step = Math.max(1, Math.ceil(length / maxRows))
+  const indexes: number[] = []
+  for (let index = 0; index < length; index += step) indexes.push(index)
+  if (length > 0 && indexes[indexes.length - 1] !== length - 1) indexes.push(length - 1)
+  return indexes
+}
+
+function valueAt(table: number[][], rowIndex: number, columnIndex: number) {
+  const value = table[rowIndex]?.[columnIndex]
+  return Number.isFinite(value) ? value : null
+}
+
+export function parseGnc42Telemetry(texts: Gnc42TelemetryTexts, maxRows = 2400) {
+  const time = parseNumericTable(texts.time).map(row => row[0]).filter(Number.isFinite)
+  const wbn = parseNumericTable(texts.wbn)
+  const qbn = parseNumericTable(texts.qbn)
+  const posn = parseNumericTable(texts.posn)
+  const veln = parseNumericTable(texts.veln)
+  const hwhl = parseNumericTable(texts.hwhl)
+  const mtb = parseNumericTable(texts.mtb)
+  const rowCount = Math.min(time.length, wbn.length, qbn.length, posn.length, veln.length)
+  const scRows: TelemetryRow[] = sampleIndexes(rowCount, maxRows).flatMap(index => {
+    const row: TelemetryRow = { Sc_Time: time[index] }
+    const qKeys = ["Sc_qn_1", "Sc_qn_2", "Sc_qn_3", "Sc_qn_4"]
+    const wKeys = ["Sc_wn_1", "Sc_wn_2", "Sc_wn_3"]
+    const posKeys = ["Sc_PosN_1", "Sc_PosN_2", "Sc_PosN_3"]
+    const velKeys = ["Sc_VelN_1", "Sc_VelN_2", "Sc_VelN_3"]
+    for (const [column, key] of qKeys.entries()) {
+      const value = valueAt(qbn, index, column)
+      if (value === null) return []
+      row[key] = value
+    }
+    for (const [column, key] of wKeys.entries()) {
+      const value = valueAt(wbn, index, column)
+      if (value === null) return []
+      row[key] = value
+    }
+    for (const [column, key] of posKeys.entries()) {
+      const value = valueAt(posn, index, column)
+      if (value === null) return []
+      row[key] = value
+    }
+    for (const [column, key] of velKeys.entries()) {
+      const value = valueAt(veln, index, column)
+      if (value === null) return []
+      row[key] = value
+    }
+    return [row]
+  })
+
+  const wheelRowCount = Math.min(time.length, hwhl.length)
+  const wheelRows: TelemetryRow[] = sampleIndexes(wheelRowCount, maxRows).flatMap(index => {
+    const row: TelemetryRow = { AcWhl_Time: time[index] }
+    for (let column = 0; column < Math.min(4, hwhl[index]?.length ?? 0); column += 1) {
+      const value = valueAt(hwhl, index, column)
+      if (value === null) return []
+      row[`Ac_Whl${column}_H`] = value
+    }
+    return [row]
+  })
+
+  const mtbRowCount = Math.min(time.length, mtb.length)
+  const mtbRows: TelemetryRow[] = sampleIndexes(mtbRowCount, maxRows).flatMap(index => {
+    const row: TelemetryRow = { Mtb_Time: time[index] }
+    const keys = ["Mtb_X", "Mtb_Y", "Mtb_Z"]
+    for (const [column, key] of keys.entries()) {
+      const value = valueAt(mtb, index, column)
+      if (value === null) return []
+      row[key] = value
+    }
+    return [row]
+  })
+
+  return {
+    finalTime: time.length > 0 ? time[time.length - 1] : 0,
+    mtbRows,
+    scRows,
+    wheelRows,
+  }
+}
+
+type RunSummaryTransition = {
+  mode?: unknown
+  mode_id?: unknown
+  modeId?: unknown
+  time_s?: unknown
+  timeSec?: unknown
+}
+
+export function modeRowsFromRunSummary(text: string, finalTime = 0): TelemetryRow[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return []
+  }
+  if (!parsed || typeof parsed !== "object") return []
+  const summary = parsed as { mode_result?: { transitions?: RunSummaryTransition[] } }
+  const transitions = Array.isArray(summary.mode_result?.transitions) ? summary.mode_result.transitions : []
+  const rows = transitions.flatMap((transition, index) => {
+    const timeValue = typeof transition.time_s === "number" ? transition.time_s : Number(transition.time_s ?? transition.timeSec)
+    if (!Number.isFinite(timeValue)) return []
+    return [{
+      Mode: typeof transition.mode === "string" ? transition.mode : `Mode ${index}`,
+      ModeId: typeof transition.mode_id === "number" ? transition.mode_id : typeof transition.modeId === "number" ? transition.modeId : index,
+      TimeSec: timeValue,
+    }]
+  })
+  if (rows.length > 0 && finalTime > Number(rows[rows.length - 1].TimeSec)) {
+    rows.push({ ...rows[rows.length - 1], TimeSec: finalTime })
+  }
+  return rows
 }
 
 function num(row: TelemetryRow, key: string) {
@@ -160,6 +294,36 @@ function reactionWheelRpmSeries(rows: TelemetryRow[]) {
   })).filter(item => item.points.length > 0)
 }
 
+function diagnosticSeries(rows: TelemetryRow[]) {
+  const rateMag: SeriesPoint[] = []
+  const sunError: SeriesPoint[] = []
+  for (const row of rows) {
+    const t = num(row, "Sc_Time")
+    const w = vector(row, ["Sc_wn_1", "Sc_wn_2", "Sc_wn_3"])
+    const qValues = ["Sc_qn_1", "Sc_qn_2", "Sc_qn_3", "Sc_qn_4"].map(key => num(row, key))
+    if (t === null || !w || !qValues.every((value): value is number => value !== null)) continue
+    rateMag.push({ t, y: norm(w) * DEG })
+    const cbn = q2c(qValues as [number, number, number, number])
+    const sunB = [cbn[0][0], cbn[1][0], cbn[2][0]]
+    const sunLength = Math.hypot(sunB[0], sunB[1], sunB[2])
+    if (sunLength <= 0) continue
+    const bodyYDotSun = Math.max(-1, Math.min(1, sunB[1] / sunLength))
+    sunError.push({ t, y: Math.acos(bodyYDotSun) * DEG })
+  }
+  return [
+    { color: PALETTE[0], label: "rate |w|", points: rateMag },
+    { color: PALETTE[2], label: "sun error", points: sunError },
+  ].filter(item => item.points.length > 0)
+}
+
+function mtbCommandSeries(rows: TelemetryRow[]) {
+  return seriesFrom(rows, "Mtb_Time", [
+    { key: "Mtb_X", label: "mx" },
+    { key: "Mtb_Y", label: "my" },
+    { key: "Mtb_Z", label: "mz" },
+  ])
+}
+
 function niceLimits(series: LineSeries[]): [number, number] {
   const finite = series.flatMap(item => item.points.map(point => point.y)).filter(value => Number.isFinite(value))
   let vmax = finite.length > 0 ? Math.max(...finite.map(value => Math.abs(value))) : 1
@@ -171,6 +335,17 @@ function niceLimits(series: LineSeries[]): [number, number] {
   else if (vmax < 1000) span = Math.ceil(vmax / 50) * 50
   else span = Math.ceil(vmax / 500) * 500
   return [-span, span]
+}
+
+function positiveLimits(series: LineSeries[], floor = 1) {
+  const finite = series.flatMap(item => item.points.map(point => point.y)).filter(value => Number.isFinite(value))
+  const vmax = finite.length > 0 ? Math.max(...finite, floor) : floor
+  let top: number
+  if (vmax < 1) top = Math.ceil(vmax * 10) / 10
+  else if (vmax < 10) top = Math.ceil(vmax)
+  else if (vmax < 100) top = Math.ceil(vmax / 5) * 5
+  else top = Math.ceil(vmax / 50) * 50
+  return [0, top] as [number, number]
 }
 
 function modeSegments(rows: TelemetryRow[]): ModeSegment[] {
@@ -259,6 +434,67 @@ function LineChart({ series, title, unit }: { series: LineSeries[]; title: strin
   )
 }
 
+function DiagnosticChart({ series }: { series: LineSeries[] }) {
+  const width = 760
+  const height = 280
+  const margin = { bottom: 36, left: 58, right: 18, top: 20 }
+  const allPoints = series.flatMap(item => item.points)
+  const xExtent = d3.extent(allPoints, point => point.t)
+  const xDomain: [number, number] = [xExtent[0] ?? 0, xExtent[1] ?? 1]
+  const yDomain = positiveLimits(series, 5)
+  const x = d3.scaleLinear().domain(xDomain).range([margin.left, width - margin.right])
+  const y = d3.scaleLinear().domain(yDomain).range([height - margin.bottom, margin.top])
+  const line = d3.line<SeriesPoint>()
+    .defined(point => Number.isFinite(point.t) && Number.isFinite(point.y))
+    .x(point => x(point.t))
+    .y(point => y(point.y))
+  const thresholds = [
+    { color: "#17e7ff", label: "0.1 deg/s", value: 0.1 },
+    { color: "#17e7ff", label: "0.2 deg/s", value: 0.2 },
+    { color: "#ffd166", label: "5 deg", value: 5 },
+  ].filter(item => item.value >= yDomain[0] && item.value <= yDomain[1])
+
+  return (
+    <figure className="gnc-dashboard-plot">
+      <figcaption><strong>太阳捕获诊断</strong></figcaption>
+      <svg className="gnc-d3-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="太阳捕获诊断">
+        <g className="gnc-grid">
+          {y.ticks(5).map(tick => (
+            <line key={`y-${tick}`} x1={margin.left} x2={width - margin.right} y1={y(tick)} y2={y(tick)} />
+          ))}
+        </g>
+        <g className="gnc-axis">
+          <line x1={margin.left} x2={width - margin.right} y1={height - margin.bottom} y2={height - margin.bottom} />
+          <line x1={margin.left} x2={margin.left} y1={margin.top} y2={height - margin.bottom} />
+          {x.ticks(6).map(tick => (
+            <g key={`x-${tick}`} transform={`translate(${x(tick)},${height - margin.bottom})`}>
+              <line y2="5" />
+              <text y="20">{d3.format(".2f")(tick / 3600)}h</text>
+            </g>
+          ))}
+          {y.ticks(5).map(tick => (
+            <g className="gnc-y-tick" key={`yt-${tick}`} transform={`translate(${margin.left},${y(tick)})`}>
+              <line x2="-5" />
+              <text x="-9" dy="0.32em">{d3.format(".3~g")(tick)}</text>
+            </g>
+          ))}
+          <text className="gnc-axis-label" x={margin.left} y="12">deg/s, deg</text>
+        </g>
+        {thresholds.map(item => (
+          <g key={item.label}>
+            <line x1={margin.left} x2={width - margin.right} y1={y(item.value)} y2={y(item.value)} stroke={item.color} strokeDasharray="5 5" strokeOpacity="0.7" />
+            <text x={width - 84} y={y(item.value) - 4} fill={item.color}>{item.label}</text>
+          </g>
+        ))}
+        {series.map(item => (
+          <path key={item.label} d={line(item.points) ?? ""} fill="none" stroke={item.color} strokeWidth="2.2" />
+        ))}
+        <ChartLegend items={series} x={width - 112} y={34} />
+      </svg>
+    </figure>
+  )
+}
+
 function ModeTimeline({ segments }: { segments: ModeSegment[] }) {
   const width = 760
   const height = 280
@@ -314,7 +550,17 @@ function ModeTimeline({ segments }: { segments: ModeSegment[] }) {
   )
 }
 
-export function GncTelemetryCharts({ modeRows, scRows, wheelRows }: { modeRows: TelemetryRow[]; scRows: TelemetryRow[]; wheelRows: TelemetryRow[] }) {
+export function GncTelemetryCharts({
+  modeRows,
+  mtbRows,
+  scRows,
+  wheelRows,
+}: {
+  modeRows: TelemetryRow[]
+  mtbRows: TelemetryRow[]
+  scRows: TelemetryRow[]
+  wheelRows: TelemetryRow[]
+}) {
   const angularRate = seriesFrom(scRows, "Sc_Time", [
     { key: "Sc_wn_1", label: "wx", scale: DEG },
     { key: "Sc_wn_2", label: "wy", scale: DEG },
@@ -323,6 +569,8 @@ export function GncTelemetryCharts({ modeRows, scRows, wheelRows }: { modeRows: 
   const inertialEuler = derivedEulerSeries(scRows, "inertial")
   const orbitEuler = derivedEulerSeries(scRows, "orbit")
   const wheelRpm = reactionWheelRpmSeries(wheelRows)
+  const sunDiagnostic = diagnosticSeries(scRows)
+  const mtbCommand = mtbCommandSeries(mtbRows)
   const segments = modeSegments(modeRows)
 
   return (
@@ -332,6 +580,8 @@ export function GncTelemetryCharts({ modeRows, scRows, wheelRows }: { modeRows: 
       <LineChart series={orbitEuler} title="轨道系姿态误差" unit="deg" />
       <LineChart series={wheelRpm} title="飞轮转速" unit="rpm" />
       <ModeTimeline segments={segments} />
+      <DiagnosticChart series={sunDiagnostic} />
+      <LineChart series={mtbCommand} title="磁力矩器命令" unit="A m^2" />
     </div>
   )
 }
