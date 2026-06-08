@@ -7,10 +7,11 @@ import { resolveRequestUser } from "./server/auth.js"
 import { registerApiRoutes } from "./server/routes.js"
 import { enterRequestContext } from "./server/requestContext.js"
 import { checkCodexEndpoint, refreshSkillsCache } from "./system/index.js"
+import { resolveWorkspaceTemplateRoot } from "./workspaces/workspacePaths.js"
 
 const config = loadConfig()
 const logger = createLogger(config.logging)
-const configuredWorkspaceRoot = path.resolve(config.workspace.workspaceDir ?? path.resolve(process.cwd(), "..", "data"))
+const configuredWorkspaceRoot = resolveWorkspaceTemplateRoot(config)
 const GNC_WORKSPACE_ROOT = configuredWorkspaceRoot
 const REGION_WORKSPACE_ROOT = configuredWorkspaceRoot
 const DEFAULT_WORKSPACE_ROOT = configuredWorkspaceRoot

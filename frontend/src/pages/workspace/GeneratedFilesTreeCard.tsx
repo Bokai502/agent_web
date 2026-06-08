@@ -6,6 +6,7 @@ import {
   type WorkspaceFileTreeEntry,
   workspaceArchiveFileName,
 } from "../agent/files/workspaceFilesApi"
+import { WorkspaceFileUploadButton } from "../agent/files/WorkspaceFileUploadButton"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 
 export type GeneratedFileTreeEntry = WorkspaceFileTreeEntry
@@ -135,17 +136,25 @@ export function GeneratedFilesTreeCard({ activeContext, apiBase, onSelectFile, r
     <section className="wa-info-card wa-file-tree-card">
       <div className="wa-file-tree-head">
         <div>
-          <h3>运行结果</h3>
+          <h3>工作区文件</h3>
         </div>
-        <button
-          type="button"
-          className="wa-file-tree-download"
-          disabled={!versionDir || downloading}
-          onClick={downloadWorkspaceArchive}
-          title="下载全部运行结果"
-        >
-          {downloading ? "打包中" : "下载"}
-        </button>
+        <div className="wa-file-tree-actions">
+          <WorkspaceFileUploadButton
+            activeContext={activeContext}
+            apiBase={apiBase}
+            disabled={!versionDir}
+            onUploaded={() => loadPath(ROOT_PATH)}
+          />
+          <button
+            type="button"
+            className="wa-file-tree-download"
+            disabled={!versionDir || downloading}
+            onClick={downloadWorkspaceArchive}
+            title="下载全部工作区文件"
+          >
+            {downloading ? "打包中" : "下载"}
+          </button>
+        </div>
       </div>
       <div className="wa-file-tree-body">
         {error && <div className="wa-file-tree-error">{error}</div>}

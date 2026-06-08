@@ -17,7 +17,7 @@ checks, screenshot capture, or wants validation results written into
   `--workspace-dir <workspace_dir>` for `config show`, `cad validate`, and any
   progress updates. Do not rely on `config.json`, process `cwd`, or CLI
   defaults during Open Codex Web runs.
-- `project root config.json` field `workspace.workspaceDir`,
+- `project root config.json` field `workspace.templateDir`,
   `FREECAD_WORKSPACE_DIR`, and `WORKSPACE_DIR` are fallback mechanisms only for
   non-Web/manual CLI use.
 - Default validation inputs are `<workspace>/00_inputs` and

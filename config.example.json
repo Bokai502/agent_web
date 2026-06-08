@@ -20,7 +20,6 @@
     "approvalPolicy": "never",
     "sandboxMode": "workspace-write",
     "sandboxWorkspaceWriteNetworkAccess": true,
-    "workingDirectory": "/path/to/your/workspace",
     "skipGitRepoCheck": true
   },
   "server": {
@@ -110,14 +109,15 @@
     "alsoStdout": true
   },
   "workspace": {
-    "workspaceDir": "/path/to/your/workspace/version",
+    "templateDir": "/path/to/open_codex_web/data/input_data",
+    "usersRoot": "/path/to/codex_web/data/users",
     "filesystemGroup": "users",
     "rpcHost": "localhost",
     "rpcPort": 9877,
     "componentInfoMaxStepSizeMb": 5,
-    "filePreviewMaxBytes": 1048576,
-    "textFileMaxBytes": 8388608,
-    "textChunkBytes": 524288,
-    "textChunkMaxBytes": 1048576
+    "filePreviewMaxBytes": 5242880,
+    "textFileMaxBytes": 67108864,
+    "textChunkBytes": 1048576,
+    "textChunkMaxBytes": 2097152
   }
 }

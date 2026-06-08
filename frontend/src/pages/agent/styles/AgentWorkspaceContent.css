@@ -399,7 +399,26 @@
   font-weight: 850;
 }
 
-.agent-file-tree-pane .wa-file-tree-download {
+.agent-file-tree-pane .wa-file-tree-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.agent-file-tree-pane .wa-file-upload-control {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.agent-file-tree-pane .wa-file-upload-input {
+  display: none;
+}
+
+.agent-file-tree-pane .wa-file-tree-download,
+.agent-file-tree-pane .wa-file-tree-upload {
   height: 28px;
   flex: 0 0 auto;
   border: 1px solid rgba(23, 231, 255, 0.28);
@@ -412,14 +431,27 @@
   padding: 0 10px;
 }
 
-.agent-file-tree-pane .wa-file-tree-download:hover:not(:disabled) {
+.agent-file-tree-pane .wa-file-tree-download:hover:not(:disabled),
+.agent-file-tree-pane .wa-file-tree-upload:hover:not(:disabled) {
   border-color: rgba(23, 231, 255, 0.48);
   background: rgba(0, 168, 255, 0.2);
 }
 
-.agent-file-tree-pane .wa-file-tree-download:disabled {
+.agent-file-tree-pane .wa-file-tree-download:disabled,
+.agent-file-tree-pane .wa-file-tree-upload:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.agent-file-tree-pane .wa-file-upload-error {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 110px;
+  color: #ff8d8d;
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agent-file-tree-pane .wa-file-tree-head p {

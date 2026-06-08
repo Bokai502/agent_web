@@ -1312,7 +1312,23 @@ button.wa-run-card.selected {
   justify-content: space-between;
   gap: 10px;
 }
-.wa-file-tree-download {
+.wa-file-tree-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.wa-file-upload-control {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+.wa-file-upload-input {
+  display: none;
+}
+.wa-file-tree-download,
+.wa-file-tree-upload {
   height: 28px;
   flex-shrink: 0;
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -1324,12 +1340,24 @@ button.wa-run-card.selected {
   font-size: 11px;
   font-weight: 800;
 }
-.wa-file-tree-download:hover:not(:disabled) {
+.wa-file-tree-download:hover:not(:disabled),
+.wa-file-tree-upload:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.95);
 }
-.wa-file-tree-download:disabled {
+.wa-file-tree-download:disabled,
+.wa-file-tree-upload:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+.wa-file-upload-error {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 120px;
+  color: #b42318;
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .wa-file-tree-head p {
   overflow: hidden;

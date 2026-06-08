@@ -73,7 +73,7 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help=(
             "Workspace root for this command. Overrides FREECAD_WORKSPACE_DIR and "
-            "config.json workspace.workspaceDir."
+            "config.json workspace.templateDir."
         ),
     )
     parser.add_argument(

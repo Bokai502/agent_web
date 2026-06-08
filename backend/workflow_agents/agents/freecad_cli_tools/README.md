@@ -50,7 +50,7 @@ After editable or wheel installation, `freecad-tools` is available as the
 short console-script alias for the same commands.
 
 Workspace-scoped commands resolve relative paths from
-the project root `config.json` field `workspace.workspaceDir` by default. Pass
+the project root `config.json` field `workspace.templateDir` by default. Pass
 `--workspace` / `--workspace-dir` to override that default for a specific
 command.
 
@@ -163,7 +163,7 @@ to reading from `./00_inputs` and writing new dataset files plus
 source dataset remains unchanged unless the user explicitly overrides the paths.
 
 Workspace resolution is deterministic: configure
-`project root config.json` field `workspace.workspaceDir`, then use
+`project root config.json` field `workspace.templateDir`, then use
 `python -m freecad_cli_tools.cli.main config show` to inspect the resolved absolute paths.
 
 ## Development Layout
@@ -185,7 +185,7 @@ Workspace resolution is deterministic: configure
 ## Requirements
 
 - For RPC commands: FreeCAD with the MCP addon running on the host/port from the CLI flags or environment
-- Relative input and output paths are resolved against `workspace.workspaceDir` from `project root config.json`
+- Relative input and output paths are resolved against `workspace.templateDir` from `project root config.json`
 - For offline layout-dataset use of `python -m freecad_cli_tools.cli.main layout safe-move`: Python 3.9+ only
 - Python 3.9+
 

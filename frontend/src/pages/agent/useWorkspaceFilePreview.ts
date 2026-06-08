@@ -5,8 +5,8 @@ import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard
 import type { WorkspaceContextQuery, WorkspaceFilePreview } from './types'
 import { buildWorkspaceFileQuery } from './workspaceFileUtils'
 
-const CHUNK_TEXT_EXT_RE = /\.(?:cfg|csv|ini|json|log|md|py|txt|xml|ya?ml|42)$/iu
-const TEXT_CHUNK_BYTES = 512 * 1024
+const CHUNK_TEXT_EXT_RE = /\.(?:c|cc|cfg|cpp|cxx|csv|h|hh|hpp|hxx|ini|json|log|md|out|py|sh|txt|xml|ya?ml|42)$/iu
+const TEXT_CHUNK_BYTES = 1024 * 1024
 const MAX_PREVIEW_CHUNKS = 64
 
 function isChunkableTextFile(entry: GeneratedFileTreeEntry) {
