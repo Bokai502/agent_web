@@ -1,11 +1,32 @@
+import React from "react"
 import { render, screen } from "@testing-library/react"
-import { beforeEach, describe, expect, it } from "vitest"
-import WorkspaceHomePage from "../pages/WorkspaceHomePage"
-import WorkspaceSessionPage from "../pages/WorkspaceSessionPage"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import WorkspaceHomePage from "../../src/pages/WorkspaceHomePage"
+import WorkspaceSessionPage from "../../src/pages/WorkspaceSessionPage"
 
 describe("front-end redesign targets", () => {
   beforeEach(() => {
     window.history.replaceState(null, "", "/workspace")
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("/api/remote-tools/ensure-desktops")) {
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        })
+      }
+      if (url.endsWith("/api/sessions") || url.endsWith("/sessions")) {
+        return new Response(JSON.stringify([]), {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        })
+      }
+      return new Response(null, { status: 204 })
+    }))
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it("renders the Apple-style workspace for real sessions", () => {

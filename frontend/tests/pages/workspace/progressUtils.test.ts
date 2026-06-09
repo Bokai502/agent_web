@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import i18n from "../../i18n"
-import { getWorkflowLoopProgressEntries } from "./progressUtils"
+import i18n from "../../../src/i18n"
+import { getWorkflowLoopProgressEntries } from "../../../src/pages/workspace/progressUtils"
 
 describe("progressUtils", () => {
   it("initializes the three current workflow stages", () => {

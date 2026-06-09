@@ -1,6 +1,6 @@
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
-import { readRoutingSkillInstruction, type SkillScope } from "../system/skills.js"
+import { readManagedPrompt, type SkillScope } from "../system/skills.js"
 import { normalizeRunInput } from "./runInput.js"
 import type { RunRequestBody } from "./runTypes.js"
 
@@ -15,8 +15,8 @@ export type IntentRoutingResult = {
   source: "codex" | "fallback"
 }
 
-const INTENT_ROUTER_MODEL = process.env.CODEX_INTENT_ROUTER_MODEL?.trim() || "gpt-5.5"
 const INTENT_ROUTER_TIMEOUT_MS = Number(process.env.CODEX_INTENT_ROUTER_TIMEOUT_MS ?? 8_000)
+const INTENT_ROUTER_OUTPUT_TOKENS = Number(process.env.CODEX_INTENT_ROUTER_OUTPUT_TOKENS ?? 512)
 
 function getInputText(body: RunRequestBody) {
   const input = normalizeRunInput(body.input, body.prompt)
@@ -158,10 +158,14 @@ function getResponseOutputText(payload: unknown) {
   const parts: string[] = []
   for (const item of output) {
     if (!item || typeof item !== "object") continue
+    const itemType = (item as { type?: unknown }).type
+    if (itemType === "reasoning") continue
     const content = (item as { content?: unknown }).content
     if (!Array.isArray(content)) continue
     for (const contentItem of content) {
       if (!contentItem || typeof contentItem !== "object") continue
+      const contentType = (contentItem as { type?: unknown }).type
+      if (contentType === "reasoning_text") continue
       const text = (contentItem as { text?: unknown }).text
       if (typeof text === "string" && text.trim()) parts.push(text.trim())
     }
@@ -182,13 +186,14 @@ async function createRoutingResponse({
   requestId?: string
   signal: AbortSignal
 }) {
-  const baseUrl = config.openai.baseUrl.replace(/\/+$/u, "")
+  const baseUrl = config.chatModel.baseUrl.replace(/\/+$/u, "")
+  const model = config.chatModel.model
   const startedAt = process.hrtime.bigint()
   logger.info("responses api request started", {
     apiKind: "responses",
     apiRoute: "/responses",
-    maxOutputTokens: 220,
-    model: INTENT_ROUTER_MODEL,
+    maxOutputTokens: INTENT_ROUTER_OUTPUT_TOKENS,
+    model,
     promptLength: prompt.length,
     purpose: "managed-intent-routing",
     requestId,
@@ -196,13 +201,13 @@ async function createRoutingResponse({
   const response = await fetch(`${baseUrl}/responses`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.openai.apiKey}`,
+      Authorization: `Bearer ${config.chatModel.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       input: prompt.slice(0, 12_000),
-      max_output_tokens: 220,
-      model: INTENT_ROUTER_MODEL,
+      max_output_tokens: INTENT_ROUTER_OUTPUT_TOKENS,
+      model,
     }),
     signal,
   })
@@ -214,7 +219,7 @@ async function createRoutingResponse({
       apiKind: "responses",
       apiRoute: "/responses",
       latencyMs,
-      model: INTENT_ROUTER_MODEL,
+      model,
       purpose: "managed-intent-routing",
       requestId,
       status: response.status,
@@ -228,7 +233,7 @@ async function createRoutingResponse({
     apiKind: "responses",
     apiRoute: "/responses",
     latencyMs,
-    model: INTENT_ROUTER_MODEL,
+    model,
     outputLength: outputText.length,
     purpose: "managed-intent-routing",
     requestId,
@@ -261,16 +266,16 @@ export async function routeManagedRunIntent(
   const userInput = getInputText(body)
   if (!userInput) return fallbackRouting(body)
 
-  const skill = readRoutingSkillInstruction("intent-router")
-  if (!skill) {
-    logger.warn("managed run routing skill missing", { requestId, skillName: "intent-router" })
+  const managedPrompt = readManagedPrompt("intent-router")
+  if (!managedPrompt) {
+    logger.warn("managed run routing prompt missing", { requestId, promptName: "intent-router" })
     return fallbackRouting(body)
   }
 
   try {
     const abort = new AbortController()
     const prompt = [
-      skill.content.trim(),
+      managedPrompt.content.trim(),
       "",
       "Classify this user request. Return only strict JSON.",
       "",
@@ -291,12 +296,12 @@ export async function routeManagedRunIntent(
     if (parsed) {
       logger.info("managed run intent routed", {
         intent: parsed.intent,
-        model: INTENT_ROUTER_MODEL,
+        model: config.chatModel.model,
         managedSkills: parsed.managedSkills,
         requestId,
         selectedSkills: parsed.selectedSkills,
         skillScopes: parsed.skillScopes,
-        routingSkillFile: skill.file,
+        managedPromptFile: managedPrompt.file,
         source: parsed.source,
         timeoutMs: INTENT_ROUTER_TIMEOUT_MS,
       })
@@ -316,10 +321,10 @@ export async function routeManagedRunIntent(
           ? "gnc-workspace-or-request"
           : "general-default",
     intent: fallback.intent,
-    model: INTENT_ROUTER_MODEL,
+    model: config.chatModel.model,
     managedSkills: fallback.managedSkills,
     requestId,
-    routingSkillFile: skill.file,
+    managedPromptFile: managedPrompt.file,
     selectedSkills: fallback.selectedSkills,
     skillScopes: fallback.skillScopes,
     source: fallback.source,

@@ -25,8 +25,11 @@ type AgentWorkspacePanelProps = {
   bomInfo: BomStagePanelProps['bomInfo']
   bomLoading: boolean
   branchManifest: CurrentWorkspaceCardProps['branchManifest']
+  cancelDeleteVersion: CurrentWorkspaceCardProps['onCancelDeleteVersion']
   checkoutVersion: CurrentWorkspaceCardProps['onCheckoutVersion']
+  confirmDeleteVersion: CurrentWorkspaceCardProps['onConfirmDeleteVersion']
   createChildBranch: CurrentWorkspaceCardProps['onCreateChildBranch']
+  createInitialVersion: CurrentWorkspaceCardProps['onCreateInitialVersion']
   createSiblingBranch: CurrentWorkspaceCardProps['onCreateSiblingBranch']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   manifestLoading: boolean
@@ -39,11 +42,13 @@ type AgentWorkspacePanelProps = {
   setSelectedBomId: BomStagePanelProps['onSelectBom']
   setVersionListOpen: CurrentWorkspaceCardProps['onToggleVersionList']
   setWorkspaceListOpen: CurrentWorkspaceCardProps['onToggleWorkspaceList']
+  requestDeleteVersion: CurrentWorkspaceCardProps['onRequestDeleteVersion']
   showGncConfig: boolean
   switchActiveWorkspace: CurrentWorkspaceCardProps['onSelectWorkspace']
   t: TFunction
   toolUrls: Partial<Record<AgentToolView, string>>
   versionAction: CurrentWorkspaceCardProps['versionAction']
+  versionDeleteTarget: CurrentWorkspaceCardProps['versionDeleteTarget']
   versionError: CurrentWorkspaceCardProps['versionError']
   versionListOpen: boolean
   versionTreeRoots: CurrentWorkspaceCardProps['versionTreeRoots']
@@ -71,8 +76,11 @@ export function AgentWorkspacePanel({
   bomInfo,
   bomLoading,
   branchManifest,
+  cancelDeleteVersion,
   checkoutVersion,
+  confirmDeleteVersion,
   createChildBranch,
+  createInitialVersion,
   createSiblingBranch,
   handleSelectFile,
   manifestLoading,
@@ -85,11 +93,13 @@ export function AgentWorkspacePanel({
   setSelectedBomId,
   setVersionListOpen,
   setWorkspaceListOpen,
+  requestDeleteVersion,
   showGncConfig,
   switchActiveWorkspace,
   t,
   toolUrls,
   versionAction,
+  versionDeleteTarget,
   versionError,
   versionListOpen,
   versionTreeRoots,
@@ -176,12 +186,17 @@ export function AgentWorkspacePanel({
               currentWorkspaceName={activeContext.workspaceName ?? '当前任务'}
               manifestLoading={manifestLoading}
               onCheckoutVersion={checkoutVersion}
+              onCancelDeleteVersion={cancelDeleteVersion}
+              onConfirmDeleteVersion={confirmDeleteVersion}
               onCreateChildBranch={createChildBranch}
+              onCreateInitialVersion={createInitialVersion}
               onCreateSiblingBranch={createSiblingBranch}
+              onRequestDeleteVersion={requestDeleteVersion}
               onSelectWorkspace={switchActiveWorkspace}
               onToggleVersionList={setVersionListOpen}
               onToggleWorkspaceList={setWorkspaceListOpen}
               versionAction={versionAction}
+              versionDeleteTarget={versionDeleteTarget}
               versionError={versionError}
               versionListOpen={versionListOpen}
               versionTreeRoots={versionTreeRoots}

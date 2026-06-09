@@ -30,6 +30,15 @@ export interface AppConfig {
     wireApi: string | null
     supportsWebsockets: boolean | null
   }
+  chatModel: {
+    apiKey: string
+    approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted"
+    baseUrl: string
+    model: string
+    modelReasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh"
+    sandboxMode: "read-only" | "workspace-write" | "danger-full-access"
+    skipGitRepoCheck: boolean
+  }
   codex: {
     modelReasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh"
     approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted"
@@ -117,8 +126,19 @@ type RawOpenAiConfig = Partial<AppConfig["openai"]> & {
   supports_websockets?: unknown
 }
 
+type RawChatModelConfig = Partial<AppConfig["chatModel"]> & {
+  api_key?: unknown
+  base_url?: unknown
+  approval_policy?: unknown
+  model_reasoning_effort?: unknown
+  sandbox_mode?: unknown
+  skip_git_repo_check?: unknown
+}
+
 type RawConfig = Partial<AppConfig> & {
   openai?: RawOpenAiConfig
+  chatModel?: RawChatModelConfig
+  chat_model?: RawChatModelConfig
   [key: string]: unknown
 }
 
@@ -185,6 +205,15 @@ function optionalBoolean(value: unknown, field: string): boolean | null {
   die(`${field} 必须是布尔值 true/false。`)
 }
 
+function optionalEnum<T extends string>(value: unknown, field: string, allowed: readonly T[]): T | null {
+  if (value == null) return null
+  if (typeof value !== "string") die(`${field} 必须是字符串。`)
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if ((allowed as readonly string[]).includes(trimmed)) return trimmed as T
+  die(`${field} 必须是以下值之一: ${allowed.join(", ")}。`)
+}
+
 function optionalNumber(value: unknown, field: string): number | null {
   if (value == null) return null
   const numeric = typeof value === "number" ? value : Number(value)
@@ -228,6 +257,9 @@ export function loadConfig(): AppConfig {
   // env 覆盖（方便 CI / 临时切换）
   const envKey = process.env.OPENAI_API_KEY
   const envBase = process.env.OPENAI_BASE_URL
+  const envChatKey = process.env.CHAT_MODEL_API_KEY
+  const envChatBase = process.env.CHAT_MODEL_BASE_URL
+  const envChatModel = process.env.CHAT_MODEL_NAME
 
   const openai: RawOpenAiConfig = cfg.openai ?? {}
   const apiKey = (envKey ?? openai.apiKey ?? "").trim()
@@ -245,6 +277,34 @@ export function loadConfig(): AppConfig {
   if (apiKey === "sk-REPLACE-ME") die("openai.apiKey 仍是占位符，请填真实 key。")
   if (!baseUrl) die("openai.baseUrl 未设置（或为空）。")
   try { new URL(baseUrl) } catch { die(`openai.baseUrl 不是合法 URL: ${baseUrl}`) }
+
+  const chatModelConfig: RawChatModelConfig = cfg.chatModel ?? cfg.chat_model ?? {}
+  const chatApiKey = (envChatKey ?? chatModelConfig.apiKey ?? optionalString(chatModelConfig.api_key, "chatModel.api_key") ?? "EMPTY").trim()
+  const chatBaseUrl = (envChatBase ?? chatModelConfig.baseUrl ?? optionalString(chatModelConfig.base_url, "chatModel.base_url") ?? baseUrl).trim()
+  const chatModel = (envChatModel ?? chatModelConfig.model ?? model ?? "").trim()
+  const chatModelReasoningEffort = optionalEnum(
+    chatModelConfig.modelReasoningEffort ?? chatModelConfig.model_reasoning_effort,
+    "chatModel.modelReasoningEffort",
+    ["minimal", "low", "medium", "high", "xhigh"] as const,
+  )
+  const chatApprovalPolicy = optionalEnum(
+    chatModelConfig.approvalPolicy ?? chatModelConfig.approval_policy,
+    "chatModel.approvalPolicy",
+    ["never", "on-request", "on-failure", "untrusted"] as const,
+  )
+  const chatSandboxMode = optionalEnum(
+    chatModelConfig.sandboxMode ?? chatModelConfig.sandbox_mode,
+    "chatModel.sandboxMode",
+    ["read-only", "workspace-write", "danger-full-access"] as const,
+  )
+  const chatSkipGitRepoCheck = optionalBoolean(
+    chatModelConfig.skipGitRepoCheck ?? chatModelConfig.skip_git_repo_check,
+    "chatModel.skipGitRepoCheck",
+  )
+  if (!chatApiKey) die("chatModel.apiKey 未设置（或为空）。")
+  if (!chatBaseUrl) die("chatModel.baseUrl 未设置（或为空）。")
+  if (!chatModel) die("chatModel.model 未设置（或为空）。")
+  try { new URL(chatBaseUrl) } catch { die(`chatModel.baseUrl 不是合法 URL: ${chatBaseUrl}`) }
 
   const codex = cfg.codex ?? {} as Partial<AppConfig["codex"]>
   const auth = cfg.auth ?? {} as Partial<AppConfig["auth"]>
@@ -294,6 +354,15 @@ export function loadConfig(): AppConfig {
       modelProviderName,
       wireApi,
       supportsWebsockets,
+    },
+    chatModel: {
+      apiKey: chatApiKey,
+      approvalPolicy: chatApprovalPolicy ?? "never",
+      baseUrl: chatBaseUrl,
+      model: chatModel,
+      modelReasoningEffort: chatModelReasoningEffort ?? "medium",
+      sandboxMode: chatSandboxMode ?? "read-only",
+      skipGitRepoCheck: chatSkipGitRepoCheck ?? true,
     },
     codex: {
       modelReasoningEffort: codex.modelReasoningEffort ?? "medium",

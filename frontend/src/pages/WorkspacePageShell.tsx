@@ -133,15 +133,20 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     activeContext,
     activeManifestVersion,
     branchManifest,
+    cancelDeleteVersion,
     checkoutVersion,
+    confirmDeleteVersion,
     createChildBranch,
+    createInitialVersion,
     createSiblingBranch,
     manifestLoading,
+    requestDeleteVersion,
     setBranchManifest,
     setVersionListOpen,
     setWorkspaceListOpen,
     switchActiveWorkspace,
     versionAction,
+    versionDeleteTarget,
     versionError,
     versionListOpen,
     versionTreeRoots,
@@ -343,12 +348,17 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       currentWorkspaceName={activeContext.workspaceName}
       manifestLoading={manifestLoading}
       onCheckoutVersion={checkoutVersion}
+      onCancelDeleteVersion={cancelDeleteVersion}
+      onConfirmDeleteVersion={confirmDeleteVersion}
       onCreateChildBranch={createChildBranch}
+      onCreateInitialVersion={createInitialVersion}
       onCreateSiblingBranch={createSiblingBranch}
+      onRequestDeleteVersion={requestDeleteVersion}
       onSelectWorkspace={handleSelectWorkspace}
       onToggleVersionList={() => setVersionListOpen(open => !open)}
       onToggleWorkspaceList={() => setWorkspaceListOpen(open => !open)}
       versionAction={versionAction}
+      versionDeleteTarget={versionDeleteTarget}
       versionError={versionError}
       versionListOpen={versionListOpen}
       versionTreeRoots={versionTreeRoots}

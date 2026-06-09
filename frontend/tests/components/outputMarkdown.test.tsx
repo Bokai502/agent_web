@@ -1,6 +1,7 @@
+import React from "react"
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
-import { MarkdownText } from "./outputMarkdown"
+import { MarkdownText } from "../../src/components/outputMarkdown"
 
 describe("MarkdownText", () => {
   it("renders GFM markdown and local image paths", () => {

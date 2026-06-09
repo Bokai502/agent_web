@@ -20,7 +20,7 @@ export type VersionTreeNode = {
   version: VersionSummary
 }
 
-export type VersionAction = "branch" | "checkout"
+export type VersionAction = "branch" | "checkout" | "delete"
 
 export type WorkspaceItem = {
   manifestRoot?: string
@@ -231,6 +231,26 @@ export function branchWorkspaceVersion({
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ group, label, workspaceDir, workspaceId, workspaceKey }),
   }).then(response => readJsonResponse<{ manifest?: WorkspaceManifestSummary }>(response, "version branch failed"))
+}
+
+export function deleteWorkspaceVersion({
+  versionId,
+  workspaceKey,
+  workspaceId,
+  workspaceDir,
+  apiBase,
+}: {
+  apiBase?: string
+  versionId: string
+  workspaceKey?: string | null
+  workspaceId?: string | null
+  workspaceDir?: string | null
+}) {
+  return fetch(joinApiPath(apiBase, `/versions/${encodeURIComponent(versionId)}`), {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workspaceDir, workspaceId, workspaceKey }),
+  }).then(response => readJsonResponse<{ manifest?: WorkspaceManifestSummary }>(response, "version delete failed"))
 }
 
 export function switchWorkspace(name: string, apiBase?: string) {

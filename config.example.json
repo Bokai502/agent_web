@@ -1,12 +1,21 @@
 {
   "openai": {
     "apiKey": "sk-REPLACE-ME",
-    "baseUrl": "https://api.openai.com/v1",
-    "model": "gpt-5",
+    "baseUrl": "xxx",
+    "model": "gpt-5.5",
     "modelProvider": "openai",
     "modelProviderName": "OpenAI",
     "wireApi": "responses",
     "supportsWebsockets": false
+  },
+  "chatModel": {
+    "apiKey": "EMPTY",
+    "baseUrl": "xxx",
+    "model": "gpt-5.5",
+    "modelReasoningEffort": "low",
+    "approvalPolicy": "never",
+    "sandboxMode": "read-only",
+    "skipGitRepoCheck": true
   },
   "auth": {
     "enabled": false,
@@ -86,9 +95,7 @@
   },
   "cosyvoice": {
     "apiUrl": "http://127.0.0.1:50000/inference_zero_shot",
-    "promptText": "You are a helpful assistant.",
-    "promptWav": null,
-    "root": null,
+    "promptText": "You are a helpful assistant.<|endofprompt|>希望你以后能够做的比我还好呦。",
     "streamCacheTtlMs": 600000,
     "streamCacheMaxItems": 64,
     "ttsMaxTextLength": 5000
@@ -96,7 +103,7 @@
   "workflowAgents": {
     "contractDir": "/path/to/open_codex_web/backend/workflow_agents",
     "plannerMode": "codex",
-    "plannerModel": "gpt-5",
+    "plannerModel": "gpt-5.5",
     "plannerReasoningEffort": "high",
     "plannerWorkingDirectory": "/path/to/your/workspace",
     "plannerTimeoutMs": 120000,
