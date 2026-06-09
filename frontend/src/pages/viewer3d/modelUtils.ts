@@ -3,65 +3,6 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 
 const LIGHTWEIGHT_SURFACE_COLOR = 0x8da2ad
 const LIGHTWEIGHT_EDGE_COLOR = 0x9ec4d3
-const COMPONENT_PREVIEW_COLORS = [
-  0xc47635,
-  0x90a8ff,
-  0x70c4ff,
-  0xb38cff,
-  0xffcf70,
-  0x71f0a0,
-]
-const LEGACY_COMPONENT_COLORS: Record<string, number> = {
-  P001: 0xb7430c,
-  P002: 0xb7430c,
-  P003: 0x20ff4e,
-  P004: 0x20ff4e,
-  P005: 0xb7430c,
-  P006: 0xb7430c,
-  P007: 0xb7430c,
-  P008: 0xb7430c,
-  P009: 0xff9320,
-  P010: 0xff9320,
-  P011: 0x204eff,
-  P012: 0x204eff,
-  P013: 0x7439b7,
-  P014: 0x7439b7,
-  P015: 0x7439b7,
-  P016: 0x7439b7,
-  P017: 0x7439b7,
-  P018: 0x747474,
-  P019: 0x747474,
-  P020: 0x204eff,
-  P021: 0x204eff,
-  P022: 0x204eff,
-  P023: 0x204eff,
-  P024: 0x204eff,
-  P025: 0x204eff,
-  P026: 0x204eff,
-  P027: 0x204eff,
-  P028: 0x204eff,
-  P029: 0x204eff,
-  P030: 0x939393,
-  P031: 0x939393,
-  P032: 0x939393,
-  P033: 0x939393,
-  P034: 0x939393,
-  P035: 0x939393,
-  P036: 0xb7430c,
-  P037: 0xb7430c,
-  P038: 0xb7430c,
-  P039: 0xb7430c,
-  P040: 0xb7430c,
-  P041: 0xb7430c,
-  P042: 0xb7430c,
-  P043: 0xb7430c,
-  P044: 0xb7430c,
-  P045: 0xb7430c,
-  P046: 0xb7430c,
-  P047: 0xb7430c,
-  P048: 0xb7430c,
-  P049: 0xb7430c,
-}
 
 export function applyTransparency(material: THREE.Material, opacity = 0.42) {
   material.transparent = true
@@ -108,34 +49,37 @@ function createLightweightMaterial(material: THREE.Material, opacity: number) {
   })
 }
 
-function componentColorFromName(name: string) {
-  const match = name.match(/^P(\d{3})$/iu)
+function normalizeComponentId(value: unknown) {
+  if (typeof value !== "string") return null
+  const match = value.trim().match(/(?:^|[^a-z0-9])P(\d{3})(?=$|[^a-z0-9])/iu)
   if (!match) return null
-  const normalizedName = `P${match[1]}`
-  const legacyColor = LEGACY_COMPONENT_COLORS[normalizedName]
-  if (legacyColor !== undefined) return new THREE.Color(legacyColor)
-  const index = Math.max(0, Number(match[1]) - 1)
-  return new THREE.Color(COMPONENT_PREVIEW_COLORS[index % COMPONENT_PREVIEW_COLORS.length])
+  return `P${match[1]}`
 }
 
-function resolveComponentColor(mesh: THREE.Mesh) {
+function getComponentIdFromObject(node: THREE.Object3D) {
+  return normalizeComponentId(node.userData?.component_id) ??
+    normalizeComponentId(node.userData?.componentId) ??
+    normalizeComponentId(node.name)
+}
+
+function getComponentSourceMesh(mesh: THREE.Mesh) {
   let current: THREE.Object3D | null = mesh
   while (current) {
-    const color = componentColorFromName(current.name)
-    if (color) return color
+    if (getComponentIdFromObject(current)) return current
     current = current.parent
   }
-  return null
+  return mesh
 }
 
 function getMeshEdgeColor(mesh: THREE.Mesh) {
-  const componentColor = resolveComponentColor(mesh)
-  if (componentColor) return componentColor.clone().lerp(new THREE.Color(0xffffff), 0.28)
-
-  const material = Array.isArray(mesh.material)
+  const sourceMesh = getComponentSourceMesh(mesh) as THREE.Mesh
+  const material = Array.isArray(sourceMesh.material)
+    ? sourceMesh.material[0]
+    : sourceMesh.material
+  const fallbackMaterial = Array.isArray(mesh.material)
     ? mesh.material[0]
     : mesh.material
-  return getMaterialColor(material).lerp(new THREE.Color(0xffffff), 0.28)
+  return getMaterialColor(material ?? fallbackMaterial).lerp(new THREE.Color(0xffffff), 0.28)
 }
 
 export function applyLightweightPreviewStyle(root: THREE.Object3D, opacity = 0.18) {
@@ -143,15 +87,12 @@ export function applyLightweightPreviewStyle(root: THREE.Object3D, opacity = 0.1
     const mesh = node as THREE.Mesh
     if (!mesh.isMesh) return
 
-    const componentColor = resolveComponentColor(mesh)
     const originalMaterials = Array.isArray(mesh.material)
       ? mesh.material
       : [mesh.material]
-    const lightweightMaterials = originalMaterials.map((material) => {
-      const lightweightMaterial = createLightweightMaterial(material, opacity)
-      if (componentColor) lightweightMaterial.color.copy(componentColor)
-      return lightweightMaterial
-    })
+    const lightweightMaterials = originalMaterials.map((material) =>
+      createLightweightMaterial(material, opacity),
+    )
     mesh.material = Array.isArray(mesh.material)
       ? lightweightMaterials
       : lightweightMaterials[0]
