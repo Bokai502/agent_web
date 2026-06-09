@@ -4,6 +4,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 const LIGHTWEIGHT_SURFACE_COLOR = 0x8da2ad
 const LIGHTWEIGHT_EDGE_COLOR = 0x9ec4d3
 
+export type ComponentColorMap = Record<string, THREE.Color>
+
 export function applyTransparency(material: THREE.Material, opacity = 0.42) {
   material.transparent = true
   material.opacity = opacity
@@ -62,27 +64,32 @@ function getComponentIdFromObject(node: THREE.Object3D) {
     normalizeComponentId(node.name)
 }
 
-function getComponentSourceMesh(mesh: THREE.Mesh) {
+function componentColorFromId(componentId: string | null, componentColors?: ComponentColorMap) {
+  if (!componentId || !componentColors) return null
+  return componentColors[componentId.toUpperCase()]?.clone() ?? null
+}
+
+function resolveComponentColor(mesh: THREE.Mesh, componentColors?: ComponentColorMap) {
   let current: THREE.Object3D | null = mesh
   while (current) {
-    if (getComponentIdFromObject(current)) return current
+    const color = componentColorFromId(getComponentIdFromObject(current), componentColors)
+    if (color) return color
     current = current.parent
   }
-  return mesh
+  return null
 }
 
-function getMeshEdgeColor(mesh: THREE.Mesh) {
-  const sourceMesh = getComponentSourceMesh(mesh) as THREE.Mesh
-  const material = Array.isArray(sourceMesh.material)
-    ? sourceMesh.material[0]
-    : sourceMesh.material
-  const fallbackMaterial = Array.isArray(mesh.material)
+function getMeshEdgeColor(mesh: THREE.Mesh, componentColors?: ComponentColorMap) {
+  const componentColor = resolveComponentColor(mesh, componentColors)
+  if (componentColor) return componentColor.clone().lerp(new THREE.Color(0xffffff), 0.28)
+
+  const material = Array.isArray(mesh.material)
     ? mesh.material[0]
     : mesh.material
-  return getMaterialColor(material ?? fallbackMaterial).lerp(new THREE.Color(0xffffff), 0.28)
+  return getMaterialColor(material).lerp(new THREE.Color(0xffffff), 0.28)
 }
 
-export function applyLightweightPreviewStyle(root: THREE.Object3D, opacity = 0.18) {
+export function applyLightweightPreviewStyle(root: THREE.Object3D, opacity = 0.18, componentColors?: ComponentColorMap) {
   root.traverse((node) => {
     const mesh = node as THREE.Mesh
     if (!mesh.isMesh) return
@@ -90,9 +97,12 @@ export function applyLightweightPreviewStyle(root: THREE.Object3D, opacity = 0.1
     const originalMaterials = Array.isArray(mesh.material)
       ? mesh.material
       : [mesh.material]
-    const lightweightMaterials = originalMaterials.map((material) =>
-      createLightweightMaterial(material, opacity),
-    )
+    const componentColor = resolveComponentColor(mesh, componentColors)
+    const lightweightMaterials = originalMaterials.map((material) => {
+      const lightweightMaterial = createLightweightMaterial(material, opacity)
+      if (componentColor) lightweightMaterial.color.copy(componentColor)
+      return lightweightMaterial
+    })
     mesh.material = Array.isArray(mesh.material)
       ? lightweightMaterials
       : lightweightMaterials[0]
@@ -103,7 +113,7 @@ export function applyLightweightPreviewStyle(root: THREE.Object3D, opacity = 0.1
   })
 }
 
-export function addLightweightMeshEdges(root: THREE.Object3D) {
+export function addLightweightMeshEdges(root: THREE.Object3D, componentColors?: ComponentColorMap) {
   const edges: THREE.LineSegments[] = []
 
   root.traverse((node) => {
@@ -112,7 +122,7 @@ export function addLightweightMeshEdges(root: THREE.Object3D) {
 
     const edgeGeometry = new THREE.EdgesGeometry(mesh.geometry, 12)
     const edgeMaterial = new THREE.LineBasicMaterial({
-      color: getMeshEdgeColor(mesh) ?? LIGHTWEIGHT_EDGE_COLOR,
+      color: getMeshEdgeColor(mesh, componentColors) ?? LIGHTWEIGHT_EDGE_COLOR,
       depthTest: true,
       depthWrite: false,
       opacity: 0.72,

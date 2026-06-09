@@ -25,6 +25,7 @@ import {
   applyLightweightPreviewStyle,
   disposeModelResources,
   loadGltf,
+  type ComponentColorMap,
 } from "./viewer3d/modelUtils"
 import type { Disposable, PartAnnotation, ResolvedModel, WebGPURendererRuntime } from "./viewer3d/types"
 
@@ -34,6 +35,7 @@ const ANNOTATION_TRACK_GAP = 10
 
 type ComponentDetail = {
   componentId: string
+  color?: THREE.Color
   dimensions: string
   displayName: string
   kind: string
@@ -47,6 +49,7 @@ type RawComponentInfo = {
     category?: unknown
     component_id?: unknown
     component_subtype?: unknown
+    color?: unknown
     kind?: unknown
     semantic_name?: unknown
     size_mm?: unknown
@@ -114,6 +117,19 @@ function formatSize(value: unknown) {
     : "-"
 }
 
+function parseComponentColor(value: unknown) {
+  if (!Array.isArray(value) || value.length < 3) return null
+  const channels = value.slice(0, 3).map(channel => (
+    typeof channel === "number" && Number.isFinite(channel) ? channel : null
+  ))
+  if (channels.some(channel => channel === null)) return null
+  return new THREE.Color(
+    (channels[0] as number) / 255,
+    (channels[1] as number) / 255,
+    (channels[2] as number) / 255,
+  )
+}
+
 function parseComponentDetails(data: RawComponentInfo) {
   const detailsById: Record<string, ComponentDetail> = {}
 
@@ -124,6 +140,7 @@ function parseComponentDetails(data: RawComponentInfo) {
 
     detailsById[componentId] = {
       componentId,
+      color: parseComponentColor(component.color) ?? undefined,
       dimensions: asText(component.display_info?.dimensions) !== "-"
         ? asText(component.display_info?.dimensions)
         : formatSize(component.size_mm),
@@ -156,6 +173,14 @@ function parseComponentDetails(data: RawComponentInfo) {
   })
 
   return detailsById
+}
+
+function buildComponentColorMap(detailsById: Record<string, ComponentDetail>): ComponentColorMap {
+  return Object.fromEntries(
+    Object.values(detailsById)
+      .filter((detail): detail is ComponentDetail & { color: THREE.Color } => detail.color instanceof THREE.Color)
+      .map(detail => [detail.componentId.toUpperCase(), detail.color]),
+  )
 }
 
 function mapBodyXyzToViewerPositions(positions: number[]) {
@@ -899,7 +924,8 @@ export default function ModelViewerPage() {
         const model = gltf.scene
         modelRoot = model
 
-        applyLightweightPreviewStyle(model)
+        const componentColors = buildComponentColorMap(componentDetailsRef.current)
+        applyLightweightPreviewStyle(model, 0.18, componentColors)
 
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
@@ -913,7 +939,7 @@ export default function ModelViewerPage() {
         model.position.y -= groundedBox.min.y
 
         scene.add(model)
-        addLightweightMeshEdges(model)
+        addLightweightMeshEdges(model, componentColors)
         setSceneMode(viewerModeRef.current)
 
         const sphere = new THREE.Sphere()
