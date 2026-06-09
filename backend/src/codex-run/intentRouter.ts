@@ -303,15 +303,14 @@ export async function routeManagedRunIntent(
         ? fallback
         : parsed
       logger.info("managed run intent routed", {
-        fallbackReason: routed === fallback ? "workspace-scope-override" : undefined,
-        intent: routed.intent,
+        intent: parsed.intent,
         model: config.chatModel.model,
-        managedSkills: routed.managedSkills,
+        managedSkills: parsed.managedSkills,
         requestId,
-        selectedSkills: routed.selectedSkills,
-        skillScopes: routed.skillScopes,
+        selectedSkills: parsed.selectedSkills,
+        skillScopes: parsed.skillScopes,
         managedPromptFile: managedPrompt.file,
-        source: routed === fallback ? fallback.source : parsed.source,
+        source: parsed.source,
         timeoutMs: INTENT_ROUTER_TIMEOUT_MS,
       })
       return routed

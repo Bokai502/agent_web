@@ -189,8 +189,7 @@ export function readSkillInstructions(skillNames: string[], scopes: SkillScope[]
     findSkillFiles(root, 0, found)
   }
 
-  const instructions: SkillInstruction[] = []
-  const seen = new Set<string>()
+  const byName = new Map<string, SkillInstruction>()
 
   for (const { file, dirName } of found) {
     try {
@@ -199,10 +198,11 @@ export function readSkillInstructions(skillNames: string[], scopes: SkillScope[]
       const name = fm.name || dirName
       const key = name.toLowerCase()
 
-      if (!requested.has(key) || seen.has(key)) continue
-      seen.add(key)
+      if (!requested.has(key)) continue
 
-      instructions.push({
+      // Later scopes are workspace-specific, so they should override public skills
+      // with the same name, e.g. thermal/freecad over ~/.codex/skills/freecad.
+      byName.set(key, {
         name,
         description: fm.description || "",
         file,
@@ -213,8 +213,7 @@ export function readSkillInstructions(skillNames: string[], scopes: SkillScope[]
     }
   }
 
-  instructions.sort((a, b) => a.name.localeCompare(b.name))
-  return instructions
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function readSkillInstructionsFromRoots(roots: string[]): SkillInstruction[] {
