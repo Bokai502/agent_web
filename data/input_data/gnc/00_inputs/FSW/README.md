@@ -1,12 +1,12 @@
 # FSW CFS-Only Implementation Template
 
-This folder contains the case-local flight-software scaffold used by `NewCase`.
+This folder contains the workspace-local flight-software scaffold used by `demo_server/open_codex_web/data/input_data/gnc`.
 It is intended to look like a small but real ADCS FSW stack: 42 owns the truth
 simulation, this FSW owns the `AC` data mirror, mode logic, control commands,
 and actuator dispatch.
 
 The scaffold is compilable and runnable, but it is not a mission-validated GNC
-controller. Mission cases should replace the default thresholds, pointing laws,
+controller. Mission workspaces should replace the default thresholds, pointing laws,
 filters, control gains, and actuator allocation details with design-specific
 logic.
 

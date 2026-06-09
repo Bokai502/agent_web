@@ -43,9 +43,9 @@ static void AcSyncReferenceState(struct AcType *AC)
       /*
       ** Standard 42 sensor-state synchronization shell.
       **
-      ** This case-local FSW runs after 42's SensorModule has populated AC with
+      ** This workspace-local FSW runs after 42's SensorModule has populated AC with
       ** the standard sensor/truth-model outputs.  Mirror the non-modeling
-      ** bookkeeping from 42/Source/42sensors.c using only fields already present
+      ** bookkeeping from codex_web/AIGNC/42/Source/42sensors.c using only fields already present
       ** in AC: attitude DCM, LVLH frame, LVLH quaternion/rate, ephemeris
       ** validity, and the coarse Earth-sensor roll/pitch surrogate.
       **
