@@ -42,7 +42,7 @@ Choose `progress-summarizer` only when the user asks about the current, previous
 
 Choose `task-runner` for new questions, analysis, execution, design, simulation, coding, weather, finance, or general requests. Do not treat "怎么样" alone as progress; for example, "苹果股票今年行情怎么样" is `task-runner`.
 
-Choose `thermal` for satellite thermal design or CAD/thermal simulation requests, including COMSOL, ParaView, FreeCAD CAD-to-simulation workflow, heat sources, materials, radiators, conduction, convection, boundary conditions, thermal reports, CAD geometry, or thermal layout changes.
+Choose `thermal` for satellite thermal design or CAD/thermal simulation requests, including COMSOL, ParaView, FreeCAD CAD-to-simulation workflow, satellite CAD assembly or reassembly, placeholder-box CAD generation, real-CAD replacement assembly, STEP/GLB export, heat sources, materials, radiators, conduction, convection, boundary conditions, thermal reports, CAD geometry, or thermal layout changes. Requests like "assemble/reassemble the satellite", "重新组装卫星", "组装卫星", "生成卫星CAD", "重建当前卫星模型", or "00_inputs -> 01_cad model build" are thermal workflow requests.
 
 Choose `gnc` for satellite guidance, navigation, control, ADCS, 42, or FSW requests, including attitude/orbit control, pointing, detumble, acquisition, tracking, reaction wheels, magnetorquers, thruster modes, sensor/actuator contracts, 42 configuration/runtime/plots/tuning, and FSW requirements/architecture/implementation/control-law debugging.
 
