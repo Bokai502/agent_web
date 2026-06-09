@@ -835,6 +835,59 @@
   color: var(--light-text);
 }
 
+.agent-page.is-light-theme .wa-version-delete {
+  border-color: rgba(217, 45, 32, 0.2);
+  background: rgba(255, 246, 245, 0.96);
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .wa-version-delete:hover:not(:disabled) {
+  border-color: rgba(217, 45, 32, 0.34);
+  background: #fff6f5;
+}
+
+.agent-page.is-light-theme .wa-version-delete-dialog {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+}
+
+.agent-page.is-light-theme .wa-version-delete-dialog-icon {
+  border-color: rgba(217, 45, 32, 0.12);
+  background: rgba(217, 45, 32, 0.09);
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .wa-version-delete-dialog h3 {
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-version-delete-dialog p {
+  color: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .wa-version-delete-dialog-actions {
+  border-top-color: rgba(0, 0, 0, 0.06);
+  background: rgba(245, 245, 247, 0.72);
+}
+
+.agent-page.is-light-theme .wa-version-delete-dialog-cancel {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-version-empty-state button {
+  border-color: rgba(0, 113, 227, 0.18);
+  background: rgba(0, 113, 227, 0.08);
+  color: #0057b8;
+}
+
+.agent-page.is-light-theme .wa-version-empty-state button:hover:not(:disabled) {
+  border-color: rgba(0, 113, 227, 0.32);
+  background: rgba(0, 113, 227, 0.12);
+}
+
 .agent-page.is-light-theme .wa-version-card-header h3,
 .agent-page.is-light-theme .wa-task-card-header p,
 .agent-page.is-light-theme .wa-info-card p,

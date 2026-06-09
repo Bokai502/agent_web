@@ -13,12 +13,17 @@ type CurrentWorkspaceCardProps = {
   currentWorkspaceName: string
   manifestLoading: boolean
   onCheckoutVersion: (versionId: string) => void
+  onCancelDeleteVersion: () => void
+  onConfirmDeleteVersion: () => Promise<void>
   onCreateChildBranch: (baseVersionId?: string) => void
+  onCreateInitialVersion: () => void
   onCreateSiblingBranch: () => void
+  onRequestDeleteVersion: (versionId: string) => void
   onSelectWorkspace: (name: string) => void
   onToggleVersionList: () => void
   onToggleWorkspaceList: () => void
   versionAction: VersionAction | null
+  versionDeleteTarget: string | null
   versionError: string
   versionListOpen: boolean
   versionTreeRoots: VersionTreeNode[]
@@ -33,12 +38,17 @@ export function CurrentWorkspaceCard({
   currentWorkspaceName,
   manifestLoading,
   onCheckoutVersion,
+  onCancelDeleteVersion,
+  onConfirmDeleteVersion,
   onCreateChildBranch,
+  onCreateInitialVersion,
   onCreateSiblingBranch,
+  onRequestDeleteVersion,
   onSelectWorkspace,
   onToggleVersionList,
   onToggleWorkspaceList,
   versionAction,
+  versionDeleteTarget,
   versionError,
   versionListOpen,
   versionTreeRoots,
@@ -49,17 +59,37 @@ export function CurrentWorkspaceCard({
   const renderVersionNode = useCallback((node: VersionTreeNode) => {
     const versionId = node.version.id ?? ""
     const isActive = versionId === branchManifest?.activeVersionId
+    const canDelete = !!versionId && versionAction !== "delete"
     return (
       <div className="wa-version-branch" key={versionId}>
-        <button
-          type="button"
-          className={`wa-version-row${isActive ? " active" : ""}`}
-          disabled={!versionId || isActive || versionAction !== null}
-          onClick={() => onCheckoutVersion(versionId)}
-          title={isActive ? `${versionId} 为当前版本` : `切换到 ${versionId}`}
-        >
-          <strong>{versionId || "-"}</strong>
-        </button>
+        <div className={`wa-version-node${isActive ? " active" : ""}`}>
+          <button
+            type="button"
+            className={`wa-version-row${isActive ? " active" : ""}`}
+            disabled={!versionId || isActive || versionAction !== null}
+            onClick={() => onCheckoutVersion(versionId)}
+            title={isActive ? `${versionId} 为当前版本` : `切换到 ${versionId}`}
+          >
+            <strong>{versionId || "-"}</strong>
+          </button>
+          <button
+            type="button"
+            className="wa-version-delete"
+            disabled={!canDelete || versionAction !== null}
+            onClick={() => onRequestDeleteVersion(versionId)}
+            title={`删除 ${versionId}`}
+            aria-label={`删除 ${versionId}`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5h6" />
+              <path d="M10 5l1-2h2l1 2" />
+              <path d="M5 7h14" />
+              <path d="M7 7l1 14h8l1-14" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+            </svg>
+          </button>
+        </div>
         {node.children.length > 0 && (
           <div className="wa-version-children">
             {node.children.map(child => renderVersionNode(child))}
@@ -67,7 +97,7 @@ export function CurrentWorkspaceCard({
         )}
       </div>
     )
-  }, [branchManifest?.activeVersionId, onCheckoutVersion, versionAction])
+  }, [branchManifest?.activeVersionId, onCheckoutVersion, onRequestDeleteVersion, versionAction])
 
   const activeVersionId = branchManifest?.activeVersionId ?? "-"
 
@@ -157,9 +187,58 @@ export function CurrentWorkspaceCard({
           <div className="wa-version-tree">
             {versionTreeRoots.map(root => renderVersionNode(root))}
             {versionTreeRoots.length === 0 && (
-              <span className="wa-version-empty">暂无版本</span>
+              <div className="wa-version-empty-state">
+                <span className="wa-version-empty">暂无版本</span>
+                <button
+                  type="button"
+                  disabled={versionAction !== null || manifestLoading}
+                  onClick={onCreateInitialVersion}
+                >
+                  {versionAction === "branch" ? "创建中..." : "新建版本"}
+                </button>
+              </div>
             )}
           </div>
+        </div>
+      )}
+      {versionDeleteTarget && (
+        <div className="wa-version-delete-dialog-backdrop" role="presentation" onClick={() => versionAction !== "delete" && onCancelDeleteVersion()}>
+          <section
+            aria-labelledby="wa-version-delete-title"
+            aria-modal="true"
+            className="wa-version-delete-dialog"
+            role="dialog"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="wa-version-delete-dialog-body">
+              <div className="wa-version-delete-dialog-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 5h6" />
+                  <path d="M10 5l1-2h2l1 2" />
+                  <path d="M5 7h14" />
+                  <path d="M7 7l1 14h8l1-14" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+              </div>
+              <h3 id="wa-version-delete-title">删除版本？</h3>
+              <p>版本 {versionDeleteTarget} 的工作区文件和版本记录会被删除。若这是最后一个版本，任务会暂时进入暂无版本状态。</p>
+              {versionError && <span className="wa-version-delete-dialog-error">{versionError}</span>}
+            </div>
+            <div className="wa-version-delete-dialog-actions">
+              <button type="button" className="wa-version-delete-dialog-cancel" disabled={versionAction === "delete"} onClick={onCancelDeleteVersion}>
+                取消
+              </button>
+              <button
+                type="button"
+                className="wa-version-delete-dialog-danger"
+                disabled={versionAction === "delete"}
+                onClick={onConfirmDeleteVersion}
+              >
+                {versionAction === "delete" ? "正在删除..." : "删除"}
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </section>

@@ -80,14 +80,19 @@ export default function AgentPage() {
     activeContext,
     activeManifestVersion,
     branchManifest,
+    cancelDeleteVersion,
     checkoutVersion,
+    confirmDeleteVersion,
     createChildBranch,
+    createInitialVersion,
     createSiblingBranch,
     manifestLoading,
+    requestDeleteVersion,
     setVersionListOpen,
     setWorkspaceListOpen,
     switchActiveWorkspace,
     versionAction,
+    versionDeleteTarget,
     versionError,
     versionListOpen,
     versionTreeRoots,
@@ -522,8 +527,11 @@ export default function AgentPage() {
           bomInfo={bomInfo}
           bomLoading={bomLoading}
           branchManifest={branchManifest}
+          cancelDeleteVersion={cancelDeleteVersion}
           checkoutVersion={checkoutVersion}
+          confirmDeleteVersion={confirmDeleteVersion}
           createChildBranch={createChildBranch}
+          createInitialVersion={createInitialVersion}
           createSiblingBranch={createSiblingBranch}
           handleSelectFile={handleSelectFile}
           manifestLoading={manifestLoading}
@@ -536,11 +544,13 @@ export default function AgentPage() {
           setSelectedBomId={setSelectedBomId}
           setVersionListOpen={() => setVersionListOpen(open => !open)}
           setWorkspaceListOpen={() => setWorkspaceListOpen(open => !open)}
+          requestDeleteVersion={requestDeleteVersion}
           showGncConfig={showGncConfig}
           switchActiveWorkspace={switchActiveWorkspace}
           t={t}
           toolUrls={toolUrls}
           versionAction={versionAction}
+          versionDeleteTarget={versionDeleteTarget}
           versionError={versionError}
           versionListOpen={versionListOpen}
           versionTreeRoots={versionTreeRoots}

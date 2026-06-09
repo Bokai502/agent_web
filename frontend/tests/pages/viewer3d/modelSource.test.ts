@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { fetchResolvedModel } from "./modelSource"
+import { fetchResolvedModel } from "../../../src/pages/viewer3d/modelSource"
 
 describe("fetchResolvedModel", () => {
   afterEach(() => {

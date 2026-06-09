@@ -87,6 +87,7 @@ open_codex_web/
 | `openai.apiKey` / `OPENAI_API_KEY` | OpenAI 或兼容服务 API Key，环境变量可覆盖 |
 | `openai.baseUrl` / `OPENAI_BASE_URL` | OpenAI 或兼容服务 Base URL，环境变量可覆盖 |
 | `openai.model` | Codex 默认模型 |
+| `chatModel` | routing、managed progress/general answer 使用的轻量模型配置，可独立设置 `apiKey`、`baseUrl`、`model`、`modelReasoningEffort`、`approvalPolicy`、`sandboxMode`、`skipGitRepoCheck` |
 | `codex.modelReasoningEffort` | 推理强度 |
 | `codex.approvalPolicy` | Codex approval policy |
 | `codex.sandboxMode` | Codex sandbox mode |

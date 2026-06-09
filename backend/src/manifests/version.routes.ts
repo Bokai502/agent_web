@@ -5,6 +5,7 @@ import {
   branchVersion,
   checkoutVersion,
   commitVersion,
+  deleteVersion,
   diffVersions,
   failVersion,
 } from "./store.js"
@@ -56,6 +57,29 @@ export function registerVersionRoutes(
       } catch (err) {
         logger.error("version checkout failed", { err, legacySessionId, versionId, workspaceDir, workspaceId, workspaceKey })
         return reply.status(400).send({ error: getErrorMessage(err, "failed to checkout version") })
+      }
+    }
+  )
+
+  fastify.delete<{ Params: { versionId: string }; Body: unknown }>(
+    "/api/versions/:versionId",
+    async (req, reply) => {
+      const versionId = getString(req.params.versionId)
+      const body = getObject(req.body)
+      const legacySessionId = getString(body?.sessionId)
+      const workspaceId = getString(body?.workspaceId)
+      const workspaceKey = getString(body?.workspaceKey)
+      const workspaceDir = getString(body?.workspaceDir)
+      if (!workspaceId && !workspaceKey && !legacySessionId && !workspaceDir) return sendBadRequest(reply, "workspaceId, workspaceKey or workspaceDir is required")
+      if (!versionId) return sendBadRequest(reply, "versionId is required")
+      try {
+        return reply.send(await deleteVersion(versionId, {
+          sessionId: workspaceId ?? workspaceKey ?? legacySessionId ?? "workspace",
+          workspaceDir,
+        }))
+      } catch (err) {
+        logger.error("version delete failed", { err, legacySessionId, versionId, workspaceDir, workspaceId, workspaceKey })
+        return reply.status(400).send({ error: getErrorMessage(err, "failed to delete version") })
       }
     }
   )
