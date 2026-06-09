@@ -941,6 +941,9 @@ export default function ModelViewerPage() {
         scene.add(model)
         addLightweightMeshEdges(model, componentColors)
         setSceneMode(viewerModeRef.current)
+        if (viewerModeRef.current === "temperature") {
+          void loadTemperatureField(scene, camera)
+        }
 
         const sphere = new THREE.Sphere()
         new THREE.Box3().setFromObject(model).getBoundingSphere(sphere)
@@ -1058,6 +1061,7 @@ export default function ModelViewerPage() {
       }
 
       window.addEventListener("viewer3d:mode-change", handleModeChange)
+      handleModeChange()
       refreshLatestModel("initial")
 
       if (modelSource.autoRefresh) {
