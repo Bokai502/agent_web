@@ -584,6 +584,40 @@ export async function failVersion(versionId: string, body: Record<string, unknow
   return await updateVersionStatus(manifest, versionId, "failed")
 }
 
+export async function deleteVersion(versionId: string, body: Record<string, unknown>) {
+  const manifest = await getManifestForBody(body)
+  const target = manifest.versions.find(version => version.id === versionId)
+  if (!target) throw new Error(`version not found: ${versionId}`)
+
+  const timestamp = nowIso()
+  const versions = manifest.versions
+    .filter(version => version.id !== versionId)
+    .map(version => version.parentVersionId === versionId
+      ? { ...version, parentVersionId: target.parentVersionId ?? null, updatedAt: timestamp }
+      : version
+    )
+
+  const versionsRoot = path.join(manifest.rootDir, "versions")
+  const targetWorkspaceDir = await assertPathInsideWorkspaceRoot(target.workspaceDir, "workspaceDir")
+  if (!isPathInside(versionsRoot, targetWorkspaceDir)) {
+    throw new Error("version workspace must be under the manifest versions directory")
+  }
+
+  const next = await writeManifest({
+    ...manifest,
+    activeVersionId: manifest.activeVersionId === versionId
+      ? versions.find(version => version.parentVersionId === target.parentVersionId)?.id ?? versions[versions.length - 1]?.id ?? null
+      : manifest.activeVersionId,
+    artifacts: manifest.artifacts.filter(artifact => artifact.versionId !== versionId),
+    checkpoints: manifest.checkpoints.filter(checkpoint => checkpoint.versionId !== versionId),
+    runs: manifest.runs.filter(run => run.versionId !== versionId && run.baseVersionId !== versionId && run.outputVersionId !== versionId),
+    scores: manifest.scores.filter(score => score.versionId !== versionId),
+    versions,
+  })
+  await fs.rm(targetWorkspaceDir, { force: true, recursive: true })
+  return { manifest: next, versionId }
+}
+
 export async function diffVersions(a: string, b: string, workspaceId: string) {
   const manifest = await getManifestByWorkspaceId(workspaceId)
   const left = manifest.versions.find(version => version.id === a)

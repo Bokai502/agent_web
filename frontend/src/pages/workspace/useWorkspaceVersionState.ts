@@ -3,6 +3,7 @@ import {
   branchWorkspaceVersion,
   buildVersionTree,
   checkoutWorkspaceVersion,
+  deleteWorkspaceVersion,
   fetchWorkspaces,
   fetchWorkspaceManifest,
   getActiveVersion,
@@ -38,6 +39,7 @@ export function useWorkspaceVersionState({
   const [manifestLoading, setManifestLoading] = useState(false)
   const [manifestRefreshNonce, setManifestRefreshNonce] = useState(0)
   const [versionAction, setVersionAction] = useState<VersionAction | null>(null)
+  const [versionDeleteTarget, setVersionDeleteTarget] = useState<string | null>(null)
   const [versionError, setVersionError] = useState("")
   const [versionListOpen, setVersionListOpen] = useState(false)
   const [workspaceListOpen, setWorkspaceListOpen] = useState(false)
@@ -113,6 +115,68 @@ export function useWorkspaceVersionState({
     branchVersion(parentVersionId, "界面创建的同级版本")
   }, [activeManifestVersion?.parentVersionId, branchVersion])
 
+  const createInitialVersion = useCallback(() => {
+    const manifestRoot = activeContext.manifestRoot
+    if ((!versionWorkspaceKey && !activeContext.workspaceId && !manifestRoot) || !manifestRoot || versionAction !== null) return
+    setVersionAction("branch")
+    setVersionError("")
+    fetchWorkspaceManifest({
+      initialize: true,
+      apiBase,
+      workspaceKey: versionWorkspaceKey,
+      workspaceId: activeContext.workspaceId,
+      manifestRoot,
+      sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
+    })
+      .then(data => {
+        if (data) setBranchManifest(data)
+        onReloadSessions()
+        onRefreshWorkspaceViews()
+        refreshManifest()
+        setVersionListOpen(true)
+      })
+      .catch(err => setVersionError(err instanceof Error ? err.message : "版本创建失败"))
+      .finally(() => setVersionAction(null))
+  }, [activeContext.manifestRoot, activeContext.sourceWorkspaceDir, activeContext.workspaceId, apiBase, onRefreshWorkspaceViews, onReloadSessions, refreshManifest, versionAction, versionWorkspaceKey])
+
+  const requestDeleteVersion = useCallback((versionId: string) => {
+    if (!versionId || versionAction !== null) return
+    setVersionError("")
+    setVersionDeleteTarget(versionId)
+  }, [versionAction])
+
+  const cancelDeleteVersion = useCallback(() => {
+    if (versionAction === "delete") return
+    setVersionDeleteTarget(null)
+    setVersionError("")
+  }, [versionAction])
+
+  const confirmDeleteVersion = useCallback(() => {
+    const versionId = versionDeleteTarget
+    if ((!versionWorkspaceKey && !activeContext.workspaceId && !activeContext.manifestRoot) || !versionId) return Promise.resolve()
+    setVersionAction("delete")
+    setVersionError("")
+    return deleteWorkspaceVersion({
+      versionId,
+      apiBase,
+      workspaceKey: versionWorkspaceKey,
+      workspaceId: activeContext.workspaceId,
+      workspaceDir: activeContext.manifestRoot,
+    })
+      .then(data => {
+        if (data.manifest) setBranchManifest(data.manifest)
+        setVersionDeleteTarget(null)
+        onReloadSessions()
+        onRefreshWorkspaceViews()
+        refreshManifest()
+        setVersionListOpen(true)
+      })
+      .catch(err => {
+        setVersionError(err instanceof Error ? err.message : "版本删除失败")
+      })
+      .finally(() => setVersionAction(null))
+  }, [activeContext.manifestRoot, activeContext.workspaceId, apiBase, onRefreshWorkspaceViews, onReloadSessions, refreshManifest, versionDeleteTarget, versionWorkspaceKey])
+
   const switchActiveWorkspace = useCallback((name: string) => {
     setWorkspaceChanging(true)
     setBranchManifest(null)
@@ -184,8 +248,11 @@ export function useWorkspaceVersionState({
     activeContext,
     activeManifestVersion,
     branchManifest,
+    cancelDeleteVersion,
     checkoutVersion,
+    confirmDeleteVersion,
     createChildBranch,
+    createInitialVersion,
     createSiblingBranch,
     manifestLoading,
     refreshManifest,
@@ -193,7 +260,9 @@ export function useWorkspaceVersionState({
     setVersionListOpen,
     setWorkspaceListOpen,
     switchActiveWorkspace,
+    requestDeleteVersion,
     versionAction,
+    versionDeleteTarget,
     versionError,
     versionListOpen,
     versionTreeRoots,

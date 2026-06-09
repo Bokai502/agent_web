@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseBomInfo } from "./bomData"
+import { parseBomInfo } from "../../src/components/bomData"
 
 describe("parseBomInfo", () => {
   it("reads component counts and top-level component IDs from enhanced BOM data", () => {

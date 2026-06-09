@@ -22,6 +22,7 @@ cp config.example.json config.json
 | `openai.apiKey` | OpenAI 或兼容服务的 API Key。也可以用 `OPENAI_API_KEY` 环境变量覆盖。 |
 | `openai.baseUrl` | OpenAI 或兼容服务的 API Base URL。也可以用 `OPENAI_BASE_URL` 环境变量覆盖。 |
 | `openai.model` | Codex 默认使用的模型。 |
+| `chatModel` | routing、managed progress/general answer 使用的轻量模型配置，可独立设置 `apiKey`、`baseUrl`、`model`、`modelReasoningEffort`、`approvalPolicy`、`sandboxMode`、`skipGitRepoCheck`。 |
 | `codex.approvalPolicy` | Codex approval policy，例如 `never`、`on-request`。 |
 | `codex.sandboxMode` | Codex sandbox mode，例如 `workspace-write`、`danger-full-access`。 |
 | `codex.sandboxWorkspaceWriteNetworkAccess` | 当 `sandboxMode` 为 `workspace-write` 时是否允许 Agent 命令访问网络；需要连接本机 FreeCAD RPC 或 COMSOL 私有 `mphserver` 时应设为 `true`。 |

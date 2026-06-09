@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { resolveWorkspaceVersionContext, type WorkspacesResponse } from "./workspaceVersion"
+import { resolveWorkspaceVersionContext, type WorkspacesResponse } from "../../../src/pages/workspace/workspaceVersion"
 
 describe("resolveWorkspaceVersionContext", () => {
   it("does not reuse an effective version path when the workspace index reports no current version", () => {

@@ -773,6 +773,12 @@
   min-width: 0;
 }
 
+.agent-page .wa-version-node {
+  position: relative;
+  display: inline-grid;
+  min-width: 82px;
+}
+
 .agent-page .wa-version-children {
   position: relative;
   display: flex;
@@ -803,15 +809,188 @@
 
 .agent-page .wa-version-row {
   display: grid;
-  min-width: 70px;
+  min-width: 80px;
   min-height: 32px;
   place-items: center;
-  padding: 5px 10px;
+  padding: 5px 13px 5px 10px;
+}
+
+.agent-page .wa-version-delete {
+  display: grid;
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid rgba(255, 82, 82, 0.26);
+  border-radius: 999px;
+  background: rgba(50, 16, 24, 0.92);
+  color: #ffb4ac;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 6px 14px rgba(255, 82, 82, 0.1);
+  opacity: 0.72;
+  transform: scale(0.94);
+  transition: opacity 140ms ease, transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.agent-page .wa-version-delete:hover:not(:disabled) {
+  border-color: rgba(255, 82, 82, 0.44);
+  background: rgba(74, 20, 30, 0.98);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.agent-page .wa-version-delete:disabled {
+  cursor: default;
+  opacity: 0.34;
+}
+
+.agent-page .wa-version-delete svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.1;
+}
+
+.agent-page .wa-version-delete-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 520;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 4, 10, 0.5);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+
+.agent-page .wa-version-delete-dialog {
+  width: min(360px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(23, 231, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(4, 18, 32, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34), 0 0 36px rgba(0, 168, 255, 0.13);
+}
+
+.agent-page .wa-version-delete-dialog-body {
+  padding: 22px 22px 18px;
+}
+
+.agent-page .wa-version-delete-dialog-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 14px;
+  place-items: center;
+  border: 1px solid rgba(255, 82, 82, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 82, 82, 0.1);
+  color: #ffb4ac;
+}
+
+.agent-page .wa-version-delete-dialog-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.1;
+}
+
+.agent-page .wa-version-delete-dialog h3 {
+  margin: 0;
+  color: #eaf7ff;
+  font-size: 18px;
+  font-weight: 780;
+  line-height: 1.25;
+}
+
+.agent-page .wa-version-delete-dialog p {
+  margin: 9px 0 0;
+  color: rgba(234, 247, 255, 0.62);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.agent-page .wa-version-delete-dialog-error {
+  display: block;
+  margin-top: 10px;
+  color: #ffb4ac;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.agent-page .wa-version-delete-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(23, 231, 255, 0.1);
+  background: rgba(0, 8, 18, 0.46);
+}
+
+.agent-page .wa-version-delete-dialog-actions button {
+  height: 34px;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.agent-page .wa-version-delete-dialog-actions button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.agent-page .wa-version-delete-dialog-cancel {
+  border: 1px solid rgba(23, 231, 255, 0.16);
+  background: rgba(5, 20, 34, 0.72);
+  color: rgba(234, 247, 255, 0.78);
+}
+
+.agent-page .wa-version-delete-dialog-danger {
+  border: 1px solid rgba(255, 82, 82, 0.26);
+  background: #d92d20;
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(217, 45, 32, 0.25);
+}
+
+.agent-page .wa-version-delete-dialog-danger:hover:not(:disabled) {
+  background: #b42318;
 }
 
 .agent-page .wa-version-row strong {
   font-size: 12px;
   line-height: 1.2;
+}
+
+.agent-page .wa-version-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 32px;
+}
+
+.agent-page .wa-version-empty-state button {
+  height: 28px;
+  border: 1px solid rgba(23, 231, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 168, 255, 0.1);
+  color: #eaf7ff;
+  cursor: pointer;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.agent-page .wa-version-empty-state button:hover:not(:disabled) {
+  border-color: rgba(23, 231, 255, 0.34);
+  background: rgba(0, 168, 255, 0.16);
+}
+
+.agent-page .wa-version-empty-state button:disabled {
+  cursor: wait;
+  opacity: 0.56;
 }
 
 .agent-side-nav a:hover,

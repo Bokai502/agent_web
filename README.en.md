@@ -22,6 +22,7 @@ Common fields:
 | `openai.apiKey` | API key for OpenAI or an OpenAI-compatible service. Can be overridden by `OPENAI_API_KEY`. |
 | `openai.baseUrl` | API base URL for OpenAI or an OpenAI-compatible service. Can be overridden by `OPENAI_BASE_URL`. |
 | `openai.model` | Default model used by Codex. |
+| `chatModel` | Lightweight model config used by routing and managed progress/general answers. It can independently set `apiKey`, `baseUrl`, `model`, `modelReasoningEffort`, `approvalPolicy`, `sandboxMode`, and `skipGitRepoCheck`. |
 | `codex.approvalPolicy` | Codex approval policy, such as `never` or `on-request`. |
 | `codex.sandboxMode` | Codex sandbox mode, such as `workspace-write` or `danger-full-access`. |
 | `codex.sandboxWorkspaceWriteNetworkAccess` | Allows network access for Agent commands when `sandboxMode` is `workspace-write`; set to `true` when commands must connect to local FreeCAD RPC or a private COMSOL `mphserver`. |

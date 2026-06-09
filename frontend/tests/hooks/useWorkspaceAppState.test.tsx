@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { useWorkspaceAppState } from "./useWorkspaceAppState"
-import type { Session } from "../types"
+import { useWorkspaceAppState } from "../../src/hooks/useWorkspaceAppState"
+import type { Session } from "../../src/types"
 
-vi.mock("./useTaskStream", () => ({
+vi.mock("../../src/hooks/useTaskStream", () => ({
   useCodexStream: () => ({
     abort: vi.fn(),
     run: vi.fn(),

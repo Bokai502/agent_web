@@ -5,8 +5,8 @@ import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { getWorkspaceManifestSnapshotByLocator } from "../manifests/store.js"
 import { getRequestUserId } from "../server/requestContext.js"
-import { findWorkspaceSession } from "../sessions/sessionStore.js"
-import { readRoutingSkillInstruction, type SkillScope } from "../system/skills.js"
+import { findWorkspaceSession, upsertWorkspaceSessionHistory } from "../sessions/sessionStore.js"
+import { readManagedPrompt, type SkillScope } from "../system/skills.js"
 import { resolveProgressFromLatestSessionRun } from "../workspaces/workspaceRegistry.js"
 import { buildCodexConfig } from "./codexConfig.js"
 import { executeCodexTurn, prepareCodexTurn, type RunCodexTurnResult } from "./codexTurn.js"
@@ -94,12 +94,22 @@ const MANAGED_RUN_STATUS_TTL_MS = 1000 * 60 * 60
 const MANAGED_SESSION_STATE_TTL_MS = 1000 * 60 * 60 * 12
 const MANAGED_RUN_STATUS_DIR = path.resolve(process.cwd(), "logs", "managed-runs")
 const MANAGED_RUN_ID_PATTERN = /^managed_[a-z0-9]+_[a-z0-9]+$/iu
-const MANAGED_SUMMARY_MODEL = process.env.CODEX_MANAGED_SUMMARY_MODEL?.trim() || "gpt-5.5"
 const MANAGED_SUMMARY_TIMEOUT_MS = 10_000
 const MANAGED_GENERAL_ANSWER_TIMEOUT_MS = Number(process.env.CODEX_MANAGED_GENERAL_ANSWER_TIMEOUT_MS ?? 18_000)
 const MANAGED_PROGRESS_ANSWER_TIMEOUT_MS = Number(process.env.CODEX_MANAGED_PROGRESS_ANSWER_TIMEOUT_MS ?? 18_000)
+const MANAGED_CHAT_OUTPUT_TOKENS = Number(process.env.CODEX_MANAGED_CHAT_OUTPUT_TOKENS ?? 512)
 const MANAGED_START_SUMMARY = "当前任务已接收，正在分析。"
 const RESPONSES_API_TEXT_MAX_CHARS = 20_000
+
+function getManagedPromptContent(name: string, fallback: string) {
+  return readManagedPrompt(name)?.content.trim() || fallback
+}
+
+function buildManagedAnswerCodexEnv() {
+  return Object.fromEntries(
+    Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  )
+}
 
 type ManagedSessionState = {
   sessionId: string
@@ -110,6 +120,8 @@ type ManagedSessionState = {
   workspaceDir: string | null
   workspaceId: string | null
 }
+
+type ManagedResponsePurpose = "managed-general-answer" | "managed-progress-answer"
 
 function makeManagedId(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
@@ -345,6 +357,18 @@ function getAgentMessageTextFromEvent(event: unknown) {
   return typeof record.text === "string" && record.text.trim() !== "" ? record.text.trim() : ""
 }
 
+function getTurnSource(turn: unknown) {
+  if (!turn || typeof turn !== "object") return "codex"
+  const source = (turn as { source?: unknown }).source
+  return typeof source === "string" && source.trim() !== "" ? source.trim() : "codex"
+}
+
+function getTurnResponsePurpose(turn: unknown) {
+  if (!turn || typeof turn !== "object") return null
+  const responsePurpose = (turn as { responsePurpose?: unknown }).responsePurpose
+  return typeof responsePurpose === "string" && responsePurpose.trim() !== "" ? responsePurpose.trim() : null
+}
+
 function getLatestAgentMessage(events: unknown[]) {
   for (const event of [...events].reverse()) {
     const text = getAgentMessageTextFromEvent(event)
@@ -384,10 +408,89 @@ function getSessionConversationDigest(session: unknown, maxTurns = 4) {
     return {
       agentMessage: getLatestAgentMessage(events).slice(0, 600),
       eventCounts: countEventTypes(events),
+      responsePurpose: getTurnResponsePurpose(turn),
+      source: getTurnSource(turn),
       turnId: typeof record.id === "string" ? record.id : null,
       userPrompt: typeof record.userPrompt === "string" ? record.userPrompt.slice(0, 300) : "",
     }
-  }).filter((item): item is { agentMessage: string; eventCounts: Record<string, number>; turnId: string | null; userPrompt: string } => item !== null)
+  }).filter((item): item is { agentMessage: string; eventCounts: Record<string, number>; responsePurpose: string | null; source: string; turnId: string | null; userPrompt: string } => item !== null)
+}
+
+async function persistManagedResponseTurn({
+  answer,
+  logger,
+  purpose,
+  question,
+  sessionId,
+  threadId,
+  turnId,
+  versionId,
+  workspaceDir,
+  workspaceId,
+  workspaceName,
+}: {
+  answer: string
+  logger: Logger
+  purpose: ManagedResponsePurpose
+  question: string
+  sessionId: string | null
+  threadId: string | null
+  turnId: string
+  versionId: string | null
+  workspaceDir: string | null
+  workspaceId: string | null
+  workspaceName: string | null
+}) {
+  const trimmedAnswer = answer.trim()
+  if (!trimmedAnswer || !sessionId || !workspaceDir) return
+  const now = Date.now()
+  const event = {
+    type: "item.completed",
+    source: "managed-response",
+    responsePurpose: purpose,
+    item: {
+      id: `managed_response:${turnId}`,
+      type: "agent_message",
+      text: trimmedAnswer,
+    },
+    createdAt: now,
+  }
+  const terminalEvent = {
+    type: "turn.completed",
+    source: "managed-response",
+    responsePurpose: purpose,
+    createdAt: now,
+  }
+  const existing = await findWorkspaceSession(sessionId, workspaceDir).catch(() => null) as Record<string, unknown> | null
+  const existingTurns = existing && Array.isArray(existing.turns) ? existing.turns : []
+  await upsertWorkspaceSessionHistory({
+    ...(existing ?? {}),
+    id: sessionId,
+    title: typeof existing?.title === "string" && existing.title.trim() !== "" ? existing.title : question.slice(0, 60),
+    threadId,
+    turns: [
+      ...existingTurns,
+      {
+        id: turnId,
+        userPrompt: question,
+        source: "managed-response",
+        responsePurpose: purpose,
+        events: [event, terminalEvent],
+      },
+    ],
+    createdAt: typeof existing?.createdAt === "number" ? existing.createdAt : now,
+    dismissedAskUserId: existing?.dismissedAskUserId ?? null,
+    workspaceId,
+    versionId,
+    workspaceDir,
+    workspaceName,
+  }).catch(err => logger.error("managed response session persist failed", {
+    err,
+    purpose,
+    sessionId,
+    turnId,
+    workspaceDir,
+  }))
 }
 
 function getUserQuestion(body: RunRequestBody) {
@@ -502,43 +605,6 @@ async function getFallbackArtifacts(workspaceDir: string | null) {
   return artifacts.filter((item): item is { exists: boolean; kind: string; path: string } => item !== null)
 }
 
-function buildSpokenSummary({
-  artifacts,
-  latestMessage,
-  issueCount,
-  progress,
-  status,
-}: {
-  artifacts?: Array<{ exists: boolean; kind: string; path: string }>
-  latestMessage: string
-  issueCount: number
-  progress?: unknown
-  status: ManagedRunResponse["status"]
-}) {
-  if (status === "cancelled") return "任务已取消。"
-  if (status === "failed") return "任务执行失败，请查看详情。"
-  if (issueCount > 0 && !latestMessage.trim()) return "任务完成，但有问题需查看。"
-  if (artifacts?.some(item => item.exists && /(?:^|[\\/])reports[\\/]|report\.(?:md|json|html|pdf)$/iu.test(item.path))) {
-    if (!latestMessage.trim()) return "任务完成，报告已生成。"
-  }
-  const progressPercent = getProgressPercent(progress)
-  if (progressPercent !== null && progressPercent >= 100 && !latestMessage.trim()) return "任务已完成，结果已更新。"
-  if (artifacts?.some(item => item.exists) && !latestMessage.trim()) return "任务已完成，结果已生成。"
-
-  const normalized = latestMessage
-    .replace(/```[\s\S]*?```/gu, "")
-    .replace(/`([^`]+)`/gu, "$1")
-    .replace(/\[[^\]]*?\]\([^)]*?\)/gu, "")
-    .replace(/[#*_>\-]/gu, "")
-    .replace(/\s+/gu, " ")
-    .trim()
-  if (!normalized) return status === "partial" ? "任务完成，但有问题需查看。" : "任务已完成。"
-
-  const firstSentence = normalized.split(/[。！？!?；;\n]/u).find(item => item.trim())?.trim() ?? normalized
-  const compact = firstSentence.replace(/\s+/gu, "")
-  return compact.slice(0, 30)
-}
-
 function buildCompletionFallbackSummary({
   artifacts,
   issues,
@@ -577,22 +643,6 @@ function buildCompletionFallbackSummary({
   return "任务已结束，详情已更新。"
 }
 
-function shouldUseSummaryModelForSpeech(latestMessage: string, deterministicSummary: string) {
-  const normalized = latestMessage
-    .replace(/```[\s\S]*?```/gu, "")
-    .replace(/`([^`]+)`/gu, "$1")
-    .replace(/\[[^\]]*?\]\([^)]*?\)/gu, "")
-    .replace(/[#*_>\-]/gu, "")
-    .replace(/\s+/gu, " ")
-    .trim()
-  if (!normalized) return false
-
-  const firstSentence = normalized.split(/[。！？!?；;\n]/u).find(item => item.trim())?.trim() ?? normalized
-  const markdownHeavy = /```|(?:^|\n)\s*(?:[-*]|\d+\.)\s+/u.test(latestMessage)
-  const weakOpening = /^(好的|可以|下面|以下|首先|我会|我将|已根据|这里)/u.test(deterministicSummary)
-  return normalized.length > 80 || firstSentence.length > 40 || markdownHeavy || weakOpening
-}
-
 function compactForSpeech(text: string) {
   const normalized = text
     .replace(/```[\s\S]*?```/gu, "")
@@ -629,7 +679,7 @@ function getFinalResponse(turn: unknown) {
   return ""
 }
 
-function getResponseOutputText(payload: unknown) {
+export function getResponseOutputText(payload: unknown) {
   if (!payload || typeof payload !== "object") return ""
   const outputText = (payload as { output_text?: unknown }).output_text
   if (typeof outputText === "string" && outputText.trim()) return outputText.trim()
@@ -639,10 +689,14 @@ function getResponseOutputText(payload: unknown) {
   const parts: string[] = []
   for (const item of output) {
     if (!item || typeof item !== "object") continue
+    const itemType = (item as { type?: unknown }).type
+    if (itemType === "reasoning") continue
     const content = (item as { content?: unknown }).content
     if (!Array.isArray(content)) continue
     for (const contentItem of content) {
       if (!contentItem || typeof contentItem !== "object") continue
+      const contentType = (contentItem as { type?: unknown }).type
+      if (contentType === "reasoning_text") continue
       const text = (contentItem as { text?: unknown }).text
       if (typeof text === "string" && text.trim()) parts.push(text.trim())
     }
@@ -650,7 +704,7 @@ function getResponseOutputText(payload: unknown) {
   return parts.join("\n").trim()
 }
 
-async function createResponseText({
+export async function createResponseText({
   config,
   logger,
   maxOutputTokens,
@@ -667,8 +721,8 @@ async function createResponseText({
   requestId?: string
   signal: AbortSignal
 }) {
-  const baseUrl = config.openai.baseUrl.replace(/\/+$/u, "")
-  const model = MANAGED_SUMMARY_MODEL || config.openai.model
+  const baseUrl = config.chatModel.baseUrl.replace(/\/+$/u, "")
+  const model = config.chatModel.model
   const startedAt = process.hrtime.bigint()
   logger.info("responses api request started", {
     apiKind: "responses",
@@ -682,7 +736,7 @@ async function createResponseText({
   const response = await fetch(`${baseUrl}/responses`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.openai.apiKey}`,
+      Authorization: `Bearer ${config.chatModel.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -740,79 +794,6 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => 
   }
 }
 
-async function summarizeForSpeech({
-  artifacts,
-  config,
-  issues,
-  latestMessage,
-  logger,
-  progress,
-  requestId,
-  status,
-}: {
-  artifacts: Array<{ exists: boolean; kind: string; path: string }>
-  config: AppConfig
-  issues: string[]
-  latestMessage: string
-  logger: Logger
-  progress: unknown
-  requestId?: string
-  status: ManagedRunResponse["status"]
-}) {
-  const deterministicSummary = buildSpokenSummary({
-    artifacts,
-    issueCount: issues.length,
-    latestMessage,
-    progress,
-    status,
-  })
-
-  if (!shouldUseSummaryModelForSpeech(latestMessage, deterministicSummary)) {
-    logger.info("managed final speech summary deterministic", {
-      requestId,
-      status,
-      summaryLength: deterministicSummary.length,
-    })
-    return deterministicSummary
-  }
-
-  try {
-    const prompt = [
-      "请把下面 Codex 最终回复总结成一句中文语音播报。",
-      "要求：30个汉字以内；只输出总结句；不要 Markdown；不要列点；不要解释。",
-      "",
-      latestMessage.slice(0, 4000),
-    ].join("\n")
-    const abort = new AbortController()
-    const responseText = await withTimeout(
-      createResponseText({
-        config,
-        logger,
-        maxOutputTokens: 80,
-        prompt,
-        purpose: "managed-final-speech-summary",
-        requestId,
-        signal: abort.signal,
-      }),
-      MANAGED_SUMMARY_TIMEOUT_MS,
-      () => abort.abort(),
-    )
-    const summarized = compactForSpeech(responseText)
-    if (summarized) {
-      logger.info("managed final speech summary generated", {
-        model: MANAGED_SUMMARY_MODEL,
-        requestId,
-        summaryLength: summarized.length,
-      })
-      return summarized
-    }
-  } catch (err) {
-    logger.warn("managed final speech summary fallback", { err, requestId })
-  }
-
-  return deterministicSummary
-}
-
 async function answerProgressQuestion({
   artifacts,
   body,
@@ -854,13 +835,10 @@ async function answerProgressQuestion({
 
   try {
     const prompt = [
-      "你是 Agent 页面里的进度和历史结果问答器。",
-      "只能根据下面 JSON 上下文回答，不要声称做过上下文里没有证据的文件修改、命令执行、构建、测试或创建 skill。",
-      "如果上下文显示没有执行具体任务，用自然的用户语言说明当前还没有明确任务结果，不要提到缺少证据、缺少上下文或 JSON 字段。",
-      "如果上下文包含 pipeline/progress/manifest runs，要优先总结这些真实结果。",
-      "用中文回答，2-4 句，适合直接展示和语音播报；不要 Markdown；不要列点；不要说“上下文未提供”“没有证据”“未显示”“无法确认”。",
-      "",
       `用户问题：${question}`,
+      "",
+      "Workspace 信息：",
+      JSON.stringify(context.workspace, null, 2),
       "",
       "上下文 JSON：",
       JSON.stringify(context, null, 2).slice(0, 6000),
@@ -870,7 +848,7 @@ async function answerProgressQuestion({
       createResponseText({
         config,
         logger,
-        maxOutputTokens: 240,
+        maxOutputTokens: Math.max(240, MANAGED_CHAT_OUTPUT_TOKENS),
         prompt,
         purpose: "managed-progress-answer",
         requestId,
@@ -898,6 +876,81 @@ async function answerProgressQuestion({
   return buildFastProgressSummary({ latestMessage, latestStatus, progress })
 }
 
+async function createCodexManagedAnswer({
+  config,
+  input,
+  logger,
+  requestId,
+  signal,
+  threadId,
+  workspaceDir,
+}: {
+  config: AppConfig
+  input: string
+  logger: Logger
+  requestId?: string
+  signal: AbortSignal
+  threadId: string | null
+  workspaceDir: string | null
+}) {
+  const startedAt = process.hrtime.bigint()
+  const codex = new Codex({
+    apiKey: config.chatModel.apiKey,
+    baseUrl: config.chatModel.baseUrl,
+    config: {
+      show_raw_agent_reasoning: true,
+      model_provider: "managed_chat",
+      model_providers: {
+        managed_chat: {
+          name: "managed_chat",
+          base_url: config.chatModel.baseUrl,
+          wire_api: "responses",
+          supports_websockets: false,
+        },
+      },
+    },
+    env: buildManagedAnswerCodexEnv(),
+  })
+  const threadOptions = {
+    model: config.chatModel.model,
+    workingDirectory: workspaceDir ?? process.cwd(),
+    approvalPolicy: config.chatModel.approvalPolicy,
+    skipGitRepoCheck: config.chatModel.skipGitRepoCheck,
+    modelReasoningEffort: config.chatModel.modelReasoningEffort,
+    sandboxMode: config.chatModel.sandboxMode,
+  }
+  const thread = threadId
+    ? codex.resumeThread(threadId, threadOptions)
+    : codex.startThread(threadOptions)
+  const streamed = await thread.runStreamed([{ type: "text", text: input }], { signal })
+  let resolvedThreadId = threadId
+  let answer = ""
+  let eventCount = 0
+
+  for await (const event of streamed.events) {
+    if (signal.aborted) break
+    eventCount += 1
+    if (event.type === "thread.started" && typeof event.thread_id === "string") {
+      resolvedThreadId = event.thread_id
+    }
+    if (event.type === "item.completed" && event.item.type === "agent_message") {
+      answer = event.item.text.trim()
+    }
+    if (event.type === "turn.completed" || event.type === "turn.failed" || event.type === "error") {
+      break
+    }
+  }
+
+  logger.info("managed general codex answer completed", {
+    answerLength: answer.length,
+    eventCount,
+    latencyMs: Number(process.hrtime.bigint() - startedAt) / 1_000_000,
+    requestId,
+    threadId: resolvedThreadId,
+  })
+  return { answer, threadId: resolvedThreadId }
+}
+
 async function summarizePipelineCompletion({
   artifacts,
   config,
@@ -921,8 +974,8 @@ async function summarizePipelineCompletion({
   sessionTurn: unknown
   status: ManagedRunResponse["status"]
 }) {
-  const skill = readRoutingSkillInstruction("pipeline-progress-summarizer")
-  if (!skill) {
+  const managedPrompt = readManagedPrompt("pipeline-progress-summarizer")
+  if (!managedPrompt) {
     return buildCompletionFallbackSummary({ artifacts, issues, latestMessage, manifestRun, progress, status })
   }
 
@@ -930,12 +983,15 @@ async function summarizePipelineCompletion({
     ? (sessionTurn as { events: unknown[] }).events
     : []
   const prompt = [
-    skill.content,
+    managedPrompt.content,
     "",
     "## User task context",
     JSON.stringify({
       agentMessages: getAgentMessages(sessionEvents),
+      artifacts,
+      manifestRun: getManifestRunDigest(manifestRun),
       progress: getProgressDigest(progress),
+      status,
     }, null, 2).slice(0, 5000),
   ].join("\n")
 
@@ -945,7 +1001,7 @@ async function summarizePipelineCompletion({
       createResponseText({
         config,
         logger,
-        maxOutputTokens: 360,
+        maxOutputTokens: Math.max(360, MANAGED_CHAT_OUTPUT_TOKENS),
         prompt,
         purpose: "managed-pipeline-completion-summary",
         requestId,
@@ -961,24 +1017,24 @@ async function summarizePipelineCompletion({
     if (cleanedSummary) {
       if (isLikelyTruncatedSummary(cleanedSummary)) {
         logger.warn("managed pipeline completion summary discarded", {
-          model: MANAGED_SUMMARY_MODEL,
+          model: config.chatModel.model,
           requestId,
-          skill: skill.name,
+          managedPrompt: managedPrompt.name,
           summaryLength: cleanedSummary.length,
           tail: cleanedSummary.slice(-80),
         })
         return buildCompletionFallbackSummary({ artifacts, issues, latestMessage, manifestRun, progress, status })
       }
       logger.info("managed pipeline completion summary generated", {
-        model: MANAGED_SUMMARY_MODEL,
+        model: config.chatModel.model,
         requestId,
-        skill: skill.name,
+        managedPrompt: managedPrompt.name,
         summaryLength: cleanedSummary.length,
       })
       return cleanedSummary.slice(0, 240)
     }
   } catch (err) {
-    logger.warn("managed pipeline completion summary fallback", { err, requestId, skill: skill.name })
+    logger.warn("managed pipeline completion summary fallback", { err, requestId, managedPrompt: managedPrompt.name })
   }
 
   return buildCompletionFallbackSummary({ artifacts, issues, latestMessage, manifestRun, progress, status })
@@ -1128,24 +1184,33 @@ export async function cancelManagedRunAndSummarize(
   const progress = progressRecord?.data ?? null
   const latestMessage = getLatestSessionAgentMessage(session)
   const artifacts = getProgressOutputFiles(progress)
-  const spokenSummary = await answerProgressQuestion({
-    artifacts,
-    body: {
-      prompt: "请总结当前已停止任务已经完成的进度和结果。",
-      sessionId: latestStatus.sessionId,
-      threadId: latestStatus.threadId,
-      turnId: latestStatus.turnId,
-      versionId: latestStatus.versionId,
+  const manifest = latestStatus.workspaceId || latestStatus.workspaceDir
+    ? await getWorkspaceManifestSnapshotByLocator({
+      sessionId: latestStatus.workspaceId ?? latestStatus.sessionId,
       workspaceDir: latestStatus.workspaceDir,
-      workspaceId: latestStatus.workspaceId,
-    },
+    }).catch(() => null)
+    : null
+  const manifestRun = manifest && typeof manifest === "object" && Array.isArray((manifest as { runs?: unknown }).runs)
+    ? (manifest as { runs: unknown[] }).runs.find(run => run && typeof run === "object" && (
+      (run as { turnId?: unknown }).turnId === latestStatus.turnId ||
+      (run as { sessionId?: unknown }).sessionId === latestStatus.sessionId
+    )) ?? null
+    : null
+  const sessionTurns = session && typeof session === "object" && Array.isArray((session as { turns?: unknown }).turns)
+    ? (session as { turns: unknown[] }).turns
+    : []
+  const sessionTurn = sessionTurns.find(turn => turn && typeof turn === "object" && (turn as { id?: unknown }).id === latestStatus.turnId) ?? null
+  const spokenSummary = await summarizePipelineCompletion({
+    artifacts,
     config,
-    latestStatus,
+    issues: latestStatus.error ? [latestStatus.error] : [],
+    latestMessage,
     logger,
-    manifest: null,
+    manifestRun,
     progress,
     requestId: `${requestId ?? "request"}:${managedRunId}:cancel-summary`,
-    session,
+    sessionTurn,
+    status: "cancelled",
   }) || buildFastProgressSummary({ latestMessage, latestStatus, progress })
   const cancelledStatus: ManagedRunStatusResponse = {
     ...latestStatus,
@@ -1297,6 +1362,19 @@ async function answerManagedProgressFromDispatch({
     requestId: `${requestId ?? "request"}:${managedRunId}:progress-answer`,
     session: latestSession,
   })
+  await persistManagedResponseTurn({
+    answer: spokenSummary,
+    logger,
+    purpose: "managed-progress-answer",
+    question: getUserQuestion(body) || "请总结当前或上一个任务具体完成了什么。",
+    sessionId: resolvedSessionId,
+    threadId: resolvedLatestStatus?.threadId ?? (typeof body.threadId === "string" && body.threadId.trim() !== "" ? body.threadId.trim() : null),
+    turnId,
+    versionId: resolvedVersionId,
+    workspaceDir: resolvedWorkspaceDir,
+    workspaceId: resolvedWorkspaceId,
+    workspaceName: getOptionalString(body.workspaceName),
+  })
   const response: ManagedRunResponse = {
     artifacts,
     eventCounts: {},
@@ -1375,35 +1453,37 @@ async function answerGeneralQuestionFromDispatch({
   const versionId = getOptionalString(body.versionId)
   const workspaceName = getOptionalString(body.workspaceName)
   let answer = ""
+  let resolvedThreadId = threadId
+  const workspaceContext = {
+    versionId,
+    workspaceDir,
+    workspaceId,
+    workspaceName,
+  }
 
   try {
     const prompt = [
-      "你是 Agent 页面的轻量问答助手。",
-      "当前请求已被路由为 general，说明它是闲聊、普通知识问答、天气/事实查询或不需要修改工作区的轻量问题。",
-      "请直接回答用户，不要启动或描述 Codex pipeline，不要声称执行了命令、修改了文件或读取了工作区。",
-      "如果问题涉及今天、明天、最新情况、天气、新闻、价格、政策等实时信息，请基于可用能力谨慎回答；如果无法可靠确认实时数据，要明确说明不确定性。",
-      "用中文自然回答，1-4 句；不要 Markdown；不要列点。",
-      "",
-      workspaceName ? `当前页面任务：${workspaceName}` : "",
-      workspaceId ? `workspaceId：${workspaceId}` : "",
-      versionId ? `versionId：${versionId}` : "",
-      "",
       `用户问题：${question}`,
-    ].filter(Boolean).join("\n")
+      "",
+      "Workspace 信息：",
+      JSON.stringify(workspaceContext, null, 2),
+    ].join("\n")
     const abort = new AbortController()
-    answer = await withTimeout(
-      createResponseText({
+    const result = await withTimeout(
+      createCodexManagedAnswer({
         config,
+        input: prompt,
         logger,
-        maxOutputTokens: 360,
-        prompt,
-        purpose: "managed-general-answer",
         requestId: `${requestId ?? "request"}:${managedRunId}:general-answer`,
         signal: abort.signal,
+        threadId,
+        workspaceDir,
       }),
       MANAGED_GENERAL_ANSWER_TIMEOUT_MS,
       () => abort.abort(),
     )
+    answer = result.answer
+    resolvedThreadId = result.threadId
     answer = answer
       .replace(/```[\s\S]*?```/gu, "")
       .replace(/\s+/gu, " ")
@@ -1413,6 +1493,19 @@ async function answerGeneralQuestionFromDispatch({
   }
 
   const spokenSummary = answer || "这个问题暂时没有生成有效回答。"
+  await persistManagedResponseTurn({
+    answer,
+    logger,
+    purpose: "managed-general-answer",
+    question,
+    sessionId,
+    threadId: resolvedThreadId,
+    turnId,
+    versionId,
+    workspaceDir,
+    workspaceId,
+    workspaceName,
+  })
   const response: ManagedRunResponse = {
     artifacts: [],
     eventCounts: {},
@@ -1426,7 +1519,7 @@ async function answerGeneralQuestionFromDispatch({
     spokenSummary,
     status: answer ? "completed" : "partial",
     summary: spokenSummary,
-    threadId,
+    threadId: resolvedThreadId,
     turnId,
     versionId,
     workspaceDir,
@@ -1439,7 +1532,7 @@ async function answerGeneralQuestionFromDispatch({
     spokenSummary,
     status: response.status,
     summary: response.summary,
-    threadId,
+    threadId: resolvedThreadId,
     turnId,
     versionId,
     workspaceDir,
@@ -1447,7 +1540,7 @@ async function answerGeneralQuestionFromDispatch({
   }, logger)
   rememberManagedSessionState(normalized.sessionKey, {
     sessionId,
-    threadId,
+    threadId: resolvedThreadId,
     versionId,
     workspaceDir,
     workspaceId,
@@ -1462,7 +1555,7 @@ async function answerGeneralQuestionFromDispatch({
       spokenSummary,
       status: response.status,
       summary: response.summary,
-      threadId,
+      threadId: resolvedThreadId,
       turnId,
       versionId,
       workspaceDir,
@@ -1617,6 +1710,17 @@ export async function runAgentTurn(
         logger,
         requestId: `${requestId ?? "request"}:${managedRunId}:final-summary`,
       })
+      const currentStatus = await getManagedRunStatus(managedRunId)
+      if (currentStatus?.status === "cancelled") {
+        logger.info("managed dispatch background final skipped after cancel", {
+          inputType,
+          managedRunId,
+          requestId,
+          resultStatus: summary.status,
+          turnId: prepared.runContext.turnId,
+        })
+        return
+      }
       rememberManagedRunStatus({
         managedRunId,
         routing: { selectedSkills: routing.selectedSkills, skillScopes: routing.skillScopes },

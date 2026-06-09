@@ -15,6 +15,12 @@ export interface SkillInstruction {
   content: string
 }
 
+export interface ManagedPrompt {
+  name: string
+  file: string
+  content: string
+}
+
 export interface SkillsCache {
   public: Skill[]
   thermal: Skill[]
@@ -28,7 +34,7 @@ const GLOBAL_SKILLS_DIR = path.join(os.homedir(), ".codex", "skills")
 const GNC_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "gnc_skills")
 const THERMAL_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "thermal_skills")
 const CHECK_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "check_skills")
-const ROUTING_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "routing_skills")
+const MANAGED_PROMPTS_DIR = path.resolve(process.cwd(), "workflow_agents", "managed_prompts")
 const CACHE_FILE = path.resolve(process.cwd(), "skills.json")
 
 function dedupeExistingRoots(roots: string[]): string[] {
@@ -244,6 +250,32 @@ function readSkillInstructionsFromRoots(roots: string[]): SkillInstruction[] {
   return instructions
 }
 
+function readManagedPromptsFromRoot(root: string): ManagedPrompt[] {
+  let entries: fs.Dirent[]
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true })
+  } catch {
+    return []
+  }
+
+  return entries
+    .filter(entry => entry.isFile() && entry.name.endsWith(".md"))
+    .map(entry => {
+      const file = path.join(root, entry.name)
+      try {
+        return {
+          name: path.basename(entry.name, ".md"),
+          file,
+          content: fs.readFileSync(file, "utf-8"),
+        }
+      } catch {
+        return null
+      }
+    })
+    .filter((prompt): prompt is ManagedPrompt => prompt !== null)
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
 export function readPublicSkillInstructions(): SkillInstruction[] {
   return readSkillInstructionsFromRoots(getPublicSkillRoots())
 }
@@ -286,9 +318,10 @@ export function readScopedSkillInstructions(scopes: SkillScope[]): SkillInstruct
   return dedupeInstructionsPreferLater(instructions)
 }
 
-export function readRoutingSkillInstruction(name: string): SkillInstruction | null {
-  return readSkillInstructionsFromRoots(dedupeExistingRoots([ROUTING_SKILLS_DIR]))
-    .find(skill => skill.name.toLowerCase() === name.trim().toLowerCase()) ?? null
+export function readManagedPrompt(name: string): ManagedPrompt | null {
+  return dedupeExistingRoots([MANAGED_PROMPTS_DIR])
+    .flatMap(root => readManagedPromptsFromRoot(root))
+    .find(prompt => prompt.name.toLowerCase() === name.trim().toLowerCase()) ?? null
 }
 
 export function refreshSkillsCache(logger: Logger): SkillsCache {
