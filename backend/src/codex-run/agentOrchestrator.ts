@@ -559,7 +559,7 @@ function collectIssues(result: RunCodexTurnResult) {
   return [...new Set(issues)]
 }
 
-function getProgressPercent(progress: unknown) {
+export function getProgressPercent(progress: unknown) {
   if (!progress || typeof progress !== "object") return null
   const direct = (progress as { progress_percentages?: unknown }).progress_percentages
   const candidates = direct && typeof direct === "object"
@@ -570,7 +570,7 @@ function getProgressPercent(progress: unknown) {
   return Math.max(...values)
 }
 
-function getProgressOutputFiles(progress: unknown) {
+export function getProgressOutputFiles(progress: unknown) {
   if (!progress || typeof progress !== "object") return []
   const outputFiles = (progress as { output_files?: unknown }).output_files
   if (!outputFiles || typeof outputFiles !== "object") return []
@@ -588,7 +588,7 @@ function getProgressOutputFiles(progress: unknown) {
     .filter((item): item is { exists: boolean; kind: string; path: string } => item !== null)
 }
 
-async function getFallbackArtifacts(workspaceDir: string | null) {
+export async function getFallbackArtifacts(workspaceDir: string | null) {
   if (!workspaceDir) return []
   const relativePaths = [
     path.join("01_cad", "geometry_after.glb"),
@@ -605,7 +605,7 @@ async function getFallbackArtifacts(workspaceDir: string | null) {
   return artifacts.filter((item): item is { exists: boolean; kind: string; path: string } => item !== null)
 }
 
-function buildCompletionFallbackSummary({
+export function buildCompletionFallbackSummary({
   artifacts,
   issues,
   latestMessage,
@@ -1065,7 +1065,7 @@ async function getLatestManagedStatusForSession(
   return matches.sort((a, b) => b.managedRunId.localeCompare(a.managedRunId))[0] ?? null
 }
 
-function buildFastProgressSummary({
+export function buildFastProgressSummary({
   latestStatus,
   latestMessage,
   progress,

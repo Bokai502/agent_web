@@ -40,4 +40,42 @@ describe("GET /api/health", () => {
       await server.close()
     }
   })
+
+  it("returns 503 when the endpoint returns a non-auth error status", async () => {
+    mock.method(globalThis, "fetch", async () => new Response("{}", { status: 500 }))
+    const server = await createTestServer()
+
+    try {
+      const response = await server.inject({ method: "GET", url: "/api/health" })
+      const body = response.json()
+
+      assert.equal(response.statusCode, 503)
+      assert.equal(body.ok, false)
+      assert.equal(body.reason, "bad_status")
+      assert.equal(body.status, 500)
+      assert.equal(typeof body.latencyMs, "number")
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("returns 503 when the endpoint is unreachable", async () => {
+    mock.method(globalThis, "fetch", async () => {
+      throw new Error("network down")
+    })
+    const server = await createTestServer()
+
+    try {
+      const response = await server.inject({ method: "GET", url: "/api/health" })
+      const body = response.json()
+
+      assert.equal(response.statusCode, 503)
+      assert.equal(body.ok, false)
+      assert.equal(body.reason, "unreachable")
+      assert.match(body.error, /network down/u)
+      assert.equal(body.status, undefined)
+    } finally {
+      await server.close()
+    }
+  })
 })
