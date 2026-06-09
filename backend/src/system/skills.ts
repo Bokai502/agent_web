@@ -31,7 +31,7 @@ export interface SkillsCache {
 export type SkillScope = keyof SkillsCache
 
 const GLOBAL_SKILLS_DIR = path.join(os.homedir(), ".codex", "skills")
-const GNC_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "gnc_skills")
+const GNC_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "gnc_skills", "skills")
 const THERMAL_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "thermal_skills")
 const CHECK_SKILLS_DIR = path.resolve(process.cwd(), "workflow_agents", "check_skills")
 const MANAGED_PROMPTS_DIR = path.resolve(process.cwd(), "workflow_agents", "managed_prompts")

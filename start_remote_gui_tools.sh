@@ -52,6 +52,7 @@ FREECAD_RPC_HOST="$(require_config workspace.rpcHost)"
 FREECAD_RPC_PORT="$(require_config workspace.rpcPort)"
 FREECAD_RPC_BIND_HOST="${FREECAD_RPC_BIND_HOST:-0.0.0.0}"
 FREECAD_RPC_SCRIPT="${FREECAD_RPC_SCRIPT:-/data/lbk/codex_web/FreeCAD_data/bin/freecad_rpc_server.py}"
+CURRENT_USER="$(id -un)"
 PARAVIEW_DISPLAY="$(require_config tools.paraview.displayNum)"
 PARAVIEW_VNC_PORT="$(require_config tools.paraview.vncPort)"
 PARAVIEW_NOVNC_PORT="$(require_config tools.paraview.noVncPort)"
@@ -168,8 +169,72 @@ wait_for_tcp_port() {
   return 1
 }
 
+wait_for_freecad_rpc() {
+  local attempts="${1:-20}"
+
+  for _ in $(seq 1 "${attempts}"); do
+    freecad_rpc_reject_foreign_listener
+    if freecad_rpc_available; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 freecad_rpc_available() {
+  local pid
+
+  while read -r pid; do
+    [[ -n "${pid}" ]] || continue
+    if [[ "$(stat -c %U "/proc/${pid}" 2>/dev/null || true)" == "${CURRENT_USER}" ]]; then
+      return 0
+    fi
+  done < <(freecad_rpc_listener_pids)
+
+  return 1
+}
+
+freecad_rpc_port_listening() {
   ss -ltn "( sport = :${FREECAD_RPC_PORT} )" 2>/dev/null | grep -q ":${FREECAD_RPC_PORT}"
+}
+
+freecad_rpc_listener_pids() {
+  ss -H -ltnp "( sport = :${FREECAD_RPC_PORT} )" 2>/dev/null \
+    | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' \
+    | sort -u
+}
+
+freecad_rpc_listener_owners() {
+  local pid
+  local owner
+  local seen=""
+
+  while read -r pid; do
+    [[ -n "${pid}" ]] || continue
+    owner="$(stat -c %U "/proc/${pid}" 2>/dev/null || true)"
+    [[ -n "${owner}" ]] || continue
+    if [[ " ${seen} " != *" ${owner} "* ]]; then
+      printf '%s\n' "${owner}"
+      seen="${seen} ${owner}"
+    fi
+  done < <(freecad_rpc_listener_pids)
+}
+
+freecad_rpc_reject_foreign_listener() {
+  local owners
+
+  if ! freecad_rpc_port_listening || freecad_rpc_available; then
+    return 0
+  fi
+
+  owners="$(freecad_rpc_listener_owners | paste -sd, -)"
+  if [[ -z "${owners}" ]]; then
+    owners="unknown"
+  fi
+  echo "FreeCAD RPC 端口 ${FREECAD_RPC_PORT} 已被其他用户占用（owner=${owners}，当前用户=${CURRENT_USER}）。" >&2
+  echo "请先停止该用户的 FreeCAD RPC，或为当前用户配置独立的 workspace.rpcPort；不能复用别人的 RPC 会话。" >&2
+  return 1
 }
 
 freecad_rpc_bound_to_requested_host() {
@@ -208,10 +273,13 @@ start_freecad_rpc() {
     echo "FreeCAD RPC 脚本不存在：${FREECAD_RPC_SCRIPT}" >&2
     return 1
   fi
+  freecad_rpc_reject_foreign_listener
 
   for settings_file in \
     /data/lbk/codex_web/FreeCAD_data/home_1_1_1/.local/share/FreeCAD/freecad_mcp_settings.json \
-    /data/lbk/codex_web/FreeCAD_data/home_1_1_1/.local/share/FreeCAD/v1-1/freecad_mcp_settings.json; do
+    /data/lbk/codex_web/FreeCAD_data/home_1_1_1/.local/share/FreeCAD/v1-1/freecad_mcp_settings.json \
+    "/data/lbk/codex_web/FreeCAD_data/home_1_1_1_${CURRENT_USER}/.local/share/FreeCAD/freecad_mcp_settings.json" \
+    "/data/lbk/codex_web/FreeCAD_data/home_1_1_1_${CURRENT_USER}/.local/share/FreeCAD/v1-1/freecad_mcp_settings.json"; do
     if [[ -f "${settings_file}" ]]; then
       node -e '
 const fs = require("fs")
@@ -246,7 +314,7 @@ fs.writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`)
     echo "FreeCAD RPC 已请求启动，DISPLAY=${FREECAD_DISPLAY} port=${FREECAD_RPC_PORT}"
   fi
 
-  if wait_for_tcp_port "${FREECAD_RPC_PORT}" 30; then
+  if wait_for_freecad_rpc 30; then
     echo "FreeCAD RPC 已启动：http://${FREECAD_RPC_BIND_HOST}:${FREECAD_RPC_PORT}"
   else
     echo "FreeCAD RPC 端口 ${FREECAD_RPC_PORT} 未就绪，查看 ${LOG_DIR}/freecad-rpc-${FREECAD_RPC_PORT}.log" >&2
