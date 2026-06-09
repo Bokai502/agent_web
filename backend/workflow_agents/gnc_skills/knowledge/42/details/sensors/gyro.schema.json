@@ -1,0 +1,72 @@
+{
+  "sensor_type": "gyro",
+  "source_struct": "GyroType",
+  "config_location": "SC_*.txt -> Gyro section",
+  "fields": [
+    {
+      "key": "sample_time_sec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "axis_body_frame",
+      "value_type": "vector3",
+      "required": true,
+      "normalized_by_loader": true
+    },
+    {
+      "key": "max_rate_degps",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "scale_factor_error_ppm",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "quantization_arcsec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "angle_random_walk_deg_per_rt_hr",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "bias_stability_deg_per_hr",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "bias_stability_timespan_hr",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "angle_noise_arcsec_rms",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "initial_bias_deg_per_hr",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    }
+  ],
+  "outputs": [
+    "AC->Gyro[*].Rate",
+    "AcSensors reconstructed AC->wbn"
+  ],
+  "fallback_behavior_if_absent": "truth angular rate path may be used",
+  "notes": [
+    "This is a measurement model, not a state estimator.",
+    "Axis is defined in the relevant body frame."
+  ]
+}

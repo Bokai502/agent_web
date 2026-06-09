@@ -1,4 +1,0 @@
-interface:
-  display_name: "42 Build Run Diagnose"
-  short_description: "Confirm a validated 42 config builds, loads, and runs"
-  default_prompt: "Use $42-build-run-diagnose to confirm this validated 42 configuration artifact bundle builds, loads, parses, and runs without configuration/runtime aborts."

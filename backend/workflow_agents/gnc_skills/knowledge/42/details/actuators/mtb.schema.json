@@ -1,0 +1,25 @@
+{
+  "actuator_type": "mtb",
+  "source_struct": "MTBType",
+  "config_location": "SC_*.txt -> MTB section",
+  "fields": [
+    {
+      "key": "saturation_am2",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "axis_body_frame",
+      "value_type": "vector3",
+      "required": true,
+      "normalized_by_loader": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    }
+  ],
+  "requires_environmental_field": true,
+  "torque_relation": "T = M x B"
+}

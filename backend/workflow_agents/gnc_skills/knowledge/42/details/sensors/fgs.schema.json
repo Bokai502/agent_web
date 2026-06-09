@@ -1,0 +1,79 @@
+{
+  "sensor_type": "fgs",
+  "source_struct": "FgsType",
+  "config_location": "SC_*.txt -> Fine Guidance Sensor section",
+  "fields": [
+    {
+      "key": "sample_time_sec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "mounting_angles_deg_and_sequence",
+      "value_type": "angle_triplet_plus_sequence",
+      "required": true
+    },
+    {
+      "key": "bore_axis",
+      "value_type": "enum",
+      "allowed_values": ["X_AXIS", "Y_AXIS", "Z_AXIS"],
+      "required": true
+    },
+    {
+      "key": "fov_size_deg_xy",
+      "value_type": "vector2",
+      "required": true
+    },
+    {
+      "key": "noise_equivalent_angle_arcsec_rms",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "scale_arcsec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "body",
+      "value_type": "integer",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    },
+    {
+      "key": "reference_frame_angles_deg_and_sequence",
+      "value_type": "angle_triplet_plus_sequence",
+      "required": true
+    },
+    {
+      "key": "reference_target_offsets_deg_hv",
+      "value_type": "vector2",
+      "required": true
+    },
+    {
+      "key": "optics_file_name",
+      "value_type": "string",
+      "required": true
+    },
+    {
+      "key": "psf_file_name",
+      "value_type": "string",
+      "required": true
+    }
+  ],
+  "variants": ["simple", "full_optics_chain"],
+  "outputs": [
+    "Valid",
+    "H",
+    "V",
+    "Ang[3]"
+  ],
+  "good_template_for": [
+    "simplified focal-plane camera",
+    "line-of-sight tracking sensor"
+  ]
+}

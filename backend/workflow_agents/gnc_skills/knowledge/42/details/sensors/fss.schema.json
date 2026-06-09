@@ -1,0 +1,52 @@
+{
+  "sensor_type": "fss",
+  "source_struct": "FssType",
+  "config_location": "SC_*.txt -> Fine Sun Sensor section",
+  "fields": [
+    {
+      "key": "sample_time_sec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "mounting_angles_deg_and_sequence",
+      "value_type": "angle_triplet_plus_sequence",
+      "required": true
+    },
+    {
+      "key": "bore_axis",
+      "value_type": "enum",
+      "allowed_values": ["X_AXIS", "Y_AXIS", "Z_AXIS"],
+      "required": true
+    },
+    {
+      "key": "fov_size_deg_xy",
+      "value_type": "vector2",
+      "required": true
+    },
+    {
+      "key": "noise_equivalent_angle_deg_rms",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "quantization_deg",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    }
+  ],
+  "outputs": [
+    "FSS[*].Valid",
+    "FSS[*].SunAng[2]"
+  ],
+  "supports_mount_matrix": true,
+  "notes": [
+    "FSS uses a full mounting attitude rather than only a single axis vector.",
+    "This is a compact high-value template for future LOS-style optical sensors."
+  ]
+}

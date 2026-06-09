@@ -1,0 +1,27 @@
+{
+  "camera_model": {
+    "native_support": "partial",
+    "closest_template": "FGS",
+    "requires_extension_for_true_focal_plane_imager": true
+  },
+  "docking_capture": {
+    "native_high_fidelity_support": false,
+    "closest_existing_demo": "ISS_Shuttle_rendezvous"
+  },
+  "gps_lunar": {
+    "native_support": false
+  },
+  "mtb_lunar": {
+    "native_support": "model_exists_but_mission_usefulness_low"
+  },
+  "current_cfs_nullspace_damping": {
+    "fully_generic": false,
+    "notes": [
+      "main wheel dynamics supports arbitrary wheel layouts",
+      "current helper law should be reviewed when wheel geometry changes"
+    ]
+  },
+  "state_estimation_stack": {
+    "full_sensor_fusion_framework_present": false
+  }
+}

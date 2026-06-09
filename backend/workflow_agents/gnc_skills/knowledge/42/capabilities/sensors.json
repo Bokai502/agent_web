@@ -1,0 +1,79 @@
+{
+  "gyro": {
+    "exists": true,
+    "model_file": "Source/42sensors.c",
+    "config_file": "SC_*.txt",
+    "config_fields": [
+      "sample_time",
+      "axis",
+      "max_rate",
+      "scale",
+      "quantization",
+      "angle_random_walk",
+      "bias_stability",
+      "angle_noise",
+      "initial_bias",
+      "node"
+    ],
+    "fsw_access": true,
+    "truth_fallback_if_absent": true
+  },
+  "magnetometer": {
+    "exists": true,
+    "model_file": "Source/42sensors.c",
+    "config_file": "SC_*.txt",
+    "config_fields": [
+      "sample_time",
+      "axis",
+      "saturation",
+      "scale",
+      "quantization",
+      "noise",
+      "node"
+    ],
+    "fsw_access": true,
+    "truth_fallback_if_absent": true
+  },
+  "css": {
+    "exists": true,
+    "fsw_access": true,
+    "truth_fallback_if_absent": false,
+    "notes": [
+      "if both CSS and FSS are absent, sun vector may be provided from truth path"
+    ]
+  },
+  "fss": {
+    "exists": true,
+    "fsw_access": true,
+    "supports_mount_matrix": true
+  },
+  "star_tracker": {
+    "exists": true,
+    "fsw_access": true,
+    "output_type": "quaternion",
+    "truth_fallback_if_absent": true
+  },
+  "gps": {
+    "exists": true,
+    "fsw_access": true,
+    "supported_worlds": ["EARTH"],
+    "unsupported_worlds": ["LUNA", "MARS", "DEEP_SPACE"],
+    "truth_fallback_if_absent": true
+  },
+  "accelerometer": {
+    "exists": true,
+    "fsw_access": true
+  },
+  "fgs": {
+    "exists": true,
+    "fsw_access": false,
+    "full_optical_chain_variant": true,
+    "simple_variant": true,
+    "best_used_as_template_for_camera": true
+  },
+  "earth_sensor_simple": {
+    "exists": true,
+    "is_full_sensor_class": false,
+    "fsw_access": true
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "schema": "aignc.cfs_fsw_architecture_capabilities/2.0",
+  "fsw_tag_fixed": "CFS_FSW",
+  "case_local_fsw_roots": [
+    "<workspace>/FSW/ADCS",
+    "demo_server/open_codex_web/data/input_data/gnc/FSW/ADCS"
+  ],
+  "top_level_entry_chain": [
+    "ADCS/src/42fsw.c::FlightSoftWare(struct SCType *S)",
+    "if S->FswTag == CFS_FSW",
+    "ADCS/src/42fsw.c::CfsFSW(&S->AC)",
+    "ADCS/src/AcStateMachine.c::AcFsw(struct AcType *AC)"
+  ],
+  "adapter_boundary": {
+    "file": "ADCS/src/42fsw.c",
+    "responsibilities": [
+      "parse FswTag commands in FswCmdInterpreter",
+      "initialize the AcType mirror from SCType in InitAC",
+      "call CfsFSW/AcFsw on the FSW sample cadence",
+      "map AcType command fields back to 42 actuator objects in MapCmdsToActuators"
+    ],
+    "direct_sc_access_policy": "Direct SCType access belongs in this adapter layer; mode, sensor, control, and actuator modules should operate on struct AcType."
+  },
+  "module_files": {
+    "public_ac_header": "ADCS/include/Ac.h",
+    "type_definitions": "ADCS/include/AcTypes.h",
+    "module_contract": "ADCS/include/AcFswModules.h",
+    "42_adapter": "ADCS/src/42fsw.c",
+    "sensor_processing": "ADCS/src/AcSensors.c",
+    "mode_logic": "ADCS/src/AcMode.c",
+    "state_machine": "ADCS/src/AcStateMachine.c",
+    "control_methods": "ADCS/src/AcControl.c",
+    "actuator_dispatch": "ADCS/src/AcActuators.c"
+  },
+  "removed_or_absent_modules": [
+    {
+      "path": "ADCS/src/AcApp.c",
+      "status": "absent_in_current_shell",
+      "note": "Do not use AcApp.c as a default implementation boundary for the current workspace-local FSW shell."
+    }
+  ],
+  "state_machine_cycle": [
+    "initialize per-spacecraft AcModeStateType when AC->CfsCtrl.Init is set",
+    "AcProcessSensors(AC)",
+    "ZeroAcCommands(AC)",
+    "AcDetermineMode(AC,&State[Idx])",
+    "apply mode transition and AcOnModeEntry when NextMode differs from Mode",
+    "AcApplyControl(AC,Mode,ModeTime)",
+    "copy Mode into AC->Mode and advance FswTime",
+    "AcDispatchActuators(AC,AC->Mode)",
+    "42fsw.c::MapCmdsToActuators copies AC commands to 42 actuator objects"
+  ],
+  "current_internal_modes": [
+    {
+      "id": "AC_MODE_SAFE",
+      "value": 0,
+      "name": "SAFE",
+      "default_behavior": "quiet hold; commands remain zero"
+    },
+    {
+      "id": "AC_MODE_DETUMBLE",
+      "value": 1,
+      "name": "DETUMBLE",
+      "default_behavior": "rate damping torque proportional to -wbn"
+    },
+    {
+      "id": "AC_MODE_ACQUIRE",
+      "value": 2,
+      "name": "ACQUIRE",
+      "default_behavior": "rate damping plus coarse Earth-sensor roll/pitch feedback when available"
+    },
+    {
+      "id": "AC_MODE_TRACK",
+      "value": 3,
+      "name": "TRACK",
+      "default_behavior": "simple LVLH three-axis PD tracking using qbn/qln and wbn/wln"
+    }
+  ],
+  "default_mode_sequence": [
+    "SAFE",
+    "DETUMBLE",
+    "ACQUIRE",
+    "TRACK"
+  ],
+  "mode_fallbacks": [
+    {
+      "from": "ACQUIRE",
+      "to": "DETUMBLE",
+      "condition": "attitude validity lost"
+    },
+    {
+      "from": "TRACK",
+      "to": "DETUMBLE",
+      "condition": "attitude validity lost or rate exceeds AC_TRACK_LOST_RATE"
+    }
+  ],
+  "sensor_shell": {
+    "file": "ADCS/src/AcSensors.c",
+    "implemented_reference_sync": [
+      "Q2C(qbn) to CBN",
+      "FindCLN(PosN,VelN) to CLN and wln",
+      "C2Q(CLN) to qln",
+      "EphValid from nonzero position and velocity",
+      "coarse Earth-sensor surrogate ES.Valid/Roll/Pitch from -PosN transformed to body frame"
+    ],
+    "placeholder_processors": [
+      "GyroProcessing",
+      "MagnetometerProcessing",
+      "CssProcessing",
+      "FssProcessing",
+      "StarTrackerProcessing",
+      "GpsProcessing",
+      "AccelProcessing"
+    ],
+    "supported_fsw_work": [
+      "mission-specific preprocessing using fields already present in AcType",
+      "validity-flag logic using existing sensor mirror fields",
+      "filters or derived measurements that do not require new 42 truth outputs"
+    ],
+    "unsupported_without_truth_model_extension": [
+      "new native sensor physics",
+      "new 42 parser fields for sensors",
+      "new image or optical truth measurements",
+      "new sensor noise or visibility model implemented in native 42"
+    ]
+  },
+  "control_shell": {
+    "file": "ADCS/src/AcControl.c",
+    "command_vectors": [
+      "AC->IdealTrq[3]",
+      "AC->IdealFrc[3]",
+      "AC->Tcmd[3]",
+      "AC->Mcmd[3]",
+      "AC->Fcmd[3]"
+    ],
+    "default_control_branches": [
+      "AcSafeControl",
+      "AcDetumbleControl",
+      "AcAcquireControl",
+      "AcTrackControl"
+    ],
+    "supported_fsw_work": [
+      "new application-layer control laws using existing AcType fields",
+      "gain and threshold changes in AcFswModules.h",
+      "mode-specific command generation",
+      "command limiting and fallback behavior"
+    ]
+  },
+  "actuator_shell": {
+    "file": "ADCS/src/AcActuators.c",
+    "implemented_dispatch": [
+      "WheelProcessing allocates AC->Tcmd through wheel DistVec to Whl[i].Tcmd",
+      "MtbProcessing allocates AC->Mcmd through MTB DistVec to MTB[i].Mcmd",
+      "ThrProcessing projects AC->Fcmd onto positive thruster axes and writes thrust level and pulse width"
+    ],
+    "supported_actuator_outputs": [
+      "ideal torque",
+      "ideal force",
+      "reaction wheel torque",
+      "magnetic torquer dipole",
+      "simple thruster thrust level",
+      "simple thruster pulse width"
+    ],
+    "unsupported_without_truth_model_extension": [
+      "new actuator dynamics",
+      "new joint or mechanism dynamics",
+      "new native 42 actuator parser fields",
+      "new physical payload or optical actuator truth model"
+    ]
+  },
+  "primary_owned_files_for_fsw_code_author": [
+    "<workspace>/FSW/ADCS/include/AcFswModules.h",
+    "<workspace>/FSW/ADCS/src/AcSensors.c",
+    "<workspace>/FSW/ADCS/src/AcMode.c",
+    "<workspace>/FSW/ADCS/src/AcStateMachine.c",
+    "<workspace>/FSW/ADCS/src/AcControl.c",
+    "<workspace>/FSW/ADCS/src/AcActuators.c"
+  ],
+  "adapter_owned_files_for_limited_changes": [
+    "<workspace>/FSW/ADCS/src/42fsw.c",
+    "<workspace>/FSW/ADCS/include/AcTypes.h",
+    "<workspace>/FSW/ADCS/include/Ac.h"
+  ],
+  "truth_model_extension_boundary": [
+    "codex_web/AIGNC/42/Include/42types.h",
+    "codex_web/AIGNC/42/Source/42init.c",
+    "codex_web/AIGNC/42/Source/42sensors.c",
+    "codex_web/AIGNC/42/Source/42actuators.c",
+    "codex_web/AIGNC/42/Source/42joints.c"
+  ],
+  "sidecar_boundary_note": "AcFswModules.h includes AcOpticalPayload.h to preserve the current sidecar compile boundary. This does not imply native 42 optical payload support.",
+  "classification_rules": {
+    "cfs_fsw_internal": [
+      "mode transitions using existing AcType fields",
+      "control laws using existing AcType state, sensor mirrors, and command vectors",
+      "sensor preprocessing using existing 42-populated AcType fields",
+      "actuator allocation to existing wheel, MTB, thruster, or ideal actuator command fields"
+    ],
+    "cross_boundary": [
+      "requirements that need both FSW logic and sidecar or adapter support",
+      "requirements that consume optical sidecar outputs but do not add native 42 truth models"
+    ],
+    "truth_model_extension": [
+      "new native sensor truth model",
+      "new native actuator dynamics",
+      "new 42 input parser fields",
+      "new image, optical, mechanism, or joint truth-model behavior"
+    ]
+  }
+}

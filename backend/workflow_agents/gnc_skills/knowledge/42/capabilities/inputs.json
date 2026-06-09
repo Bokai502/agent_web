@@ -1,0 +1,55 @@
+{
+  "global_sim_file": {
+    "file": "Inp_Sim.txt",
+    "purpose": [
+      "simulation timing",
+      "reference orbit binding",
+      "spacecraft binding",
+      "environment switches",
+      "graphics enable",
+      "ground station and celestial body selection"
+    ],
+    "required_for_case": true
+  },
+  "orbit_files": {
+    "pattern": "Orb_*.txt",
+    "purpose": [
+      "reference orbit definition",
+      "formation frame definition"
+    ],
+    "supports_types": ["ZERO", "FLIGHT", "CENTRAL", "THREE_BODY"]
+  },
+  "spacecraft_files": {
+    "pattern": "SC_*.txt",
+    "purpose": [
+      "spacecraft dynamics",
+      "bodies and joints",
+      "actuators",
+      "sensors",
+      "fsw tag"
+    ],
+    "orbit_prop_options": ["FIXED", "EULER_HILL", "ENCKE", "COWELL"]
+  },
+  "command_script": {
+    "file": "Inp_Cmd.txt",
+    "purpose": [
+      "scripted command injection",
+      "demo sequencing",
+      "view and scenario scripting"
+    ],
+    "always_required": false
+  },
+  "output_control": {
+    "files": [
+      "Inp_AcOutput.txt",
+      "Inp_ScOutput.txt",
+      "Inp_FOV.txt",
+      "Inp_Graphics.txt"
+    ],
+    "purpose": [
+      "telemetry selection",
+      "output cadence",
+      "graphics and visualization settings"
+    ]
+  }
+}

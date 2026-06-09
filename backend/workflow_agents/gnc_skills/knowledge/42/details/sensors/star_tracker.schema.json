@@ -1,0 +1,51 @@
+{
+  "sensor_type": "star_tracker",
+  "source_struct": "StarTrackerType",
+  "config_location": "SC_*.txt -> Star Tracker section",
+  "fields": [
+    {
+      "key": "sample_time_sec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "mounting_angles_deg_and_sequence",
+      "value_type": "angle_triplet_plus_sequence",
+      "required": true
+    },
+    {
+      "key": "bore_axis",
+      "value_type": "enum",
+      "allowed_values": ["X_AXIS", "Y_AXIS", "Z_AXIS"],
+      "required": true
+    },
+    {
+      "key": "fov_size_deg_xy",
+      "value_type": "vector2",
+      "required": true
+    },
+    {
+      "key": "sun_earth_moon_exclusion_angles_deg",
+      "value_type": "vector3",
+      "required": true
+    },
+    {
+      "key": "noise_equivalent_angle_arcsec_rms_xyz",
+      "value_type": "vector3",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    }
+  ],
+  "outputs": [
+    "ST[*].Valid",
+    "ST[*].qn"
+  ],
+  "fallback_behavior_if_absent": "truth attitude path may be used",
+  "notes": [
+    "The current project must explicitly distinguish star-tracker-measured attitude from truth fallback attitude."
+  ]
+}

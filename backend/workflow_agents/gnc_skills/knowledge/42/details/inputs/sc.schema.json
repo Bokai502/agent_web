@@ -1,0 +1,95 @@
+{
+  "file_type": "SC_*.txt",
+  "purpose": "Single-spacecraft definition covering bodies, joints, actuators, sensors, and FSW tag.",
+  "top_level_fields": [
+    {
+      "key": "description",
+      "value_type": "string",
+      "required": true
+    },
+    {
+      "key": "label",
+      "value_type": "string",
+      "required": true
+    },
+    {
+      "key": "sprite_file",
+      "value_type": "string",
+      "required": true
+    },
+    {
+      "key": "flight_software_identifier",
+      "value_type": "enum",
+      "required": true,
+      "notes": [
+        "AIGNC product assumes this stays fixed at CFS_FSW for custom GNC work."
+      ]
+    },
+    {
+      "key": "fsw_sample_time_sec",
+      "value_type": "float",
+      "required": true
+    }
+  ],
+  "orbit_fields": [
+    {
+      "key": "orbit_prop",
+      "value_type": "enum",
+      "allowed_values": ["FIXED", "EULER_HILL", "ENCKE", "COWELL"],
+      "required": true
+    },
+    {
+      "key": "position_reference_is_cm",
+      "value_type": "enum",
+      "allowed_values": ["CM", "ORIGIN"],
+      "required": true
+    },
+    {
+      "key": "pos_wrt_formation_m",
+      "value_type": "vector3",
+      "required": true
+    },
+    {
+      "key": "vel_wrt_formation_mps",
+      "value_type": "vector3",
+      "required": true
+    }
+  ],
+  "attitude_fields": [
+    {
+      "key": "attitude_reference_code",
+      "value_type": "string",
+      "required": true
+    },
+    {
+      "key": "initial_ang_vel_degps",
+      "value_type": "vector3",
+      "required": true
+    },
+    {
+      "key": "initial_quaternion",
+      "value_type": "vector4",
+      "required": true
+    }
+  ],
+  "section_names": [
+    "dynamics_flags",
+    "body_parameters",
+    "joint_parameters",
+    "wheel_parameters",
+    "mtb_parameters",
+    "thruster_parameters",
+    "gyro_parameters",
+    "magnetometer_parameters",
+    "css_parameters",
+    "fss_parameters",
+    "star_tracker_parameters",
+    "gps_parameters",
+    "accelerometer_parameters",
+    "fgs_parameters"
+  ],
+  "notes": [
+    "SC files are the main target when mapping user platform descriptions into 42.",
+    "Detailed section-level schemas should be loaded on demand rather than kept in always-on context."
+  ]
+}

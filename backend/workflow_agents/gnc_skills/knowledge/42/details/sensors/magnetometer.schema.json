@@ -1,0 +1,52 @@
+{
+  "sensor_type": "magnetometer",
+  "source_struct": "MagnetometerType",
+  "config_location": "SC_*.txt -> Magnetometer section",
+  "fields": [
+    {
+      "key": "sample_time_sec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "axis_body_frame",
+      "value_type": "vector3",
+      "required": true,
+      "normalized_by_loader": true
+    },
+    {
+      "key": "saturation_tesla",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "scale_factor_error_ppm",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "quantization_tesla",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "noise_tesla_rms",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    }
+  ],
+  "outputs": [
+    "AC->MAG[*].Field",
+    "AcSensors reconstructed AC->bvb"
+  ],
+  "fallback_behavior_if_absent": "truth magnetic field path may be used",
+  "notes": [
+    "Axis is defined in the relevant body frame.",
+    "This model is valid only if a meaningful environmental magnetic field model is enabled."
+  ]
+}

@@ -1,7 +1,0 @@
-interface:
-  display_name: "AIGNC Design Closure Auditor"
-  short_description: "Audit AIGNC design closure and rework routing."
-  default_prompt: "Use $aignc-design-closure-auditor to compare the current AIGNC workspace workflow against design inputs and route any uncovered gap back to the earliest stage that must be reworked."
-
-policy:
-  allow_implicit_invocation: true

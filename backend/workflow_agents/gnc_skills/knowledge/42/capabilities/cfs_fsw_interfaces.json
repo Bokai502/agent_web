@@ -1,0 +1,145 @@
+{
+  "schema": "aignc.cfs_fsw_interfaces/2.0",
+  "interface_object": "struct AcType",
+  "adapter_layer": {
+    "file": "ADCS/src/42fsw.c",
+    "sc_to_ac_initialization": "InitAC copies spacecraft configuration, sensor axes, actuator geometry, limits, and controller Init flags from SCType to AcType.",
+    "ac_to_sc_command_mapping": "MapCmdsToActuators copies IdealAct, wheel, MTB, and thruster commands from AcType back to SCType actuator objects.",
+    "direct_sc_access_policy": "Direct SCType access is restricted to the adapter layer by default. FSW modules should operate on AcType."
+  },
+  "primary_inputs": {
+    "basic_state": [
+      "ID",
+      "DT",
+      "mass",
+      "cm[3]",
+      "MOI[3][3]",
+      "Nb",
+      "Ng"
+    ],
+    "attitude_and_reference": [
+      "qbn[4]",
+      "wbn[3]",
+      "PosN[3]",
+      "VelN[3]",
+      "svn[3]",
+      "svb[3]",
+      "bvn[3]",
+      "bvb[3]",
+      "Hvb[3]"
+    ],
+    "sensor_mirrors": [
+      "Gyro[*].Rate",
+      "MAG[*].Field",
+      "CSS[*].Valid",
+      "CSS[*].Illum",
+      "FSS[*].Valid",
+      "FSS[*].SunAng[2]",
+      "ST[*].Valid",
+      "ST[*].qn[4]",
+      "GPS[*].Valid",
+      "GPS[*].PosN[3]",
+      "GPS[*].VelN[3]",
+      "Accel[*].Acc"
+    ],
+    "actuator_state_and_configuration": [
+      "Whl[*].Axis[3]",
+      "Whl[*].DistVec[3]",
+      "Whl[*].Tmax",
+      "Whl[*].Hmax",
+      "Whl[*].H",
+      "MTB[*].Axis[3]",
+      "MTB[*].DistVec[3]",
+      "MTB[*].Mmax",
+      "Thr[*].Axis[3]",
+      "Thr[*].Fmax"
+    ],
+    "joint_mirror": [
+      "G[*].Ang[3]",
+      "G[*].AngRate[3]",
+      "G[*].Pos[3]",
+      "G[*].PosRate[3]"
+    ]
+  },
+  "derived_state_written_by_sensor_shell": [
+    "CBN[3][3]",
+    "CLN[3][3]",
+    "qln[4]",
+    "wln[3]",
+    "EphValid",
+    "ES.Valid",
+    "ES.Roll",
+    "ES.Pitch"
+  ],
+  "validity_flags": [
+    "SunValid",
+    "MagValid",
+    "StValid",
+    "EphValid",
+    "ES.Valid"
+  ],
+  "mode_state_fields": [
+    "Mode",
+    "PrevMode",
+    "NextMode",
+    "ModeChanged",
+    "ModeTime",
+    "FswTime",
+    "RateMag",
+    "AttValid",
+    "NavValid",
+    "SunValid",
+    "MagValid",
+    "StValid"
+  ],
+  "primary_outputs": {
+    "body_level_commands": [
+      "Tcmd[3]",
+      "Mcmd[3]",
+      "Fcmd[3]",
+      "IdealTrq[3]",
+      "IdealFrc[3]"
+    ],
+    "mode_output": [
+      "Mode"
+    ],
+    "actuator_commands": [
+      "Whl[*].Tcmd",
+      "MTB[*].Mcmd",
+      "Thr[*].Fcmd",
+      "Thr[*].ThrustLevelCmd",
+      "Thr[*].PulseWidthCmd"
+    ]
+  },
+  "mapped_to_42_outputs": [
+    "S->IdealAct[*].Tcmd/Fcmd",
+    "S->Whl[*].Tcmd",
+    "S->MTB[*].Mcmd",
+    "S->Thr[*].ThrustLevelCmd",
+    "S->Thr[*].PulseWidthCmd"
+  ],
+  "current_non_default_or_limited_interfaces": [
+    {
+      "interface": "joint commands",
+      "status": "not dispatched by current default shell",
+      "rule": "Plan AcActuators, AcTypes, and 42 joint truth boundary before implementing."
+    },
+    {
+      "interface": "coarse Earth sensor",
+      "status": "surrogate in AcSensors.c",
+      "rule": "Do not claim native 42 Earth-sensor support from ES alone."
+    },
+    {
+      "interface": "optical payload",
+      "status": "sidecar compile boundary may exist",
+      "rule": "Do not claim native 42 optical payload support unless native truth-model files are implemented."
+    }
+  ],
+  "implementation_rules": [
+    "Prefer reading and writing AcType inside FSW modules.",
+    "Keep direct SCType access in ADCS/src/42fsw.c unless an architecture plan explicitly says otherwise.",
+    "Use Tcmd/Mcmd/IdealTrq for attitude torque commands.",
+    "Use Fcmd/IdealFrc for translational force commands.",
+    "Update AcTypes, initialization, zeroing, actuator mapping, logging, and build wiring when adding new interface fields."
+  ]
+}

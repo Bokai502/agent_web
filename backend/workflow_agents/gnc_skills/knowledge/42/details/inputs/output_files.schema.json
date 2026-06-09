@@ -1,0 +1,24 @@
+{
+  "file_type": "Inp_*Output.txt",
+  "purpose": "Controls telemetry file selection and output cadence.",
+  "covered_files": [
+    "Inp_AcOutput.txt",
+    "Inp_ScOutput.txt"
+  ],
+  "high_level_fields": [
+    {
+      "key": "enabled_interval",
+      "value_type": "float",
+      "purpose": "sets output cadence for enabled telemetry groups"
+    },
+    {
+      "key": "telemetry_group_enable",
+      "value_type": "boolean_map",
+      "purpose": "turns specific output files or telemetry groups on and off"
+    }
+  ],
+  "notes": [
+    "Use these files as part of scenario verification requirements rather than as core mission configuration.",
+    "AIGNC should generate or edit output control only when the user asks for diagnostics, reports, plots, or verification artifacts."
+  ]
+}

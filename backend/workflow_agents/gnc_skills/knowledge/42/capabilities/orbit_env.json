@@ -1,0 +1,32 @@
+{
+  "orbit_prop_options": {
+    "FIXED": "spacecraft fixed on reference orbit",
+    "EULER_HILL": "linear relative motion propagation",
+    "ENCKE": "reference-plus-deviation propagation",
+    "COWELL": "direct numerical integration"
+  },
+  "reference_orbit_types": ["ZERO", "FLIGHT", "CENTRAL", "THREE_BODY"],
+  "multi_spacecraft": {
+    "supported": true,
+    "shared_reference_orbit": true,
+    "independent_reference_orbits": true
+  },
+  "magfield_models": ["NONE", "DIPOLE", "IGRF"],
+  "environment_switches": [
+    "aerodynamic_forces_and_torques",
+    "gravity_gradient_torques",
+    "solar_pressure_forces_and_torques",
+    "residual_magnetic_moment_torques",
+    "gravity_perturbation_forces",
+    "thruster_plume_forces_and_torques",
+    "contact_forces_and_torques",
+    "cfd_slosh_forces_and_torques"
+  ],
+  "world_support": {
+    "earth_orbit": true,
+    "lunar_orbit": true,
+    "mars_orbit": true,
+    "minor_body_ops": true,
+    "three_body_regimes": true
+  }
+}

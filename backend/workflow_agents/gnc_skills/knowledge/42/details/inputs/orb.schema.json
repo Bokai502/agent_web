@@ -1,0 +1,94 @@
+{
+  "file_type": "Orb_*.txt",
+  "purpose": "Reference orbit definition and formation frame definition.",
+  "top_level_fields": [
+    {
+      "key": "description",
+      "value_type": "string",
+      "required": true
+    },
+    {
+      "key": "orbit_type",
+      "value_type": "enum",
+      "allowed_values": ["ZERO", "FLIGHT", "CENTRAL", "THREE_BODY"],
+      "required": true
+    }
+  ],
+  "central_orbit_fields": [
+    {
+      "key": "orbit_center",
+      "value_type": "enum",
+      "required": true
+    },
+    {
+      "key": "input_mode",
+      "value_type": "enum",
+      "allowed_values": ["KEP", "RV", "FILE"],
+      "required": true
+    },
+    {
+      "key": "kepler_representation",
+      "value_type": "enum",
+      "allowed_values": ["PA", "AE"],
+      "required_if": {
+        "input_mode": "KEP"
+      }
+    },
+    {
+      "key": "inclination_deg",
+      "value_type": "float"
+    },
+    {
+      "key": "raan_deg",
+      "value_type": "float"
+    },
+    {
+      "key": "argument_of_periapsis_deg",
+      "value_type": "float"
+    },
+    {
+      "key": "true_anomaly_deg",
+      "value_type": "float"
+    }
+  ],
+  "three_body_fields": [
+    {
+      "key": "lagrange_system",
+      "value_type": "enum",
+      "allowed_values": ["EARTHMOON", "SUNEARTH", "SUNJUPITER"]
+    },
+    {
+      "key": "propagation_mode",
+      "value_type": "enum",
+      "allowed_values": ["LAGDOF_MODES", "LAGDOF_COWELL", "LAGDOF_SPLINE"]
+    }
+  ],
+  "formation_frame_fields": [
+    {
+      "key": "formation_frame_fixed_in",
+      "value_type": "enum",
+      "allowed_values": ["N", "L"],
+      "required": true
+    },
+    {
+      "key": "formation_euler_angles_deg_and_sequence",
+      "value_type": "quadruplet",
+      "required": true
+    },
+    {
+      "key": "formation_origin_expressed_in",
+      "value_type": "enum",
+      "allowed_values": ["N", "L"],
+      "required": true
+    },
+    {
+      "key": "formation_origin_wrt_ref_orbit_m",
+      "value_type": "vector3",
+      "required": true
+    }
+  ],
+  "notes": [
+    "The formation frame is especially important for multi-spacecraft cases and relative initial conditions.",
+    "Orbit type determines which later fields are semantically active."
+  ]
+}

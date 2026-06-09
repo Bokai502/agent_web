@@ -1,0 +1,43 @@
+{
+  "sensor_type": "gps",
+  "source_struct": "GpsType",
+  "config_location": "SC_*.txt -> GPS section",
+  "fields": [
+    {
+      "key": "sample_time_sec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "position_noise_m",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "velocity_noise_mps",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "time_noise_sec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    }
+  ],
+  "supported_worlds": ["EARTH"],
+  "outputs": [
+    "GPS[0].Valid",
+    "PosN",
+    "VelN",
+    "geodetic outputs"
+  ],
+  "fallback_behavior_if_absent": "truth orbit state may be used by FSW path",
+  "notes": [
+    "Do not assume this model is valid for lunar or deep-space cases."
+  ]
+}

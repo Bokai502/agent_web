@@ -1,0 +1,132 @@
+{
+  "schema": "aignc.cfs_fsw_extension_rules/2.0",
+  "default_policy": [
+    "Use CFS_FSW as the fixed flight-software path.",
+    "Prefer workspace-local ADCS FSW changes before native 42 truth-model changes.",
+    "Do not report sidecar or surrogate behavior as native 42 support."
+  ],
+  "default_edit_scope": [
+    "ADCS/include/AcFswModules.h",
+    "ADCS/src/AcSensors.c",
+    "ADCS/src/AcMode.c",
+    "ADCS/src/AcStateMachine.c",
+    "ADCS/src/AcControl.c",
+    "ADCS/src/AcActuators.c"
+  ],
+  "conditional_adapter_scope": [
+    "ADCS/src/42fsw.c",
+    "ADCS/include/AcTypes.h",
+    "ADCS/include/Ac.h"
+  ],
+  "absent_default_modules": [
+    "ADCS/src/AcApp.c"
+  ],
+  "request_to_edit_targets": {
+    "new_mode_transition_logic": [
+      "ADCS/src/AcMode.c",
+      "ADCS/src/AcStateMachine.c",
+      "ADCS/include/AcFswModules.h"
+    ],
+    "new_application_mode": [
+      "ADCS/include/AcFswModules.h",
+      "ADCS/src/AcMode.c",
+      "ADCS/src/AcControl.c",
+      "ADCS/src/AcStateMachine.c"
+    ],
+    "new_control_law": [
+      "ADCS/src/AcControl.c",
+      "ADCS/include/AcFswModules.h"
+    ],
+    "new_sensor_preprocessing": [
+      "ADCS/src/AcSensors.c",
+      "ADCS/include/AcFswModules.h",
+      "ADCS/include/AcTypes.h when new AcType fields are required"
+    ],
+    "new_actuator_allocation": [
+      "ADCS/src/AcActuators.c",
+      "ADCS/include/AcFswModules.h"
+    ],
+    "sc_ac_adapter_change": [
+      "ADCS/src/42fsw.c",
+      "ADCS/include/AcTypes.h",
+      "ADCS/include/Ac.h"
+    ]
+  },
+  "supported_inside_cfs_fsw": [
+    "mode and fallback changes using existing AcType fields",
+    "control laws that output to Tcmd, Mcmd, Fcmd, IdealTrq, or IdealFrc",
+    "sensor preprocessing from existing AcType sensor mirrors",
+    "wheel, MTB, thruster, and ideal actuator allocation changes",
+    "new internal state fields when initialization, zeroing, mapping, and build impacts are handled"
+  ],
+  "requires_truth_model_extension": {
+    "new_sensor_model": [
+      "codex_web/AIGNC/42/Include/42types.h",
+      "codex_web/AIGNC/42/Source/42init.c",
+      "codex_web/AIGNC/42/Source/42sensors.c",
+      "input parser/schema updates"
+    ],
+    "new_actuator_dynamics": [
+      "codex_web/AIGNC/42/Include/42types.h",
+      "codex_web/AIGNC/42/Source/42init.c",
+      "codex_web/AIGNC/42/Source/42actuators.c",
+      "codex_web/AIGNC/42/Source/42joints.c",
+      "input parser/schema updates"
+    ],
+    "new_configuration_semantics": [
+      "configuration generator",
+      "configuration validator",
+      "42 parser/schema",
+      "runtime evidence"
+    ],
+    "native_optical_or_payload_truth_model": [
+      "codex_web/AIGNC/42/Include/42types.h",
+      "codex_web/AIGNC/42/Source/42init.c",
+      "codex_web/AIGNC/42/Source/42sensors.c or codex_web/AIGNC/42/Source/42actuators.c",
+      "input parser/schema updates"
+    ]
+  },
+  "cross_boundary_rules": {
+    "sidecar_bridge": "Using existing sidecar outputs as FSW inputs is cross_boundary; editing codex_web/AIGNC/bridge/mission_bypass requires explicit user approval.",
+    "adapter_changes": "Changing SCType <-> AcType mapping is cross_boundary unless limited to workspace-local 42fsw.c and declared in the architecture plan.",
+    "joint_control": "Default shell mirrors joint state but does not dispatch joint commands; classify joint command work as cross_boundary until actuator and truth-model ownership is explicit."
+  },
+  "recommended_templates": {
+    "safe_or_rate_damping": [
+      "AC_MODE_SAFE",
+      "AC_MODE_DETUMBLE",
+      "AcSafeControl",
+      "AcDetumbleControl"
+    ],
+    "coarse_acquisition": [
+      "AC_MODE_ACQUIRE",
+      "AcAcquireControl",
+      "AC->ES.Valid/Roll/Pitch"
+    ],
+    "three_axis_tracking": [
+      "AC_MODE_TRACK",
+      "AcTrackControl",
+      "AC->qbn",
+      "AC->qln",
+      "AC->wbn",
+      "AC->wln"
+    ],
+    "magnetic_or_wheel_allocation": [
+      "AcCommandTorque",
+      "WheelProcessing",
+      "MtbProcessing"
+    ],
+    "thruster_allocation": [
+      "AC->Fcmd",
+      "ThrProcessing"
+    ]
+  },
+  "verification_requirements": [
+    "python3 <workspace>/Script/build_42.py --headless",
+    "python3 <workspace>/Script/run_case.py --headless",
+    "mode timeline review",
+    "attitude, angular-rate, and actuator-output plot review",
+    "requirement metric comparison",
+    "configuration validation and runtime evidence when config or truth-model boundaries are touched"
+  ]
+}

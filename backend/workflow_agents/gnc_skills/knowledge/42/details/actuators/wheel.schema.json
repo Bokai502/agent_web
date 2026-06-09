@@ -1,0 +1,54 @@
+{
+  "actuator_type": "reaction_wheel",
+  "source_struct": "WhlType",
+  "config_location": "SC_*.txt -> Wheel section",
+  "fields": [
+    {
+      "key": "initial_momentum_nms",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "axis_body_frame",
+      "value_type": "vector3",
+      "required": true,
+      "normalized_by_loader": true
+    },
+    {
+      "key": "max_torque_nm",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "max_momentum_nms",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "rotor_inertia_kgm2",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "body",
+      "value_type": "integer",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    },
+    {
+      "key": "jitter_input_file",
+      "value_type": "string",
+      "required": true
+    }
+  ],
+  "supports_arbitrary_layout": true,
+  "supports_pyramid_layout": true,
+  "fsw_mapping_notes": [
+    "Ac layer computes wheel DistVec from axis matrix pseudo-inverse.",
+    "Current custom nullspace damping helper should be reviewed when layout changes."
+  ]
+}

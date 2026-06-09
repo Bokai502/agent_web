@@ -1,0 +1,46 @@
+{
+  "actuator_type": "thruster",
+  "source_struct": "ThrType",
+  "config_location": "SC_*.txt -> Thruster section",
+  "fields": [
+    {
+      "key": "mode",
+      "value_type": "enum",
+      "allowed_values": ["PULSED", "PROPORTIONAL"],
+      "required": true
+    },
+    {
+      "key": "max_thrust_n",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "thrust_axis_body_frame",
+      "value_type": "vector3",
+      "required": true,
+      "normalized_by_loader": false
+    },
+    {
+      "key": "body",
+      "value_type": "integer",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    }
+  ],
+  "command_channels": [
+    "PulseWidthCmd",
+    "ThrustLevelCmd"
+  ],
+  "outputs": [
+    "Frc[3]",
+    "Trq[3]"
+  ],
+  "notes": [
+    "Thrusters generate both force and torque due to mounting location.",
+    "Use PROPORTIONAL for simplified continuous control and PULSED for time-quantized commands."
+  ]
+}

@@ -1,4 +1,0 @@
-interface:
-  display_name: "FSW Code Author"
-  short_description: "Implement planned complete CFS_FSW GNC changes."
-  default_prompt: "Use $fsw-code-author to implement planned complete CFS_FSW GNC changes from the architecture artifact bundle, consuming file_change_map ownership groups and keeping edits bounded to mapped files."

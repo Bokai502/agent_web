@@ -1,0 +1,131 @@
+{
+  "file_type": "Inp_Sim.txt",
+  "purpose": "Top-level simulation control, case binding, environment switches, and global runtime settings.",
+  "sections": [
+    {
+      "name": "simulation_control",
+      "fields": [
+        {
+          "key": "time_mode",
+          "value_type": "enum",
+          "allowed_values": ["FAST", "REAL", "EXTERNAL", "NOS3"],
+          "required": true,
+          "maps_to": "time_mode runtime selection"
+        },
+        {
+          "key": "sim_duration_sec",
+          "value_type": "float",
+          "required": true,
+          "maps_to": "STOPTIME"
+        },
+        {
+          "key": "step_size_sec",
+          "value_type": "float",
+          "required": true,
+          "maps_to": "DTSIM"
+        },
+        {
+          "key": "file_output_interval_sec",
+          "value_type": "float",
+          "required": true
+        },
+        {
+          "key": "rng_seed",
+          "value_type": "integer",
+          "required": true
+        },
+        {
+          "key": "graphics_front_end",
+          "value_type": "boolean",
+          "required": true,
+          "maps_to": "GLEnable"
+        },
+        {
+          "key": "command_script_file",
+          "value_type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "reference_orbits",
+      "fields": [
+        {
+          "key": "number_of_reference_orbits",
+          "value_type": "integer",
+          "required": true
+        },
+        {
+          "key": "reference_orbit_entries",
+          "value_type": "array",
+          "entry_shape": {
+            "exists": "boolean",
+            "orbit_file": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "spacecraft",
+      "fields": [
+        {
+          "key": "number_of_spacecraft",
+          "value_type": "integer",
+          "required": true
+        },
+        {
+          "key": "spacecraft_entries",
+          "value_type": "array",
+          "entry_shape": {
+            "exists": "boolean",
+            "reference_orbit_index": "integer",
+            "spacecraft_file": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "environment",
+      "fields": [
+        {
+          "key": "utc_date",
+          "value_type": "date_triplet",
+          "required": true
+        },
+        {
+          "key": "utc_time",
+          "value_type": "time_triplet",
+          "required": true
+        },
+        {
+          "key": "magfield_model",
+          "value_type": "enum",
+          "allowed_values": ["NONE", "DIPOLE", "IGRF"],
+          "required": true
+        },
+        {
+          "key": "gravity_models",
+          "value_type": "object",
+          "fields": {
+            "earth": "pair<int,int>",
+            "mars": "pair<int,int>",
+            "luna": "pair<int,int>"
+          },
+          "required": true
+        },
+        {
+          "key": "force_torque_switches",
+          "value_type": "object",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Reference orbit count and spacecraft count must match the actual entry lists.",
+    "graphics_front_end may be toggled for batch execution without changing the rest of the case.",
+    "Many downstream capability checks depend on environment model choices made here."
+  ]
+}

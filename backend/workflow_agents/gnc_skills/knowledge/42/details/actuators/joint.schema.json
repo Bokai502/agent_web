@@ -1,0 +1,62 @@
+{
+  "actuator_type": "joint",
+  "source_struct": "JointType",
+  "config_location": "SC_*.txt -> Joint section",
+  "fields": [
+    {
+      "key": "type",
+      "value_type": "enum",
+      "allowed_values": ["PASSIVE", "ACTUATED", "AD_HOC", "STEPPER_MOTOR", "TVC_JOINT", "VIBRATION_ISOLATOR", "SLOSH", "STEERING_MIRROR"],
+      "required": true
+    },
+    {
+      "key": "inner_outer_body_indices",
+      "value_type": "pair<int,int>",
+      "required": true
+    },
+    {
+      "key": "rotational_dof_and_sequence",
+      "value_type": "compound",
+      "required": true
+    },
+    {
+      "key": "translational_dof_and_sequence",
+      "value_type": "compound",
+      "required": true
+    },
+    {
+      "key": "initial_angles_deg",
+      "value_type": "vector3",
+      "required": true
+    },
+    {
+      "key": "initial_rates_degps",
+      "value_type": "vector3",
+      "required": true
+    },
+    {
+      "key": "bi_to_gi_static_angles",
+      "value_type": "angle_triplet_plus_sequence",
+      "required": true
+    },
+    {
+      "key": "go_to_bo_static_angles",
+      "value_type": "angle_triplet_plus_sequence",
+      "required": true
+    },
+    {
+      "key": "joint_position_wrt_inner_body_m",
+      "value_type": "vector3",
+      "required": true
+    },
+    {
+      "key": "joint_position_wrt_outer_body_m",
+      "value_type": "vector3",
+      "required": true
+    }
+  ],
+  "notes": [
+    "PASSIVE and ACTUATED are the main currently useful deployment-related choices.",
+    "Complex deployment logic typically requires AD_HOC or deeper model extension."
+  ]
+}

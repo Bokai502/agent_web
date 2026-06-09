@@ -1,4 +1,0 @@
-interface:
-  display_name: "42 Config Validator"
-  short_description: "Validate generated 42 configuration set files before runtime"
-  default_prompt: "Use $42-config-validator to check this generated 42 configuration artifact bundle before running it."

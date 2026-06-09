@@ -1,0 +1,51 @@
+{
+  "sensor_type": "css",
+  "source_struct": "CssType",
+  "config_location": "SC_*.txt -> Coarse Sun Sensor section",
+  "fields": [
+    {
+      "key": "sample_time_sec",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "axis_body_frame",
+      "value_type": "vector3",
+      "required": true,
+      "normalized_by_loader": true
+    },
+    {
+      "key": "half_cone_angle_deg",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "scale_factor",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "quantization",
+      "value_type": "float",
+      "required": true
+    },
+    {
+      "key": "body",
+      "value_type": "integer",
+      "required": true
+    },
+    {
+      "key": "node",
+      "value_type": "integer",
+      "required": true
+    }
+  ],
+  "outputs": [
+    "CSS[*].Valid",
+    "CSS[*].Illum"
+  ],
+  "notes": [
+    "CSS is a coarse field-of-view sun sensor, not a full attitude sensor.",
+    "If both CSS and FSS are absent, higher layers may fall back to truth sun-vector logic."
+  ]
+}

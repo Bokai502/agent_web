@@ -1,0 +1,44 @@
+{
+  "reaction_wheel": {
+    "exists": true,
+    "dynamic_model": true,
+    "supports_custom_axis": true,
+    "supports_pyramid_layout": true,
+    "supports_arbitrary_layout": true,
+    "config_fields": ["axis", "tmax", "hmax", "J", "body", "node"],
+    "fsw_access": true,
+    "notes": [
+      "main dynamics supports arbitrary wheel axes",
+      "current custom CFS nullspace damping assumes the active 4-wheel layout"
+    ]
+  },
+  "mtb": {
+    "exists": true,
+    "dynamic_model": true,
+    "requires_magnetic_field": true,
+    "practical_worlds": ["EARTH_LEO"],
+    "less_practical_worlds": ["LUNA", "DEEP_SPACE"],
+    "fsw_access": true
+  },
+  "thruster": {
+    "exists": true,
+    "dynamic_model": true,
+    "modes": ["PULSED", "PROPORTIONAL"],
+    "supports_mount_position": true,
+    "supports_mount_axis": true,
+    "fsw_access": true
+  },
+  "joint_actuator": {
+    "exists": true,
+    "dynamic_model": true,
+    "types": ["PASSIVE", "ACTUATED", "AD_HOC"],
+    "supports_panel_deployment": true,
+    "fsw_access": true
+  },
+  "ideal_force_torque": {
+    "exists": true,
+    "dynamic_model": true,
+    "hardware_realism": "idealized",
+    "good_for_rapid_prototyping": true
+  }
+}

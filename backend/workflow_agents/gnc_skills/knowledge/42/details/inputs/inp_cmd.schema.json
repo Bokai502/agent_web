@@ -1,0 +1,30 @@
+{
+  "file_type": "Inp_Cmd.txt",
+  "purpose": "Scripted command injection for simulation, visualization, and some built-in FSW command flows.",
+  "execution_model": {
+    "time_ordered": true,
+    "ascii_script": true,
+    "comments_supported": true
+  },
+  "high_level_command_classes": [
+    {
+      "class": "view_and_banner",
+      "examples": ["Banner", "camera/view related commands"],
+      "typical_use": "demo presentation and GUI sequencing"
+    },
+    {
+      "class": "scenario_or_sim_control",
+      "examples": ["timed events", "state toggles", "script flow"],
+      "typical_use": "demonstration cases and preplanned transitions"
+    },
+    {
+      "class": "built_in_fsw_guidance_commands",
+      "examples": ["commanded targets for built-in FSW cases"],
+      "typical_use": "INSTANT_FSW-style cases"
+    }
+  ],
+  "notes": [
+    "Current custom CFS_FSW cases in this project rely more on internal state-machine conditions than on Inp_Cmd mode switching.",
+    "AIGNC should treat Inp_Cmd as optional unless the requested scenario explicitly needs time-scripted external events."
+  ]
+}
