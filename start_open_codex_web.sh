@@ -5,6 +5,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${APP_DIR}/config.json"
 BACKEND_DIR="${APP_DIR}/backend"
 FRONTEND_DIR="${APP_DIR}/frontend"
+REMOTE_GUI_SCRIPT="${APP_DIR}/start_remote_gui_tools.sh"
 
 read_config() {
   node -e '
@@ -104,6 +105,13 @@ if ! port_available "${BACKEND_PORT}"; then
 fi
 if ! port_available "${FRONTEND_PORT}"; then
   echo "无法关闭前端端口 ${FRONTEND_PORT}。" >&2
+  exit 1
+fi
+
+if [[ -x "${REMOTE_GUI_SCRIPT}" ]]; then
+  CONFIG_FILE="${CONFIG_FILE}" "${REMOTE_GUI_SCRIPT}" start
+else
+  echo "远程 GUI 启动脚本不可执行：${REMOTE_GUI_SCRIPT}" >&2
   exit 1
 fi
 
