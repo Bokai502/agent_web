@@ -20,6 +20,21 @@ describe("Responses API helpers", () => {
     assert.equal(getResponseOutputText({ output: [{ content: [{ noText: true }] }] }), "")
   })
 
+  it("ignores reasoning output blocks when extracting response text", () => {
+    assert.equal(getResponseOutputText({
+      output: [
+        { type: "reasoning", content: [{ text: "hidden chain of thought" }] },
+        {
+          type: "message",
+          content: [
+            { type: "reasoning_text", text: "hidden reasoning text" },
+            { type: "output_text", text: "visible answer" },
+          ],
+        },
+      ],
+    }), "visible answer")
+  })
+
   it("posts trimmed configuration to /responses and returns parsed text", async () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = []
     mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {

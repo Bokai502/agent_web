@@ -105,26 +105,80 @@ function getPromptTextForHistory(prompt: unknown, input: RunInputItem[]) {
     .trim() || "[input]"
 }
 
-function hasTerminalEvent(events: unknown[]) {
+export function hasTerminalEvent(events: unknown[]) {
   return events.some(event =>
     event && typeof event === "object" &&
     ["turn.completed", "turn.failed", "error"].includes(String((event as { type?: unknown }).type ?? ""))
   )
 }
 
-function getTerminalStatus(events: unknown[], aborted: boolean): RunCodexTurnResult["status"] {
+export function getTerminalStatus(events: unknown[], aborted: boolean): RunCodexTurnResult["status"] {
   if (aborted) return "cancelled"
   if (events.some(event => event && typeof event === "object" && (event as { type?: unknown }).type === "turn.failed")) return "failed"
   if (events.some(event => event && typeof event === "object" && (event as { type?: unknown }).type === "error")) return "failed"
   return "completed"
 }
 
-function appendTerminalIfMissing(events: unknown[], message: string) {
+export function appendTerminalIfMissing(events: unknown[], message: string) {
   if (events.length === 0 || hasTerminalEvent(events)) return
   events.push({
     type: "turn.failed",
     error: { message },
   })
+}
+
+export function resolveCodexClientEvent(
+  event: unknown,
+  suppressedAgentMessageIds: Set<string>,
+): { clientEvent: unknown | null; persistOnly: boolean } {
+  if (
+    event &&
+    typeof event === "object" &&
+    ((event as { type?: unknown }).type === "item.started" ||
+      (event as { type?: unknown }).type === "item.updated" ||
+      (event as { type?: unknown }).type === "item.completed")
+  ) {
+    const record = event as { item?: { id?: unknown; text?: unknown; type?: unknown }; type?: unknown }
+    if (record.item?.type === "agent_message" && typeof record.item.id === "string" && typeof record.item.text === "string") {
+      if (record.type === "item.started" && record.item.text.trim() === "") {
+        return { clientEvent: null, persistOnly: true }
+      }
+
+      const askUser = extractAskUserPayload(record.item.text)
+      if (askUser) {
+        suppressedAgentMessageIds.add(record.item.id)
+        return {
+          clientEvent: record.type === "item.completed"
+            ? {
+                type: "item.completed",
+                item: {
+                  id: `ask_user:${record.item.id}`,
+                  type: "ask_user",
+                  question: askUser.question,
+                  options: askUser.options,
+                },
+              }
+            : null,
+          persistOnly: true,
+        }
+      }
+
+      if (suppressedAgentMessageIds.has(record.item.id)) {
+        if (record.type === "item.completed") {
+          suppressedAgentMessageIds.delete(record.item.id)
+          return { clientEvent: event, persistOnly: false }
+        }
+        return { clientEvent: null, persistOnly: true }
+      }
+
+      if (record.type !== "item.completed" && ASK_USER_TAG_START.test(record.item.text)) {
+        suppressedAgentMessageIds.add(record.item.id)
+        return { clientEvent: null, persistOnly: true }
+      }
+    }
+  }
+
+  return { clientEvent: event, persistOnly: false }
 }
 
 export async function prepareCodexTurn(
@@ -436,51 +490,8 @@ export async function executeCodexTurn(
       })
       lastEventAt = now
 
-      if (
-        (event.type === "item.started" || event.type === "item.updated" || event.type === "item.completed") &&
-        event.item.type === "agent_message"
-      ) {
-        if (event.type === "item.started" && event.item.text.trim() === "") {
-          await persistLiveTurn()
-          continue
-        }
-
-        const askUser = extractAskUserPayload(event.item.text)
-
-        if (askUser) {
-          suppressedAgentMessageIds.add(event.item.id)
-          if (event.type === "item.completed") {
-            await emitClientEvent({
-              type: "item.completed",
-              item: {
-                id: `ask_user:${event.item.id}`,
-                type: "ask_user",
-                question: askUser.question,
-                options: askUser.options,
-              },
-            })
-          }
-          await persistLiveTurn()
-          continue
-        }
-
-        if (suppressedAgentMessageIds.has(event.item.id)) {
-          if (event.type === "item.completed") {
-            suppressedAgentMessageIds.delete(event.item.id)
-            await emitClientEvent(event)
-          }
-          await persistLiveTurn()
-          continue
-        }
-
-        if (event.type !== "item.completed" && ASK_USER_TAG_START.test(event.item.text)) {
-          suppressedAgentMessageIds.add(event.item.id)
-          await persistLiveTurn()
-          continue
-        }
-      }
-
-      await emitClientEvent(event)
+      const clientDecision = resolveCodexClientEvent(event, suppressedAgentMessageIds)
+      if (clientDecision.clientEvent) await emitClientEvent(clientDecision.clientEvent)
       await persistLiveTurn()
       if (event.type === "turn.completed" || event.type === "turn.failed" || event.type === "error") {
         break

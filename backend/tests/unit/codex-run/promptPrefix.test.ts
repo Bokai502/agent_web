@@ -49,4 +49,41 @@ describe("buildSdkInput", () => {
 
     assert.equal(buildSdkInput(input, context, false, "Guide text", []), input)
   })
+
+  it("preserves non-first text items and handles null workspace context", () => {
+    const input: RunInputItem[] = [
+      { type: "local_image", path: "/tmp/a.png" },
+      { type: "text", text: " first text " },
+      { type: "text", text: " second text " },
+    ]
+    const noWorkspaceContext: RunContext = {
+      sessionId: "session-no-workspace",
+      threadId: null,
+      turnId: "turn-no-workspace",
+      versionId: null,
+      workspaceDir: null,
+      workspaceId: null,
+    }
+
+    const result = buildSdkInput(input, noWorkspaceContext, true, "  ", [
+      {
+        content: "  Skill content  ",
+        description: "",
+        file: "/tmp/EMPTY_DESCRIPTION_SKILL.md",
+        name: "empty-description",
+      },
+    ])
+
+    assert.ok(Array.isArray(result))
+    assert.deepEqual(result[0], input[0])
+    assert.equal(result[1].type, "text")
+    assert.match(result[1].text, /- thread_id: null/u)
+    assert.match(result[1].text, /- workspace_id: null/u)
+    assert.match(result[1].text, /- workspace_dir: null/u)
+    assert.match(result[1].text, /No workspace is currently configured/u)
+    assert.match(result[1].text, /Description: \(none\)/u)
+    assert.match(result[1].text, /Skill content\n\nfirst text$/u)
+    assert.deepEqual(result[2], input[2])
+    assert.doesNotMatch(result[1].text, /Agent guide:/u)
+  })
 })
