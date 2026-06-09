@@ -294,6 +294,14 @@ export async function routeManagedRunIntent(
     )
     const parsed = parseRoutingJson(responseText)
     if (parsed) {
+      const fallback = fallbackRouting(body)
+      const shouldUseWorkspaceFallback =
+        fallback.intent !== "general" &&
+        parsed.intent === "general" &&
+        !parsed.managedSkills.includes("progress-summarizer")
+      const routed = shouldUseWorkspaceFallback
+        ? fallback
+        : parsed
       logger.info("managed run intent routed", {
         intent: parsed.intent,
         model: config.chatModel.model,
@@ -305,7 +313,7 @@ export async function routeManagedRunIntent(
         source: parsed.source,
         timeoutMs: INTENT_ROUTER_TIMEOUT_MS,
       })
-      return parsed
+      return routed
     }
   } catch (err) {
     logger.warn("managed run intent routing fallback", { err, requestId })

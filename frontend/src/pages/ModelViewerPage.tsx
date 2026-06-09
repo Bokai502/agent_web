@@ -35,7 +35,9 @@ const ANNOTATION_TRACK_GAP = 10
 type ComponentDetail = {
   componentId: string
   dimensions: string
+  displayName: string
   kind: string
+  modelName: string
   semanticName: string
   subsystem: string
 }
@@ -51,8 +53,19 @@ type RawComponentInfo = {
     display_info?: {
       dimensions?: unknown
       kind?: unknown
+      model?: unknown
+      name?: unknown
+      name_cn?: unknown
       semantic_name?: unknown
       subsystem?: unknown
+    }
+    source_ref?: {
+      selected_kind?: unknown
+      selected_model?: unknown
+      selected_name?: unknown
+      template_kind?: unknown
+      template_model?: unknown
+      template_name?: unknown
     }
   }>
   items?: RawComponentInfo["components"]
@@ -64,7 +77,7 @@ type ViewerComponentMessage = {
   type?: unknown
 }
 
-type ViewerMode = "cad" | "temperature" | "derating"
+type ViewerMode = "cad" | "realCad" | "temperature" | "derating"
 
 type TemperatureField = {
   attributes?: {
@@ -87,6 +100,14 @@ function asText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : "-"
 }
 
+function presentText(...values: unknown[]) {
+  for (const value of values) {
+    const text = asText(value)
+    if (text !== "-") return text
+  }
+  return "-"
+}
+
 function formatSize(value: unknown) {
   return Array.isArray(value) && value.length > 0
     ? value.map(item => typeof item === "number" && Number.isFinite(item) ? Number(item.toFixed(3)) : item).join(" x ")
@@ -106,10 +127,30 @@ function parseComponentDetails(data: RawComponentInfo) {
       dimensions: asText(component.display_info?.dimensions) !== "-"
         ? asText(component.display_info?.dimensions)
         : formatSize(component.size_mm),
-      kind: asText(component.display_info?.kind) !== "-"
-        ? asText(component.display_info?.kind)
-        : asText(component.kind ?? component.category ?? component.component_subtype),
-      semanticName: asText(component.display_info?.semantic_name ?? component.semantic_name),
+      displayName: presentText(
+        component.display_info?.name_cn,
+        component.source_ref?.selected_kind,
+        component.source_ref?.template_kind,
+        component.display_info?.kind,
+        component.component_subtype,
+        component.semantic_name,
+      ),
+      kind: presentText(
+        component.source_ref?.selected_kind,
+        component.source_ref?.template_kind,
+        component.display_info?.kind,
+        component.kind,
+        component.category,
+        component.component_subtype,
+      ),
+      modelName: presentText(
+        component.display_info?.model,
+        component.source_ref?.selected_model,
+        component.source_ref?.template_model,
+        component.source_ref?.selected_name,
+        component.source_ref?.template_name,
+      ),
+      semanticName: presentText(component.display_info?.semantic_name, component.semantic_name),
       subsystem: asText(component.display_info?.subsystem),
     }
   })
@@ -126,6 +167,33 @@ function mapBodyXyzToViewerPositions(positions: number[]) {
     mapped.push(x, z, -y)
   }
   return mapped
+}
+
+function parseViewerMode(value: string | null): ViewerMode | null {
+  if (value === "cad" || value === "realCad" || value === "temperature" || value === "derating") return value
+  if (value === "real-cad" || value === "real_cad") return "realCad"
+  if (value === "thermal") return "temperature"
+  return null
+}
+
+function resolveRealCadGlbPath(glbPath: string) {
+  const trimmed = glbPath.trim()
+  if (!trimmed) return "01_cad/geometry_after_real_cad.glb"
+  const normalized = trimmed.replace(/\\/gu, "/")
+  if (/geometry_after_real_cad\.glb$/iu.test(normalized)) return trimmed
+  if (/^02_geometry_edit\/geometry_after\.glb$/iu.test(normalized)) {
+    return "01_cad/geometry_after_real_cad.glb"
+  }
+  if (/geometry_after\.glb$/iu.test(normalized)) {
+    return trimmed.replace(/geometry_after\.glb$/iu, "geometry_after_real_cad.glb")
+  }
+  return "01_cad/geometry_after_real_cad.glb"
+}
+
+function getModelGlbPathForMode(mode: ViewerMode) {
+  const params = new URLSearchParams(window.location.search)
+  const glbPath = params.get("glbPath")?.trim() ?? ""
+  return mode === "realCad" ? resolveRealCadGlbPath(glbPath) : glbPath
 }
 
 function shouldShowDeratingMode(params: URLSearchParams, values: string[]) {
@@ -157,11 +225,14 @@ export default function ModelViewerPage() {
   const workspaceId = pageParams.get("workspaceId")?.trim() ?? ""
   const workspaceKey = pageParams.get("workspaceKey")?.trim() ?? ""
   const showDeratingMode = shouldShowDeratingMode(pageParams, [sessionId, versionId, workspaceDir, workspaceId, workspaceKey])
+  const requestedViewerMode = parseViewerMode(pageParams.get("lockMode")) ?? parseViewerMode(pageParams.get("mode"))
+  const lockedViewerMode = showDeratingMode ? "derating" : requestedViewerMode === "derating" ? null : requestedViewerMode
+  const initialViewerMode = lockedViewerMode ?? "cad"
   const viewerTheme = getViewerTheme(pageParams)
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving CAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [viewerMode, setViewerMode] = useState<ViewerMode>("cad")
+  const [viewerMode, setViewerMode] = useState<ViewerMode>(initialViewerMode)
   const [temperatureRange, setTemperatureRange] = useState<{ max: number; min: number } | null>(null)
   const viewerModeRef = useRef<ViewerMode>("cad")
 
@@ -248,13 +319,13 @@ export default function ModelViewerPage() {
     }
 
     const setSceneMode = (mode: ViewerMode) => {
-      if (modelRoot) modelRoot.visible = mode === "cad"
+      if (modelRoot) modelRoot.visible = mode === "cad" || mode === "realCad"
       if (temperatureRoot) temperatureRoot.visible = mode === "temperature"
-      annotationLabels.style.display = mode === "cad" ? "block" : "none"
-      annotationSvg.style.display = mode === "cad" ? "block" : "none"
+      annotationLabels.style.display = mode === "cad" || mode === "realCad" ? "block" : "none"
+      annotationSvg.style.display = mode === "cad" || mode === "realCad" ? "block" : "none"
       if (domElement) domElement.style.display = mode === "derating" ? "none" : "block"
       axisSvg.style.display = mode === "derating" ? "none" : "block"
-      if (mode !== "cad") {
+      if (mode !== "cad" && mode !== "realCad") {
         clearModelHighlight()
         setSelectedComponent(null)
       }
@@ -485,7 +556,9 @@ export default function ModelViewerPage() {
       const detail = componentDetailsRef.current[componentId] ?? {
         componentId,
         dimensions: "-",
+        displayName: componentId,
         kind: "-",
+        modelName: "-",
         semanticName: componentId,
         subsystem: "-",
       }
@@ -731,7 +804,7 @@ export default function ModelViewerPage() {
     }
 
     const init = async () => {
-      const modelSource = buildViewerModelSource(modelVariant)
+      const modelSource = buildViewerModelSource(modelVariant, getModelGlbPathForMode(viewerMode))
       if (!modelSource) {
         setErrorMessage("Viewer model source is unavailable.")
         setStatusMessage("")
@@ -953,6 +1026,9 @@ export default function ModelViewerPage() {
         if (viewerModeRef.current === "temperature") {
           void loadTemperatureField(scene, camera)
         }
+        if (viewerModeRef.current === "cad" || viewerModeRef.current === "realCad") {
+          refreshLatestModel("initial")
+        }
       }
 
       window.addEventListener("viewer3d:mode-change", handleModeChange)
@@ -1017,7 +1093,7 @@ export default function ModelViewerPage() {
         mount.removeChild(domElement)
       }
     }
-  }, [modelVariant, versionId, workspaceDir, workspaceId])
+  }, [modelVariant, versionId, workspaceDir, workspaceId, viewerMode])
 
   useEffect(() => {
     window.dispatchEvent(new Event("viewer3d:mode-change"))
@@ -1074,10 +1150,22 @@ export default function ModelViewerPage() {
           pointerEvents: "auto",
         }}
       >
-        {(showDeratingMode
-          ? ([["derating", "降额"]] as const)
+        {(lockedViewerMode
+          ? ([
+              [
+                lockedViewerMode,
+                lockedViewerMode === "derating"
+                  ? "降额"
+                  : lockedViewerMode === "temperature"
+                    ? "Thermal"
+                    : lockedViewerMode === "realCad"
+                      ? "真实CAD"
+                      : "CAD",
+              ],
+            ] as const)
           : ([
               ["cad", "CAD"],
+              ["realCad", "真实CAD"],
               ["temperature", "Thermal"],
             ] as const)
         ).map(([mode, label]) => {
@@ -1261,7 +1349,7 @@ export default function ModelViewerPage() {
                   overflowWrap: "anywhere",
                 }}
               >
-                {selectedComponent.semanticName}
+                {selectedComponent.displayName}
               </span>
             </div>
             <button
@@ -1287,10 +1375,10 @@ export default function ModelViewerPage() {
 
           <div style={{ display: "grid", gap: 8 }}>
             {[
-              ["semantic_name", selectedComponent.semanticName],
-              ["kind", selectedComponent.kind],
-              ["subsystem", selectedComponent.subsystem],
-              ["dimensions", selectedComponent.dimensions],
+              ["器件类型", selectedComponent.kind],
+              ["型号", selectedComponent.modelName],
+              ["分系统", selectedComponent.subsystem],
+              ["尺寸", selectedComponent.dimensions],
             ].map(([label, value]) => (
               <div
                 key={label}

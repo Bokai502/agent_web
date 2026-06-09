@@ -30,7 +30,7 @@ import { useWorkspaceVersionState } from "./workspace/useWorkspaceVersionState"
 import "./workspace/WorkspaceSessionPage.css"
 
 const WORKSPACE_HOME_PATH = "/workspace"
-const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "02_geometry_edit/geometry_after.glb"
+const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "01_cad/geometry_after.glb"
 const WORKSPACE_PANEL_PARAM_VALUES = ["bom", "log", "model", "cad", "paraview", "comsol", "gnc-config"] as const
 
 type ViewerComponentMessage = {
@@ -46,6 +46,21 @@ function getInitialWorkspacePanel(showModel: boolean): ActivePanel {
   const panel = new URLSearchParams(window.location.search).get("panel")
   if (WORKSPACE_PANEL_PARAM_VALUES.some(value => value === panel)) return panel as ActivePanel
   return showModel ? "model" : "log"
+}
+
+function isDeratingWorkspaceContext(context: {
+  versionDir?: string | null
+  workspaceId?: string | null
+  workspaceKey?: string | null
+  workspaceName?: string | null
+}) {
+  const marker = [
+    context.workspaceName,
+    context.workspaceId,
+    context.workspaceKey,
+    context.versionDir,
+  ].filter(Boolean).join("\n").toLowerCase()
+  return /derating|降额/u.test(marker)
 }
 
 export interface WorkspacePageShellProps {
@@ -217,10 +232,14 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     if (activeContext.workspaceId) params.set("workspaceId", activeContext.workspaceId)
     if (activeContext.versionId) params.set("versionId", activeContext.versionId)
     if (activeContext.versionDir) params.set("workspaceDir", activeContext.versionDir)
+    if (isDeratingWorkspaceContext(activeContext)) {
+      params.set("mode", "derating")
+      params.set("lockMode", "derating")
+    }
     if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, externalModelViewerUrl, workspaceRefreshNonce])
+  }, [activeContext, externalModelViewerUrl, progressVariant, workspaceRefreshNonce])
   const cadHref = getRemoteToolUrl("cad", remoteToolHost)
   const paraviewHref = getRemoteToolUrl("paraview", remoteToolHost)
   const comsolHref = getRemoteToolUrl("comsol", remoteToolHost)
