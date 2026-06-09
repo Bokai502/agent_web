@@ -54,26 +54,26 @@ For optical-payload tasks, also include when relevant:
 
 Default reading set:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
 
 Structured indexes:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/limitations.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/limitations.json`
 
 For inter-satellite optical-link tasks, also read:
 

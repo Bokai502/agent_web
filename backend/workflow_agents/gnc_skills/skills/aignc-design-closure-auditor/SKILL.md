@@ -8,8 +8,8 @@ description: Audit whether mission-design inputs, the user-frozen GNC interface 
 ## Path Contract
 
 - `<workspace>` means the backend-injected `workspace_dir`; this skill must use `workspace_dir` as the only source for the active working directory.
-- Shared skills live under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
-- Shared knowledge lives under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
+- Shared skills live under `open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
+- Shared knowledge lives under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
 - Shared 42, bridge, and reference resources live under `codex_web/AIGNC/42/`, `codex_web/AIGNC/bridge/`, and `codex_web/AIGNC/ref/`.
 
 
@@ -101,14 +101,14 @@ Do not delegate code or config rewrites to this audit sub-agent. Its role is ind
 
 ## Required Local Context
 
-Read `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-design-closure-auditor/references/repo-sources.md` first.
+Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-design-closure-auditor/references/repo-sources.md` first.
 
 Workspace-local layout and writable-boundary rules are governed by `codex_web/AIGNC/AGENT.md`.
 
 If `workspace_dir` is available, run:
 
 ```bash
-python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-design-closure-auditor/scripts/collect_case_inventory.py --workspace-dir <workspace>
+python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-design-closure-auditor/scripts/collect_case_inventory.py --workspace-dir <workspace>
 ```
 
 Use the inventory only as a starting point. It does not replace reading the actual files that support or fail the audit claim.
@@ -332,7 +332,7 @@ Produce:
 - `<workspace>/AIGNC_Workflow/10_reports/rework_route.json`
 
 Write these outputs under `<workspace>/AIGNC_Workflow/10_reports/` unless the user explicitly names another audit-output location. Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after inventory collection, authoritative-input selection, requirement-ledger creation, each major closure-evidence comparison group, closure classification, rework-route decision, audit artifact writing, and final audit package emission. Entries must use stage `10_reports`, current skill `aignc-design-closure-auditor`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` to one concise frontend-display sentence, no more than 160 characters, describing the current action, blocker, failure, or completion result for the stage.
 
 
 The markdown report must include:
@@ -380,9 +380,9 @@ Fix any issue before returning.
 ## Resources
 
 ### scripts/
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-design-closure-auditor/scripts/collect_case_inventory.py`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-design-closure-auditor/scripts/collect_case_inventory.py`
   - build a deterministic inventory of expected AIGNC artifacts under `<workspace>` before the agent begins deeper file reading
 
 ### references/
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-design-closure-auditor/references/repo-sources.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-design-closure-auditor/references/repo-sources.md`
   - default artifact map and stage-to-file lookup for this audit skill

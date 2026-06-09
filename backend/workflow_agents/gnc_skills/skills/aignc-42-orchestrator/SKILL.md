@@ -8,8 +8,8 @@ description: Coordinate the end-to-end AIGNC workflow for 42 by routing scenario
 ## Path Contract
 
 - `<workspace>` means the backend-injected `workspace_dir`; this skill must use `workspace_dir` as the only source for the active working directory.
-- Shared skills live under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
-- Shared knowledge lives under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
+- Shared skills live under `open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
+- Shared knowledge lives under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
 - Shared 42, bridge, and reference resources live under `codex_web/AIGNC/42/`, `codex_web/AIGNC/bridge/`, and `codex_web/AIGNC/ref/`.
 
 
@@ -59,7 +59,7 @@ Possible inputs include:
 
 ## Required Local Context
 
-Read `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-42-orchestrator/references/repo-sources.md` first.
+Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-42-orchestrator/references/repo-sources.md` first.
 
 Workspace-local layout and writable-boundary rules are governed by `codex_web/AIGNC/AGENT.md`.
 
@@ -69,11 +69,11 @@ Maintain `<workspace>/AIGNC_Workflow/workflow_log.md` as the design-process stat
 
 Default knowledge scope:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/overview.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/README.md`
-- the leaf skill specs under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/overview.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/README.md`
+- the leaf skill specs under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/`
 
 Do not load 42 detailed schemas unless the route decision depends on a concrete field-level limitation.
 
@@ -250,4 +250,4 @@ This skill is successful when:
 4. artifacts remain traceable across stages
 5. final closure is withheld until `aignc-design-closure-auditor` produces a pass/no-rework audit package
 
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` to one concise frontend-display sentence, no more than 160 characters, describing the current action, blocker, failure, or completion result for the stage.

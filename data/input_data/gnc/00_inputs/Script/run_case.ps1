@@ -1,5 +1,5 @@
 param(
-  [string]$CaseRoot = '',
+  [string]$WorkspaceDir = '',
   [switch]$Gui,
   [switch]$ReuseRuntime
 )
@@ -15,8 +15,8 @@ if (-not $python) {
 }
 
 $args = @($script)
-if (-not [string]::IsNullOrWhiteSpace($CaseRoot)) {
-  $args += @('--case-root', $CaseRoot)
+if (-not [string]::IsNullOrWhiteSpace($WorkspaceDir)) {
+  $args += @('--workspace-dir', $WorkspaceDir)
 }
 if ($Gui) {
   $args += '--gui'

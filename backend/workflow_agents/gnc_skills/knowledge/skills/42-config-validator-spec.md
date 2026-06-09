@@ -100,9 +100,9 @@ Use `pass_with_warnings` when:
 
 Primary:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/*.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/*.json`
 - relevant sensor and actuator detail schemas used by the generated case
 
 Secondary:

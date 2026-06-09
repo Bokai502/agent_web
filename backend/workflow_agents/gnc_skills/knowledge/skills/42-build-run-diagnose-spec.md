@@ -64,8 +64,21 @@ Produce:
 - `run_report.md`
 - `run_summary.json`
 
+Use the deterministic template:
+
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-build-run-diagnose/references/run_summary_template.json`
+
+Every `run_summary.json` must keep the template shape. Fill unavailable or unevaluated values with `null`, empty strings, or empty arrays rather than omitting keys.
+
+Mode transitions must be written in the form consumed by the current dashboard plotting code:
+
+- `mode_result.transitions[]`: `time_s`, `mode_id`, `mode`
+
+Metrics and acceptance items are task-specific arrays. Add only metrics and criteria that are actually defined or evaluated for the current task; do not copy mission-specific example names into unrelated cases.
+
 Required summary fields:
 
+- `schema_version`
 - `status`: `run_pass`, `run_fail_config`, or `run_fail_runtime`
 - `build_action_taken`
 - `run_mode`
@@ -73,6 +86,18 @@ Required summary fields:
 - `primary_failure_cause`
 - `recommended_return_stage`
 - `configuration_runtime_ready`
+- `runtime_directory`
+- `build_status`
+- `load_parse_status`
+- `normal_completion`
+- `sim_duration_sec`
+- `samples`
+- `mode_telemetry_exported`
+- `mode_result`
+- `terminal_mode`
+- `metrics`
+- `acceptance`
+- `limitations`
 
 ## Return Paths
 

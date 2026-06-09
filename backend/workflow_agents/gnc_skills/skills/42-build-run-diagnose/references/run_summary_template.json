@@ -1,0 +1,51 @@
+{
+  "schema_version": "aignc_run_summary/1.4",
+  "status": "run_pass",
+  "build_action_taken": "",
+  "run_mode": "",
+  "output_files_detected": [],
+  "primary_failure_cause": null,
+  "recommended_return_stage": null,
+  "configuration_runtime_ready": true,
+  "run_directory": "",
+  "runtime_directory": "",
+  "stdout_log": "",
+  "stderr_log": "",
+  "build_status": "pass",
+  "load_parse_status": "pass",
+  "normal_completion": true,
+  "sim_duration_sec": 0,
+  "samples": 0,
+  "mode_telemetry_exported": false,
+  "mode_result": {
+    "source": "",
+    "terminal_mode": "",
+    "transitions": [
+      {
+        "time_s": 0,
+        "mode_id": 0,
+        "mode": "UNKNOWN"
+      }
+    ]
+  },
+  "terminal_mode": "",
+  "metrics": [
+    {
+      "name": "",
+      "value": null,
+      "unit": "",
+      "source": "",
+      "description": ""
+    }
+  ],
+  "acceptance": [
+    {
+      "criterion": "",
+      "status": "not_evaluated",
+      "evidence": "",
+      "description": ""
+    }
+  ],
+  "limitations": [],
+  "scope_note": "This summary is generated from the deterministic AIGNC run summary template. The required build/run readiness fields are authoritative for 42-build-run-diagnose; performance fields may be null when not evaluated."
+}

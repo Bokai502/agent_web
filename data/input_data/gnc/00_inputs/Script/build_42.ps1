@@ -1,4 +1,5 @@
 param(
+  [string]$WorkspaceDir = '',
   [int]$Jobs = 4,
   [switch]$ForceRebuild,
   [switch]$Gui
@@ -15,6 +16,9 @@ if (-not $python) {
 }
 
 $args = @($script, '--jobs', "$Jobs")
+if (-not [string]::IsNullOrWhiteSpace($WorkspaceDir)) {
+  $args += @('--workspace-dir', $WorkspaceDir)
+}
 if ($ForceRebuild) {
   $args += '--force-rebuild'
 }

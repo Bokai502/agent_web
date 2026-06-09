@@ -68,15 +68,36 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(read_text(path))
 
 
+def find_knowledge_root(script_path: Path) -> Path:
+    for candidate in [script_path, *script_path.parents]:
+        knowledge_root = candidate / "knowledge"
+        if (
+            (knowledge_root / "42").is_dir()
+            and (knowledge_root / "skills").is_dir()
+        ):
+            return knowledge_root
+    raise FileNotFoundError("Could not locate open_codex_web GNC knowledge directory.")
+
+
 def find_project_root(workspace_dir: Path, script_path: Path) -> Path:
     candidates = [workspace_dir, *workspace_dir.parents, script_path, *script_path.parents]
     for candidate in candidates:
-        if (
-            (candidate / "codex_web" / "AIGNC" / "42" / "Model").is_dir()
-            and (candidate / "demo_server" / "open_codex_web" / "backend" / "workflow_agents" / "gnc_skills" / "knowledge").is_dir()
-        ):
+        if (candidate / "codex_web" / "AIGNC" / "42" / "Model").is_dir():
             return candidate
-    raise FileNotFoundError("Could not locate project root containing codex_web/AIGNC and demo_server/open_codex_web.")
+    for candidate in candidates:
+        if (candidate / "AIGNC" / "42" / "Model").is_dir():
+            return candidate
+    raise FileNotFoundError("Could not locate project root containing codex_web/AIGNC.")
+
+
+def find_resource_42_root(project_root: Path) -> Path:
+    for resource_root in (
+        project_root / "codex_web" / "AIGNC" / "42",
+        project_root / "AIGNC" / "42",
+    ):
+        if (resource_root / "Model").is_dir():
+            return resource_root
+    raise FileNotFoundError("Could not locate codex_web/AIGNC/42.")
 
 
 def parse_numeric_list(line: str) -> list[float]:
@@ -635,7 +656,7 @@ def resolve_manifest_path(config_dir: Path, workspace_dir: Path, project_root: P
         return config_dir / path
     if path.parts[0] in {"<workspace>", "workspace_dir"}:
         return workspace_dir.joinpath(*path.parts[1:])
-    if path.parts[0] in {"codex_web", "demo_server"}:
+    if path.parts[0] in {"codex_web", "open_codex_web"}:
         return project_root / path
     if path.parts[0] in {"AIGNC_Workflow", "Config", "FSW", "Input", "Output", "Script"}:
         return workspace_dir / path
@@ -833,9 +854,12 @@ def support_file_has_reason(manifest: dict[str, Any], file_name: str) -> bool:
     return False
 
 
-def validate_case(workspace_dir: Path, project_root: Path) -> tuple[dict[str, Any], str, list[dict[str, Any]], str]:
-    knowledge_root = project_root / "demo_server" / "open_codex_web" / "backend" / "workflow_agents" / "gnc_skills" / "knowledge"
-    resource_42_root = project_root / "codex_web" / "AIGNC" / "42"
+def validate_case(
+    workspace_dir: Path,
+    project_root: Path,
+    knowledge_root: Path,
+    resource_42_root: Path,
+) -> tuple[dict[str, Any], str, list[dict[str, Any]], str]:
     findings: list[Finding] = []
     validation_warnings: list[str] = []
     broken_references: list[str] = []
@@ -1555,8 +1579,11 @@ def main() -> int:
     args = parser.parse_args()
 
     workspace_dir = Path(args.workspace_dir).resolve()
-    project_root = Path(args.project_root).resolve() if args.project_root else find_project_root(workspace_dir, Path(__file__).resolve())
-    summary, report, requirement_trace, trace_md = validate_case(workspace_dir, project_root)
+    script_path = Path(__file__).resolve()
+    project_root = Path(args.project_root).resolve() if args.project_root else find_project_root(workspace_dir, script_path)
+    knowledge_root = find_knowledge_root(script_path)
+    resource_42_root = find_resource_42_root(project_root)
+    summary, report, requirement_trace, trace_md = validate_case(workspace_dir, project_root, knowledge_root, resource_42_root)
 
     workflow_dir = workspace_dir / "AIGNC_Workflow"
     validation_dir = workflow_dir / "04_config" / "validation"

@@ -8,8 +8,8 @@ description: Validate generated 42 configuration artifacts before runtime by che
 ## Path Contract
 
 - `<workspace>` means the backend-injected `workspace_dir`; this skill must use `workspace_dir` as the only source for the active working directory.
-- Shared skills live under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
-- Shared knowledge lives under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
+- Shared skills live under `open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
+- Shared knowledge lives under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
 - Shared 42, bridge, and reference resources live under `codex_web/AIGNC/42/`, `codex_web/AIGNC/bridge/`, and `codex_web/AIGNC/ref/`.
 
 
@@ -38,7 +38,7 @@ Required:
 
 ## Required Local Context
 
-Read `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-validator/references/repo-sources.md` first.
+Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-validator/references/repo-sources.md` first.
 
 Workspace-local layout and writable-boundary rules are governed by `codex_web/AIGNC/AGENT.md`.
 
@@ -46,15 +46,15 @@ Load only the detailed input, sensor, and actuator schemas that correspond to th
 
 ## Preferred Execution Path
 
-Use `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-validator/scripts/validate_42_config.py` as the primary validator implementation when the required upstream artifacts exist. Fall back to manual checking only if the script is unavailable or clearly insufficient for the specific case.
+Use `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-validator/scripts/validate_42_config.py` as the primary validator implementation when the required upstream artifacts exist. Fall back to manual checking only if the script is unavailable or clearly insufficient for the specific case.
 
 Run it with the backend-injected workspace:
 
 ```bash
-python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-validator/scripts/validate_42_config.py --workspace-dir <workspace>
+python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-validator/scripts/validate_42_config.py --workspace-dir <workspace>
 ```
 
-The script auto-discovers the project root by locating `codex_web/AIGNC` and `demo_server/open_codex_web`. Pass `--project-root` only when that discovery is unavailable.
+The script auto-discovers the project root by locating `codex_web/AIGNC` and `open_codex_web`. Pass `--project-root` only when that discovery is unavailable.
 
 ## Required Checklist
 
@@ -81,7 +81,7 @@ Produce under `<workspace>/AIGNC_Workflow/04_config/validation/`:
 - `<workspace>/AIGNC_Workflow/04_config/validation/requirements_trace.json`
 
 Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after required artifact verification, manifest verification, `Inp_Sim` reference checks, spacecraft local-reference checks, capability-boundary checks, validation artifact writing, validation verdict emission, and any successful sync from `<workspace>/AIGNC_Workflow/04_config/` to `<workspace>/Config/`. Entries must use stage `04_config`, current skill `42-config-validator`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` to one concise frontend-display sentence, no more than 160 characters, describing the current action, blocker, failure, or completion result for the stage.
 
 
 Required summary fields:

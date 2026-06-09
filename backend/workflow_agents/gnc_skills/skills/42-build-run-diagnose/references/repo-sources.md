@@ -4,15 +4,15 @@ Use this reference as the entry map for `42-build-run-diagnose`.
 
 ## Primary spec
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/42-build-run-diagnose-spec.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/42-build-run-diagnose-spec.md`
 
 ## Primary workflow context
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/42-config-workflow-current.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/42-config-workflow-current.md`
 
 ## Reusable post-run plotting skill
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/`
 
 ## Runtime-relevant context
 

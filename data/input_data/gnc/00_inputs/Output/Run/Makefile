@@ -69,11 +69,12 @@ endif
 
 # Basic directories
 HOMEDIR = ./
-PROJDIR ?= ../../../../
-CASE = $(notdir $(abspath ../..))
-SIMDIR ?= $(PROJDIR)42/
-BRIDGEDIR ?= $(PROJDIR)bridge/mission_bypass/
-FSWDIR ?= $(PROJDIR)case/$(CASE)/FSW/ADCS/
+WORKSPACE_DIR ?= $(shell cd ../.. && pwd -P)
+PROJECT_ROOT ?= $(shell d="$(WORKSPACE_DIR)"; while [ "$$d" != "/" ]; do if [ -d "$$d/codex_web/AIGNC/42/Model" ] && [ -d "$$d/demo_server/open_codex_web" ]; then printf "%s" "$$d"; exit 0; fi; d=$$(dirname "$$d"); done; exit 1)
+PROJDIR = $(PROJECT_ROOT)/codex_web/AIGNC/
+SIMDIR = $(PROJDIR)42/
+BRIDGEDIR = $(PROJDIR)bridge/mission_bypass/
+FSWDIR = $(WORKSPACE_DIR)/FSW/ADCS/
 OBJ = ./build/
 SIMINC = $(SIMDIR)Include/
 SIMSRC = $(SIMDIR)Source/
@@ -86,10 +87,10 @@ SRC = $(SIMSRC)
 KITDIR = $(SIMDIR)Kit/
 KITINC = $(KITDIR)Include/
 KITSRC = $(KITDIR)Source/
-INOUT ?= $(SIMDIR)InOut/
-GSFCSRC ?= $(PROJDIR)../GSFC/
+INOUT = $(SIMDIR)InOut/
+GSFCSRC = $(PROJDIR)../GSFC/
 AUTOSRC = $(SIMSRC)AutoCode/
-META ?= $(PROJDIR)MetaCode/
+META = $(PROJDIR)MetaCode/
 
 
 ifeq ($(42PLATFORM),__APPLE__)

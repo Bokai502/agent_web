@@ -7,7 +7,7 @@
 /*
 ** Minimal ADCS FSW framework for new cases.
 **
-** This header preserves the module boundaries used by the case-local
+** This header preserves the module boundaries used by the workspace-local
 ** Makefile. Mission-specific sensors, modes, control laws, and actuator
 ** allocation should be added in the corresponding source files.
 */

@@ -5,7 +5,7 @@
 本项目的 AIGNC 工作流默认使用 workspace-local 的固定飞控框架：
 
 - `FswTag = CFS_FSW`
-- FSW 源码位于 `<workspace>/FSW/ADCS/` 或新模板 `demo_server/open_codex_web/data/input_data/gnc/FSW/ADCS/`
+- FSW 源码位于 `<workspace>/FSW/ADCS/` 或新模板 `open_codex_web/data/input_data/gnc/00_inputs/FSW/ADCS/`
 - 原生 42 真值仿真仍由 `codex_web/AIGNC/42/` 和运行目录中的 42 仿真器负责
 
 AI 不需要再在 42 内置 FSW 类型之间选择，例如：
@@ -200,4 +200,4 @@ AIGNC 在 `CFS_FSW` 架构层面主要做三类判断：
 - 新 42 输入文件字段解析
 - 需要修改 `codex_web/AIGNC/42/Include/42types.h`、`codex_web/AIGNC/42/Source/42init.c`、`codex_web/AIGNC/42/Source/42sensors.c`、`codex_web/AIGNC/42/Source/42actuators.c` 或 `codex_web/AIGNC/42/Source/42joints.c` 的能力
 
-这些必须进入 truth-model extension 或 codex_web/AIGNC/bridge/sidecar 专项规划，不能在普通 `fsw-code-author` 阶段静默实现。
+这些必须进入 truth-model extension 或 codex_web/AIGNC/bridge/mission_bypass 专项规划，不能在普通 `fsw-code-author` 阶段静默实现。
