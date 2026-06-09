@@ -67,6 +67,27 @@ def signed_permutation_rotations():
 ROTATION_ROWS = signed_permutation_rotations()
 
 
+def matrix_to_rotation(matrix_rows):
+    matrix = FreeCAD.Matrix()
+    matrix.A11 = float(matrix_rows[0][0])
+    matrix.A12 = float(matrix_rows[0][1])
+    matrix.A13 = float(matrix_rows[0][2])
+    matrix.A14 = 0.0
+    matrix.A21 = float(matrix_rows[1][0])
+    matrix.A22 = float(matrix_rows[1][1])
+    matrix.A23 = float(matrix_rows[1][2])
+    matrix.A24 = 0.0
+    matrix.A31 = float(matrix_rows[2][0])
+    matrix.A32 = float(matrix_rows[2][1])
+    matrix.A33 = float(matrix_rows[2][2])
+    matrix.A34 = 0.0
+    matrix.A41 = 0.0
+    matrix.A42 = 0.0
+    matrix.A43 = 0.0
+    matrix.A44 = 1.0
+    return FreeCAD.Placement(matrix).Rotation
+
+
 def face_normal(face_id):
     _, axis, direction = FACE_DEFINITIONS[int(face_id)]
     normal = [0.0, 0.0, 0.0]

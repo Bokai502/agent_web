@@ -76,13 +76,13 @@
     "dashboard": {
       "telemetryMaxBytes": 8388608,
       "telemetryPaths": {
-        "time": "02_sim/42_run/runtime_case/InOut/time.42",
-        "wbn": "02_sim/42_run/runtime_case/InOut/wbn.42",
-        "qbn": "02_sim/42_run/runtime_case/InOut/qbn.42",
-        "posn": "02_sim/42_run/runtime_case/InOut/PosN.42",
-        "veln": "02_sim/42_run/runtime_case/InOut/VelN.42",
-        "hwhl": "02_sim/42_run/runtime_case/InOut/Hwhl.42",
-        "mtb": "02_sim/42_run/runtime_case/InOut/MTB.42",
+        "time": "00_inputs/Output/Run/runtime_case/InOut/time.42",
+        "wbn": "00_inputs/Output/Run/runtime_case/InOut/wbn.42",
+        "qbn": "00_inputs/Output/Run/runtime_case/InOut/qbn.42",
+        "posn": "00_inputs/Output/Run/runtime_case/InOut/PosN.42",
+        "veln": "00_inputs/Output/Run/runtime_case/InOut/VelN.42",
+        "hwhl": "00_inputs/Output/Run/runtime_case/InOut/Hwhl.42",
+        "mtb": "00_inputs/Output/Run/runtime_case/InOut/MTB.42",
         "modeSummary": "AIGNC_Workflow/08_run/run_summary.json"
       }
     }

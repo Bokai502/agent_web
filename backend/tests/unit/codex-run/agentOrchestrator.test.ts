@@ -261,6 +261,11 @@ describe("agent orchestrator managed status helpers", () => {
       progress: null,
     }), "任务已经写入report.md。")
     assert.equal(buildFastProgressSummary({
+      latestMessage: "任务已经完成了建模、网格生成、仿真配置和报告输出，结果文件已经写入报告目录。",
+      latestStatus: null,
+      progress: null,
+    }), "任务已经完成了建模、网格生成、仿真配置和报告输出，结果文件已经写入报告目录。")
+    assert.equal(buildFastProgressSummary({
       latestStatus: {
         managedRunId: "managed_fast_done_event01",
         routing: { skillScopes: ["public"] },

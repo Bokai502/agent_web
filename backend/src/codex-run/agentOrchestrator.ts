@@ -654,8 +654,7 @@ function compactForSpeech(text: string) {
   if (!normalized) return ""
   const withoutPrefix = normalized.replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/gu, "")
   const firstLine = withoutPrefix.split(/\n/u).find(item => item.trim())?.trim() ?? withoutPrefix
-  const compact = firstLine.replace(/\s+/gu, "")
-  return compact.slice(0, 30)
+  return firstLine.replace(/\s+/gu, "")
 }
 
 function isLikelyTruncatedSummary(text: string) {

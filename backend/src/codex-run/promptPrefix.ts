@@ -39,7 +39,7 @@ function buildPromptPrefix(
     "",
     "Use this same workspace_dir path for cad-sim-pipeline, workspace commands, artifact inspection, and logs.",
     "For versioned work, workspace_dir is the active version workspace selected by the Versioning API.",
-    "For GNC/AIGNC work, treat workspace_dir/00_inputs as the mutable input package and write simulation/build outputs under workspace_dir/02_sim/42_run.",
+    "For GNC/AIGNC work, treat workspace_dir/00_inputs as the mutable input package: Config, FSW, Script, and Output live there. Write AI workflow artifacts under workspace_dir/AIGNC_Workflow, not inside the mutable input package.",
     "When creating a new workspace or version through APIs or artifacts, use group xieteam.",
     "The Versioning API checkout/branch operation changes the active version in the workspace manifest; it does not rewrite open_codex_web/config.json.",
     "If a CLI supports --workspace-dir, pass this workspace_dir explicitly; do not rely on config.json defaults for versioned work.",

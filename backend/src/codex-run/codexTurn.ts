@@ -84,6 +84,16 @@ function buildCodexEnv() {
   return env
 }
 
+async function ensureAigncWorkflowRoot(workspaceDir: string | null, skillScopes: SkillScope[], logger: Logger, requestId?: string) {
+  if (!workspaceDir || !skillScopes.includes("aignc")) return
+  const workflowRoot = path.join(workspaceDir, "AIGNC_Workflow")
+  try {
+    await fs.promises.mkdir(workflowRoot, { recursive: true })
+  } catch (err) {
+    logger.error("failed to ensure AIGNC workflow root", { err, requestId, workflowRoot, workspaceDir })
+  }
+}
+
 export type RunCodexTurnResult = {
   eventCount: number
   events: unknown[]
@@ -273,6 +283,7 @@ export async function prepareCodexTurn(
     throw new RunRequestError(400, "prompt, input, or enabled skill is required")
   }
   const resolvedSkillNames = skillInstructions.map(skill => skill.name)
+  await ensureAigncWorkflowRoot(runContext.workspaceDir, skillScopes, logger, requestId)
 
   const injectPromptPrefix = injectSessionPrefix || skillInstructions.length > 0
   const agentGuide = injectSessionPrefix ? await readAgentGuide() : ""

@@ -259,9 +259,9 @@ GNC 看板不读取 Python 生成的 PNG，而是直接读取当前工作区运�
 
 当前读取的工作区文件：
 
-- `02_sim/42_run/runtime_case/InOut/Sc.csv`
-- `02_sim/42_run/runtime_case/InOut/AcWhl.csv`
-- `02_sim/42_run/runtime_case/InOut/ModeTrace_SC0.csv`
+- `00_inputs/Output/Run/runtime_case/InOut/Sc.csv`
+- `00_inputs/Output/Run/runtime_case/InOut/AcWhl.csv`
+- `00_inputs/Output/Run/runtime_case/InOut/ModeTrace_SC0.csv`
 
 渲染逻辑应与 `backend/workflow_agents/gnc_skills/42-runtime-plotter/scripts/plot_runtime_gnc.py` 保持一致，标准图包括：
 
@@ -371,7 +371,7 @@ GNC 配置编辑器位于：
 ```bash
 BACKEND_PORT="$(node -p "require('./config.json').server.port")"
 WORKSPACE_DIR="$(node -p "require('./config.json').workspace.usersRoot")/default/workspaces/ws_gnc/versions/v0001"
-curl "http://localhost:${BACKEND_PORT}/api/workspace/files/text?workspaceDir=${WORKSPACE_DIR}&relativePath=02_sim/42_run/runtime_case/InOut/Sc.csv"
+curl "http://localhost:${BACKEND_PORT}/api/workspace/files/text?workspaceDir=${WORKSPACE_DIR}&relativePath=00_inputs/Output/Run/runtime_case/InOut/Sc.csv"
 ```
 
 ### Workspace Manifest
