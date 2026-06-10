@@ -253,6 +253,7 @@ def main() -> None:
             real_cad_code = render_rpc_script(
                 "assembly_from_component_info.py",
                 {
+                    "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
                     "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
                     "__DOC_NAME__": json.dumps(real_cad_doc_name),
                     "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_output_path)),
