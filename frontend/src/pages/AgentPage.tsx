@@ -327,7 +327,11 @@ export default function AgentPage() {
     sessionId: conversationLogSessionId,
   })
   resetProgressDataRef.current = resetProgressData
-  const recorderStatusText = getRecorderStatusText(state, visibleRunning || managedVoiceRunning)
+  const recorderStatusText = getRecorderStatusText(
+    state,
+    visibleRunning || managedVoiceRunning,
+    agentSpeechPlaying || agentSpeechState === 'synthesizing',
+  )
 
   useEffect(() => {
     invalidateManagedRun()
