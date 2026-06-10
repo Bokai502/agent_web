@@ -37,6 +37,10 @@ type DeratingCheckResultQuery = WorkspaceQuery
 type DeratingCheckResultBody = {
   rows?: unknown
 }
+type ComplianceArtifactQuery = WorkspaceQuery
+type ComplianceArtifactBody = {
+  rows?: unknown
+}
 
 type WorkspaceTextFileQuery = WorkspaceFilesQuery & {
   maxBytes?: string
@@ -93,6 +97,14 @@ const DERATING_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "component-dera
 const DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_mapping_completeness.json")
 const DERATING_TABLE_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_table.json")
 const DERATING_CHECK_RESULT_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_check_result.json")
+const COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "compliance")
+const COMPLIANCE_ARTIFACTS = new Set([
+  "component_classification",
+  "manufacturer_check",
+  "key_units_check",
+  "catalog_match",
+  "quality_level_check",
+])
 const DERATING_REFERENCE_RELATIVE_PATH = path.join(
   "workflow_agents",
   "check_skills",
@@ -731,6 +743,102 @@ async function writeDeratingCheckResult(workspaceDir: string, body: DeratingChec
   return readDeratingCheckResult(workspaceDir)
 }
 
+function assertComplianceArtifact(value: unknown) {
+  const artifact = cleanString(value)
+  if (!COMPLIANCE_ARTIFACTS.has(artifact)) {
+    throw new WorkspaceQueryError("unsupported compliance artifact", 400)
+  }
+  return artifact
+}
+
+async function resolveComplianceArtifactFile(workspaceDir: string, artifact: string) {
+  const candidates = [
+    path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", `${artifact}.json`),
+    path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, `${artifact}.json`),
+  ]
+  for (const relativePath of candidates) {
+    const fullPath = path.join(workspaceDir, relativePath)
+    const stat = await fs.stat(fullPath).catch(() => null)
+    if (stat?.isFile()) {
+      return {
+        fullPath,
+        relativePath,
+        stat,
+      }
+    }
+  }
+  return {
+    fullPath: path.join(workspaceDir, candidates[0]),
+    relativePath: candidates[0],
+    stat: null,
+  }
+}
+
+function complianceRowsFromPayload(payload: unknown) {
+  if (Array.isArray(payload)) return payload.filter(isRecord)
+  if (!isRecord(payload)) return []
+  if (Array.isArray(payload.output)) return payload.output.filter(isRecord)
+  if (Array.isArray(payload.rows)) return payload.rows.filter(isRecord)
+  if (Array.isArray(payload.components)) return payload.components.filter(isRecord)
+  return []
+}
+
+async function readComplianceArtifact(workspaceDir: string, artifactValue: unknown) {
+  const artifact = assertComplianceArtifact(artifactValue)
+  const resolvedFile = await resolveComplianceArtifactFile(workspaceDir, artifact)
+  const raw = await fs.readFile(resolvedFile.fullPath, "utf-8").catch(() => null)
+  if (raw === null) {
+    return {
+      artifact,
+      exists: false,
+      rows: [],
+      source_path: resolvedFile.fullPath,
+      source_relative_path: resolvedFile.relativePath.split(path.sep).join("/"),
+      source_version: null,
+      updated_at: null,
+    }
+  }
+  const stat = resolvedFile.stat ?? await fs.stat(resolvedFile.fullPath)
+  const payload = JSON.parse(raw) as unknown
+  return {
+    artifact,
+    exists: true,
+    rows: complianceRowsFromPayload(payload),
+    source_path: resolvedFile.fullPath,
+    source_relative_path: resolvedFile.relativePath.split(path.sep).join("/"),
+    source_version: [resolvedFile.fullPath, stat.mtimeMs, stat.size].join(":"),
+    updated_at: stat.mtime.toISOString(),
+  }
+}
+
+async function writeComplianceArtifact(workspaceDir: string, artifactValue: unknown, body: ComplianceArtifactBody) {
+  const artifact = assertComplianceArtifact(artifactValue)
+  if (!Array.isArray(body.rows)) {
+    throw new WorkspaceQueryError("rows array is required", 400)
+  }
+  const resolvedFile = await resolveComplianceArtifactFile(workspaceDir, artifact)
+  const rows = body.rows.filter(isRecord)
+  const existingRaw = await fs.readFile(resolvedFile.fullPath, "utf-8").catch(() => null)
+  const existingPayload = existingRaw ? JSON.parse(existingRaw) as unknown : null
+  let nextPayload: unknown
+  if (Array.isArray(existingPayload)) {
+    nextPayload = rows
+  } else if (isRecord(existingPayload)) {
+    if (Array.isArray(existingPayload.output) || (!Array.isArray(existingPayload.rows) && !Array.isArray(existingPayload.components))) {
+      nextPayload = { ...existingPayload, output: rows }
+    } else if (Array.isArray(existingPayload.rows)) {
+      nextPayload = { ...existingPayload, rows }
+    } else {
+      nextPayload = { ...existingPayload, components: rows }
+    }
+  } else {
+    nextPayload = { stage: artifact, output: rows }
+  }
+  await fs.mkdir(path.dirname(resolvedFile.fullPath), { recursive: true })
+  await fs.writeFile(resolvedFile.fullPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+  return readComplianceArtifact(workspaceDir, artifact)
+}
+
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : ""
 }
@@ -1031,6 +1139,32 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
       return replyWithWorkspaceQueryError(reply, err, "failed to save derating check result")
     }
   })
+
+  fastify.get<{ Params: { artifact: string }; Querystring: ComplianceArtifactQuery }>(
+    "/api/workspace/compliance/artifact/:artifact",
+    async (req, reply) => {
+      try {
+        const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+        reply.header("Cache-Control", "no-cache")
+        return reply.send(await readComplianceArtifact(workspaceDir, req.params.artifact))
+      } catch (err) {
+        return replyWithWorkspaceQueryError(reply, err, "failed to resolve compliance artifact")
+      }
+    }
+  )
+
+  fastify.put<{ Body: ComplianceArtifactBody; Params: { artifact: string }; Querystring: ComplianceArtifactQuery }>(
+    "/api/workspace/compliance/artifact/:artifact",
+    async (req, reply) => {
+      try {
+        const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+        reply.header("Cache-Control", "no-cache")
+        return reply.send(await writeComplianceArtifact(workspaceDir, req.params.artifact, req.body ?? {}))
+      } catch (err) {
+        return replyWithWorkspaceQueryError(reply, err, "failed to save compliance artifact")
+      }
+    }
+  )
 
   fastify.get<{ Querystring: WorkspaceTextFileQuery }>("/api/workspace/files/text", async (req, reply) => {
     try {

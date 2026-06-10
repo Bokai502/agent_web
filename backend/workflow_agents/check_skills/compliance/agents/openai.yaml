@@ -1,0 +1,6 @@
+interface:
+  display_name: "Compliance"
+  short_description: "运行航天元器件选用合规检查并生成报告"
+  default_prompt: "Use $compliance to run aerospace component compliance checks from the requirement document and component list in this workspace."
+policy:
+  allow_implicit_invocation: true

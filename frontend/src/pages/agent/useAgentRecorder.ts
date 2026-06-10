@@ -10,7 +10,8 @@ type UseAgentRecorderOptions = {
   running: boolean
 }
 
-export function getRecorderStatusText(state: RecorderState, running: boolean) {
+export function getRecorderStatusText(state: RecorderState, running: boolean, agentSpeechBusy = false) {
+  if (agentSpeechBusy) return '点击停止语音输出'
   if (state === 'recording') return '正在聆听，点击结束'
   if (state === 'transcribing') return '正在将语音转成文字'
   if (state === 'thinking') return '大模型正在思考'
