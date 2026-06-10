@@ -4,11 +4,11 @@ Use this reference as the entry map for `fsw-tuning-reviewer`.
 
 ## Primary spec
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/fsw-tuning-reviewer-spec.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/fsw-tuning-reviewer-spec.md`
 
 ## Reusable post-run plotting skill
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/`
 
 ## Upstream runtime evidence
 
@@ -33,10 +33,10 @@ Use this reference as the entry map for `fsw-tuning-reviewer`.
 
 ## Primary 42 knowledge
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
 
 ## Default source files for review
 

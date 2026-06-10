@@ -8,8 +8,8 @@ description: Generate or modify valid 42 configuration files from approved scena
 ## Path Contract
 
 - `<workspace>` means the backend-injected `workspace_dir`; this skill must use `workspace_dir` as the only source for the active working directory.
-- Shared skills live under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
-- Shared knowledge lives under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
+- Shared skills live under `open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
+- Shared knowledge lives under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
 - Shared 42, bridge, and reference resources live under `codex_web/AIGNC/42/`, `codex_web/AIGNC/bridge/`, and `codex_web/AIGNC/ref/`.
 
 
@@ -47,25 +47,25 @@ Optional:
 
 ## Required Local Context
 
-Read `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-author/references/repo-sources.md` first.
+Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-author/references/repo-sources.md` first.
 
 Workspace-local layout and writable-boundary rules are governed by `codex_web/AIGNC/AGENT.md`.
 
 Default knowledge scope:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
 
 Default structured indexes:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
 
 Load detailed schemas only for the files and components that will actually be written.
 
@@ -150,7 +150,7 @@ Produce under `<workspace>/AIGNC_Workflow/04_config/`:
 - `<workspace>/AIGNC_Workflow/04_config/config_generation_summary.md`
 
 Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after upstream verification, template selection, each config file generation or patching group, cross-file reference check, manifest emission, summary writing, and final handoff to validation. Entries must use stage `04_config`, current skill `42-config-author`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `open_codex_web/backend/workflow_agents/gnc_skills/skills/README.md`.
 
 
 The manifest should record:
@@ -214,4 +214,3 @@ The next downstream skill is typically `42-config-validator`.
 The terminal state is a traceable 42 configuration artifact set plus metadata, ready for `42-config-validator`. Do not transition to FSW implementation from this skill.
 
 Do not write final runtime configuration files directly to `<workspace>/Config/`; that directory is populated only after `42-config-validator` passes.
-

@@ -8,8 +8,8 @@ description: Generate standard post-run 42 telemetry plots from a runtime InOut 
 ## Path Contract
 
 - `<workspace>` means the backend-injected `workspace_dir`; this skill must use `workspace_dir` as the only source for the active working directory.
-- Shared skills live under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
-- Shared knowledge lives under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
+- Shared skills live under `open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
+- Shared knowledge lives under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
 - Shared 42, bridge, and reference resources live under `codex_web/AIGNC/42/`, `codex_web/AIGNC/bridge/`, and `codex_web/AIGNC/ref/`.
 
 
@@ -63,11 +63,11 @@ Optional telemetry:
 
 ## Required Local Context
 
-Read `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/references/repo-sources.md` first.
+Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/references/repo-sources.md` first.
 
 Use the bundled script:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/scripts/plot_runtime_gnc.py`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/scripts/plot_runtime_gnc.py`
 
 ## Workflow
 
@@ -86,7 +86,7 @@ Complete these in order:
 Preferred command:
 
 ```bash
-python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/scripts/plot_runtime_gnc.py --inout <runtime InOut path>
+python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/scripts/plot_runtime_gnc.py --inout <runtime InOut path>
 ```
 
 ## Output Contract
@@ -103,7 +103,7 @@ Generate these standard per-run outputs under the provided `InOut/` directory, a
 If a telemetry source is absent, still generate the available plots and explicitly record missing plots in the handoff/report. The plots should be scenario-agnostic and derived only from available runtime telemetry.
 
 When the runtime `InOut/` path belongs to `<workspace>/Output/Run/runtime_case/InOut/`, append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after runtime path verification, telemetry discovery, each plot-generation group, missing-telemetry detection, image verification, and final plot handoff. Entries must use stage `08_run`, current skill `42-runtime-plotter`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `open_codex_web/backend/workflow_agents/gnc_skills/skills/README.md`.
 
 
 ## Stop Conditions

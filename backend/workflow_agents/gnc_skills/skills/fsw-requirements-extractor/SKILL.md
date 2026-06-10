@@ -8,8 +8,8 @@ description: Extract fixed CFS_FSW requirements from mission descriptions, inclu
 ## Path Contract
 
 - `<workspace>` means the backend-injected `workspace_dir`; this skill must use `workspace_dir` as the only source for the active working directory.
-- Shared skills live under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
-- Shared knowledge lives under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
+- Shared skills live under `open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
+- Shared knowledge lives under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
 - Shared 42, bridge, and reference resources live under `codex_web/AIGNC/42/`, `codex_web/AIGNC/bridge/`, and `codex_web/AIGNC/ref/`.
 
 
@@ -62,24 +62,24 @@ When both raw input files and `<workspace>/AIGNC_Workflow/02_scenario/scenario_f
 
 ## Required Local Context
 
-Read `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/fsw-requirements-extractor/references/repo-sources.md` first. When drafting `gnc_interface_contract.md`, also read and use `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/fsw-requirements-extractor/references/gnc_interface_contract_template.md` as the required template.
+Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/fsw-requirements-extractor/references/repo-sources.md` first. When drafting `gnc_interface_contract.md`, also read and use `open_codex_web/backend/workflow_agents/gnc_skills/skills/fsw-requirements-extractor/references/gnc_interface_contract_template.md` as the required template.
 
 Default knowledge scope:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
 
 Default structured indexes:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
 
 Use detailed schemas only if the request depends on concrete interface fields.
 
@@ -169,7 +169,7 @@ Produce under `<workspace>/AIGNC_Workflow/05_fsw_requirements/`:
 - `<workspace>/AIGNC_Workflow/05_fsw_requirements/gnc_interface_contract.md`
 
 Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after source input review, control-semantics extraction, mode/transition extraction, sensor/actuator contract extraction, implementation-constraint extraction, fixed-FSW boundary check, artifact writing, and final FSW-requirements handoff. Entries must use stage `05_fsw_requirements`, current skill `fsw-requirements-extractor`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `open_codex_web/backend/workflow_agents/gnc_skills/skills/README.md`.
 
 
 The four output files are not optional summaries. Together they must describe all fixed-FSW requirements and the user-confirmable interface semantics needed for the complete GNC process. Do not leave a mode with implicit control targets, implicit sensors, implicit actuators, or implicit completion criteria.

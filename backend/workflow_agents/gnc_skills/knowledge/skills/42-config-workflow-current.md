@@ -61,7 +61,7 @@ This branch is separate from the configuration-only closure and should not be en
 
 Skill:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-42-orchestrator/SKILL.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-42-orchestrator/SKILL.md`
 
 Purpose:
 
@@ -92,7 +92,7 @@ Stage gate:
 
 Skill:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-scenario-brainstorm/SKILL.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-scenario-brainstorm/SKILL.md`
 
 Purpose:
 
@@ -102,12 +102,12 @@ Purpose:
 
 Default knowledge sources:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/overview.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/overview.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
 
 Expected outputs:
 
@@ -135,7 +135,7 @@ Clarification loop:
 
 Skill:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-capability-auditor/SKILL.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-capability-auditor/SKILL.md`
 
 Purpose:
 
@@ -145,17 +145,17 @@ Purpose:
 
 Default knowledge sources:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/*.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/*.json`
 
 Progressive disclosure:
 
-- Use `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/` only when the audit depends on a concrete field, parameter, or model-interface rule.
+- Use `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/` only when the audit depends on a concrete field, parameter, or model-interface rule.
 
 Expected outputs:
 
@@ -177,7 +177,7 @@ Stage gate:
 
 Skill:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-author/SKILL.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-author/SKILL.md`
 
 Purpose:
 
@@ -187,25 +187,25 @@ Purpose:
 
 Default knowledge sources:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
 
 Detailed schemas used on demand:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_sim.schema.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/orb.schema.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/sc.schema.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_cmd.schema.json`
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/output_files.schema.json`
-- relevant sensor schemas under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/sensors/`
-- relevant actuator schemas under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/actuators/`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_sim.schema.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/orb.schema.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/sc.schema.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_cmd.schema.json`
+- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/output_files.schema.json`
+- relevant sensor schemas under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/sensors/`
+- relevant actuator schemas under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/actuators/`
 
 Typical generated files:
 
@@ -229,7 +229,7 @@ Stage gate:
 
 Skill:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-validator/SKILL.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-validator/SKILL.md`
 
 Purpose:
 
@@ -252,7 +252,7 @@ Stage gate:
 
 Skill:
 
-- `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-build-run-diagnose/SKILL.md`
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-build-run-diagnose/SKILL.md`
 
 Purpose:
 

@@ -8,8 +8,8 @@ description: Run a validated 42 configuration package only to confirm that the w
 ## Path Contract
 
 - `<workspace>` means the backend-injected `workspace_dir`; this skill must use `workspace_dir` as the only source for the active working directory.
-- Shared skills live under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
-- Shared knowledge lives under `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
+- Shared skills live under `open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
+- Shared knowledge lives under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
 - Shared 42, bridge, and reference resources live under `codex_web/AIGNC/42/`, `codex_web/AIGNC/bridge/`, and `codex_web/AIGNC/ref/`.
 
 
@@ -37,7 +37,7 @@ Optional:
 
 ## Required Local Context
 
-Read `demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/42-build-run-diagnose/references/repo-sources.md` first.
+Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-build-run-diagnose/references/repo-sources.md` first.
 
 Workspace-local layout and writable-boundary rules are governed by `codex_web/AIGNC/AGENT.md`.
 
@@ -62,6 +62,18 @@ Produce:
 - `<workspace>/AIGNC_Workflow/08_run/run_report.md`
 - `<workspace>/AIGNC_Workflow/08_run/run_summary.json`
 
+Use the deterministic summary template:
+
+- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-build-run-diagnose/references/run_summary_template.json`
+
+Every `run_summary.json` must be produced by filling this template rather than inventing a new shape. Keep all top-level keys from the template, using `null`, empty strings, or empty arrays only when the value is genuinely unavailable or not evaluated.
+
+The template includes one mode-transition representation that matches the current dashboard plotting code:
+
+- `mode_result.transitions[]` is the dashboard-compatible representation with `time_s`, `mode_id`, and `mode`.
+- `terminal_mode` and `mode_result.terminal_mode` must match when mode telemetry is available.
+- `metrics[]` and `acceptance[]` are task-specific arrays. Add only metrics and criteria that are actually defined or evaluated for the current task; do not invent CATCH-specific or mission-specific metric names for unrelated cases.
+
 Write diagnosis artifacts under `<workspace>/AIGNC_Workflow/08_run/`. Use the platform-neutral Python entrypoints `<workspace>/Script/build_42.py --headless` and `<workspace>/Script/run_case.py --headless` for command-line runtime validation; those scripts detect the current environment and select the correct executable name. The real simulator runtime directory is `<workspace>/Output/Run/runtime_case/InOut/`.
 
 Build and runtime locations are mission-local:
@@ -75,13 +87,14 @@ Build and runtime locations are mission-local:
 Do not compile from the workspace root, do not write objects under `codex_web/AIGNC/42/Object/`, and do not place simulator executables at the workspace root.
 
 Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after validator-status confirmation, build artifact inspection, build decision, build result, runtime assembly check, run start, run completion or failure capture, output presence check, diagnosis artifact writing, and final route recommendation. Entries must use stage `08_run`, current skill `42-build-run-diagnose`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 demo_server/open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>_<skill_name>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the skill run.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `open_codex_web/backend/workflow_agents/gnc_skills/skills/README.md`.
 
 
 Runtime plots are not required for this skill. If plots already exist, they may be referenced as auxiliary evidence, but plot quality, trajectory quality, attitude behavior, wheel behavior, thruster behavior, and mode timelines are outside this stage's pass/fail criteria.
 
 Required summary fields:
 
+- `schema_version`
 - `status`
 - `build_action_taken`
 - `run_mode`
@@ -89,6 +102,18 @@ Required summary fields:
 - `primary_failure_cause`
 - `recommended_return_stage`
 - `configuration_runtime_ready`
+- `runtime_directory`
+- `build_status`
+- `load_parse_status`
+- `normal_completion`
+- `sim_duration_sec`
+- `samples`
+- `mode_telemetry_exported`
+- `mode_result`
+- `terminal_mode`
+- `metrics`
+- `acceptance`
+- `limitations`
 
 Allowed status values:
 
@@ -124,4 +149,3 @@ Do not:
 ## Terminal State
 
 The terminal state is a configuration runtime-readiness verdict: either the workspace package builds/loads/runs and is marked `run_pass`, or it returns to configuration authoring for correction.
-
