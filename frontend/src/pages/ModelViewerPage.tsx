@@ -221,6 +221,11 @@ function getModelGlbPathForMode(mode: ViewerMode) {
   return mode === "realCad" ? resolveRealCadGlbPath(glbPath) : glbPath
 }
 
+function getMissingModelMessage(mode: ViewerMode) {
+  if (mode === "realCad") return "真实CAD模型尚未构建成功"
+  return "Unable to resolve a CAD GLB artifact."
+}
+
 function shouldShowDeratingMode(params: URLSearchParams, values: string[]) {
   const explicit = params.get("showDerating") ?? params.get("derating")
   if (explicit) return /^(1|true|yes)$/iu.test(explicit)
@@ -968,7 +973,7 @@ export default function ModelViewerPage() {
         const resolvedModel = await fetchResolvedModel(modelSource, modelRequest.signal)
         if (!resolvedModel) {
           if (phase === "initial") {
-            throw new Error("Unable to resolve a CAD GLB artifact.")
+            throw new Error(getMissingModelMessage(viewerModeRef.current))
           }
           return
         }
@@ -1035,11 +1040,15 @@ export default function ModelViewerPage() {
           .catch((error: unknown) => {
             if (disposed) return
             if (phase === "initial") {
-              setStatusMessage(modelSource.autoRefresh ? `Waiting for ${getVariantDisplayName(modelSource.variant)}...` : "")
+              setStatusMessage(
+                modelSource.autoRefresh && viewerModeRef.current === "realCad"
+                  ? "真实CAD模型尚未构建成功"
+                  : modelSource.autoRefresh ? `Waiting for ${getVariantDisplayName(modelSource.variant)}...` : "",
+              )
               setErrorMessage(
                 modelSource.autoRefresh
                   ? null
-                  : error instanceof Error ? error.message : "Unable to resolve a CAD GLB artifact.",
+                  : error instanceof Error ? error.message : getMissingModelMessage(viewerModeRef.current),
               )
             } else {
               console.error("Viewer3D auto-refresh error:", error)

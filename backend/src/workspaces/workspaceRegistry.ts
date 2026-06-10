@@ -434,8 +434,11 @@ export async function resolveModel(
   glbPath?: string,
   workspaceDir?: string | null,
 ) {
+  if (isNonEmptyString(glbPath)) {
+    return resolveModelFromGlbPath(glbPath, workspaceDir)
+  }
+
   return (
-    (await resolveModelFromGlbPath(glbPath, workspaceDir)) ??
     (await resolveDefaultGeometryAfterModel(workspaceDir)) ??
     resolveModelFromRegistry(sessionId, runId, variant, workspaceDir)
   )
