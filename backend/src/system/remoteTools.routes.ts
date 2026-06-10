@@ -1,5 +1,7 @@
-import { spawn } from "node:child_process"
+import { execFile, spawn } from "node:child_process"
 import net from "node:net"
+import path from "node:path"
+import { promisify } from "node:util"
 import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
@@ -7,6 +9,9 @@ import type { Logger } from "../logger.js"
 const REMOTE_DESKTOP_TOOLS = ["freecad", "paraview", "comsol"] as const
 const TCP_CHECK_TIMEOUT_MS = 1200
 const HTTP_CHECK_TIMEOUT_MS = 1800
+const INTERFACE_CHECK_CACHE_MS = 60_000
+const INTERFACE_CHECK_TIMEOUT_MS = 360_000
+const execFileAsync = promisify(execFile)
 
 type RemoteDesktopTool = typeof REMOTE_DESKTOP_TOOLS[number]
 type RemoteToolConfigKey = "cad" | "paraview" | "comsol"
@@ -42,6 +47,36 @@ type RemoteToolPortStatus = {
   tcpOk: boolean
   httpOk: boolean
   httpStatus: number | null
+}
+
+type InterfaceCheckResult = {
+  group: string
+  name: string
+  target: string
+  required: boolean
+  ok: boolean
+  skipped: boolean
+  durationMs: number
+  message?: string
+  error?: string
+  status?: number
+  bytes?: number
+}
+
+type InterfaceCheckSummary = {
+  ok: boolean
+  checkedAt: string
+  cacheTtlMs: number
+  command: string[]
+  results: InterfaceCheckResult[]
+  requiredFailureCount: number
+  optionalFailureCount: number
+  skippedCount: number
+}
+
+type CachedInterfaceCheck = {
+  value: InterfaceCheckSummary
+  cachedAt: number
 }
 
 function toolConfigKey(tool: RemoteDesktopTool): RemoteToolConfigKey {
@@ -188,34 +223,114 @@ async function checkRemoteTool(tool: RemoteToolPortConfig): Promise<RemoteToolPo
   }
 }
 
+function resolveProjectRoot() {
+  const cwd = process.cwd()
+  const parent = path.resolve(cwd, "..")
+  return path.basename(cwd) === "backend" ? parent : cwd
+}
+
+function parseInterfaceCheckOutput(stdout: string) {
+  const trimmed = stdout.trim()
+  if (!trimmed) throw new Error("interface check script returned no output")
+  return JSON.parse(trimmed) as { ok: boolean; results: InterfaceCheckResult[] }
+}
+
+async function runInterfaceCheck(): Promise<InterfaceCheckSummary> {
+  const projectRoot = resolveProjectRoot()
+  const scriptPath = path.join(projectRoot, "scripts", "check_function_interfaces.mjs")
+  const configPath = path.join(projectRoot, "config.json")
+  const command = [process.execPath, scriptPath, "--json"]
+
+  try {
+    const { stdout } = await execFileAsync(command[0], command.slice(1), {
+      cwd: projectRoot,
+      timeout: INTERFACE_CHECK_TIMEOUT_MS,
+      maxBuffer: 1024 * 1024 * 5,
+    })
+    const payload = parseInterfaceCheckOutput(stdout)
+    const results = Array.isArray(payload.results) ? payload.results : []
+    return buildInterfaceCheckSummary(payload.ok, command, results)
+  } catch (error) {
+    const stdout = typeof (error as { stdout?: unknown }).stdout === "string"
+      ? (error as { stdout: string }).stdout
+      : ""
+    if (stdout.trim()) {
+      const payload = parseInterfaceCheckOutput(stdout)
+      const results = Array.isArray(payload.results) ? payload.results : []
+      return buildInterfaceCheckSummary(payload.ok, command, results)
+    }
+    return buildInterfaceCheckSummary(false, command, [{
+      group: "interface-check",
+      name: "Interface check script",
+      target: `${scriptPath} --config ${configPath}`,
+      required: true,
+      ok: false,
+      skipped: false,
+      durationMs: 0,
+      error: error instanceof Error ? error.message : String(error),
+    }])
+  }
+}
+
+function buildInterfaceCheckSummary(ok: boolean, command: string[], results: InterfaceCheckResult[]): InterfaceCheckSummary {
+  const requiredFailureCount = results.filter(item => item.required && !item.ok).length
+  const optionalFailureCount = results.filter(item => !item.required && !item.ok).length
+  const skippedCount = results.filter(item => item.skipped).length
+  return {
+    ok: ok && requiredFailureCount === 0,
+    checkedAt: new Date().toISOString(),
+    cacheTtlMs: INTERFACE_CHECK_CACHE_MS,
+    command,
+    results,
+    requiredFailureCount,
+    optionalFailureCount,
+    skippedCount,
+  }
+}
+
 export async function remoteToolsRoutes(
   fastify: FastifyInstance,
   { config, logger }: { config: AppConfig; logger: Logger },
 ) {
-  fastify.get("/api/remote-tools/port-status", async (_req, reply) => {
-    const ports = await Promise.all(buildRemoteToolPorts(config).map(tool => checkRemoteTool(tool)))
-    const ok = ports.every(port => port.ok)
+  let interfaceCheckCache: CachedInterfaceCheck | null = null
+  let interfaceCheckInflight: Promise<InterfaceCheckSummary> | null = null
 
-    if (!ok) {
-      logger.warn("remote tool port check failed", {
-        ports: ports.map(port => ({
-          tool: port.tool,
-          port: port.port,
-          ok: port.ok,
-          message: port.message,
-          tcpOk: port.tcpOk,
-          httpOk: port.httpOk,
-          httpStatus: port.httpStatus,
-        })),
-      })
+  async function getInterfaceCheckSummary({ force = false } = {}) {
+    const now = Date.now()
+    if (!force && interfaceCheckCache && now - interfaceCheckCache.cachedAt < INTERFACE_CHECK_CACHE_MS) {
+      return interfaceCheckCache.value
     }
+    if (!interfaceCheckInflight) {
+      interfaceCheckInflight = runInterfaceCheck()
+        .then(summary => {
+          interfaceCheckCache = { value: summary, cachedAt: Date.now() }
+          if (!summary.ok) {
+            logger.warn("functional interface check failed", {
+              requiredFailureCount: summary.requiredFailureCount,
+              optionalFailureCount: summary.optionalFailureCount,
+              failed: summary.results
+                .filter(item => !item.ok)
+                .map(item => ({ group: item.group, name: item.name, target: item.target, error: item.error })),
+            })
+          }
+          return summary
+        })
+        .finally(() => {
+          interfaceCheckInflight = null
+        })
+    }
+    return interfaceCheckInflight
+  }
 
-    return reply.status(ok ? 200 : 503).send({
-      ok,
-      checkedAt: new Date().toISOString(),
-      timeoutMs: Math.max(TCP_CHECK_TIMEOUT_MS, HTTP_CHECK_TIMEOUT_MS),
-      ports,
-    })
+  fastify.get("/api/remote-tools/port-status", async (_req, reply) => {
+    const summary = await getInterfaceCheckSummary()
+    return reply.status(summary.ok ? 200 : 503).send(summary)
+  })
+
+  fastify.get("/api/remote-tools/interface-status", async (req, reply) => {
+    const force = typeof req.query === "object" && req.query != null && "force" in req.query
+    const summary = await getInterfaceCheckSummary({ force })
+    return reply.status(summary.ok ? 200 : 503).send(summary)
   })
 
   fastify.post("/api/remote-tools/ensure-desktops", async (_req, reply) => {

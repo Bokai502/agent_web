@@ -38,6 +38,7 @@ type AgentInputMode = 'voice' | 'text'
 type AgentTheme = 'dark' | 'light'
 
 const AGENT_THEME_STORAGE_KEY = 'agent-theme'
+const INTERFACE_STATUS_POLL_MS = 60_000
 
 function getInitialAgentTheme(): AgentTheme {
   if (typeof window === 'undefined') return 'dark'
@@ -130,19 +131,20 @@ export default function AgentPage() {
     comsol: getRemoteToolUrl('comsol', remoteToolHost),
     gnc: getGncToolUrl(),
   }), [remoteToolHost])
-  const refreshRemoteToolPortStatus = useCallback(() => {
+  const refreshRemoteToolPortStatus = useCallback((options?: { force?: boolean }) => {
     setRemoteToolPortLoading(true)
-    return fetch(joinApiPath(undefined, '/remote-tools/port-status'), { cache: 'no-store' })
+    const suffix = options?.force ? '?force=1' : ''
+    return fetch(joinApiPath(undefined, `/remote-tools/interface-status${suffix}`), { cache: 'no-store' })
       .then(async response => {
         const data = await response.json().catch(() => null) as RemoteToolPortSummary | null
-        if (!data || !Array.isArray(data.ports)) {
-          throw new Error('端口状态响应格式异常')
+        if (!data || !Array.isArray(data.results)) {
+          throw new Error('接口状态响应格式异常')
         }
         setRemoteToolPortStatus(data)
         setRemoteToolPortError('')
       })
       .catch(error => {
-        setRemoteToolPortError(error instanceof Error ? error.message : '端口状态获取失败')
+        setRemoteToolPortError(error instanceof Error ? error.message : '接口状态获取失败')
       })
       .finally(() => {
         setRemoteToolPortLoading(false)
@@ -342,7 +344,21 @@ export default function AgentPage() {
   }, [activeContext.versionDir, activeContext.versionId, resetProgressData])
 
   useEffect(() => {
-    refreshRemoteToolPortStatus().catch(() => {})
+    let stopped = false
+    let timer: number | null = null
+    const poll = () => {
+      refreshRemoteToolPortStatus()
+        .catch(() => {})
+        .finally(() => {
+          if (stopped) return
+          timer = window.setTimeout(poll, INTERFACE_STATUS_POLL_MS)
+        })
+    }
+    poll()
+    return () => {
+      stopped = true
+      if (timer != null) window.clearTimeout(timer)
+    }
   }, [refreshRemoteToolPortStatus])
 
   useEffect(() => {
@@ -490,6 +506,7 @@ export default function AgentPage() {
         portStatus={remoteToolPortStatus}
         portStatusError={remoteToolPortError}
         portStatusLoading={remoteToolPortLoading}
+        onPortStatusRefresh={() => refreshRemoteToolPortStatus({ force: true })}
         onProgressToggle={() => setProgressPanelOpen(open => !open)}
         onStopAndSummarize={handleStopAndSummarize}
         progressOpen={progressPanelOpen}

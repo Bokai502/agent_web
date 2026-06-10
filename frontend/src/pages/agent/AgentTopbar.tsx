@@ -16,37 +16,35 @@ function formatCheckedAt(value?: string) {
   return new Date(timestamp).toLocaleTimeString('zh-CN', { hour12: false })
 }
 
-function formatPortDetail(port: RemoteToolPortStatus) {
-  const endpoint = `${port.host}:${port.port}`
-  const tcpStatus = port.tcpOk ? 'TCP 已连接' : 'TCP 未连接'
-  const httpStatus = port.httpOk
-    ? `HTTP 正常${port.httpStatus ? ` ${port.httpStatus}` : ''}`
-    : port.httpStatus
-      ? `HTTP 异常 ${port.httpStatus}`
-      : 'HTTP 未检测'
-  const latency = port.latencyMs == null ? '' : `，${port.latencyMs}ms`
-  return `${endpoint} · ${tcpStatus} · ${httpStatus}${latency} · ${port.message}`
+function formatInterfaceDetail(item: InterfaceCheckResult) {
+  const duration = Number.isFinite(item.durationMs) ? `${item.durationMs}ms` : ''
+  const status = item.status ? `HTTP ${item.status}` : ''
+  const message = item.ok ? item.message : item.error || item.message
+  return [item.target, status, duration, message].filter(Boolean).join(' · ')
 }
 
-export type RemoteToolPortStatus = {
+export type InterfaceCheckResult = {
   ok: boolean
-  tool: 'freecad' | 'paraview' | 'comsol'
-  label: string
-  host: string
-  port: number
-  url?: string
-  latencyMs: number | null
+  group: string
+  name: string
+  target: string
+  required: boolean
+  skipped: boolean
+  durationMs: number
   message: string
-  tcpOk?: boolean
-  httpOk?: boolean
-  httpStatus?: number | null
+  error?: string
+  status?: number
+  bytes?: number
 }
 
 export type RemoteToolPortSummary = {
   ok: boolean
   checkedAt: string
-  timeoutMs: number
-  ports: RemoteToolPortStatus[]
+  cacheTtlMs?: number
+  results: InterfaceCheckResult[]
+  requiredFailureCount: number
+  optionalFailureCount: number
+  skippedCount: number
 }
 
 type AgentTopbarProps = {
@@ -60,6 +58,7 @@ type AgentTopbarProps = {
   portStatus: RemoteToolPortSummary | null
   portStatusError: string
   portStatusLoading: boolean
+  onPortStatusRefresh: () => void
   onProgressToggle: () => void
   onStopAndSummarize: () => void
   progressOpen: boolean
@@ -83,6 +82,7 @@ export function AgentTopbar({
   portStatus,
   portStatusError,
   portStatusLoading,
+  onPortStatusRefresh,
   onProgressToggle,
   onStopAndSummarize,
   progressOpen,
@@ -105,10 +105,12 @@ export function AgentTopbar({
       : portStatusLoading && !portStatus
         ? 'checking'
         : 'bad'
-  const failedPorts = portStatus?.ports.filter(port => !port.ok) ?? []
+  const failedChecks = portStatus?.results.filter(item => !item.ok) ?? []
+  const skippedChecks = portStatus?.results.filter(item => item.skipped) ?? []
   const checkedAtLabel = formatCheckedAt(portStatus?.checkedAt)
   const initials = userId.trim().slice(0, 1).toUpperCase() || 'U'
   const inputModeLabel = inputMode === 'voice' ? '语音输入' : '文字输入'
+  const totalChecks = portStatus?.results.length ?? 0
 
   useEffect(() => {
     let cancelled = false
@@ -264,29 +266,58 @@ export function AgentTopbar({
               <span aria-hidden="true">↪</span>
               {loggingOut ? '退出中' : '退出登录'}
             </button>
+            <section className="agent-interface-section">
+              <div className="agent-interface-summary">
+                <div>
+                  <strong>{portStatus?.ok ? '接口正常' : portStatus ? '接口异常' : '接口检测'}</strong>
+                  <span>
+                    {portStatus
+                      ? `${totalChecks} 项 · ${failedChecks.length ? `异常 ${failedChecks.length}` : '全部正常'}${skippedChecks.length ? ` · 跳过 ${skippedChecks.length}` : ''}${checkedAtLabel ? ` · ${checkedAtLabel}` : ''}`
+                      : portStatusLoading
+                        ? '正在统一检测功能接口'
+                        : '等待检测结果'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="agent-interface-refresh"
+                  disabled={portStatusLoading}
+                  onClick={onPortStatusRefresh}
+                >
+                  {portStatusLoading ? '检测中' : '重新检测'}
+                </button>
+              </div>
+            </section>
             {portStatusError ? (
               <p className="agent-port-error">{portStatusError}</p>
-            ) : failedPorts.length ? (
+            ) : failedChecks.length ? (
               <>
                 <div className="agent-port-list">
-                  {failedPorts.map(port => (
-                  <div className={`agent-port-row ${port.ok ? 'ok' : 'bad'}`} key={port.tool}>
+                  {failedChecks.map(item => (
+                  <div className={`agent-port-row ${item.ok ? 'ok' : 'bad'}`} key={`${item.group}:${item.name}:${item.target}`}>
                     <span className="agent-port-row-dot" />
                     <div>
-                      <strong>{port.label}</strong>
-                      <span>{formatPortDetail(port)}</span>
+                      <strong>{item.name}</strong>
+                      <span>{formatInterfaceDetail(item)}</span>
                     </div>
-                    <em>{port.ok ? '正常' : '异常'}</em>
+                    <em>{item.required ? '异常' : '警告'}</em>
                   </div>
                   ))}
                 </div>
                 <p className="agent-port-check-note is-bad">
-                  {`检测到 ${failedPorts.length} 个远程工具端口异常`}
+                  {`检测到 ${failedChecks.length} 个功能接口异常`}
                   {checkedAtLabel ? ` · ${checkedAtLabel}` : ''}
                 </p>
               </>
             ) : (
-              portStatusLoading ? <p>正在检测 FreeCAD、ParaView、COMSOL 端口...</p> : null
+              portStatusLoading ? <p>正在统一检测功能接口...</p> : (
+                portStatus ? (
+                  <p className="agent-port-check-note is-ok">
+                    {`全部 ${totalChecks - skippedChecks.length} 个已执行接口正常`}
+                    {skippedChecks.length ? `，${skippedChecks.length} 个跳过` : ''}
+                  </p>
+                ) : null
+              )
             )}
           </div>
         ) : null}
