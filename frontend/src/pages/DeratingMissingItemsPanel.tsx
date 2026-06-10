@@ -11,6 +11,13 @@ type DeratingPayload = {
   summary?: Record<string, unknown>
 }
 
+type CompliancePayload = {
+  artifact?: string
+  exists?: boolean
+  rows?: JsonRow[]
+  source_relative_path?: string
+}
+
 type DeratingThemeVars = CSSProperties & Record<`--derating-${string}`, string>
 
 type DeratingMissingItemsPanelProps = {
@@ -46,6 +53,77 @@ const RESULT_COLUMNS = [
   { key: "判定结果", label: "判定结果", width: 142 },
   { key: "综合判定详情", label: "综合判定详情", width: 260 },
 ] as const
+
+const COMPLIANCE_TABS = [
+  {
+    artifact: "component_classification",
+    columns: [
+      { key: "index", label: "序号", width: 70 },
+      { key: "component_name", label: "器件名称", width: 140 },
+      { key: "model", label: "型号规格", width: 140 },
+      { key: "manufacturer", label: "生产厂商", width: 120 },
+      { key: "category_class", label: "大类", width: 120 },
+      { key: "category_name", label: "类别", width: 150 },
+      { key: "classification_source", label: "来源", width: 110 },
+    ],
+    description: "展示器件分类结果，可直接调整大类、类别和来源。",
+    emptyText: "暂无器件分类数据",
+    key: "classification",
+    title: "器件分类",
+  },
+  {
+    artifact: "manufacturer_check",
+    columns: [
+      { key: "index", label: "序号", width: 70 },
+      { key: "component_name", label: "器件名称", width: 140 },
+      { key: "model", label: "型号规格", width: 140 },
+      { key: "manufacturer", label: "原厂商", width: 140 },
+      { key: "normalized_manufacturer", label: "标准厂商", width: 160 },
+      { key: "manufacturer_type", label: "厂商类型", width: 120 },
+      { key: "status", label: "状态", width: 110 },
+    ],
+    description: "展示厂商归一化和匹配状态，保留最关键字段供确认。",
+    emptyText: "暂无厂商匹配数据",
+    key: "manufacturer",
+    title: "厂商匹配",
+  },
+  {
+    artifact: "key_units_check",
+    columns: [
+      { key: "index", label: "序号", width: 70 },
+      { key: "component_name", label: "器件名称", width: 140 },
+      { key: "model", label: "型号规格", width: 140 },
+      { key: "manufacturer", label: "生产厂商", width: 120 },
+      { key: "is_key_part", label: "关键器件", width: 110 },
+      { key: "reason", label: "依据", width: 220 },
+      { key: "status", label: "状态", width: 110 },
+    ],
+    description: "展示关键器件识别结果，可修改关键器件标记和依据。",
+    emptyText: "暂无关键器件数据",
+    key: "key-units",
+    title: "关键器件",
+  },
+  {
+    artifact: "catalog_match",
+    columns: [
+      { key: "index", label: "序号", width: 70 },
+      { key: "component_name", label: "器件名称", width: 140 },
+      { key: "model", label: "型号规格", width: 140 },
+      { key: "manufacturer", label: "生产厂商", width: 130 },
+      { key: "matched_model", label: "目录型号", width: 140 },
+      { key: "matched_manufacturer", label: "目录厂商", width: 150 },
+      { key: "status", label: "匹配状态", width: 120 },
+      { key: "note", label: "备注", width: 220 },
+    ],
+    description: "展示目录匹配结果，保留型号、厂商、状态和备注。",
+    emptyText: "暂无目录匹配数据",
+    key: "catalog",
+    title: "目录匹配",
+  },
+] as const
+
+type ComplianceTab = typeof COMPLIANCE_TABS[number]
+type ActiveTabKey = "derating" | ComplianceTab["key"]
 
 const RESULT_CSV_COLUMNS = [
   ["excel_row", "序号"],
@@ -216,6 +294,27 @@ function writeResultValue(row: JsonRow, key: string, value: string) {
   return { ...row, [key]: value }
 }
 
+function normalizeComplianceRow(row: JsonRow) {
+  const name = row.component_name ?? row.name ?? row["元器件名称"]
+  const manufacturer = row.manufacturer ?? row.normalized_manufacturer ?? row["生产厂商"]
+  const status = row.status ?? row.result ?? row.match_status ?? row.compliance_status ?? row["状态"]
+  return {
+    ...row,
+    component_name: name,
+    manufacturer,
+    model: row.model ?? row["型号规格"],
+    status,
+  }
+}
+
+function complianceStatusCounts(rows: JsonRow[]) {
+  const issue = rows.filter(row => {
+    const status = asText(row.status)
+    return status && !isPositiveJudgement(status)
+  }).length
+  return { issue, ok: rows.length - issue }
+}
+
 function buildFinalRows(rows: JsonRow[], missingRows: JsonRow[]) {
   return rows.map(row => {
     const component = missingRows.find(item => asText(item["元器件名称"]) === asText(row["元器件名称"]))
@@ -229,13 +328,17 @@ function buildFinalRows(rows: JsonRow[], missingRows: JsonRow[]) {
 }
 
 export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps) {
+  const [activeTab, setActiveTab] = useState<ActiveTabKey>("derating")
   const [missingRows, setMissingRows] = useState<JsonRow[]>([])
   const [resultRows, setResultRows] = useState<JsonRow[]>([])
   const [finalRows, setFinalRows] = useState<JsonRow[]>([])
+  const [complianceRows, setComplianceRows] = useState<Record<string, JsonRow[]>>({})
+  const [complianceSources, setComplianceSources] = useState<Record<string, string>>({})
   const [missingSourcePath, setMissingSourcePath] = useState("")
   const [resultSourcePath, setResultSourcePath] = useState("")
   const [status, setStatus] = useState("加载中...")
   const [savingResults, setSavingResults] = useState(false)
+  const [savingCompliance, setSavingCompliance] = useState("")
   const [finalGenerated, setFinalGenerated] = useState(false)
   const query = useMemo(() => buildWorkspaceQuery(props), [props.versionId, props.workspaceDir, props.workspaceId])
   const themeVars = props.theme === "light" ? lightThemeVars : darkThemeVars
@@ -276,6 +379,31 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
     }).catch(error => {
       setStatus(error instanceof Error ? error.message : "加载失败")
     })
+
+    Promise.allSettled(COMPLIANCE_TABS.map(tab =>
+      fetch(buildWorkspaceApiPath(`/workspace/compliance/artifact/${tab.artifact}`, query), { cache: "no-store" }).then(async response => {
+        const data = await response.json().catch(() => null) as CompliancePayload | { error?: string } | null
+        if (!response.ok) throw new Error(data && "error" in data && data.error ? data.error : `${tab.title} JSON 不可用`)
+        return { tab, payload: data as CompliancePayload }
+      })
+    )).then(results => {
+      const nextRows: Record<string, JsonRow[]> = {}
+      const nextSources: Record<string, string> = {}
+      results.forEach(result => {
+        if (result.status === "fulfilled") {
+          const rows = Array.isArray(result.value.payload.rows) ? result.value.payload.rows.map(normalizeComplianceRow) : []
+          nextRows[result.value.tab.key] = rows
+          nextSources[result.value.tab.key] = result.value.payload.source_relative_path ?? ""
+        } else {
+          const message = result.reason instanceof Error ? result.reason.message : "加载失败"
+          COMPLIANCE_TABS.forEach(tab => {
+            if (!(tab.key in nextSources)) nextSources[tab.key] = message
+          })
+        }
+      })
+      setComplianceRows(nextRows)
+      setComplianceSources(nextSources)
+    })
   }, [query])
 
   useEffect(() => {
@@ -299,6 +427,13 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
     setFinalGenerated(false)
   }
 
+  const updateComplianceCell = (tabKey: string, rowIndex: number, key: string, value: string) => {
+    setComplianceRows(previous => ({
+      ...previous,
+      [tabKey]: (previous[tabKey] ?? []).map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+    }))
+  }
+
   const confirmAndGenerateFinal = () => {
     setSavingResults(true)
     fetch(buildWorkspaceApiPath("/workspace/derating/check-result", query), {
@@ -317,6 +452,30 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
       })
       .catch(error => setStatus(error instanceof Error ? error.message : "保存失败"))
       .finally(() => setSavingResults(false))
+  }
+
+  const saveComplianceTab = (tab: ComplianceTab) => {
+    setSavingCompliance(tab.key)
+    fetch(buildWorkspaceApiPath(`/workspace/compliance/artifact/${tab.artifact}`, query), {
+      body: JSON.stringify({ rows: complianceRows[tab.key] ?? [] }),
+      headers: { "Content-Type": "application/json" },
+      method: "PUT",
+    })
+      .then(async response => {
+        const data = await response.json().catch(() => null) as CompliancePayload | { error?: string } | null
+        if (!response.ok) throw new Error(data && "error" in data && data.error ? data.error : "保存失败")
+        const payload = data as CompliancePayload
+        setComplianceRows(previous => ({
+          ...previous,
+          [tab.key]: Array.isArray(payload.rows) ? payload.rows.map(normalizeComplianceRow) : previous[tab.key] ?? [],
+        }))
+        setComplianceSources(previous => ({
+          ...previous,
+          [tab.key]: payload.source_relative_path ?? previous[tab.key] ?? "",
+        }))
+      })
+      .catch(error => setStatus(error instanceof Error ? error.message : "保存失败"))
+      .finally(() => setSavingCompliance(""))
   }
 
   const downloadMissingCsv = () => {
@@ -348,14 +507,58 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
     downloadCsv("derating-final-summary.csv", [header.join(","), ...csvRows].join("\n"))
   }
 
+  const activeComplianceTab = COMPLIANCE_TABS.find(tab => tab.key === activeTab)
+  const renderComplianceTab = (tab: ComplianceTab) => {
+    const rows = complianceRows[tab.key] ?? []
+    const counts = complianceStatusCounts(rows)
+    return (
+      <section style={sectionStyle}>
+        <details open>
+          <summary style={summaryStyle}>{tab.title}（可编辑确认）</summary>
+          <div style={sectionBodyStyle}>
+            <div style={metricsStyle}>
+              <span>共 <b>{rows.length}</b> 行 · <b style={greenText}>{counts.ok} 正常</b> · <b style={redText}>{counts.issue} 待确认</b></span>
+              <span style={mutedTextStyle}>{tab.description}</span>
+            </div>
+            <EditableTable
+              columns={tab.columns}
+              emptyText={complianceSources[tab.key] || tab.emptyText}
+              getValue={(row, key) => row[key]}
+              onChange={(rowIndex, key, value) => updateComplianceCell(tab.key, rowIndex, key, value)}
+              rows={rows}
+              selectColumns={{
+                is_key_part: ["true", "false"],
+                status: ["符合", "不符合", "需确认"],
+              }}
+              stickyRightColumns={["status"]}
+            />
+            <div style={actionsStyle}>
+              <button type="button" onClick={() => downloadCsv(`${tab.artifact}.csv`, tableToCsv(tab.columns, rows))} disabled={rows.length === 0} style={toolbarButtonStyle}>下载 CSV</button>
+              <button type="button" onClick={() => saveComplianceTab(tab)} disabled={rows.length === 0 || savingCompliance === tab.key} style={primaryButtonStyle}>{savingCompliance === tab.key ? "保存中" : "保存修改"}</button>
+            </div>
+          </div>
+        </details>
+      </section>
+    )
+  }
+
   return (
     <div style={{ ...pageStyle, ...themeVars }}>
       <div style={topbarStyle}>
-        <strong>降额检查</strong>
+        <strong>合规检查</strong>
         <span style={statusTextStyle}>{status}</span>
       </div>
 
-      <section style={sectionStyle}>
+      <div style={tabsStyle}>
+        <button type="button" onClick={() => setActiveTab("derating")} style={tabButtonStyle(activeTab === "derating")}>降额检查</button>
+        {COMPLIANCE_TABS.map(tab => (
+          <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={tabButtonStyle(activeTab === tab.key)}>{tab.title}</button>
+        ))}
+      </div>
+
+      {activeTab === "derating" ? (
+        <>
+          <section style={sectionStyle}>
         <details open>
           <summary style={summaryStyle}>步骤1：降额缺项分析（各器件降额项完整性检查）</summary>
           <div style={sectionBodyStyle}>
@@ -423,8 +626,16 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
           </div>
         </details>
       </section>
+        </>
+      ) : activeComplianceTab ? renderComplianceTab(activeComplianceTab) : null}
     </div>
   )
+}
+
+function tableToCsv(columns: readonly { key: string; label: string; width: number }[], rows: JsonRow[]) {
+  const header = columns.map(column => column.label).join(",")
+  const csvRows = rows.map(row => columns.map(column => csvEscape(row[column.key])).join(","))
+  return [header, ...csvRows].join("\n")
 }
 
 function EditableTable({
@@ -736,6 +947,28 @@ const topbarStyle = {
   paddingBottom: 12,
   flexWrap: "wrap",
 } satisfies CSSProperties
+
+const tabsStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  marginTop: 14,
+} satisfies CSSProperties
+
+function tabButtonStyle(active: boolean): CSSProperties {
+  return {
+    background: active ? HUD_PRIMARY_BG : HUD_CONTROL_BG,
+    border: `1px solid ${active ? HUD_PRIMARY_BORDER : HUD_LINE}`,
+    borderRadius: 6,
+    boxShadow: active ? HUD_PRIMARY_SHADOW : "none",
+    color: active ? HUD_PRIMARY_TEXT : HUD_TEXT,
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 800,
+    height: 34,
+    padding: "0 12px",
+  }
+}
 
 const sectionStyle = {
   background: HUD_PANEL,

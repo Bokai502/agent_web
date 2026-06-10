@@ -49,6 +49,12 @@ const CHECK_WORKFLOW_PROGRESS_STAGES = [
   { key: "check_convert_table", labelKey: "workspace.progress.checkConvertTable" },
   { key: "check_ai_mapping", labelKey: "workspace.progress.checkAiMapping" },
   { key: "check_rule_analysis", labelKey: "workspace.progress.checkRuleAnalysis" },
+  { key: "check_mapping_completeness", labelKey: "workspace.progress.checkMappingCompleteness" },
+  { key: "check_compliance_load_inputs", labelKey: "workspace.progress.checkComplianceLoadInputs" },
+  { key: "check_compliance_analysis", labelKey: "workspace.progress.checkComplianceAnalysis" },
+  { key: "check_compliance_checks", labelKey: "workspace.progress.checkComplianceChecks" },
+  { key: "check_compliance_classification", labelKey: "workspace.progress.checkComplianceClassification" },
+  { key: "check_compliance_report", labelKey: "workspace.progress.checkComplianceReport" },
 ]
 
 function getWorkflowProgressStages(variant: WorkflowProgressVariant) {
