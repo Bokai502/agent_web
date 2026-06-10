@@ -2,18 +2,35 @@
 import argparse
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 SCHEMA_VERSION = "loop_progress/1.0"
 VALID_STATUS = {"pending", "running", "blocked", "failed", "completed"}
-NOTE_MAX_CHARS = 160
+NOTE_MAX_CHARS = 80
 NOTE_HELP = (
-    "Optional frontend-display note. Use one concise user-facing sentence that describes "
-    "the current action, completion result, failure, or blocker. Do not include private "
-    "reasoning, Markdown, logs, or multi-line text."
+    "Required frontend-display note. Use one concise user-facing sentence or phrase "
+    "that describes the current visible stage state. Do not include private reasoning, "
+    "Markdown, paths, logs, percentages, timestamps, or multi-line text."
 )
+NOTE_FORBIDDEN_SUBSTRINGS = (
+    "```",
+    "Traceback",
+    "File \"",
+    "Exception:",
+    "Error:",
+    "<workspace>",
+    "demo" + "_server",
+    "open_codex_web/",
+    "codex_web/",
+    "/" + "data/",
+    "/" + "home/",
+    "/" + "tmp/",
+)
+NOTE_PATH_PATTERN = re.compile(r"(^|\s)(?:/[\w.-]|[A-Za-z]:\\|\S+/\S+)")
+NOTE_MARKDOWN_PATTERN = re.compile(r"(^|\s)(?:#{1,6}\s|[-*]\s|\d+\.\s|>\s)|[`|{}\[\]]")
 KNOWN_STAGES = (
     "01_inputs",
     "02_scenario",
@@ -36,8 +53,9 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Update an AIGNC loop_progress.json file.",
         epilog=(
-            f"Note contract: note is intended for direct frontend display. Keep it <= {NOTE_MAX_CHARS} "
-            "characters, one line, user-facing, and specific to the current stage state."
+            f"Note contract: note is shown directly by the frontend. Keep it 1 line, <= {NOTE_MAX_CHARS} "
+            "characters, user-facing, action/result oriented, and free of Markdown, paths, logs, "
+            "private reasoning, percentages, timestamps, and raw error text."
         ),
     )
     parser.add_argument("--progress", required=True, help="Path to loop_progress.json")
@@ -79,8 +97,17 @@ def parse_input_json(raw):
 
 def normalize_note(raw):
     note = " ".join(str(raw or "").split())
+    if not note:
+        raise SystemExit("--note is required because loop_progress.note is used for frontend display")
     if len(note) > NOTE_MAX_CHARS:
         raise SystemExit(f"--note must be {NOTE_MAX_CHARS} characters or fewer for frontend display")
+    for marker in NOTE_FORBIDDEN_SUBSTRINGS:
+        if marker in note:
+            raise SystemExit(f"--note must not include paths, logs, or raw diagnostic markers: {marker}")
+    if NOTE_MARKDOWN_PATTERN.search(note):
+        raise SystemExit("--note must be plain display text, not Markdown, JSON, tables, or code")
+    if NOTE_PATH_PATTERN.search(note):
+        raise SystemExit("--note must not include file paths; put paths in workflow_log.md or artifacts")
     return note
 
 

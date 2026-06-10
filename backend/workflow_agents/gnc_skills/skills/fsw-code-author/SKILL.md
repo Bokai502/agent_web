@@ -168,7 +168,7 @@ Produce implementation reports under `<workspace>/AIGNC_Workflow/07_fsw_implemen
 - `<workspace>/AIGNC_Workflow/07_fsw_implementation/fsw_change_set.json`
 
 Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after implementation-scope verification, blocker review, each bounded source-edit group, declaration/build-wiring update, build execution, build diagnosis if needed, implementation artifact writing, and final handoff to runtime diagnosis. Entries must use stage `07_fsw_implementation`, current skill `fsw-code-author`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` to one concise frontend-display sentence, no more than 160 characters, describing the current action, blocker, failure, or completion result for the stage.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `open_codex_web/backend/workflow_agents/gnc_skills/skills/README.md`.
 
 
 The report should summarize:
@@ -235,4 +235,3 @@ The next downstream stage is typically `42-build-run-diagnose` for build/load/ru
 ## Terminal State
 
 The terminal state is a bounded set of implemented source changes plus implementation artifacts, with the codebase compiling and ready for runtime validation.
-

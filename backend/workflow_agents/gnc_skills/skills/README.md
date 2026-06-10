@@ -16,16 +16,22 @@ python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/
   --skill <skill_name> \
   --status running \
   --percentage 50 \
-  --note "正在检查当前阶段输入"
+  --note "正在检查阶段输入"
 ```
 
-`note` is the frontend-display current-state text for the stage. It must be one concise user-facing sentence, no more than 160 characters, with no Markdown, logs, file dumps, or private reasoning. Write it according to `status`:
+`note` is the frontend-display current-state text for the stage. It is mandatory for every loop progress update and is intended to be shown directly as the small status line below the stage name.
+
+Write `note` as one concise user-facing Chinese sentence or phrase, no more than 80 characters. It must describe the current visible stage state only: what is being checked, generated, waiting for, blocked by, failed, completed, or handed off. Do not include Markdown, tables, bullets, JSON, logs, raw stack traces, file paths, absolute paths, percentages, timestamps, private reasoning, or multi-step explanations.
+
+Use these status-specific meanings:
 
 - `running`: current action, for example `正在验证 42 配置引用`
-- `blocked`: blocker and needed resolution, for example `等待确认姿态目标坐标定义`
-- `failed`: failure summary, for example `构建失败，正在定位编译错误`
+- `blocked`: blocker and required resolution, for example `等待确认姿态目标坐标定义`
+- `failed`: failure summary without raw logs, for example `构建失败，正在定位编译错误`
 - `completed`: completion result or handoff, for example `配置校验通过，进入运行验证`
 - `pending`: waiting state, for example `等待上游阶段输出`
+
+Keep durable details, evidence paths, command output, and longer explanations in `<workspace>/AIGNC_Workflow/workflow_log.md` or stage artifacts, not in `note`.
 
 Included skills:
 - 42-build-run-diagnose

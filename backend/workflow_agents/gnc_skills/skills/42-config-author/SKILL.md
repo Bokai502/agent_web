@@ -150,7 +150,7 @@ Produce under `<workspace>/AIGNC_Workflow/04_config/`:
 - `<workspace>/AIGNC_Workflow/04_config/config_generation_summary.md`
 
 Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after upstream verification, template selection, each config file generation or patching group, cross-file reference check, manifest emission, summary writing, and final handoff to validation. Entries must use stage `04_config`, current skill `42-config-author`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` to one concise frontend-display sentence, no more than 160 characters, describing the current action, blocker, failure, or completion result for the stage.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `open_codex_web/backend/workflow_agents/gnc_skills/skills/README.md`.
 
 
 The manifest should record:
@@ -214,4 +214,3 @@ The next downstream skill is typically `42-config-validator`.
 The terminal state is a traceable 42 configuration artifact set plus metadata, ready for `42-config-validator`. Do not transition to FSW implementation from this skill.
 
 Do not write final runtime configuration files directly to `<workspace>/Config/`; that directory is populated only after `42-config-validator` passes.
-
