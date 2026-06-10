@@ -38,7 +38,6 @@ type AgentInputMode = 'voice' | 'text'
 type AgentTheme = 'dark' | 'light'
 
 const AGENT_THEME_STORAGE_KEY = 'agent-theme'
-const INTERFACE_STATUS_POLL_MS = 60_000
 
 function getInitialAgentTheme(): AgentTheme {
   if (typeof window === 'undefined') return 'dark'
@@ -344,21 +343,7 @@ export default function AgentPage() {
   }, [activeContext.versionDir, activeContext.versionId, resetProgressData])
 
   useEffect(() => {
-    let stopped = false
-    let timer: number | null = null
-    const poll = () => {
-      refreshRemoteToolPortStatus()
-        .catch(() => {})
-        .finally(() => {
-          if (stopped) return
-          timer = window.setTimeout(poll, INTERFACE_STATUS_POLL_MS)
-        })
-    }
-    poll()
-    return () => {
-      stopped = true
-      if (timer != null) window.clearTimeout(timer)
-    }
+    refreshRemoteToolPortStatus().catch(() => {})
   }, [refreshRemoteToolPortStatus])
 
   useEffect(() => {

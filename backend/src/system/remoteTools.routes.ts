@@ -9,7 +9,7 @@ import type { Logger } from "../logger.js"
 const REMOTE_DESKTOP_TOOLS = ["freecad", "paraview", "comsol"] as const
 const TCP_CHECK_TIMEOUT_MS = 1200
 const HTTP_CHECK_TIMEOUT_MS = 1800
-const INTERFACE_CHECK_CACHE_MS = 60_000
+const INTERFACE_CHECK_CACHE_MS = 0
 const INTERFACE_CHECK_TIMEOUT_MS = 360_000
 const execFileAsync = promisify(execFile)
 
@@ -72,11 +72,6 @@ type InterfaceCheckSummary = {
   requiredFailureCount: number
   optionalFailureCount: number
   skippedCount: number
-}
-
-type CachedInterfaceCheck = {
-  value: InterfaceCheckSummary
-  cachedAt: number
 }
 
 function toolConfigKey(tool: RemoteDesktopTool): RemoteToolConfigKey {
@@ -292,18 +287,12 @@ export async function remoteToolsRoutes(
   fastify: FastifyInstance,
   { config, logger }: { config: AppConfig; logger: Logger },
 ) {
-  let interfaceCheckCache: CachedInterfaceCheck | null = null
   let interfaceCheckInflight: Promise<InterfaceCheckSummary> | null = null
 
-  async function getInterfaceCheckSummary({ force = false } = {}) {
-    const now = Date.now()
-    if (!force && interfaceCheckCache && now - interfaceCheckCache.cachedAt < INTERFACE_CHECK_CACHE_MS) {
-      return interfaceCheckCache.value
-    }
+  async function getInterfaceCheckSummary() {
     if (!interfaceCheckInflight) {
       interfaceCheckInflight = runInterfaceCheck()
         .then(summary => {
-          interfaceCheckCache = { value: summary, cachedAt: Date.now() }
           if (!summary.ok) {
             logger.warn("functional interface check failed", {
               requiredFailureCount: summary.requiredFailureCount,
@@ -328,8 +317,7 @@ export async function remoteToolsRoutes(
   })
 
   fastify.get("/api/remote-tools/interface-status", async (req, reply) => {
-    const force = typeof req.query === "object" && req.query != null && "force" in req.query
-    const summary = await getInterfaceCheckSummary({ force })
+    const summary = await getInterfaceCheckSummary()
     return reply.status(summary.ok ? 200 : 503).send(summary)
   })
 
