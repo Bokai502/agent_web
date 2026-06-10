@@ -130,19 +130,20 @@ export default function AgentPage() {
     comsol: getRemoteToolUrl('comsol', remoteToolHost),
     gnc: getGncToolUrl(),
   }), [remoteToolHost])
-  const refreshRemoteToolPortStatus = useCallback(() => {
+  const refreshRemoteToolPortStatus = useCallback((options?: { force?: boolean }) => {
     setRemoteToolPortLoading(true)
-    return fetch(joinApiPath(undefined, '/remote-tools/port-status'), { cache: 'no-store' })
+    const suffix = options?.force ? '?force=1' : ''
+    return fetch(joinApiPath(undefined, `/remote-tools/interface-status${suffix}`), { cache: 'no-store' })
       .then(async response => {
         const data = await response.json().catch(() => null) as RemoteToolPortSummary | null
-        if (!data || !Array.isArray(data.ports)) {
-          throw new Error('端口状态响应格式异常')
+        if (!data || !Array.isArray(data.results)) {
+          throw new Error('接口状态响应格式异常')
         }
         setRemoteToolPortStatus(data)
         setRemoteToolPortError('')
       })
       .catch(error => {
-        setRemoteToolPortError(error instanceof Error ? error.message : '端口状态获取失败')
+        setRemoteToolPortError(error instanceof Error ? error.message : '接口状态获取失败')
       })
       .finally(() => {
         setRemoteToolPortLoading(false)
@@ -490,6 +491,7 @@ export default function AgentPage() {
         portStatus={remoteToolPortStatus}
         portStatusError={remoteToolPortError}
         portStatusLoading={remoteToolPortLoading}
+        onPortStatusRefresh={() => refreshRemoteToolPortStatus({ force: true })}
         onProgressToggle={() => setProgressPanelOpen(open => !open)}
         onStopAndSummarize={handleStopAndSummarize}
         progressOpen={progressPanelOpen}

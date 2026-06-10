@@ -42,6 +42,9 @@ IDENTITY_ROTATION_ROWS = [
 ]
 
 
+__PLACEMENT_HELPERS__
+
+
 def determinant3(matrix_rows):
     return (
         matrix_rows[0][0] * (matrix_rows[1][1] * matrix_rows[2][2] - matrix_rows[1][2] * matrix_rows[2][1])
