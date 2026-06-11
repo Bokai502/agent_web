@@ -193,7 +193,7 @@ function VectorField({
 }) {
   const values = asArray(getPath(payload, path))
   return (
-    <div className="gnc-editor-field wide">
+    <div className="gnc-editor-field vector-field">
       <span>{label}</span>
       <div className="gnc-vector-grid">
         {values.map((value, index) => (
@@ -212,14 +212,24 @@ function VectorField({
   )
 }
 
-function EditorCard({ children, subtitle, title }: { children: React.ReactNode; subtitle: string; title: string }) {
+function EditorCard({
+  children,
+  className = "",
+  subtitle,
+  title,
+}: {
+  children: React.ReactNode
+  className?: string
+  subtitle: string
+  title: string
+}) {
   return (
-    <section className="gnc-editor-card">
+    <section className={["gnc-editor-card", className].filter(Boolean).join(" ")}>
       <div className="gnc-editor-card-head">
         <strong>{title}</strong>
         <span>{subtitle}</span>
       </div>
-      {children}
+      <div className="gnc-editor-card-body">{children}</div>
     </section>
   )
 }
@@ -310,7 +320,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
       <div className="gnc-editor-status">{status}</div>
 
       <div className="gnc-editor-grid">
-        <EditorCard title="Simulation Control" subtitle="Top-level values from Inp_Sim.txt">
+        <EditorCard className="span-2" title="Simulation Control" subtitle="Top-level values from Inp_Sim.txt">
           <div className="gnc-form-grid">
             <Field label="Time Mode" onChange={update} options={TIME_MODES} path={["sim", "time_mode"]} payload={payload} type="select" />
             <Field label="Stop Time (s)" onChange={update} path={["sim", "stop_time_s"]} payload={payload} type="number" />
@@ -349,9 +359,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
               <Field key={key} label={key} onChange={update} path={["sim", key]} payload={payload} type="boolean" />
             ))}
           </div>
-        </EditorCard>
-
-        <EditorCard title="Celestial Bodies" subtitle="Celestial Bodies and Lagrange systems from Inp_Sim.txt">
+          <div className="gnc-editor-subhead">Celestial Bodies</div>
           <div className="gnc-toggle-grid compact">
             {CELESTIAL_BODY_FIELDS.map(([key, label]) => (
               <Field key={key} label={label} onChange={update} path={["sim", "celestial_bodies", key]} payload={payload} type="boolean" />
@@ -365,7 +373,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
           </div>
         </EditorCard>
 
-        <EditorCard title="Orbit Configuration" subtitle={formatValue(orbit.file) || "Referenced orbit"}>
+        <EditorCard className="span-half" title="Orbit Configuration" subtitle={formatValue(orbit.file) || "Referenced orbit"}>
           <div className="gnc-form-grid">
             <label className="gnc-editor-field wide">
               <span>Active Orbit</span>
@@ -385,7 +393,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
           </div>
         </EditorCard>
 
-        <EditorCard title="Spacecraft Core" subtitle={formatValue(spacecraft.file) || "Referenced spacecraft"}>
+        <EditorCard className="span-half" title="Spacecraft Core" subtitle={formatValue(spacecraft.file) || "Referenced spacecraft"}>
           <div className="gnc-form-grid">
             <label className="gnc-editor-field wide">
               <span>Active Spacecraft</span>
@@ -404,7 +412,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
           </div>
         </EditorCard>
 
-        <EditorCard title="Actuators, Sensors, Bodies" subtitle="Use selectors to switch multi-instance entries.">
+        <EditorCard className="span-full" title="Actuators, Sensors, Bodies" subtitle="Use selectors to switch multi-instance entries.">
           <div className="gnc-editor-toolbar">
             <select value={collection} onChange={event => { setCollection(event.target.value as typeof collection); setCollectionIndex(0) }}>
               {COLLECTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
