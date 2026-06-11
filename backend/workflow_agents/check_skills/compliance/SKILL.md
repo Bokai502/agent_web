@@ -5,16 +5,26 @@ description: Run the SatLab aerospace component compliance workflow. Use for req
 
 # Compliance
 
-Use the Open Codex Web execution context `workspace_dir` as the workspace root.
-Run commands from this skill directory and write generated files under the
-current version `workspace_dir`. Do not reuse output paths from prior turns,
-other versions, the repository checkout, or template input directories.
+Use the Open Codex Web execution context `workspace_dir` as the active version
+workspace root. In versioned work this must be the concrete version directory,
+for example `<workspace_manifest_root>/versions/v0001`, not the workspace
+manifest root itself. If the UI/API provides `workspaceId` plus `versionId`,
+resolve that pair to the matching `versions/<versionId>` directory before
+running commands. Do not reuse output paths from prior turns, other versions,
+the repository checkout, or template input directories.
 
 The authoritative input manifest is
 `<workspace_dir>/00_inputs/input_config.json`. Read requirement/component paths
 and quality-check settings from that file before running any compliance stage.
 Use explicit user-provided paths only when the user directly overrides
 `input_config.json`.
+
+Path sanity check before running:
+
+```bash
+test -f <workspace_dir>/00_inputs/input_config.json
+test "$(basename "$(dirname "<workspace_dir>")")" = "versions"
+```
 
 ## Inputs
 
@@ -26,6 +36,10 @@ inputs. Use optional `catalog`/`catalog_evidence`, `reliability_db`/
 Use the same config for quality settings. The runner reads
 `quality_level.min_required`; if it is absent, use `quality_level.selected` or
 `compliance_config.quality_level.min_required`.
+
+Use `catalog_match.threshold` in `input_config.json` for the catalog match
+similarity threshold. The value is a number from 0 to 1; if absent or invalid,
+the runner uses `0.72`.
 
 ## Configuration
 
@@ -78,9 +92,12 @@ PYTHONPATH=scripts python -m compliance.runner \
 `python -m compliance` is an alias for `python -m compliance.runner`.
 
 Omit `--output-dir` unless the user explicitly asks for a workspace-local
-subdirectory. The runner defaults to `<workspace_dir>/check_outputs/compliance`
-and ignores any output directory outside `workspace_dir` to stay within the
-versioned workspace write boundary.
+subdirectory. The runner defaults to `<workspace_dir>/check_outputs/compliance`,
+where `<workspace_dir>` is the active version directory. Never write outputs
+under the workspace manifest root such as `<workspace_manifest_root>/check_outputs`;
+outputs belong under `<workspace_manifest_root>/versions/<versionId>/check_outputs`.
+The runner ignores any output directory outside `workspace_dir` to stay within
+the versioned workspace write boundary.
 
 ## Stages
 

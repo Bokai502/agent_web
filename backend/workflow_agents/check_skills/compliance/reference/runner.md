@@ -10,6 +10,12 @@ cd <skill_dir>
 export PYTHONPATH=scripts
 ```
 
+`<workspace_dir>` must be the active version workspace directory. For versioned
+work, use `<workspace_manifest_root>/versions/<versionId>` rather than
+`<workspace_manifest_root>`. If you have only `workspaceId` and `versionId`,
+resolve them through the Versioning/manifest context before invoking the
+runner.
+
 Resolve inputs first:
 
 ```bash
@@ -21,6 +27,10 @@ Use this output directory unless the user explicitly chooses another one:
 ```text
 <workspace_dir>/check_outputs/compliance
 ```
+
+Do not use `<workspace_manifest_root>/check_outputs/compliance`; that writes
+outside the selected version and can make the frontend read stale or missing
+tables.
 
 ## Command Form
 
@@ -35,11 +45,11 @@ python -m compliance.runner \
 
 `python -m compliance` is an alias for `python -m compliance.runner`.
 
-The default output directory is `<workspace_dir>/check_outputs/compliance`.
-Avoid passing `--output-dir` for normal workflow runs. If a custom output
-directory is provided, it must be inside `workspace_dir`; paths outside the
-current version workspace are ignored and replaced by the default output
-directory.
+The default output directory is `<workspace_dir>/check_outputs/compliance`,
+where `<workspace_dir>` is the concrete version directory. Avoid passing
+`--output-dir` for normal workflow runs. If a custom output directory is
+provided, it must be inside `workspace_dir`; paths outside the current version
+workspace are ignored and replaced by the default output directory.
 
 The runner writes:
 
@@ -80,6 +90,9 @@ report_generation
 - `requirements_analysis` also writes `stages/satellite_info.json` as a helper
   artifact when it asks the LLM for combined requirement/satellite analysis.
 - `component_classification` also writes `stages/category_summary.json`.
+- `catalog_match` reads `input_config.json` `catalog_match.threshold` as the
+  catalog-in similarity threshold. The value must be between 0 and 1; invalid
+  or missing values fall back to `0.72`.
 - `derating_check` uses `input_config.json` `derating_table` and
   `derating_standard` when present. If no valid standard JSON is configured, it
   uses `reference/jiange_full.json`.

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import re
 from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 from typing import Any
 
+from .llm_catalog import score_catalog_batches_with_llm
+from .llm_classifier import LlmClassifierConfig
 from .schema import ComponentRecord
 
 QUALITY_ORDER = {
@@ -21,6 +24,28 @@ QUALITY_ORDER = {
     "民品级": 1,
     "商业级": 1,
     "": 0,
+}
+
+CATALOG_DETAIL_ALIASES = {
+    "package_type": ["package_type", "package", "\u5c01\u88c5\u5f62\u5f0f", "\u5c01\u88c5"],
+    "quality_level": ["quality_level", "\u8d28\u91cf\u7b49\u7ea7", "\u7b49\u7ea7"],
+    "standard": ["standard", "execution_standard", "\u6267\u884c\u6807\u51c6"],
+    "temperature": [
+        "temperature",
+        "temperature_range",
+        "working_temp",
+        "\u6e29\u5ea6\u8303\u56f4",
+        "\u6e29\u5ea6\u8303\u56f4(\u2103)",
+        "\u6e29\u5ea6\u8303\u56f4 (\u00b0C)",
+    ],
+    "name": ["name", "catalog_name", "\u540d\u79f0", "\u5143\u5668\u4ef6\u540d\u79f0"],
+    "manufacturer_full_name": ["manufacturer_full_name", "\u5382\u5546\u5168\u79f0", "\u751f\u4ea7\u5382\u5546\u5168\u79f0"],
+    "subtype": ["subtype", "\u5b50\u7c7b", "\u7ec6\u5206\u7c7b"],
+    "table_name": ["table_name", "\u76ee\u5f55\u8868", "\u8868\u540d"],
+    "tid": ["TID", "tid"],
+    "see": ["SEE", "see"],
+    "sel": ["SEL", "sel"],
+    "seb": ["SEB", "SEGR", "SEB \u548c SEGR", "SEB/SEGR", "seb"],
 }
 
 
@@ -162,7 +187,10 @@ def catalog_match_with_candidates(
     catalog_rows: list[dict],
     configured_results: list[dict] | None = None,
     manufacturer_origins: dict[str, str] | None = None,
+    match_threshold: float | None = None,
+    llm_config: LlmClassifierConfig | None = None,
 ) -> list[dict[str, Any]]:
+    threshold = CATALOG_MATCH_THRESHOLD if match_threshold is None else match_threshold
     if configured_results:
         return _normalize_configured_catalog_results(
             components, configured_results, manufacturer_origins
@@ -191,18 +219,40 @@ def catalog_match_with_candidates(
             )
         return rows
 
-    rows = []
+    component_items: list[tuple[ComponentRecord, str, list[dict[str, Any]]]] = []
     for comp in components:
         origin = _origin_from_map(comp.manufacturer, manufacturer_origins)
         if origin == "进口":
+            component_items.append((comp, origin, []))
+            continue
+        component_items.append((comp, origin, _catalog_candidates(comp, catalog_rows)))
+
+    llm_scored = (
+        score_catalog_batches_with_llm(
+            [(comp, candidates) for comp, _origin, candidates in component_items],
+            llm_config,
+        )
+        if llm_config and llm_config.enabled
+        else {}
+    )
+
+    rows = []
+    for comp, origin, candidates in component_items:
+        if origin == "进口":
             rows.append(_import_catalog_unavailable_row(comp, with_candidates=True))
             continue
-        candidates = _catalog_candidates(comp, catalog_rows)
+        candidates = llm_scored.get(comp.index, candidates)
         selected = candidates[0] if candidates else None
-        is_confident = bool(selected and selected["score"] >= CATALOG_MATCH_THRESHOLD)
+        selected_score = float(selected.get("_score", 0)) if selected else 0
+        is_confident = bool(selected and selected_score >= threshold)
         selected_in_catalog = bool(
-            selected and selected["score"] >= CATALOG_MATCH_THRESHOLD
+            selected and selected_score >= threshold
         )
+        if not selected_in_catalog:
+            selected = None
+            selected_score = 0
+        public_candidates = [_public_catalog_candidate(candidate) for candidate in candidates]
+        public_selected = _public_catalog_candidate(selected) if selected else None
         rows.append(
             {
                 "index": comp.index,
@@ -214,13 +264,11 @@ def catalog_match_with_candidates(
                 if selected
                 else "",
                 "is_in_catalog": "目录内" if selected_in_catalog else "目录外",
-                "score": selected["score"]
-                if selected
-                else (candidates[0]["score"] if candidates else 0),
+                "score": round(selected_score, 3) if selected else 0,
                 "ai_recommended": selected is not None,
                 "recommendation_confident": is_confident,
-                "selected_candidate": selected,
-                "candidates": candidates,
+                "selected_candidate": public_selected,
+                "candidates": public_candidates,
             }
         )
     return rows
@@ -273,6 +321,14 @@ def _normalize_configured_catalog_results(
             item["is_in_catalog"] = "无"
             if "目录内或外" in item:
                 item["目录内或外"] = "无"
+        if item.get("is_in_catalog") != "目录内":
+            item["catalog_model"] = ""
+            item["catalog_manufacturer"] = ""
+            item["score"] = 0
+            item["ai_recommended"] = False
+            item["recommendation_confident"] = False
+            item["selected_candidate"] = None
+            item["candidates"] = []
         output.append(item)
     return output
 
@@ -294,38 +350,30 @@ def catalog_match_report_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]
     ]
 
 
-def _catalog_score(
-    comp: ComponentRecord, model: str, name: str, manufacturer: str
-) -> float:
+def _catalog_score(comp: ComponentRecord, model: str, manufacturer: str) -> float:
     model_score = _ratio(comp.model, model)
-    name_score = max(_ratio(comp.name, name), _ratio(comp.name, model))
-    base_score = max(model_score, name_score)
     if comp.manufacturer and manufacturer:
-        return (base_score * 0.75) + (_ratio(comp.manufacturer, manufacturer) * 0.25)
-    return base_score
-
-
-def _catalog_match_reason(
-    comp: ComponentRecord, model: str, name: str, manufacturer: str, score: float
-) -> str:
-    parts = []
-    if comp.model and model:
-        parts.append(f"型号相似度 {round(_ratio(comp.model, model) * 100, 1)}%")
-    if comp.name and (name or model):
-        parts.append(
-            f"名称相似度 {round(max(_ratio(comp.name, name), _ratio(comp.name, model)) * 100, 1)}%"
-        )
-    if comp.manufacturer and manufacturer:
-        parts.append(
-            f"厂商相似度 {round(_ratio(comp.manufacturer, manufacturer) * 100, 1)}%"
-        )
-    parts.append(f"综合得分 {round(score * 100, 1)}%")
-    return "；".join(parts)
+        return (model_score * 0.75) + (_ratio(comp.manufacturer, manufacturer) * 0.25)
+    return model_score
 
 
 def _catalog_detail(item: dict[str, Any]) -> dict[str, Any]:
     detail = {}
+    all_fields = _parse_json_object(item.get("all_fields"))
+    for key, value in all_fields.items():
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            detail[str(key)] = text
     for key, value in item.items():
+        if key == "all_fields" or value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            detail[str(key)] = text
+    parsed_detail = _parse_json_object(detail.get("detail"))
+    for key, value in parsed_detail.items():
         if value is None:
             continue
         text = str(value).strip()
@@ -364,8 +412,23 @@ def _catalog_field(row: dict[str, Any], field: str) -> str:
             "\u5206\u7c7b",
             "\u76ee\u5f55\u7c7b\u522b",
         ],
+        "package_type": ["package_type", "package", "\u5c01\u88c5\u5f62\u5f0f", "\u5c01\u88c5"],
+        "quality_level": ["quality_level", "\u8d28\u91cf\u7b49\u7ea7", "\u7b49\u7ea7"],
+        "standard": ["standard", "execution_standard", "\u6267\u884c\u6807\u51c6"],
+        "temperature": [
+            "temperature",
+            "temperature_range",
+            "working_temp",
+            "\u6e29\u5ea6\u8303\u56f4",
+            "\u6e29\u5ea6\u8303\u56f4(\u2103)",
+            "\u6e29\u5ea6\u8303\u56f4 (\u00b0C)",
+        ],
     }
     value = _first_value(row, exact_aliases[field])
+    if value:
+        return value
+    parsed_detail = _parse_json_object(row.get("detail"))
+    value = _first_value(parsed_detail, exact_aliases[field])
     if value:
         return value
 
@@ -382,6 +445,10 @@ def _catalog_field(row: dict[str, Any], field: str) -> str:
             "\u5236\u9020",
         ],
         "group": ["group", "category", "\u7c7b\u522b", "\u5206\u7c7b", "\u76ee\u5f55"],
+        "package_type": ["package", "\u5c01\u88c5"],
+        "quality_level": ["quality", "\u8d28\u91cf\u7b49\u7ea7", "\u7b49\u7ea7"],
+        "standard": ["standard", "\u6267\u884c\u6807\u51c6"],
+        "temperature": ["temperature", "temp", "\u6e29\u5ea6"],
     }
     for key, item in row.items():
         if item is None:
@@ -392,6 +459,23 @@ def _catalog_field(row: dict[str, Any], field: str) -> str:
             if value:
                 return value
     return ""
+
+
+def _parse_json_object(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _catalog_detail_value(detail: dict[str, Any], field: str) -> str:
+    return _first_value(detail, CATALOG_DETAIL_ALIASES[field])
+
 
 
 def _first_value(row: dict, names: list[str]) -> str:
@@ -408,7 +492,7 @@ def _ratio(a: str, b: str) -> float:
 
 
 CATALOG_RECALL_LIMIT = 400
-CATALOG_CANDIDATE_LIMIT = 10
+CATALOG_CANDIDATE_LIMIT = 5
 CATALOG_MATCH_THRESHOLD = 0.72
 CATALOG_PREFIX_LENGTH = 4
 CATALOG_NGRAM_SIZE = 3
@@ -422,32 +506,75 @@ def _catalog_candidates(
     candidate_entries = _recall_catalog_entries(comp, index)
     candidates = []
     for entry in candidate_entries:
-        score = _catalog_score(
-            comp, entry["model"], entry["name"], entry["manufacturer"]
-        )
+        score = _catalog_score(comp, entry["model"], entry["manufacturer"])
         candidates.append(
             {
-                "rank": 0,
-                "catalog_index": entry["catalog_index"],
                 "catalog_model": entry["model"],
-                "catalog_name": entry["name"],
                 "catalog_manufacturer": entry["manufacturer"],
                 "catalog_group": entry["group"],
-                "score": round(score, 3),
-                "similarity": f"{round(score * 100, 1)}%",
-                "reason": _catalog_match_reason(
-                    comp, entry["model"], entry["name"], entry["manufacturer"], score
-                ),
-                "catalog_detail": entry["detail"],
+                "detail": _compact_catalog_detail(entry["detail"]),
+                "reason": "规则预筛：仅计算型号和厂商相似度",
+                "_score": round(score, 3),
             }
         )
     candidates.sort(
-        key=lambda item: (item["score"], item.get("catalog_group") == "A"), reverse=True
+        key=lambda item: (item["_score"], item.get("catalog_group") == "A"), reverse=True
     )
-    candidates = candidates[:CATALOG_CANDIDATE_LIMIT]
-    for rank, item in enumerate(candidates, start=1):
-        item["rank"] = rank
+    candidates = _dedupe_catalog_candidates(candidates)[:CATALOG_CANDIDATE_LIMIT]
     return candidates
+
+
+def _dedupe_catalog_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    output = []
+    seen = set()
+    for candidate in candidates:
+        key = (
+            _catalog_norm(candidate.get("catalog_model")),
+            _catalog_norm(candidate.get("catalog_group")),
+            _catalog_norm(candidate.get("catalog_manufacturer")),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        output.append(candidate)
+    return output
+
+
+def _public_catalog_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+    item = {
+        "catalog_model": candidate.get("catalog_model", ""),
+        "catalog_group": candidate.get("catalog_group", ""),
+        "catalog_manufacturer": candidate.get("catalog_manufacturer", ""),
+        "detail": candidate.get("detail", {}),
+        "score": round(float(candidate.get("_score") or 0), 3),
+    }
+    reason = str(candidate.get("reason") or "").strip()
+    if reason:
+        item["reason"] = reason
+    return item
+
+
+def _compact_catalog_detail(detail: dict[str, Any]) -> dict[str, str]:
+    fields = [
+        ("执行标准", "standard"),
+        ("质量等级", "quality_level"),
+        ("封装形式", "package_type"),
+        ("温度范围", "temperature"),
+        ("名称", "name"),
+        ("生产厂商全称", "manufacturer_full_name"),
+        ("子类", "subtype"),
+        ("目录表", "table_name"),
+        ("TID", "tid"),
+        ("SEE", "see"),
+        ("SEL", "sel"),
+        ("SEB/SEGR", "seb"),
+    ]
+    compact = {}
+    for label, field in fields:
+        value = _catalog_detail_value(detail, field) if field in CATALOG_DETAIL_ALIASES else _first_value(detail, [field])
+        if value:
+            compact[label] = value
+    return compact
 
 
 def _catalog_index(catalog_rows: list[dict]) -> dict[str, Any]:
@@ -466,6 +593,7 @@ def _catalog_index(catalog_rows: list[dict]) -> dict[str, Any]:
         name = _catalog_field(item, "name")
         maker = _catalog_field(item, "manufacturer")
         group = _catalog_field(item, "group")
+        detail = _catalog_detail(item)
         model_key = _catalog_norm(model)
         maker_key = _catalog_norm(maker)
         entry = {
@@ -474,7 +602,7 @@ def _catalog_index(catalog_rows: list[dict]) -> dict[str, Any]:
             "name": name,
             "manufacturer": maker,
             "group": group,
-            "detail": _catalog_detail(item),
+            "detail": detail,
             "model_key": model_key,
             "name_key": _catalog_norm(name),
             "manufacturer_key": maker_key,

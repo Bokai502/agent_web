@@ -493,6 +493,8 @@ def run_stage(stage: str, context: RunnerContext) -> Any:
             rows,
             configured,
             manufacturer_origins_for_stage(context, components, artifacts),
+            catalog_match_threshold(context),
+            context.llm_config,
         )
     if stage == "quality_level_check":
         configured = context.config.external_results("quality_compare_results")
@@ -527,6 +529,17 @@ def run_stage(stage: str, context: RunnerContext) -> Any:
         )
         return {"report_path": str(report_path), **report_meta}
     raise ValueError(f"Unknown stage: {stage}")
+
+
+def catalog_match_threshold(context: RunnerContext) -> float:
+    value = context.config.get("catalog_match.threshold", checks.CATALOG_MATCH_THRESHOLD)
+    try:
+        threshold = float(value)
+    except (TypeError, ValueError):
+        return checks.CATALOG_MATCH_THRESHOLD
+    if 0 <= threshold <= 1:
+        return threshold
+    return checks.CATALOG_MATCH_THRESHOLD
 
 
 def run_manufacturer_check(

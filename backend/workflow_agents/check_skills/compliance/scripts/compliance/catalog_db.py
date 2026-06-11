@@ -46,6 +46,7 @@ select
   name::text as name,
   model::text as model,
   manufacturer::text as manufacturer,
+  to_jsonb(component_series)::text as all_fields,
   'component_series' as source_table
 from component_series
 where name is not null or model is not null or manufacturer is not null
@@ -55,6 +56,7 @@ select
   name::text as name,
   model::text as model,
   manufacturer::text as manufacturer,
+  to_jsonb(component_series_outside)::text as all_fields,
   'component_series_outside' as source_table
 from component_series_outside
 where name is not null or model is not null or manufacturer is not null
@@ -171,6 +173,7 @@ def _candidate_select_sql(table: str, columns: set[str]) -> str:
     subtype_expr = _column_expr(columns, "subtype")
     type_expr = _column_expr(columns, "type")
     table_name_expr = _column_expr(columns, "table_name")
+    all_fields_expr = _all_fields_expr()
     return f"""
 select
   {id_expr} as id,
@@ -183,6 +186,7 @@ select
   {subtype_expr} as subtype,
   {type_expr} as type,
   {table_name_expr} as table_name,
+  {all_fields_expr} as all_fields,
   '{table}' as source_table,
   (
     case when {model_expr} ilike any(c.model_terms) then 100 else 0 end +
@@ -190,7 +194,7 @@ select
     case when {manufacturer_expr} ilike any(c.maker_terms) then 20 else 0 end +
     case when {manufacturer_full_name_expr} ilike any(c.maker_terms) then 20 else 0 end
   ) as recall_rank
-from {table}
+from {table} t
 where
   {model_expr} ilike any(c.model_terms)
   or {name_expr} ilike any(c.model_terms)
@@ -201,14 +205,18 @@ where
 
 def _column_expr(columns: set[str], column: str) -> str:
     if column in columns:
-        return f"{_ident(column)}::text"
+        return f"t.{_ident(column)}::text"
     return "''::text"
 
 
 def _json_text_expr(columns: set[str], column: str) -> str:
     if column in columns:
-        return f"{_ident(column)}::text"
+        return f"t.{_ident(column)}::text"
     return "''::text"
+
+
+def _all_fields_expr() -> str:
+    return "to_jsonb(t)::text"
 
 
 def _ident(name: str) -> str:
