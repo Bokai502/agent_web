@@ -16,6 +16,23 @@ type GncConfigEditorProps = {
 }
 
 const TIME_MODES = ["FAST", "REAL", "EXTERNAL", "NOS3"]
+const CELESTIAL_BODY_FIELDS = [
+  ["mercury", "Mercury"],
+  ["venus", "Venus"],
+  ["earth_luna", "Earth and Luna"],
+  ["mars", "Mars and Moons"],
+  ["jupiter", "Jupiter and Moons"],
+  ["saturn", "Saturn and Moons"],
+  ["uranus", "Uranus and Moons"],
+  ["neptune", "Neptune and Moons"],
+  ["pluto", "Pluto and Moons"],
+  ["minor_bodies", "Asteroids and Comets"],
+] as const
+const LAGRANGE_SYSTEM_FIELDS = [
+  ["earth_moon", "Earth-Moon"],
+  ["sun_earth", "Sun-Earth"],
+  ["sun_jupiter", "Sun-Jupiter"],
+] as const
 const WORLD_OPTIONS = [
   "SOL", "MERCURY", "VENUS", "EARTH", "LUNA", "MARS", "JUPITER",
   "SATURN", "URANUS", "NEPTUNE", "PLUTO", "MINORBODY_0", "MINORBODY_1", "MINORBODY_2",
@@ -176,7 +193,7 @@ function VectorField({
 }) {
   const values = asArray(getPath(payload, path))
   return (
-    <div className="gnc-editor-field wide">
+    <div className="gnc-editor-field vector-field">
       <span>{label}</span>
       <div className="gnc-vector-grid">
         {values.map((value, index) => (
@@ -195,14 +212,24 @@ function VectorField({
   )
 }
 
-function EditorCard({ children, subtitle, title }: { children: React.ReactNode; subtitle: string; title: string }) {
+function EditorCard({
+  children,
+  className = "",
+  subtitle,
+  title,
+}: {
+  children: React.ReactNode
+  className?: string
+  subtitle: string
+  title: string
+}) {
   return (
-    <section className="gnc-editor-card">
+    <section className={["gnc-editor-card", className].filter(Boolean).join(" ")}>
       <div className="gnc-editor-card-head">
         <strong>{title}</strong>
         <span>{subtitle}</span>
       </div>
-      {children}
+      <div className="gnc-editor-card-body">{children}</div>
     </section>
   )
 }
@@ -293,7 +320,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
       <div className="gnc-editor-status">{status}</div>
 
       <div className="gnc-editor-grid">
-        <EditorCard title="Simulation Control" subtitle="Top-level values from Inp_Sim.txt">
+        <EditorCard className="span-2" title="Simulation Control" subtitle="Top-level values from Inp_Sim.txt">
           <div className="gnc-form-grid">
             <Field label="Time Mode" onChange={update} options={TIME_MODES} path={["sim", "time_mode"]} payload={payload} type="select" />
             <Field label="Stop Time (s)" onChange={update} path={["sim", "stop_time_s"]} payload={payload} type="number" />
@@ -302,10 +329,25 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
             <Field integer label="RNG Seed" onChange={update} path={["sim", "rng_seed"]} payload={payload} type="number" />
             <Field label="Enable Graphics" onChange={update} path={["sim", "gl_enable"]} payload={payload} type="boolean" />
             <Field label="Command File" onChange={update} path={["sim", "cmd_file"]} payload={payload} />
+            <Field integer label="UTC Month" onChange={update} path={["sim", "utc_date", "month"]} payload={payload} type="number" />
+            <Field integer label="UTC Day" onChange={update} path={["sim", "utc_date", "day"]} payload={payload} type="number" />
+            <Field integer label="UTC Year" onChange={update} path={["sim", "utc_date", "year"]} payload={payload} type="number" />
+            <Field integer label="UTC Hour" onChange={update} path={["sim", "utc_time", "hour"]} payload={payload} type="number" />
+            <Field integer label="UTC Minute" onChange={update} path={["sim", "utc_time", "minute"]} payload={payload} type="number" />
+            <Field label="UTC Second" onChange={update} path={["sim", "utc_time", "second"]} payload={payload} type="number" />
+            <Field label="Leap Seconds" onChange={update} path={["sim", "leap_seconds"]} payload={payload} type="number" />
             <Field label="Atmosphere Option" onChange={update} options={["USER", "NOMINAL", "TWOSIGMA"]} path={["sim", "atmo_option"]} payload={payload} type="select" />
             <Field label="Flux10p7" onChange={update} path={["sim", "flux10p7"]} payload={payload} type="number" />
             <Field label="Geomag Index" onChange={update} path={["sim", "geomag_index"]} payload={payload} type="number" />
             <Field label="Mag Model" onChange={update} options={["NONE", "DIPOLE", "IGRF"]} path={["sim", "mag_model", "type"]} payload={payload} type="select" />
+            <Field integer label="IGRF Degree" onChange={update} path={["sim", "mag_model", "n"]} payload={payload} type="number" />
+            <Field integer label="IGRF Order" onChange={update} path={["sim", "mag_model", "m"]} payload={payload} type="number" />
+            <Field integer label="Earth Gravity N" onChange={update} path={["sim", "earth_gravity_model", "n"]} payload={payload} type="number" />
+            <Field integer label="Earth Gravity M" onChange={update} path={["sim", "earth_gravity_model", "m"]} payload={payload} type="number" />
+            <Field integer label="Mars Gravity N" onChange={update} path={["sim", "mars_gravity_model", "n"]} payload={payload} type="number" />
+            <Field integer label="Mars Gravity M" onChange={update} path={["sim", "mars_gravity_model", "m"]} payload={payload} type="number" />
+            <Field integer label="Luna Gravity N" onChange={update} path={["sim", "luna_gravity_model", "n"]} payload={payload} type="number" />
+            <Field integer label="Luna Gravity M" onChange={update} path={["sim", "luna_gravity_model", "m"]} payload={payload} type="number" />
             <Field label="Ephemeris Option" onChange={update} options={["MEAN", "DE430", "DE440"]} path={["sim", "ephem_option"]} payload={payload} type="select" />
           </div>
           <div className="gnc-toggle-grid">
@@ -317,9 +359,21 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
               <Field key={key} label={key} onChange={update} path={["sim", key]} payload={payload} type="boolean" />
             ))}
           </div>
+          <div className="gnc-editor-subhead">Celestial Bodies</div>
+          <div className="gnc-toggle-grid compact">
+            {CELESTIAL_BODY_FIELDS.map(([key, label]) => (
+              <Field key={key} label={label} onChange={update} path={["sim", "celestial_bodies", key]} payload={payload} type="boolean" />
+            ))}
+          </div>
+          <div className="gnc-editor-subhead">Lagrange Point Systems</div>
+          <div className="gnc-toggle-grid compact">
+            {LAGRANGE_SYSTEM_FIELDS.map(([key, label]) => (
+              <Field key={key} label={label} onChange={update} path={["sim", "lagrange_systems", key]} payload={payload} type="boolean" />
+            ))}
+          </div>
         </EditorCard>
 
-        <EditorCard title="Orbit Configuration" subtitle={formatValue(orbit.file) || "Referenced orbit"}>
+        <EditorCard className="span-half" title="Orbit Configuration" subtitle={formatValue(orbit.file) || "Referenced orbit"}>
           <div className="gnc-form-grid">
             <label className="gnc-editor-field wide">
               <span>Active Orbit</span>
@@ -339,7 +393,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
           </div>
         </EditorCard>
 
-        <EditorCard title="Spacecraft Core" subtitle={formatValue(spacecraft.file) || "Referenced spacecraft"}>
+        <EditorCard className="span-half" title="Spacecraft Core" subtitle={formatValue(spacecraft.file) || "Referenced spacecraft"}>
           <div className="gnc-form-grid">
             <label className="gnc-editor-field wide">
               <span>Active Spacecraft</span>
@@ -358,7 +412,7 @@ export function GncConfigEditor({ activeContext, apiBase }: GncConfigEditorProps
           </div>
         </EditorCard>
 
-        <EditorCard title="Actuators, Sensors, Bodies" subtitle="Use selectors to switch multi-instance entries.">
+        <EditorCard className="span-full" title="Actuators, Sensors, Bodies" subtitle="Use selectors to switch multi-instance entries.">
           <div className="gnc-editor-toolbar">
             <select value={collection} onChange={event => { setCollection(event.target.value as typeof collection); setCollectionIndex(0) }}>
               {COLLECTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}

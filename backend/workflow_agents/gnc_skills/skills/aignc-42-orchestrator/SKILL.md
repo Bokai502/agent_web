@@ -63,7 +63,7 @@ Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-42-orchestr
 
 Workspace-local layout and writable-boundary rules are governed by `codex_web/AIGNC/AGENT.md`.
 
-All AI workflow stage artifacts must be located under `<workspace>/AIGNC_Workflow/`, including `01_inputs/`, `02_scenario/`, `03_capability/`, `04_config/`, `05_fsw_requirements/`, `06_fsw_architecture/`, `07_fsw_implementation/`, `08_run/`, `09_*`, and `10_reports/`. Final validated runtime configuration is synchronized to `<workspace>/Config/`; real build and simulation execution are under `<workspace>/Output/Run/`.
+All AI workflow stage artifacts must be located under `<workspace>/AIGNC_Workflow/`, including `01_inputs/`, `02_scenario/`, `03_capability/`, `04_config/`, `05_fsw_requirements/`, `06_fsw_architecture/`, `07_fsw_implementation/`, `08_run/`, `09_*`, and `10_reports/`. Final validated runtime configuration is synchronized to `<workspace>/00_inputs/Config/`; real build and simulation execution are under `<workspace>/02_sim/42_run/`.
 
 Maintain `<workspace>/AIGNC_Workflow/workflow_log.md` as the design-process status log. At orchestration start, after each internal checklist step, after every routing or stage-gate action, when blocked, and at handoff/completion, append a numbered entry with timestamp, stage id, current skill, step id or step name, status, concise description, key input artifacts checked, key output artifacts written or updated, and next action or handoff target when known. Do not store chain-of-thought; log only externally useful workflow state, evidence, decisions, blockers, and handoff facts.
 

@@ -299,7 +299,7 @@ For repeatable use, each run should write intermediate and final artifacts into 
     run_summary.json
 ```
 
-For direct edits to the workspace `Config/` directory, the same metadata files should still be created under `<workspace>/AIGNC_Workflow/`.
+For direct edits to the workspace `00_inputs/Config/` directory, the same metadata files should still be created under `<workspace>/AIGNC_Workflow/`.
 
 ## Configuration Closure Definition
 

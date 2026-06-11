@@ -251,8 +251,8 @@
 
 任何 `CFS_FSW` 扩展后，至少应做：
 
-1. 编译通过：`python3 <workspace>/Script/build_42.py --headless`
-2. 案例能运行：`python3 <workspace>/Script/run_case.py --headless`
+1. 编译通过：`python3 <workspace>/00_inputs/Script/build_42.py --workspace-dir <workspace> --headless`
+2. 案例能运行：`python3 <workspace>/00_inputs/Script/run_case.py --workspace-dir <workspace> --headless`
 3. 检查模式切换过程
 4. 检查姿态、角速度和执行机构输出曲线
 5. 与需求指标对比

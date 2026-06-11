@@ -45,10 +45,10 @@ EXPECTED = {
         "run_report.md",
         "run_summary.json",
     ],
-    "Config": [
+    "00_inputs/Config": [
         "Inp_Sim.txt",
     ],
-    "Output/Run": [
+    "02_sim/42_run": [
         "Makefile",
         ("42", "42.exe"),
     ],
@@ -80,7 +80,7 @@ def stage_inventory(workspace_dir: Path):
             "expected_files": present,
         }
 
-    inout = workspace_dir / "Output" / "Run" / "runtime_case" / "InOut"
+    inout = workspace_dir / "02_sim" / "42_run" / "runtime_case" / "InOut"
     data["runtime_inout"] = {
         "exists": inout.exists(),
         "path": str(inout),

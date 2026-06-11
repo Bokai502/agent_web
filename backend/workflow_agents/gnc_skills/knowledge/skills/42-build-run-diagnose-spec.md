@@ -25,7 +25,7 @@ aignc-42-orchestrator
 
 Required:
 
-- validated `<workspace>/Config/` package or validated `<workspace>/AIGNC_Workflow/04_config/` package
+- validated `<workspace>/00_inputs/Config/` package or validated `<workspace>/AIGNC_Workflow/04_config/` package
 - `config_validation_summary.json`
 
 Optional:
@@ -46,6 +46,24 @@ Optional:
 4. Separate configuration load/parser failures from non-configuration concerns.
 5. Return pass as soon as the workspace package builds, loads, runs to normal completion, and expected basic outputs exist.
 6. Produce a bounded diagnosis report.
+
+## Evidence Freshness
+
+This stage must not diagnose from stale logs or stale reports.
+
+Before citing `run_stdout.log`, `run_stderr.log`, `run_report.md`, `run_summary.json`, or existing `.42`/CSV outputs, compare their mtimes against the active source configuration in `<workspace>/00_inputs/Config/`.
+
+The active config freshness set includes:
+
+- `<workspace>/00_inputs/Config/Inp_Sim.txt`
+- orbit files referenced by `Inp_Sim.txt`
+- spacecraft files referenced by `Inp_Sim.txt`
+
+Also compare the matching runtime files under `<workspace>/02_sim/42_run/runtime_case/InOut/`.
+
+If existing logs or reports are older than the newest active config, they are stale and must not be used as the latest run verdict. If source config is newer than runtime `InOut`, the latest execution did not produce a trustworthy 42 load/run result; classify it as an executor/workflow interruption or stale-evidence condition until `run_case.py` performs a fresh copy and a new 42 process writes fresh logs.
+
+Route to `42-config-author` only when fresh logs from the current runtime copy prove a configuration parser/load failure. Do not route to `42-config-author` merely because an older report contains a previous `Bogus input` failure.
 
 ## Explicit Non-Goals
 

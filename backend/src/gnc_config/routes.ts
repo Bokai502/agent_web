@@ -9,6 +9,11 @@ import {
 
 const GNC_INPUTS_DIRNAME = "00_inputs"
 const GNC_CONFIG_DIRNAME = "Config"
+const CELESTIAL_BODY_KEYS = [
+  "mercury", "venus", "earth_luna", "mars", "jupiter",
+  "saturn", "uranus", "neptune", "pluto", "minor_bodies",
+] as const
+const LAGRANGE_SYSTEM_KEYS = ["earth_moon", "sun_earth", "sun_jupiter"] as const
 
 type WorkspaceQuery = {
   versionId?: string
@@ -58,7 +63,8 @@ function isBanner(line: string) {
 }
 
 function tokenize(line: string) {
-  return [...line.matchAll(/"([^"]*)"|'([^']*)'|[^\s]+/gu)].map(match => match[1] ?? match[2] ?? match[0])
+  return [...line.matchAll(/"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|[^\s]+/gu)]
+    .map(match => normalizeConfigString(match[1] ?? match[2] ?? match[0]))
 }
 
 function toNumber(value: string | undefined) {
@@ -113,18 +119,38 @@ function isRawLine(value: unknown): value is RawLine {
   return isRecord(value) && typeof value.__rawLine === "string"
 }
 
+function normalizeConfigString(value: unknown) {
+  let text = String(value ?? "")
+  for (let index = 0; index < 4; index += 1) {
+    const unescaped = text.replace(/\\"/gu, '"').replace(/\\'/gu, "'")
+    const trimmed = unescaped.trim()
+    const unquoted =
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+        ? trimmed.slice(1, -1)
+        : unescaped
+    if (unquoted === text) return unquoted
+    text = unquoted
+  }
+  return text
+}
+
+function quoteConfigString(value: unknown) {
+  return rawLine(`"${normalizeConfigString(value).replace(/"/gu, '\\"')}"`)
+}
+
 function formatValue(value: unknown) {
   if (isRawLine(value)) return value.__rawLine
   if (typeof value === "boolean") return boolText(value)
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(12)))
-  if (typeof value === "string" && /\s/u.test(value)) return `"${value.replace(/"/gu, '\\"')}"`
+  if (typeof value === "string") return normalizeConfigString(value)
   return String(value ?? "")
 }
 
 function formatToken(value: unknown) {
   if (typeof value === "boolean") return boolText(value)
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(12)))
-  return String(value ?? "")
+  return normalizeConfigString(value)
 }
 
 function formatSeq(values: unknown[]) {
@@ -160,6 +186,17 @@ class ConfigReader {
 
   skipLines(count: number) {
     for (let index = 0; index < count; index += 1) this.nextLine()
+  }
+
+  skipOptionalBlock(count: number, predicate: (tokens: string[]) => boolean) {
+    const savedIndex = this.index
+    try {
+      const tokens = this.nextTokens()
+      this.index = savedIndex
+      if (predicate(tokens)) this.skipLines(count)
+    } catch {
+      this.index = savedIndex
+    }
   }
 }
 
@@ -198,9 +235,27 @@ class ConfigLineEditor {
     for (let index = 0; index < count; index += 1) this.nextDataLineIndex()
   }
 
+  skipOptionalBlock(count: number, predicate: (tokens: string[]) => boolean) {
+    const savedIndex = this.index
+    try {
+      const lineIndex = this.nextDataLineIndex()
+      const tokens = tokenize(this.clean(this.lines[lineIndex] ?? ""))
+      this.index = savedIndex
+      if (predicate(tokens)) this.skip(count)
+    } catch {
+      this.index = savedIndex
+    }
+  }
+
   text() {
     return this.lines.join("\n")
   }
+}
+
+const JOINT_TEMPLATE_LINE_COUNT = 15
+
+function looksLikeJointBlockStart(tokens: string[]) {
+  return ["ACTUATED", "PASSIVE"].includes(tokens[0] ?? "")
 }
 
 async function readConfigFile(configDir: string, fileName: string) {
@@ -284,6 +339,12 @@ async function parseSim(configDir: string) {
     if (key === "sol_press_active") sim.sol_press_shadows_active = toBool(tokens[1])
   }
   sim.ephem_option = r.nextTokens()[0] ?? ""
+  const celestialBodies: Record<string, unknown> = {}
+  for (const key of CELESTIAL_BODY_KEYS) celestialBodies[key] = toBool(r.nextTokens()[0])
+  sim.celestial_bodies = celestialBodies
+  const lagrangeSystems: Record<string, unknown> = {}
+  for (const key of LAGRANGE_SYSTEM_KEYS) lagrangeSystems[key] = toBool(r.nextTokens()[0])
+  sim.lagrange_systems = lagrangeSystems
 
   return sim
 }
@@ -291,7 +352,7 @@ async function parseSim(configDir: string) {
 async function parseOrbit(configDir: string, file: string) {
   const r = new ConfigReader(await readConfigFile(configDir, file))
   const orbit: Record<string, unknown> = { file }
-  orbit.description = r.nextLine()
+  orbit.description = normalizeConfigString(r.nextLine())
   orbit.regime = r.nextTokens()[0] ?? ""
   orbit.zero = { world: r.nextTokens()[0] ?? "", polyhedron_gravity_enabled: toBool(r.nextTokens()[0]) }
   orbit.flight = { region_number: toInt(r.nextTokens()[0]), polyhedron_gravity_enabled: toBool(r.nextTokens()[0]) }
@@ -323,7 +384,7 @@ function parseCountedItems<T>(r: ConfigReader, count: number, parser: (index: nu
 async function parseSpacecraft(configDir: string, file: string) {
   const r = new ConfigReader(await readConfigFile(configDir, file))
   const sc: Record<string, unknown> = { file }
-  sc.description = r.nextLine()
+  sc.description = normalizeConfigString(r.nextLine())
   sc.label = r.nextTokens()[0] ?? ""
   sc.sprite_file = r.nextTokens()[0] ?? ""
   sc.fsw_tag = r.nextTokens()[0] ?? ""
@@ -397,6 +458,7 @@ async function parseSpacecraft(configDir: string, file: string) {
     joint.parm_file = r.nextTokens()[0] ?? ""
     return joint
   })
+  if (jointCount === 0) r.skipOptionalBlock(JOINT_TEMPLATE_LINE_COUNT, looksLikeJointBlockStart)
 
   sc.wheels = { drag_active: toBool(r.nextTokens()[0]), jitter_active: toBool(r.nextTokens()[0]) }
   const wheelCount = toInt(r.nextTokens()[0])
@@ -497,6 +559,10 @@ async function writeSim(configDir: string, sim: Record<string, unknown>) {
     "slosh_active", "albedo_active", "compute_env_trq",
   ]) editor.replace(sim[key])
   editor.replace(sim.ephem_option)
+  const celestialBodies = rec(sim.celestial_bodies)
+  for (const key of CELESTIAL_BODY_KEYS) editor.replace(celestialBodies[key])
+  const lagrangeSystems = rec(sim.lagrange_systems)
+  for (const key of LAGRANGE_SYSTEM_KEYS) editor.replace(lagrangeSystems[key])
   await writeConfigFile(configDir, file, editor.text())
 }
 
@@ -524,8 +590,8 @@ async function writeOrbit(configDir: string, orbit: Record<string, unknown>) {
   editor.replace(formatSeq(arr(rv.position_km)))
   editor.replace(formatSeq(arr(rv.velocity_km_s)))
   editor.replace(fileInput.element_type)
-  editor.replace(fileInput.element_file)
-  editor.replace(fileInput.element_label)
+  editor.replace(quoteConfigString(fileInput.element_file))
+  editor.replace(quoteConfigString(fileInput.element_label))
   await writeConfigFile(configDir, file, editor.text())
 }
 
@@ -577,7 +643,7 @@ async function writeSpacecraft(configDir: string, sc: Record<string, unknown>) {
   const initialAttitude = rec(sc.initial_attitude)
   const dynamicsFlags = rec(sc.dynamics_flags)
   editor.replace(sc.description)
-  editor.replace(sc.label)
+  editor.replace(quoteConfigString(sc.label))
   editor.replace(sc.sprite_file)
   editor.replace(sc.fsw_tag)
   editor.replace(sc.fsw_sample_time_s)
@@ -626,6 +692,7 @@ async function writeSpacecraft(configDir: string, sc: Record<string, unknown>) {
     editor.replace(formatSeq(arr(joint.position_wrt_outer_body_origin_m)))
     editor.replace(joint.parm_file)
   }
+  if (arr(sc.joints).length === 0) editor.skipOptionalBlock(JOINT_TEMPLATE_LINE_COUNT, looksLikeJointBlockStart)
   writeSpacecraftCollections(editor, sc)
   await writeConfigFile(configDir, file, editor.text())
 }

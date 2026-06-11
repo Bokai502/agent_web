@@ -80,7 +80,7 @@ Produce under `<workspace>/AIGNC_Workflow/04_config/validation/`:
 - `<workspace>/AIGNC_Workflow/04_config/validation/requirements_trace.md`
 - `<workspace>/AIGNC_Workflow/04_config/validation/requirements_trace.json`
 
-Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after required artifact verification, manifest verification, `Inp_Sim` reference checks, spacecraft local-reference checks, capability-boundary checks, validation artifact writing, validation verdict emission, and any successful sync from `<workspace>/AIGNC_Workflow/04_config/` to `<workspace>/Config/`. Entries must use stage `04_config`, current skill `42-config-validator`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
+Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after required artifact verification, manifest verification, `Inp_Sim` reference checks, spacecraft local-reference checks, capability-boundary checks, validation artifact writing, validation verdict emission, and any successful sync from `<workspace>/AIGNC_Workflow/04_config/` to `<workspace>/00_inputs/Config/`. Entries must use stage `04_config`, current skill `42-config-validator`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
 Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `open_codex_web/backend/workflow_agents/gnc_skills/skills/README.md`.
 
 
@@ -145,5 +145,5 @@ Do not:
 The terminal state is a validation report with a clear `pass`, `pass_with_warnings`, or `fail` verdict.
 
 - `fail` returns to `42-config-author`
-- `pass` or `pass_with_warnings` closes the requirements/configuration stage and copies runtime-ready configuration files from `<workspace>/AIGNC_Workflow/04_config/` to `<workspace>/Config/`
+- `pass` or `pass_with_warnings` closes the requirements/configuration stage and copies runtime-ready configuration files from `<workspace>/AIGNC_Workflow/04_config/` to `<workspace>/00_inputs/Config/`
 - `42-build-run-diagnose` is optional downstream execution verification, not a prerequisite for completing requirements analysis

@@ -62,9 +62,9 @@ Use this reference as the entry map for `fsw-tuning-reviewer`.
 
 ## Runtime and configuration artifacts to cross-check intent and validity
 
-- final config under `<workspace>/Config/`
+- final config under `<workspace>/00_inputs/Config/`
 - AI-generated config under `<workspace>/AIGNC_Workflow/04_config/`
-- runtime logs and plots under `<workspace>/Output/Run/runtime_case/InOut/`
+- runtime logs and plots under `<workspace>/02_sim/42_run/runtime_case/InOut/`
 
 ## Intended outputs
 

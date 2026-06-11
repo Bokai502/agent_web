@@ -154,9 +154,9 @@ Run the narrowest meaningful compile step after implementation.
 
 Preferred baseline:
 
-- `python3 <workspace>/Script/build_42.py --headless`
+- `python3 <workspace>/00_inputs/Script/build_42.py --workspace-dir <workspace> --headless`
 
-The build script must compile through the workspace-local run directory: Makefile and working directory `<workspace>/Output/Run/`, object files `<workspace>/Output/Run/build/`, and the platform-selected simulator executable under `<workspace>/Output/Run/`. Do not expect root-level `Makefile`, root-level simulator executables, or `codex_web/AIGNC/42/Object/` outputs.
+The build script must compile through the workspace-local run directory: Makefile and working directory `<workspace>/02_sim/42_run/`, object files `<workspace>/02_sim/42_run/build/`, and the platform-selected simulator executable under `<workspace>/02_sim/42_run/`. Do not expect root-level `Makefile`, root-level simulator executables, or `codex_web/AIGNC/42/Object/` outputs.
 
 If the build succeeds, record that result. If it fails, diagnose the failure before handoff.
 

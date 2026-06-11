@@ -51,9 +51,26 @@ Complete these in order:
 2. Decide whether existing build artifacts are usable or whether rebuild is needed.
 3. Select the lowest-risk runtime mode for validation.
 4. Run the case.
-5. Capture build failures, load/parser failures, runtime aborts, and basic output presence.
-6. Classify only configuration-readiness failure or pass status.
-7. Emit a bounded diagnosis and route.
+5. Verify evidence freshness before interpreting logs or reports.
+6. Capture build failures, load/parser failures, runtime aborts, and basic output presence.
+7. Classify only configuration-readiness failure or pass status.
+8. Emit a bounded diagnosis and route.
+
+## Evidence Freshness Guard
+
+Before using any existing runtime log, report, summary, or output file as evidence, compare modification times against the active source config under `<workspace>/00_inputs/Config/`.
+
+Required checks:
+
+- Record the newest mtime among `<workspace>/00_inputs/Config/Inp_Sim.txt`, orbit files referenced by `Inp_Sim.txt`, and spacecraft files referenced by `Inp_Sim.txt`.
+- Record mtimes for `<workspace>/02_sim/42_run/runtime_case/InOut/Inp_Sim.txt`, the referenced orbit files, and the referenced spacecraft files.
+- Record mtimes for `<workspace>/02_sim/42_run/run_stdout.log`, `<workspace>/02_sim/42_run/run_stderr.log`, `<workspace>/AIGNC_Workflow/08_run/run_report.md`, and `<workspace>/AIGNC_Workflow/08_run/run_summary.json` when present.
+
+If a log or report is older than the newest active config file, treat it as stale. Do not cite stale `Bogus input`, parser failures, output absence, or previous route recommendations as the latest run result.
+
+If active source config is newer than runtime `InOut`, classify the latest attempt as an executor/workflow interruption or stale-evidence condition until `run_case.py` has freshly copied `00_inputs/Config` into `02_sim/42_run/runtime_case/InOut` and a new 42 process has produced fresh logs. The report must say that the latest execution did not reach a trustworthy 42 load/run verdict.
+
+If the executor stops before build/run or before fresh logs are written, emit `run_fail_runtime` with `configuration_runtime_ready` set to `false` only for the executor interruption, and set `primary_failure_cause` to the stale or incomplete execution evidence. Route to retry the build/run executor, not to `42-config-author`, unless fresh logs from the current config prove a configuration parser failure.
 
 ## Output Contract
 
@@ -74,15 +91,15 @@ The template includes one mode-transition representation that matches the curren
 - `terminal_mode` and `mode_result.terminal_mode` must match when mode telemetry is available.
 - `metrics[]` and `acceptance[]` are task-specific arrays. Add only metrics and criteria that are actually defined or evaluated for the current task; do not invent CATCH-specific or mission-specific metric names for unrelated cases.
 
-Write diagnosis artifacts under `<workspace>/AIGNC_Workflow/08_run/`. Use the platform-neutral Python entrypoints `<workspace>/Script/build_42.py --headless` and `<workspace>/Script/run_case.py --headless` for command-line runtime validation; those scripts detect the current environment and select the correct executable name. The real simulator runtime directory is `<workspace>/Output/Run/runtime_case/InOut/`.
+Write diagnosis artifacts under `<workspace>/AIGNC_Workflow/08_run/`. Use the platform-neutral Python entrypoints `<workspace>/00_inputs/Script/build_42.py --workspace-dir <workspace> --headless` and `<workspace>/00_inputs/Script/run_case.py --workspace-dir <workspace> --headless` for command-line runtime validation; those scripts detect the current environment and select the correct executable name. The real simulator runtime directory is `<workspace>/02_sim/42_run/runtime_case/InOut/`.
 
 Build and runtime locations are mission-local:
 
-- build working directory and Makefile: `<workspace>/Output/Run/`
-- object files: `<workspace>/Output/Run/build/`
-- executable: the platform-selected simulator binary under `<workspace>/Output/Run/`, resolved by the build/run scripts
-- runtime workspace: `<workspace>/Output/Run/runtime_case/`
-- runtime `InOut`: `<workspace>/Output/Run/runtime_case/InOut/`
+- build working directory and Makefile: `<workspace>/02_sim/42_run/`
+- object files: `<workspace>/02_sim/42_run/build/`
+- executable: the platform-selected simulator binary under `<workspace>/02_sim/42_run/`, resolved by the build/run scripts
+- runtime workspace: `<workspace>/02_sim/42_run/runtime_case/`
+- runtime `InOut`: `<workspace>/02_sim/42_run/runtime_case/InOut/`
 
 Do not compile from the workspace root, do not write objects under `codex_web/AIGNC/42/Object/`, and do not place simulator executables at the workspace root.
 

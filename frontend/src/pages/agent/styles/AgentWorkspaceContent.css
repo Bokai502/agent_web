@@ -170,7 +170,7 @@
   width: 100%;
   height: 100%;
   overflow: auto;
-  padding: 24px;
+  padding: 16px;
   scrollbar-width: thin;
   scrollbar-color: rgba(23, 231, 255, 0.42) transparent;
 }
@@ -183,10 +183,217 @@
   box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.08);
 }
 
+.agent-workspace-body .gnc-dashboard-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-workspace-body .gnc-summary-strip {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.06fr) minmax(280px, 0.94fr) minmax(340px, 1.12fr);
+  gap: 12px;
+}
+
+.agent-workspace-body .gnc-summary-card {
+  min-width: 0;
+  border: 1px solid rgba(0, 168, 255, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(4, 19, 34, 0.88), rgba(5, 12, 22, 0.74)),
+    rgba(2, 12, 24, 0.68);
+  box-shadow: inset 0 0 22px rgba(0, 168, 255, 0.08);
+  padding: 11px 14px 12px;
+}
+
+.agent-workspace-body .gnc-summary-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+  margin-bottom: 8px;
+}
+
+.agent-workspace-body .gnc-summary-card h3 {
+  margin: 0;
+  color: rgba(244, 251, 255, 0.92);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.agent-workspace-body .gnc-summary-card header span {
+  display: inline-grid;
+  width: 13px;
+  height: 13px;
+  border: 1px solid rgba(234, 247, 255, 0.34);
+  border-radius: 50%;
+  color: rgba(234, 247, 255, 0.58);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+  place-items: center;
+}
+
+.agent-workspace-body .gnc-summary-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.82fr) minmax(0, 1.35fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 27px;
+  border-top: 1px solid rgba(234, 247, 255, 0.08);
+}
+
+.agent-workspace-body .gnc-summary-row span {
+  overflow: hidden;
+  color: rgba(234, 247, 255, 0.7);
+  font-size: 11px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .gnc-summary-row strong {
+  overflow: hidden;
+  color: rgba(244, 251, 255, 0.9);
+  font-size: 11px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .gnc-summary-limit .gnc-summary-row {
+  min-height: 23px;
+}
+
+.agent-workspace-body .gnc-summary-meter {
+  height: 5px;
+  margin: 0 2px 8px calc(42% + 6px);
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(234, 247, 255, 0.16);
+}
+
+.agent-workspace-body .gnc-summary-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd166, #72df82);
+}
+
+.agent-workspace-body .gnc-architecture-card .gnc-summary-row {
+  grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
+  min-height: 25px;
+}
+
+.agent-workspace-body .gnc-architecture {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) 28px minmax(92px, 1fr) 28px minmax(92px, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.agent-workspace-body .gnc-architecture-block {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(23, 231, 255, 0.3);
+  border-radius: 5px;
+  padding: 7px;
+  background: rgba(8, 25, 40, 0.62);
+}
+
+.agent-workspace-body .gnc-architecture-block.is-computer {
+  border-color: rgba(234, 247, 255, 0.28);
+}
+
+.agent-workspace-body .gnc-architecture-block.is-actuator {
+  border-color: rgba(114, 223, 130, 0.36);
+}
+
+.agent-workspace-body .gnc-architecture-block b {
+  color: rgba(244, 251, 255, 0.76);
+  font-size: 9px;
+  font-weight: 850;
+  text-align: center;
+}
+
+.agent-workspace-body .gnc-architecture-block span {
+  overflow: hidden;
+  border: 1px solid rgba(234, 247, 255, 0.14);
+  border-radius: 3px;
+  color: rgba(244, 251, 255, 0.78);
+  font-size: 9px;
+  font-weight: 740;
+  line-height: 1.2;
+  padding: 4px 5px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .gnc-architecture-flow {
+  display: grid;
+  gap: 9px;
+}
+
+.agent-workspace-body .gnc-architecture-flow i {
+  display: block;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(23, 231, 255, 0.12), #17e7ff);
+  position: relative;
+}
+
+.agent-workspace-body .gnc-architecture-flow i::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -1px;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid #17e7ff;
+}
+
+.agent-workspace-body .gnc-architecture-flow.is-command i {
+  background: linear-gradient(90deg, rgba(114, 223, 130, 0.12), #72df82);
+}
+
+.agent-workspace-body .gnc-architecture-flow.is-command i::after {
+  border-left-color: #72df82;
+}
+
+.agent-workspace-body .gnc-architecture-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 9px;
+  color: rgba(234, 247, 255, 0.64);
+  font-size: 9px;
+  font-weight: 760;
+  justify-content: center;
+}
+
+.agent-workspace-body .gnc-architecture-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.agent-workspace-body .gnc-architecture-legend i {
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: #17e7ff;
+}
+
+.agent-workspace-body .gnc-architecture-legend i.is-command {
+  background: #72df82;
+}
+
 .agent-workspace-body .gnc-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(280px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  gap: 12px;
 }
 
 .agent-workspace-body .gnc-dashboard-plot {
@@ -197,7 +404,7 @@
 .agent-workspace-body .gnc-dashboard-plot figcaption {
   min-width: 0;
   border-bottom: 1px solid rgba(0, 168, 255, 0.16);
-  padding: 12px 14px;
+  padding: 9px 12px;
 }
 
 .agent-workspace-body .gnc-dashboard-plot figcaption strong {
@@ -210,7 +417,7 @@
 .agent-workspace-body .gnc-dashboard-plot figcaption span {
   display: block;
   overflow: hidden;
-  margin-top: 4px;
+  margin-top: 2px;
   color: rgba(234, 247, 255, 0.5);
   font-size: 11px;
   font-weight: 750;
@@ -221,7 +428,7 @@
 .agent-workspace-body .gnc-dashboard-plot img {
   display: block;
   width: 100%;
-  min-height: 240px;
+  min-height: 190px;
   background: #ffffff;
   object-fit: contain;
 }
@@ -229,7 +436,7 @@
 .agent-workspace-body .gnc-d3-chart {
   display: block;
   width: 100%;
-  min-height: 260px;
+  min-height: 210px;
   background:
     radial-gradient(circle at 50% 12%, rgba(23, 231, 255, 0.09), transparent 34%),
     rgba(1, 7, 14, 0.72);
@@ -1188,4 +1395,58 @@
 
 .agent-conversation-popover .wa-conversation-shell small.bad {
   color: rgba(255, 255, 255, 0.58);
+}
+
+@media (max-width: 1320px) {
+  .agent-workspace-body .gnc-summary-strip {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+
+  .agent-workspace-body .gnc-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+
+  .agent-workspace-body .gnc-architecture-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 920px) {
+  .agent-workspace-body .gnc-dashboard-stage {
+    padding: 14px;
+  }
+
+  .agent-workspace-body .gnc-summary-strip,
+  .agent-workspace-body .gnc-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-workspace-body .gnc-architecture-card {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .agent-workspace-body .gnc-summary-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    padding: 7px 0;
+  }
+
+  .agent-workspace-body .gnc-summary-meter {
+    margin-left: 0;
+  }
+
+  .agent-workspace-body .gnc-architecture {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-workspace-body .gnc-architecture-flow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    transform: rotate(90deg);
+    transform-origin: center;
+    justify-self: center;
+    width: 34px;
+  }
 }

@@ -85,6 +85,11 @@ describe("GNC config routes", () => {
       assert.equal(body.source_dir, configDir)
       assert.equal(body.payload.sim.time_mode, "FAST")
       assert.equal(body.payload.sim.stop_time_s, 20000)
+      assert.deepEqual(body.payload.sim.utc_date, { month: 3, day: 21, year: 2016 })
+      assert.deepEqual(body.payload.sim.utc_time, { hour: 12, minute: 0, second: 0 })
+      assert.equal(body.payload.sim.celestial_bodies.earth_luna, true)
+      assert.equal(body.payload.sim.celestial_bodies.mars, false)
+      assert.equal(body.payload.sim.lagrange_systems.sun_earth, false)
       assert.equal(body.payload.sim.reference_orbits.length, 1)
       assert.equal(body.payload.sim.spacecraft.length, 2)
       assert.equal(body.payload.orbits[0].description, "Low Earth Orbit")
@@ -110,8 +115,15 @@ describe("GNC config routes", () => {
       const payload = loadResponse.json().payload
       payload.sim.stop_time_s = 1234.5
       payload.sim.gl_enable = false
-      payload.orbits[0].description = "EditedOrbit"
+      payload.sim.utc_date.year = 2026
+      payload.sim.utc_time.second = 30.5
+      payload.sim.celestial_bodies.mars = true
+      payload.sim.lagrange_systems.sun_earth = true
+      payload.orbits[0].description = "Edited Orbit"
       payload.orbits[0].central.kep.inclination_deg = 42
+      payload.orbits[0].central.file_input.element_file = "Edited.trv"
+      payload.orbits[0].central.file_input.element_label = "Edited Sat"
+      payload.spacecraft[0].description = "Edited generic S/C"
       payload.spacecraft[0].label = "EditedSat"
       payload.spacecraft[0].bodies[0].mass_kg = 777
 
@@ -125,8 +137,15 @@ describe("GNC config routes", () => {
       assert.equal(saveResponse.statusCode, 200)
       assert.equal(body.payload.sim.stop_time_s, 1234.5)
       assert.equal(body.payload.sim.gl_enable, false)
-      assert.equal(body.payload.orbits[0].description, "EditedOrbit")
+      assert.equal(body.payload.sim.utc_date.year, 2026)
+      assert.equal(body.payload.sim.utc_time.second, 30.5)
+      assert.equal(body.payload.sim.celestial_bodies.mars, true)
+      assert.equal(body.payload.sim.lagrange_systems.sun_earth, true)
+      assert.equal(body.payload.orbits[0].description, "Edited Orbit")
       assert.equal(body.payload.orbits[0].central.kep.inclination_deg, 42)
+      assert.equal(body.payload.orbits[0].central.file_input.element_file, "Edited.trv")
+      assert.equal(body.payload.orbits[0].central.file_input.element_label, "Edited Sat")
+      assert.equal(body.payload.spacecraft[0].description, "Edited generic S/C")
       assert.equal(body.payload.spacecraft[0].label, "EditedSat")
       assert.equal(body.payload.spacecraft[0].bodies[0].mass_kg, 777)
 
@@ -135,10 +154,55 @@ describe("GNC config routes", () => {
       const spacecraftText = await fs.readFile(path.join(configDir, "SC_CfsSat0.txt"), "utf-8")
       assert.match(simText, /1234\.5  0\.01\s+!  Sim Duration/u)
       assert.match(simText, /FALSE\s+!  Graphics Front End/u)
-      assert.match(orbitText, /EditedOrbit\s+!  Description/u)
+      assert.match(simText, /3  21  2026\s+!  Date \(UTC\)/u)
+      assert.match(simText, /12  0  30\.5\s+!  Time \(UTC\)/u)
+      assert.match(simText, /TRUE\s+!  Mars and its moons/u)
+      assert.match(simText, /TRUE\s+!  Sun-Earth/u)
+      assert.match(orbitText, /Edited Orbit\s+!  Description/u)
       assert.match(orbitText, /42\s+!  Inclination/u)
-      assert.match(spacecraftText, /EditedSat\s+!  Label/u)
+      assert.match(orbitText, /"Edited\.trv"\s+!  File name/u)
+      assert.match(orbitText, /"Edited Sat"\s+!  Label to find in TLE or TRV file/u)
+      assert.match(spacecraftText, /Edited generic S\/C\s+!  Description/u)
+      assert.match(spacecraftText, /"EditedSat"\s+!  Label/u)
       assert.match(spacecraftText, /777\s+! Mass/u)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("does not write spacecraft collections into a retained zero-joint template", async () => {
+    const { workspaceDir, configDir } = await createGncFixtureWorkspace("gnc_one_body_save_case")
+    const scFile = path.join(configDir, "SC_CfsSat0.txt")
+    const originalSpacecraftText = await fs.readFile(scFile, "utf-8")
+    const oneBodySpacecraftText = originalSpacecraftText
+      .replace(/^2\s+! Number of Bodies/mu, "1                             ! Number of Bodies")
+      .replace(/================================ Body 1 ================================\r?\n(?:.*\r?\n){9}/u, "")
+    await fs.writeFile(scFile, oneBodySpacecraftText, "utf-8")
+    const server = await createTestServer()
+
+    try {
+      const loadResponse = await server.inject({
+        method: "GET",
+        url: `/api/gnc-config?workspaceDir=${encodeURIComponent(workspaceDir)}`,
+      })
+      assert.equal(loadResponse.statusCode, 200)
+      const payload = loadResponse.json().payload
+      assert.equal(payload.spacecraft[0].bodies.length, 1)
+      assert.equal(payload.spacecraft[0].joints.length, 0)
+      payload.spacecraft[0].wheels.items[0].tmax_n_m = 0.321
+      payload.spacecraft[0].wheels.items[0].hmax_n_m_s = 4.56
+
+      const saveResponse = await server.inject({
+        method: "PUT",
+        payload: { payload, workspaceDir },
+        url: "/api/gnc-config",
+      })
+      assert.equal(saveResponse.statusCode, 200)
+
+      const savedSpacecraftText = await fs.readFile(scFile, "utf-8")
+      assert.match(savedSpacecraftText, /ACTUATED\s+! Type of joint/u)
+      assert.match(savedSpacecraftText, /0 1\s+! Inner, outer body indices/u)
+      assert.match(savedSpacecraftText, /0\.321  4\.56\s+! Max Torque \(N-m\), Momentum \(N-m-sec\)/u)
     } finally {
       await server.close()
     }

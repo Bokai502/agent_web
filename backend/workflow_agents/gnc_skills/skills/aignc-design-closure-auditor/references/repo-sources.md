@@ -25,8 +25,8 @@ Expect `<workspace>` from `workspace_dir` to contain:
 - `<workspace>/AIGNC_Workflow/08_run/`
 - `<workspace>/AIGNC_Workflow/09_audit/` or `09_tuning_review/`
 - `<workspace>/AIGNC_Workflow/10_reports/`
-- final validated config under `<workspace>/Config/`
-- real simulation evidence under `<workspace>/Output/Run/`
+- final validated config under `<workspace>/00_inputs/Config/`
+- real simulation evidence under `<workspace>/02_sim/42_run/`
 
 ## Required Upstream Artifacts
 
@@ -78,7 +78,7 @@ Expect `<workspace>` from `workspace_dir` to contain:
 
 - `<workspace>/AIGNC_Workflow/08_run/run_report.md`
 - `<workspace>/AIGNC_Workflow/08_run/run_summary.json`
-- `<workspace>/Output/Run/runtime_case/InOut/`
+- `<workspace>/02_sim/42_run/runtime_case/InOut/`
 - runtime telemetry such as:
   - `ModeTrace_SC00.csv`
   - `Sc.csv`
