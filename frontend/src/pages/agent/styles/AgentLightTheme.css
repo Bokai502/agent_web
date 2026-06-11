@@ -462,6 +462,8 @@
 .agent-page.is-light-theme .wa-conversation-session-head strong,
 .agent-page.is-light-theme .wa-conversation-agent-head,
 .agent-page.is-light-theme .gnc-dashboard-plot figcaption strong,
+.agent-page.is-light-theme .gnc-summary-card h3,
+.agent-page.is-light-theme .gnc-summary-row strong,
 .agent-page.is-light-theme .agent-port-row strong,
 .agent-page.is-light-theme .agent-clock-card strong {
   color: var(--light-text);
@@ -483,6 +485,7 @@
 .agent-page.is-light-theme .agent-file-preview-unavailable span,
 .agent-page.is-light-theme .wa-conversation-session-inline,
 .agent-page.is-light-theme .gnc-dashboard-plot figcaption span,
+.agent-page.is-light-theme .gnc-summary-row span,
 .agent-page.is-light-theme .agent-clock-card span,
 .agent-page.is-light-theme .agent-port-popover p {
   color: var(--light-text-muted);
@@ -501,6 +504,7 @@
 .agent-page.is-light-theme .gnc-editor-card,
 .agent-page.is-light-theme .gnc-editor-preview,
 .agent-page.is-light-theme .gnc-editor-empty,
+.agent-page.is-light-theme .gnc-summary-card,
 .agent-page.is-light-theme .gnc-dashboard-plot,
 .agent-page.is-light-theme .wa-log-markdown,
 .agent-page.is-light-theme .wa-log-raw,
@@ -516,6 +520,47 @@
   background: var(--light-panel);
   box-shadow: none;
   color: var(--light-text);
+}
+
+.agent-page.is-light-theme .gnc-summary-card {
+  background: var(--light-panel);
+}
+
+.agent-page.is-light-theme .gnc-summary-card header span {
+  border-color: rgba(0, 0, 0, 0.18);
+  color: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .gnc-summary-row {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.agent-page.is-light-theme .gnc-summary-meter {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.agent-page.is-light-theme .gnc-architecture-block {
+  border-color: rgba(0, 114, 188, 0.22);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.agent-page.is-light-theme .gnc-architecture-block.is-computer {
+  border-color: rgba(0, 0, 0, 0.14);
+}
+
+.agent-page.is-light-theme .gnc-architecture-block.is-actuator {
+  border-color: rgba(15, 127, 86, 0.22);
+}
+
+.agent-page.is-light-theme .gnc-architecture-block b,
+.agent-page.is-light-theme .gnc-architecture-block span,
+.agent-page.is-light-theme .gnc-architecture-legend {
+  color: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .gnc-architecture-block span {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.64);
 }
 
 .agent-page.is-light-theme .wa-bom-field,

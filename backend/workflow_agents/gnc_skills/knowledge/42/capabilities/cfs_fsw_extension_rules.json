@@ -122,8 +122,8 @@
     ]
   },
   "verification_requirements": [
-    "python3 <workspace>/Script/build_42.py --headless",
-    "python3 <workspace>/Script/run_case.py --headless",
+    "python3 <workspace>/00_inputs/Script/build_42.py --workspace-dir <workspace> --headless",
+    "python3 <workspace>/00_inputs/Script/run_case.py --workspace-dir <workspace> --headless",
     "mode timeline review",
     "attitude, angular-rate, and actuator-output plot review",
     "requirement metric comparison",

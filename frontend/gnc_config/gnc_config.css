@@ -165,6 +165,17 @@
   margin-top: 14px;
 }
 
+.gnc-toggle-grid.compact {
+  margin-top: 0;
+}
+
+.gnc-editor-subhead {
+  margin: 16px 0 10px;
+  color: #c5d5ec;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .gnc-editor-toggle {
   display: flex;
   align-items: center;

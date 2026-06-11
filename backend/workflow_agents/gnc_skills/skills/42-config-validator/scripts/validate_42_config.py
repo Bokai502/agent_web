@@ -1601,8 +1601,13 @@ def main() -> int:
 
     if summary["status"] in {"pass", "pass_with_warnings"}:
         source_config = workflow_dir / "04_config"
-        final_config = workspace_dir / "Config"
+        final_config = workspace_dir / "00_inputs" / "Config"
         final_config.mkdir(parents=True, exist_ok=True)
+        for existing in final_config.iterdir():
+            if existing.is_dir():
+                shutil.rmtree(existing)
+            else:
+                existing.unlink()
         for path in source_config.iterdir():
             if path.is_file():
                 shutil.copy2(path, final_config / path.name)

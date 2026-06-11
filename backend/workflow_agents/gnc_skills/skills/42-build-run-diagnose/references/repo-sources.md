@@ -18,14 +18,14 @@ Use this reference as the entry map for `42-build-run-diagnose`.
 
 - generated files under `<workspace>/AIGNC_Workflow/04_config/`
 - validator outputs under `<workspace>/AIGNC_Workflow/04_config/validation/`
-- final runtime-ready config under `<workspace>/Config/`
-- mission-local build entrypoint `<workspace>/Script/build_42.py`; shell and PowerShell wrappers may delegate to it
-- mission-local run entrypoint `<workspace>/Script/run_case.py`; shell and PowerShell wrappers may delegate to it
-- build working directory and Makefile under `<workspace>/Output/Run/`
-- object files under `<workspace>/Output/Run/build/`
-- platform-selected simulator executable under `<workspace>/Output/Run/`, resolved by the build/run scripts
-- runtime workspace `<workspace>/Output/Run/runtime_case/`
-- runtime `InOut` directory `<workspace>/Output/Run/runtime_case/InOut/`
+- final runtime-ready config under `<workspace>/00_inputs/Config/`
+- mission-local build entrypoint `<workspace>/00_inputs/Script/build_42.py`; pass `--workspace-dir <workspace>`
+- mission-local run entrypoint `<workspace>/00_inputs/Script/run_case.py`; pass `--workspace-dir <workspace>`
+- build working directory and Makefile under `<workspace>/02_sim/42_run/`
+- object files under `<workspace>/02_sim/42_run/build/`
+- platform-selected simulator executable under `<workspace>/02_sim/42_run/`, resolved by the build/run scripts
+- runtime workspace `<workspace>/02_sim/42_run/runtime_case/`
+- runtime `InOut` directory `<workspace>/02_sim/42_run/runtime_case/InOut/`
 
 ## Optional FSW implementation context
 

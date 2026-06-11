@@ -86,7 +86,7 @@ Read these native 42 files when the review depends on simulator-side definitions
 - `codex_web/AIGNC/42/Source/42actuators.c`
 - `codex_web/AIGNC/42/Source/42joints.c`
 - `codex_web/AIGNC/42/Include/42types.h`
-- current workspace configuration files under `<workspace>/Config/`, AI-generated configuration under `<workspace>/AIGNC_Workflow/04_config/`, or runtime `<workspace>/Output/Run/runtime_case/InOut/`
+- current workspace configuration files under `<workspace>/00_inputs/Config/`, AI-generated configuration under `<workspace>/AIGNC_Workflow/04_config/`, or runtime `<workspace>/02_sim/42_run/runtime_case/InOut/`
 
 Read these when the issue runs through the optical-link sidecar path:
 

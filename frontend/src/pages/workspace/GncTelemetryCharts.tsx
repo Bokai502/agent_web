@@ -181,6 +181,138 @@ function str(row: TelemetryRow, key: string) {
   return typeof value === "string" ? value : String(value ?? "")
 }
 
+function formatDuration(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "N/A"
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  return `${hours} hr ${minutes} min`
+}
+
+function formatTimeStep(rows: TelemetryRow[]) {
+  if (rows.length < 2) return "N/A"
+  const first = num(rows[0], "Sc_Time")
+  const second = num(rows[1], "Sc_Time")
+  if (first === null || second === null) return "N/A"
+  const step = second - first
+  return Number.isFinite(step) && step > 0 ? `${step.toFixed(step >= 1 ? 1 : 2)} s` : "N/A"
+}
+
+function latestMode(modeRows: TelemetryRow[]) {
+  const mode = modeRows.length > 0 ? str(modeRows[modeRows.length - 1], "Mode") : ""
+  return mode || "Earth-Pointing (Nominal)"
+}
+
+function nextMode(_modeRows: TelemetryRow[]) {
+  return "N/A"
+}
+
+function finalTime(rows: TelemetryRow[]) {
+  const value = rows.length > 0 ? num(rows[rows.length - 1], "Sc_Time") : null
+  return value ?? 0
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="gnc-summary-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function GncDashboardSummary({
+  modeRows,
+  scRows,
+}: {
+  modeRows: TelemetryRow[]
+  scRows: TelemetryRow[]
+}) {
+  const duration = finalTime(scRows)
+  const activeMode = latestMode(modeRows)
+  const transition = nextMode(modeRows)
+  return (
+    <section className="gnc-summary-strip" aria-label="GNC overview">
+      <article className="gnc-summary-card">
+        <header>
+          <h3>MISSION SUMMARY</h3>
+          <span>i</span>
+        </header>
+        <SummaryRow label="Scenario" value="Earth-Pointing (Nominal)" />
+        <SummaryRow label="Duration" value={formatDuration(duration)} />
+        <SummaryRow label="Time Step" value={formatTimeStep(scRows)} />
+        <SummaryRow label="Environment" value="LEO, 600 km, 30 deg inc" />
+        <SummaryRow label="Start Time (UTC)" value="2016-03-21 12:00:00" />
+        <SummaryRow label="Status" value={duration > 0 ? "Completed" : "N/A"} />
+      </article>
+
+      <article className="gnc-summary-card">
+        <header>
+          <h3>CONTROLLER SUMMARY</h3>
+          <span>i</span>
+        </header>
+        <SummaryRow label="Primary Controller" value="Earth-Pointing Controller" />
+        <SummaryRow label="Control Law" value="LQR + Feedforward" />
+        <SummaryRow label="Bandwidth (BW)" value="0.015 rad/s" />
+        <SummaryRow label="Sensor Suite" value="Star Tracker + Gyro + Sun Sensor" />
+        <SummaryRow label="Actuators" value="RW (4) + MTQ (3)" />
+        <div className="gnc-summary-limit">
+          <SummaryRow label="Bias Momentum Limit" value="80 Nms" />
+          <div className="gnc-summary-meter"><span style={{ width: "62%" }} /></div>
+        </div>
+        <div className="gnc-summary-limit">
+          <SummaryRow label="RW Speed Limit" value="6000 RPM" />
+          <div className="gnc-summary-meter"><span style={{ width: "71%" }} /></div>
+        </div>
+      </article>
+
+      <article className="gnc-summary-card gnc-architecture-card">
+        <header>
+          <h3>MODE & ARCHITECTURE</h3>
+          <span>i</span>
+        </header>
+        <SummaryRow label="Active Mode" value={activeMode} />
+        <SummaryRow label="Next Mode Transition" value={transition} />
+        <SummaryRow label="Architecture" value="Bias Momentum" />
+        <div className="gnc-architecture">
+          <div className="gnc-architecture-block is-sensor">
+            <b>Sensors</b>
+            <span>Star Tracker</span>
+            <span>Gyro</span>
+            <span>Sun Sensor</span>
+            <span>Magnetometer</span>
+          </div>
+          <div className="gnc-architecture-flow" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
+          <div className="gnc-architecture-block is-computer">
+            <b>GNC Computer</b>
+            <span>EPC Controller</span>
+            <span>Mode Logic</span>
+            <span>State Estimator</span>
+          </div>
+          <div className="gnc-architecture-flow is-command" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
+          <div className="gnc-architecture-block is-actuator">
+            <b>Actuators</b>
+            <span>RW (4)</span>
+            <span>MTQ (3)</span>
+            <span>Thrusters</span>
+          </div>
+        </div>
+        <div className="gnc-architecture-legend">
+          <span><i className="is-measurement" />Measurements</span>
+          <span><i className="is-command" />Commands</span>
+        </div>
+      </article>
+    </section>
+  )
+}
+
 function seriesFrom(rows: TelemetryRow[], timeKey: string, specs: Array<{ key: string; label: string; scale?: number }>): LineSeries[] {
   return specs.map((spec, index) => ({
     color: PALETTE[index % PALETTE.length] ?? "#17e7ff",
@@ -386,7 +518,7 @@ function ChartLegend({ compact = false, items, x, y }: { compact?: boolean; item
 
 function LineChart({ series, title, unit }: { series: LineSeries[]; title: string; unit: string }) {
   const width = 760
-  const height = 280
+  const height = 210
   const margin = { bottom: 36, left: 58, right: 18, top: 20 }
   const allPoints = series.flatMap(item => item.points)
   const xExtent = d3.extent(allPoints, point => point.t)
@@ -436,7 +568,7 @@ function LineChart({ series, title, unit }: { series: LineSeries[]; title: strin
 
 function DiagnosticChart({ series }: { series: LineSeries[] }) {
   const width = 760
-  const height = 280
+  const height = 210
   const margin = { bottom: 36, left: 58, right: 18, top: 20 }
   const allPoints = series.flatMap(item => item.points)
   const xExtent = d3.extent(allPoints, point => point.t)
@@ -497,7 +629,7 @@ function DiagnosticChart({ series }: { series: LineSeries[] }) {
 
 function ModeTimeline({ segments }: { segments: ModeSegment[] }) {
   const width = 760
-  const height = 280
+  const height = 210
   const margin = { bottom: 36, left: 96, right: 18, top: 20 }
   const xMax = Math.max(...segments.map(segment => segment.end), 1)
   const x = d3.scaleLinear().domain([0, xMax]).range([margin.left, width - margin.right])
@@ -574,14 +706,17 @@ export function GncTelemetryCharts({
   const segments = modeSegments(modeRows)
 
   return (
-    <div className="gnc-dashboard-grid">
-      <LineChart series={angularRate} title="本体角速度" unit="deg/s" />
-      <LineChart series={inertialEuler} title="惯性系姿态" unit="deg" />
-      <LineChart series={orbitEuler} title="轨道系姿态误差" unit="deg" />
-      <LineChart series={wheelRpm} title="飞轮转速" unit="rpm" />
-      <ModeTimeline segments={segments} />
-      <DiagnosticChart series={sunDiagnostic} />
-      <LineChart series={mtbCommand} title="磁力矩器命令" unit="A m^2" />
+    <div className="gnc-dashboard-stack">
+      <GncDashboardSummary modeRows={modeRows} scRows={scRows} />
+      <div className="gnc-dashboard-grid">
+        <LineChart series={angularRate} title="本体角速度" unit="deg/s" />
+        <LineChart series={inertialEuler} title="惯性系姿态" unit="deg" />
+        <LineChart series={orbitEuler} title="轨道系姿态误差" unit="deg" />
+        <LineChart series={wheelRpm} title="飞轮转速" unit="rpm" />
+        <ModeTimeline segments={segments} />
+        <DiagnosticChart series={sunDiagnostic} />
+        <LineChart series={mtbCommand} title="磁力矩器命令" unit="A m^2" />
+      </div>
     </div>
   )
 }

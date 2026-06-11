@@ -213,4 +213,4 @@ The next downstream skill is typically `42-config-validator`.
 
 The terminal state is a traceable 42 configuration artifact set plus metadata, ready for `42-config-validator`. Do not transition to FSW implementation from this skill.
 
-Do not write final runtime configuration files directly to `<workspace>/Config/`; that directory is populated only after `42-config-validator` passes.
+Do not write final runtime configuration files directly to `<workspace>/00_inputs/Config/`; that directory is populated only after `42-config-validator` passes.
