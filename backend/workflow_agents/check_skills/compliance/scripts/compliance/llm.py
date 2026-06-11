@@ -1,15 +1,15 @@
-import os
-import json
-import dotenv
 import asyncio
 import concurrent.futures
+import json
+import os
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Any
 
+import dotenv
+
 try:
-    from openai import OpenAI
-    from openai import AsyncOpenAI
+    from openai import AsyncOpenAI, OpenAI
 except ImportError:  # pragma: no cover - optional dependency for legacy callers.
     OpenAI = None
     AsyncOpenAI = None
@@ -23,11 +23,19 @@ class LLMClient:
     def __init__(self, think_mode=False):
         if OpenAI is None or AsyncOpenAI is None:
             raise ImportError("The openai package is required to use LLMClient.")
-        model_name = os.environ['CHAT_MODEL_NAME'] if not think_mode else os.environ['CHAT_MODEL_NAME_THINK']
-        model_url = os.environ['CHAT_MODEL_BASE_URL']
+        model_name = (
+            os.environ["CHAT_MODEL_NAME"]
+            if not think_mode
+            else os.environ["CHAT_MODEL_NAME_THINK"]
+        )
+        model_url = os.environ["CHAT_MODEL_BASE_URL"]
         self.model = model_name
-        self.client = OpenAI(api_key=os.environ['CHAT_MODEL_API_KEY'], base_url=model_url)
-        self.async_client = AsyncOpenAI(api_key=os.environ['CHAT_MODEL_API_KEY'], base_url=model_url)
+        self.client = OpenAI(
+            api_key=os.environ["CHAT_MODEL_API_KEY"], base_url=model_url
+        )
+        self.async_client = AsyncOpenAI(
+            api_key=os.environ["CHAT_MODEL_API_KEY"], base_url=model_url
+        )
         self.think_mode = think_mode
 
     def get_json_response(self, messages):
@@ -46,8 +54,9 @@ class LLMClient:
         return self.get_ouput_message(response)
 
     def get_response_stream(self, messages):
-        response = self.client.chat.completions.create(model=self.model, messages=messages, stream=True)
-        return response
+        return self.client.chat.completions.create(
+            model=self.model, messages=messages, stream=True
+        )
 
     def get_ouput_message(self, response):
         message = ""
@@ -55,7 +64,6 @@ class LLMClient:
             if chunk.choices and chunk.choices[0].delta.content:
                 message += chunk.choices[0].delta.content
         return message
-
 
 
 def run_in_new_loop(llm, message_list, is_json):
@@ -66,8 +74,8 @@ def run_in_new_loop(llm, message_list, is_json):
     # 在新线程中创建新的 AsyncOpenAI 客户端
     if AsyncOpenAI is None:
         raise ImportError("The openai package is required to use async_process.")
-    api_key = getattr(llm, "api_key", None) or os.environ['CHAT_MODEL_API_KEY']
-    base_url = getattr(llm, "base_url", None) or os.environ['CHAT_MODEL_BASE_URL']
+    api_key = getattr(llm, "api_key", None) or os.environ["CHAT_MODEL_API_KEY"]
+    base_url = getattr(llm, "base_url", None) or os.environ["CHAT_MODEL_BASE_URL"]
     timeout = getattr(llm, "timeout_seconds", None)
     async_client = AsyncOpenAI(
         api_key=api_key,
@@ -77,7 +85,9 @@ def run_in_new_loop(llm, message_list, is_json):
 
     async def _process_with_new_client():
         try:
-            semaphore_num = int(getattr(llm, "concurrency", None) or os.getenv("LLM_CONCURRENCY", "10"))
+            semaphore_num = int(
+                getattr(llm, "concurrency", None) or os.getenv("LLM_CONCURRENCY", "10")
+            )
             semaphore = asyncio.Semaphore(semaphore_num)
 
             async def _get_response(request_item):
@@ -87,8 +97,7 @@ def run_in_new_loop(llm, message_list, is_json):
                     return response.choices[0].message.content
 
             tasks = [_get_response(query) for query in message_list]
-            results = await asyncio.gather(*tasks)
-            return results
+            return await asyncio.gather(*tasks)
         finally:
             await async_client.close()
 
@@ -125,7 +134,7 @@ def async_chat_completions(
     if not prompts:
         return []
     llm = SimpleNamespace(
-        model=getattr(llm_config, "model"),
+        model=llm_config.model,
         api_key=getattr(llm_config, "api_key", None),
         base_url=getattr(llm_config, "base_url", None),
         timeout_seconds=getattr(llm_config, "timeout_seconds", None),
@@ -139,7 +148,7 @@ def async_chat_completions(
             return [exc for _ in prompts]
         raise
     output: list[str | Exception] = []
-    for request, result in zip(requests, results):
+    for request, result in zip(requests, results, strict=False):
         if isinstance(result, str) and request.get("strip", strip):
             output.append(result.strip())
         else:
@@ -208,7 +217,9 @@ def _async_request_body(llm: Any, request_item: Any, is_json: bool) -> dict[str,
     return body
 
 
-def llm_concurrency(llm_config: Any, env_var: str = "COMPLIANCE_LLM_CONCURRENCY", default: int = 1) -> int:
+def llm_concurrency(
+    llm_config: Any, env_var: str = "COMPLIANCE_LLM_CONCURRENCY", default: int = 1
+) -> int:
     raw_value = os.getenv(env_var, "")
     if raw_value.strip():
         try:

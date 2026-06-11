@@ -20,6 +20,7 @@ logger.info("backend starting", {
   baseUrl: config.openai.baseUrl,
   model: config.openai.model,
   port: config.server.port,
+  sandboxWorkspaceWriteNetworkAccess: config.codex.sandboxWorkspaceWriteNetworkAccess,
 })
 
 // 启动时扫描 ~/.codex/skills 并缓存到 skills.json

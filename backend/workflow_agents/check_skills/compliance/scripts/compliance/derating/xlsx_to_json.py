@@ -16,7 +16,10 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
-from progress_utils import update_loop_progress
+try:
+    from .progress_utils import update_loop_progress
+except ImportError:  # pragma: no cover - direct script execution.
+    from progress_utils import update_loop_progress
 
 
 NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -91,7 +94,9 @@ def read_first_sheet(xlsx_path: Path) -> tuple[str, list[list[object | None]]]:
     with ZipFile(xlsx_path) as zip_file:
         workbook = ET.fromstring(zip_file.read("xl/workbook.xml"))
         sheet = workbook.find("a:sheets/a:sheet", NS)
-        sheet_name = sheet.attrib.get("name", "Sheet1") if sheet is not None else "Sheet1"
+        sheet_name = (
+            sheet.attrib.get("name", "Sheet1") if sheet is not None else "Sheet1"
+        )
 
         shared_strings = load_shared_strings(zip_file)
         root = ET.fromstring(zip_file.read("xl/worksheets/sheet1.xml"))
@@ -115,13 +120,23 @@ def read_first_sheet(xlsx_path: Path) -> tuple[str, list[list[object | None]]]:
     return sheet_name, rows
 
 
-def build_columns(header_top: list[object | None], header_sub: list[object | None], max_cols: int) -> list[str]:
+def build_columns(
+    header_top: list[object | None], header_sub: list[object | None], max_cols: int
+) -> list[str]:
     columns: list[str] = []
     last_top: str | None = None
 
     for i in range(max_cols):
-        top = normalize_header(header_top[i]) if i < len(header_top) and header_top[i] else None
-        sub = normalize_header(header_sub[i]) if i < len(header_sub) and header_sub[i] else None
+        top = (
+            normalize_header(header_top[i])
+            if i < len(header_top) and header_top[i]
+            else None
+        )
+        sub = (
+            normalize_header(header_sub[i])
+            if i < len(header_sub) and header_sub[i]
+            else None
+        )
 
         if top:
             last_top = top
@@ -182,7 +197,9 @@ def convert_xlsx_to_json(xlsx_path: Path, json_path: Path) -> dict:
         "data": records,
     }
 
-    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return payload
 
 
@@ -198,7 +215,11 @@ def resolve_path(path: Path, workspace_dir: Path | None = None) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Convert an XLSX table to JSON.")
     parser.add_argument("xlsx_path", type=Path, help="Input .xlsx file path")
-    parser.add_argument("--workspace-dir", type=Path, help="Workspace root for relative input and output paths.")
+    parser.add_argument(
+        "--workspace-dir",
+        type=Path,
+        help="Workspace root for relative input and output paths.",
+    )
     parser.add_argument(
         "-o",
         "--output",
@@ -207,14 +228,20 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    workspace_dir = args.workspace_dir.expanduser().resolve() if args.workspace_dir else None
+    workspace_dir = (
+        args.workspace_dir.expanduser().resolve() if args.workspace_dir else None
+    )
     xlsx_path = resolve_path(args.xlsx_path, workspace_dir)
     if not xlsx_path.exists():
         parser.error(f"Input file does not exist: {xlsx_path}")
     if xlsx_path.suffix.lower() != ".xlsx":
         parser.error(f"Input file must be .xlsx: {xlsx_path}")
 
-    json_path = resolve_path(args.output, workspace_dir) if args.output else xlsx_path.with_suffix(".json")
+    json_path = (
+        resolve_path(args.output, workspace_dir)
+        if args.output
+        else xlsx_path.with_suffix(".json")
+    )
     json_path.parent.mkdir(parents=True, exist_ok=True)
     update_loop_progress(
         workspace_dir,

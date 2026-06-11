@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import pandas as pd
 
 from .schema import ComponentRecord
-
 
 COLUMN_ALIASES = {
     "model": ["型号规格", "型号", "器件型号", "元器件型号", "component_model", "model"],
@@ -41,41 +40,72 @@ def _best_header(raw_df: pd.DataFrame) -> pd.DataFrame:
         header = raw_df.iloc[header_idx].fillna("").astype(str).str.strip()
         candidate = raw_df.iloc[header_idx + 1 :].reset_index(drop=True).copy()
         candidate.columns = header
-        candidate = candidate.loc[:, [str(col).strip() != "" for col in candidate.columns]]
-        score = sum(1 for aliases in COLUMN_ALIASES.values() for col in aliases if col in candidate.columns)
+        candidate = candidate.loc[
+            :, [str(col).strip() != "" for col in candidate.columns]
+        ]
+        score = sum(
+            1
+            for aliases in COLUMN_ALIASES.values()
+            for col in aliases
+            if col in candidate.columns
+        )
         if score > best_score:
             best_score = score
             best_df = candidate
     return best_df
 
 
-def _flatten_multiline_header(raw_df: pd.DataFrame, header_idx: int, header_rows: int = 2) -> pd.DataFrame:
+def _flatten_multiline_header(
+    raw_df: pd.DataFrame, header_idx: int, header_rows: int = 2
+) -> pd.DataFrame:
     if raw_df is None or raw_df.empty or len(raw_df) <= header_idx:
         return pd.DataFrame()
-    header_block = raw_df.iloc[header_idx : min(header_idx + header_rows, len(raw_df))].astype(str).replace("nan", "")
+    header_block = (
+        raw_df.iloc[header_idx : min(header_idx + header_rows, len(raw_df))]
+        .astype(str)
+        .replace("nan", "")
+    )
     headers = []
     for col in header_block.columns:
-        parts = [part.strip() for part in header_block[col].tolist() if part and part.strip() and part.strip() != "nan"]
-        headers.append(parts[-1] if parts and parts[-1] not in {"规格", "生产单位"} else (parts[0] if parts else ""))
+        parts = [
+            part.strip()
+            for part in header_block[col].tolist()
+            if part and part.strip() and part.strip() != "nan"
+        ]
+        headers.append(
+            parts[-1]
+            if parts and parts[-1] not in {"规格", "生产单位"}
+            else (parts[0] if parts else "")
+        )
     candidate = raw_df.iloc[header_idx + header_rows :].reset_index(drop=True).copy()
     candidate.columns = headers
-    candidate = candidate.loc[:, [str(col).strip() != "" for col in candidate.columns]]
-    return candidate
+    return candidate.loc[:, [str(col).strip() != "" for col in candidate.columns]]
 
 
 def _read_table(path: Path, sheet_name: str | None = None) -> pd.DataFrame:
     suffix = path.suffix.lower()
     if suffix in {".xlsx", ".xls"}:
         excel = pd.ExcelFile(path)
-        sheets = [sheet_name] if sheet_name and sheet_name in excel.sheet_names else excel.sheet_names
+        sheets = (
+            [sheet_name]
+            if sheet_name and sheet_name in excel.sheet_names
+            else excel.sheet_names
+        )
         best = pd.DataFrame()
         best_score = -1
         for sheet in sheets:
             raw = pd.read_excel(path, sheet_name=sheet, header=None)
             candidates = [_best_header(raw)]
-            candidates.extend(_flatten_multiline_header(raw, idx) for idx in range(min(3, len(raw))))
+            candidates.extend(
+                _flatten_multiline_header(raw, idx) for idx in range(min(3, len(raw)))
+            )
             for candidate in candidates:
-                score = sum(1 for aliases in COLUMN_ALIASES.values() for col in aliases if col in candidate.columns)
+                score = sum(
+                    1
+                    for aliases in COLUMN_ALIASES.values()
+                    for col in aliases
+                    if col in candidate.columns
+                )
                 if score > best_score:
                     best_score = score
                     best = candidate
@@ -97,7 +127,9 @@ def _value(row, field: str) -> str:
     return ""
 
 
-def load_components(path: Path, sheet_name: str | None = None) -> tuple[list[ComponentRecord], list[str]]:
+def load_components(
+    path: Path, sheet_name: str | None = None
+) -> tuple[list[ComponentRecord], list[str]]:
     df = _read_table(path, sheet_name)
     records: list[ComponentRecord] = []
     missing = []
@@ -107,7 +139,7 @@ def load_components(path: Path, sheet_name: str | None = None) -> tuple[list[Com
     if missing:
         return [], missing
 
-    for idx, row in df.iterrows():
+    for _idx, row in df.iterrows():
         data = row.to_dict()
         model = _value(data, "model")
         name = _value(data, "name") or model
@@ -136,7 +168,10 @@ def load_reference_rows(path: Path | None) -> list[dict]:
     df = _read_table(path)
     df = df.copy()
     df.columns = _dedupe_columns([str(col) for col in df.columns])
-    return [{str(k): _clean(v) for k, v in row.items()} for row in df.to_dict(orient="records")]
+    return [
+        {str(k): _clean(v) for k, v in row.items()}
+        for row in df.to_dict(orient="records")
+    ]
 
 
 def _dedupe_columns(columns: list[str]) -> list[str]:

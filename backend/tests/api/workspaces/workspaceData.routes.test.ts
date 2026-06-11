@@ -815,10 +815,10 @@ describe("workspace data routes", () => {
     }
   })
 
-  it("reads derating fallback output files and validates derating request bodies", async () => {
-    const outputDir = path.join(versionDir(), "check_outputs", "component-derating-classifier")
+  it("reads derating compliance output files and validates derating request bodies", async () => {
+    const outputDir = path.join(versionDir(), "check_outputs", "compliance", "derating")
     await fs.mkdir(outputDir, { recursive: true })
-    await writeJson(path.join(outputDir, "input_table.json"), {
+    await writeJson(path.join(outputDir, "table.json"), {
       data: [
         {
           "元器件名称": "R1",
@@ -828,7 +828,7 @@ describe("workspace data routes", () => {
         },
       ],
     })
-    await writeJson(path.join(outputDir, "latest_mapping_completeness.json"), {
+    await writeJson(path.join(outputDir, "mapping_completeness.json"), {
       components: [
         {
           "元器件名称": "R1",
@@ -839,7 +839,7 @@ describe("workspace data routes", () => {
       ],
       schema_version: "fallback",
     })
-    await writeJson(path.join(outputDir, "latest_check_result.json"), {
+    await writeJson(path.join(outputDir, "check_result.json"), {
       rows: [
         {
           "元器件名称": "R1",
@@ -858,7 +858,7 @@ describe("workspace data routes", () => {
         url: `/api/workspace/derating/missing-items?workspaceDir=${workspaceDir}`,
       })
       assert.equal(missingGet.statusCode, 200)
-      assert.equal(missingGet.json().source_relative_path, "check_outputs/component-derating-classifier/latest_mapping_completeness.json")
+      assert.equal(missingGet.json().source_relative_path, "check_outputs/compliance/derating/mapping_completeness.json")
       assert.equal(missingGet.json().components[0]["型号规格"], "0603")
       assert.equal(missingGet.json().components[0]["生产厂商"], "ACME")
 
@@ -867,7 +867,7 @@ describe("workspace data routes", () => {
         url: `/api/workspace/derating/check-result?workspaceDir=${workspaceDir}`,
       })
       assert.equal(checkGet.statusCode, 200)
-      assert.equal(checkGet.json().source_relative_path, "check_outputs/component-derating-classifier/latest_check_result.json")
+      assert.equal(checkGet.json().source_relative_path, "check_outputs/compliance/derating/check_result.json")
       assert.equal(checkGet.json().rows[0]["符合性"], "不通过")
 
       const invalidMissingPut = await server.inject({
@@ -891,7 +891,7 @@ describe("workspace data routes", () => {
   })
 
   it("returns derating parse errors for malformed output payloads", async () => {
-    const outputDir = path.join(versionDir(), "check_outputs", "component-derating-classifier")
+    const outputDir = path.join(versionDir(), "check_outputs", "compliance", "derating")
     await fs.mkdir(outputDir, { recursive: true })
     await writeJson(path.join(outputDir, "bad_mapping_completeness.json"), ["not-object"])
     await writeJson(path.join(outputDir, "bad_check_result.json"), ["not-object"])
@@ -970,7 +970,7 @@ describe("workspace data routes", () => {
     }
   })
 
-  it("returns derating 404 payloads when classifier output files are absent", async () => {
+  it("returns derating 404 payloads when compliance output files are absent", async () => {
     const server = await createTestServer()
     const workspaceDir = encodeURIComponent(versionDir())
 
