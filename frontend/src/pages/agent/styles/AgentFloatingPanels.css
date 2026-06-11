@@ -15,9 +15,11 @@
   position: fixed;
   top: 56px;
   right: 14px;
+  bottom: 242px;
   z-index: 18;
   width: min(340px, calc(100vw - 28px));
-  max-height: min(560px, calc(100vh - 72px));
+  height: auto;
+  max-height: none;
   overflow: auto;
   border: 1px solid var(--hud-line);
   border-radius: 8px;
@@ -111,10 +113,12 @@
   position: fixed;
   top: 56px;
   left: 14px;
+  bottom: 242px;
   z-index: 18;
   display: flex;
   width: min(340px, calc(100vw - 28px));
-  max-height: min(560px, calc(100vh - 72px));
+  height: auto;
+  max-height: none;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--hud-line);
@@ -127,6 +131,15 @@
     0 0 32px rgba(0, 168, 255, 0.14);
   padding: 12px;
   backdrop-filter: blur(18px) saturate(130%);
+}
+
+.agent-page.is-gnc-agent .agent-progress-popover,
+.agent-page.is-thermal-agent .agent-progress-popover,
+.agent-page.is-derating-agent .agent-progress-popover,
+.agent-page.is-gnc-agent .agent-conversation-popover,
+.agent-page.is-thermal-agent .agent-conversation-popover,
+.agent-page.is-derating-agent .agent-conversation-popover {
+  bottom: 216px;
 }
 
 .agent-conversation-popover::before {

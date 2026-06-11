@@ -66,7 +66,10 @@
   .agent-progress-popover {
     top: 140px;
     right: 12px;
+    bottom: 92px;
     left: 12px;
+    height: auto;
+    max-height: none;
     width: auto;
   }
 
@@ -77,9 +80,20 @@
   .agent-conversation-popover {
     top: 140px;
     right: 12px;
+    bottom: 92px;
     left: 12px;
+    height: auto;
     width: auto;
-    max-height: min(620px, calc(100vh - 156px));
+    max-height: none;
+  }
+
+  .agent-page.is-gnc-agent .agent-progress-popover,
+  .agent-page.is-thermal-agent .agent-progress-popover,
+  .agent-page.is-derating-agent .agent-progress-popover,
+  .agent-page.is-gnc-agent .agent-conversation-popover,
+  .agent-page.is-thermal-agent .agent-conversation-popover,
+  .agent-page.is-derating-agent .agent-conversation-popover {
+    bottom: 78px;
   }
 
   .agent-conversation-popover::before {
