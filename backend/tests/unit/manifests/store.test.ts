@@ -83,6 +83,21 @@ describe("manifest store helpers", () => {
     await createManifestFixture()
 
     await withWorkspaceContext(async () => {
+      const contextFromRootAndVersion = await resolveRunWorkspaceContext({
+        versionId: "v0001",
+        workspaceDir: workspaceRoot(),
+        workspaceId: "ws_manifest_test",
+      })
+      assert.equal(contextFromRootAndVersion.versionId, "v0001")
+      assert.equal(contextFromRootAndVersion.workspaceDir, versionDir())
+
+      const contextFromRootOnly = await resolveRunWorkspaceContext({
+        workspaceDir: workspaceRoot(),
+        workspaceId: "ws_manifest_test",
+      })
+      assert.equal(contextFromRootOnly.versionId, "v0001")
+      assert.equal(contextFromRootOnly.workspaceDir, versionDir())
+
       await assert.rejects(
         () => resolveRunWorkspaceContext({
           workspaceDir: versionDir(),

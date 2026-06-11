@@ -324,6 +324,82 @@ function getComplianceValue(row: JsonRow, key: string) {
   return row[key]
 }
 
+function catalogCandidates(row: JsonRow) {
+  return Array.isArray(row.candidates) ? row.candidates.filter(isJsonRecord) : []
+}
+
+function selectedCatalogCandidate(row: JsonRow) {
+  if (isJsonRecord(row.selected_candidate)) return row.selected_candidate
+  return catalogCandidates(row)[0] ?? null
+}
+
+function catalogCandidateKey(candidate: JsonRow | null) {
+  if (!candidate) return ""
+  return [
+    asText(candidate.catalog_model),
+    asText(candidate.catalog_manufacturer),
+    asText(candidate.catalog_group),
+  ].join("|")
+}
+
+function catalogDetail(candidate: JsonRow | null) {
+  if (!candidate) return {}
+  if (isJsonRecord(candidate.detail)) return candidate.detail
+  const detail = isJsonRecord(candidate.catalog_detail) ? candidate.catalog_detail : {}
+  const rawDetail = detail.detail
+  if (typeof rawDetail === "string" && rawDetail.trim()) {
+    try {
+      const parsed = JSON.parse(rawDetail) as unknown
+      return isJsonRecord(parsed) ? { ...detail, ...parsed } : detail
+    } catch {
+      return { ...detail, 详情: rawDetail }
+    }
+  }
+  return detail
+}
+
+function catalogDetailText(candidate: JsonRow | null) {
+  const detail = catalogDetail(candidate)
+  const preferredKeys = ["执行标准", "质量等级", "封装形式", "温度范围", "TID", "SEE", "SEB"]
+  const parts = preferredKeys
+    .map(key => {
+      const value = asText(detail[key])
+      return value ? `${key}: ${value}` : ""
+    })
+    .filter(Boolean)
+  if (parts.length) return parts.join("；")
+
+  return Object.entries(detail)
+    .filter(([key]) => !["detail"].includes(key))
+    .slice(0, 6)
+    .map(([key, value]) => `${key}: ${asText(value)}`)
+    .filter(item => !item.endsWith(": "))
+    .join("；")
+}
+
+function catalogScoreText(candidate: JsonRow | null) {
+  const raw = candidate?.score
+  if (typeof raw === "number" && Number.isFinite(raw)) return `${Math.round(raw * 1000) / 10}分`
+  const text = asText(raw)
+  if (!text) return ""
+  const value = Number(text)
+  return Number.isFinite(value) ? `${Math.round(value * 1000) / 10}分` : text
+}
+
+function catalogCandidateSummary(candidate: JsonRow | null) {
+  if (!candidate) return null
+  const detail = catalogDetail(candidate)
+  return {
+    detail: catalogDetailText(candidate),
+    fullManufacturer: asText(detail.manufacturer_full_name),
+    group: asText(candidate.catalog_group ?? detail.group),
+    manufacturer: asText(candidate.catalog_manufacturer ?? detail.manufacturer),
+    model: asText(candidate.catalog_model ?? detail.model),
+    reason: asText(candidate.reason),
+    score: catalogScoreText(candidate),
+  }
+}
+
 function complianceStatusCounts(rows: JsonRow[]) {
   const issue = rows.filter(row => {
     const status = asText(row.status ?? row["目录内或外"] ?? row.is_in_catalog ?? row["是否满足要求"])
@@ -451,6 +527,13 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
     }))
   }
 
+  const updateComplianceRow = (tabKey: string, rowIndex: number, nextRow: JsonRow) => {
+    setComplianceRows(previous => ({
+      ...previous,
+      [tabKey]: (previous[tabKey] ?? []).map((row, index) => index === rowIndex ? nextRow : row),
+    }))
+  }
+
   const confirmAndGenerateFinal = () => {
     setSavingResults(true)
     fetch(buildWorkspaceApiPath("/workspace/derating/check-result", query), {
@@ -537,21 +620,29 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
               <span>共 <b>{rows.length}</b> 行 · <b style={greenText}>{counts.ok} 正常</b> · <b style={redText}>{counts.issue} 待确认</b></span>
               <span style={mutedTextStyle}>{tab.description}</span>
             </div>
-            <EditableTable
-              columns={tab.columns}
-              emptyText={complianceSources[tab.key] || tab.emptyText}
-              getValue={getComplianceValue}
-              onChange={(rowIndex, key, value) => updateComplianceCell(tab.key, rowIndex, key, value)}
-              rows={rows}
-              selectColumns={{
-                "国产/进口": ["国产", "进口", "无"],
-                "目录内或外": ["目录内", "目录外", "无"],
-                is_key_part: ["true", "false"],
-                is_in_catalog: ["目录内", "目录外", "未提供目录", "无"],
-                status: ["符合", "不符合", "需确认"],
-              }}
-              stickyRightColumns={tab.key === "manufacturer" ? ["目录内或外"] : tab.key === "catalog" ? ["is_in_catalog"] : []}
-            />
+            {tab.key === "catalog" ? (
+              <CatalogMatchView
+                emptyText={complianceSources[tab.key] || tab.emptyText}
+                onRowChange={(rowIndex, nextRow) => updateComplianceRow(tab.key, rowIndex, nextRow)}
+                rows={rows}
+              />
+            ) : (
+              <EditableTable
+                columns={tab.columns}
+                emptyText={complianceSources[tab.key] || tab.emptyText}
+                getValue={getComplianceValue}
+                onChange={(rowIndex, key, value) => updateComplianceCell(tab.key, rowIndex, key, value)}
+                rows={rows}
+                selectColumns={{
+                  "国产/进口": ["国产", "进口", "无"],
+                  "目录内或外": ["目录内", "目录外", "无"],
+                  is_key_part: ["true", "false"],
+                  is_in_catalog: ["目录内", "目录外", "未提供目录", "无"],
+                  status: ["符合", "不符合", "需确认"],
+                }}
+                stickyRightColumns={tab.key === "manufacturer" ? ["目录内或外"] : []}
+              />
+            )}
             <div style={actionsStyle}>
               <button type="button" onClick={() => downloadCsv(`${tab.artifact}.csv`, tableToCsv(tab.columns, rows, getComplianceValue))} disabled={rows.length === 0} style={toolbarButtonStyle}>下载 CSV</button>
               <button type="button" onClick={() => saveComplianceTab(tab)} disabled={rows.length === 0 || savingCompliance === tab.key} style={primaryButtonStyle}>{savingCompliance === tab.key ? "保存中" : "保存修改"}</button>
@@ -764,6 +855,143 @@ function EditableTable({
           ) : null}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+function CatalogMatchView({
+  emptyText,
+  onRowChange,
+  rows,
+}: {
+  emptyText: string
+  onRowChange: (rowIndex: number, nextRow: JsonRow) => void
+  rows: JsonRow[]
+}) {
+  const visibleRows = rows
+    .map((row, rowIndex) => ({ row, rowIndex }))
+    .filter(({ row }) => asText(row["国产/进口"]) !== "进口")
+
+  if (visibleRows.length === 0) {
+    return <div style={catalogEmptyStyle}>{emptyText}</div>
+  }
+
+  const selectCandidate = (row: JsonRow, rowIndex: number, candidate: JsonRow) => {
+    onRowChange(rowIndex, {
+      ...row,
+      catalog_manufacturer: candidate.catalog_manufacturer ?? "",
+      catalog_model: candidate.catalog_model ?? "",
+      is_in_catalog: "目录内",
+      score: candidate.score ?? 0,
+      selected_candidate: candidate,
+    })
+  }
+
+  const clearCandidate = (row: JsonRow, rowIndex: number) => {
+    onRowChange(rowIndex, {
+      ...row,
+      catalog_manufacturer: "",
+      catalog_model: "",
+      is_in_catalog: "目录外",
+      score: 0,
+      selected_candidate: null,
+    })
+  }
+
+  return (
+    <div style={catalogListStyle}>
+      {visibleRows.map(({ row, rowIndex }) => {
+        const candidates = catalogCandidates(row)
+        const selected = selectedCatalogCandidate(row)
+        const selectedSummary = catalogCandidateSummary(selected)
+        const selectedKey = catalogCandidateKey(selected)
+        const hasSelected = Boolean(asText(row.catalog_model) || selected)
+        const status = asText(row.is_in_catalog) || (hasSelected ? "目录内" : "目录外")
+
+        return (
+          <section key={`${asText(row.index)}-${asText(row.list_model)}-${rowIndex}`} style={catalogItemStyle}>
+            <div style={catalogHeaderStyle}>
+              <div style={catalogTitleGroupStyle}>
+                <span style={catalogIndexStyle}>#{asText(row.index) || rowIndex + 1}</span>
+                <strong style={catalogModelStyle}>{asText(row.list_model) || "-"}</strong>
+                <span style={catalogMutedStyle}>{asText(row.list_manufacturer) || "未提供厂商"}</span>
+              </div>
+              <div style={catalogBadgeGroupStyle}>
+                <span style={catalogBadgeStyle}>{asText(row["国产/进口"]) || "未知来源"}</span>
+                <span style={{ ...catalogBadgeStyle, color: status === "目录内" ? HUD_GREEN : HUD_RED }}>{status}</span>
+                <button type="button" onClick={() => clearCandidate(row, rowIndex)} style={catalogActionButtonStyle}>都不匹配</button>
+              </div>
+            </div>
+
+            <div style={catalogSelectedGridStyle}>
+              <CatalogInfoCell label="目录型号" value={selectedSummary?.model || asText(row.catalog_model) || "-"} strong />
+              <CatalogInfoCell label="类别" value={selectedSummary?.group || "-"} />
+              <CatalogInfoCell label="厂商" value={selectedSummary?.fullManufacturer || selectedSummary?.manufacturer || asText(row.catalog_manufacturer) || "-"} />
+              <CatalogInfoCell label="详情" value={selectedSummary?.detail || "-"} wide />
+              <CatalogInfoCell label="匹配原因" value={selectedSummary?.reason || "-"} wide />
+              <CatalogInfoCell label="评分" value={selectedSummary?.score || asText(row.score) || "-"} strong />
+            </div>
+
+            <details style={catalogDetailsStyle}>
+              <summary style={catalogDetailsSummaryStyle}>所有匹配结果（{candidates.length}）</summary>
+              {candidates.length > 0 ? (
+                <div style={catalogCandidateWrapStyle}>
+                  <table style={catalogCandidateTableStyle}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...headerCellStyle, width: 72 }}>选择</th>
+                        <th style={{ ...headerCellStyle, width: 150 }}>目录型号</th>
+                        <th style={{ ...headerCellStyle, width: 80 }}>类别</th>
+                        <th style={{ ...headerCellStyle, width: 170 }}>目录厂商</th>
+                        <th style={{ ...headerCellStyle, width: 310 }}>详情</th>
+                        <th style={{ ...headerCellStyle, width: 300 }}>匹配原因</th>
+                        <th style={{ ...headerCellStyle, width: 90 }}>评分</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {candidates.map((candidate, candidateIndex) => {
+                        const summary = catalogCandidateSummary(candidate)
+                        const candidateKey = catalogCandidateKey(candidate)
+                        const checked = selectedKey === candidateKey
+                        return (
+                          <tr key={`${candidateKey}-${candidateIndex}`}>
+                            <td style={catalogCandidateCellStyle}>
+                              <input
+                                aria-label={`选择 ${summary?.model || candidateIndex + 1}`}
+                                checked={checked}
+                                name={`catalog-candidate-${rowIndex}`}
+                                onChange={() => selectCandidate(row, rowIndex, candidate)}
+                                type="radio"
+                              />
+                            </td>
+                            <td style={catalogCandidateCellStyle}><b>{summary?.model || "-"}</b></td>
+                            <td style={catalogCandidateCellStyle}>{summary?.group || "-"}</td>
+                            <td style={catalogCandidateCellStyle}>{summary?.fullManufacturer || summary?.manufacturer || "-"}</td>
+                            <td style={catalogCandidateCellStyle}>{summary?.detail || "-"}</td>
+                            <td style={catalogCandidateCellStyle}>{summary?.reason || "-"}</td>
+                            <td style={{ ...catalogCandidateCellStyle, color: HUD_CYAN, fontWeight: 800 }}>{summary?.score || "-"}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={catalogNoCandidateStyle}>暂无候选匹配结果</div>
+              )}
+            </details>
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
+function CatalogInfoCell({ label, strong = false, value, wide = false }: { label: string; strong?: boolean; value: string; wide?: boolean }) {
+  return (
+    <div style={wide ? { ...catalogInfoCellStyle, gridColumn: "span 2" } : catalogInfoCellStyle}>
+      <span style={catalogInfoLabelStyle}>{label}</span>
+      <span style={{ ...catalogInfoValueStyle, color: strong ? HUD_CYAN : HUD_TEXT, fontWeight: strong ? 800 : 650 }}>{value}</span>
     </div>
   )
 }
@@ -1187,6 +1415,162 @@ const comparisonTextareaStyle = {
   borderRadius: 4,
   minHeight: 30,
   padding: "6px 7px",
+} satisfies CSSProperties
+
+const catalogListStyle = {
+  display: "grid",
+  gap: 12,
+} satisfies CSSProperties
+
+const catalogEmptyStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE}`,
+  borderRadius: 6,
+  color: HUD_DIM,
+  padding: 24,
+  textAlign: "center",
+} satisfies CSSProperties
+
+const catalogItemStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE}`,
+  borderRadius: 6,
+  boxShadow: HUD_SECTION_SHADOW,
+  overflow: "hidden",
+} satisfies CSSProperties
+
+const catalogHeaderStyle = {
+  alignItems: "center",
+  background: HUD_TABLE_HEADER,
+  borderBottom: `1px solid ${HUD_LINE_SOFT}`,
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 10,
+  justifyContent: "space-between",
+  padding: "10px 12px",
+} satisfies CSSProperties
+
+const catalogTitleGroupStyle = {
+  alignItems: "center",
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 9,
+  minWidth: 0,
+} satisfies CSSProperties
+
+const catalogIndexStyle = {
+  color: HUD_DIM,
+  fontSize: 12,
+  fontWeight: 800,
+} satisfies CSSProperties
+
+const catalogModelStyle = {
+  color: HUD_TEXT,
+  fontSize: 15,
+  overflowWrap: "anywhere",
+} satisfies CSSProperties
+
+const catalogMutedStyle = {
+  color: HUD_MUTED,
+  fontSize: 12,
+  fontWeight: 700,
+} satisfies CSSProperties
+
+const catalogBadgeGroupStyle = {
+  alignItems: "center",
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 7,
+} satisfies CSSProperties
+
+const catalogBadgeStyle = {
+  background: HUD_LABEL_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 999,
+  color: HUD_TEXT,
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1,
+  padding: "6px 8px",
+} satisfies CSSProperties
+
+const catalogActionButtonStyle = {
+  ...toolbarButtonStyle,
+  color: HUD_RED,
+  height: 28,
+  padding: "0 10px",
+} satisfies CSSProperties
+
+const catalogSelectedGridStyle = {
+  display: "grid",
+  gap: 8,
+  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+  padding: 12,
+} satisfies CSSProperties
+
+const catalogInfoCellStyle = {
+  background: HUD_TABLE_CELL,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  display: "grid",
+  gap: 5,
+  minHeight: 58,
+  padding: "8px 9px",
+} satisfies CSSProperties
+
+const catalogInfoLabelStyle = {
+  color: HUD_DIM,
+  fontSize: 11,
+  fontWeight: 800,
+} satisfies CSSProperties
+
+const catalogInfoValueStyle = {
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: "anywhere",
+  whiteSpace: "pre-wrap",
+} satisfies CSSProperties
+
+const catalogDetailsStyle = {
+  borderTop: `1px solid ${HUD_LINE_SOFT}`,
+} satisfies CSSProperties
+
+const catalogDetailsSummaryStyle = {
+  color: HUD_CYAN,
+  cursor: "pointer",
+  fontSize: 13,
+  fontWeight: 800,
+  padding: "10px 12px",
+} satisfies CSSProperties
+
+const catalogCandidateWrapStyle = {
+  maxHeight: 340,
+  overflow: "auto",
+  scrollbarColor: `${HUD_SCROLLBAR} transparent`,
+} satisfies CSSProperties
+
+const catalogCandidateTableStyle = {
+  borderCollapse: "collapse",
+  minWidth: 1262,
+  tableLayout: "fixed",
+  width: "100%",
+} satisfies CSSProperties
+
+const catalogCandidateCellStyle = {
+  background: HUD_TABLE_CELL,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  color: HUD_TEXT,
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: "anywhere",
+  padding: "8px",
+  verticalAlign: "top",
+  whiteSpace: "pre-wrap",
+} satisfies CSSProperties
+
+const catalogNoCandidateStyle = {
+  color: HUD_DIM,
+  padding: "0 12px 14px",
 } satisfies CSSProperties
 
 const emptyCellStyle = {

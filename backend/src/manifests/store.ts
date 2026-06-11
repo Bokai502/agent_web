@@ -510,24 +510,36 @@ async function getManifestForBody(body: Record<string, unknown>) {
   return await getWorkspaceManifestSnapshotByLocator({ sessionId, workspaceDir })
 }
 
-function assertMatchingWorkspaceDir(requestedWorkspaceDir: string | null, version: VersionRecord) {
+function assertMatchingWorkspaceDir(requestedWorkspaceDir: string | null, manifest: WorkspaceManifest, version: VersionRecord) {
   if (!requestedWorkspaceDir) return
   const requested = path.resolve(requestedWorkspaceDir)
+  const manifestRoot = path.resolve(manifest.rootDir)
   const expected = path.resolve(version.workspaceDir)
-  if (requested !== expected) {
-    throw new Error(`workspaceDir does not match version ${version.id}`)
+  if (requested === expected || requested === manifestRoot) return
+
+  const matchedVersion = manifest.versions.find(item => path.resolve(item.workspaceDir) === requested)
+  if (matchedVersion) {
+    throw new Error(`workspaceDir points to version ${matchedVersion.id}, not requested version ${version.id}`)
   }
+  throw new Error(`workspaceDir does not match version ${version.id}`)
 }
 
 function getVersionForRun(manifest: WorkspaceManifest, requestedVersionId: string | null, requestedWorkspaceDir: string | null) {
   if (requestedVersionId) {
     const version = manifest.versions.find(item => item.id === requestedVersionId)
     if (!version) throw new Error(`version not found: ${requestedVersionId}`)
-    assertMatchingWorkspaceDir(requestedWorkspaceDir, version)
+    assertMatchingWorkspaceDir(requestedWorkspaceDir, manifest, version)
     return version
   }
   if (requestedWorkspaceDir) {
     const requested = path.resolve(requestedWorkspaceDir)
+    if (requested === path.resolve(manifest.rootDir)) {
+      const versionId = manifest.activeVersionId
+      if (!versionId) return null
+      const version = manifest.versions.find(item => item.id === versionId)
+      if (!version) throw new Error(`version not found: ${versionId}`)
+      return version
+    }
     const version = manifest.versions.find(item => path.resolve(item.workspaceDir) === requested)
     if (!version) throw new Error("workspaceDir does not match any manifest version")
     return version
