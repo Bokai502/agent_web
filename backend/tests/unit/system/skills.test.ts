@@ -142,7 +142,7 @@ describe("system skills helpers", () => {
     assert.equal(Array.isArray(publicInstructions), true)
     assert.equal(thermalInstructions.some((item: { name: string }) => item.name === "freecad"), true)
     assert.equal(gncInstructions.some((item: { name: string }) => item.name === "aignc-42-orchestrator"), true)
-    assert.equal(checkInstructions.some((item: { name: string }) => item.name === "component-derating-classifier"), true)
+    assert.equal(checkInstructions.some((item: { name: string }) => item.name === "compliance"), true)
     assert.equal(prompt?.name, "pipeline-progress-summarizer")
     assert.match(prompt?.content ?? "", /pipeline/iu)
   })

@@ -8,8 +8,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from .io_utils import read_json_if_exists
 from .app_config import chat_model_config
+from .io_utils import read_json_if_exists
 from .llm import async_process
 from .schema import ComponentRecord
 
@@ -55,11 +55,24 @@ def load_llm_classifier_config(
         or _config_value(data, "model")
         or _config_value(app_data, "model"),
         timeout_seconds=timeout_seconds
-        or int(_config_value(data, "timeoutSeconds", "timeout_seconds") or _config_value(app_data, "timeoutSeconds", "timeout_seconds") or 120),
+        or int(
+            _config_value(data, "timeoutSeconds", "timeout_seconds")
+            or _config_value(app_data, "timeoutSeconds", "timeout_seconds")
+            or 120
+        ),
         batch_size=batch_size
-        or int(_config_value(data, "batchSize", "batch_size") or _config_value(app_data, "batchSize", "batch_size") or 16),
+        or int(
+            _config_value(data, "batchSize", "batch_size")
+            or _config_value(app_data, "batchSize", "batch_size")
+            or 16
+        ),
         concurrency=concurrency
-        or int(os.getenv("COMPLIANCE_LLM_CONCURRENCY", "") or _config_value(data, "concurrency", "maxConcurrency") or _config_value(app_data, "concurrency", "maxConcurrency") or 4),
+        or int(
+            os.getenv("COMPLIANCE_LLM_CONCURRENCY", "")
+            or _config_value(data, "concurrency", "maxConcurrency")
+            or _config_value(app_data, "concurrency", "maxConcurrency")
+            or 4
+        ),
     )
 
 
@@ -91,10 +104,14 @@ def classify_components_with_llm(
     if mode not in {"auto", "llm", "rules"}:
         raise ValueError(f"Unknown classifier mode: {mode}")
     if mode == "rules":
-        raise ValueError("Rules classifier mode is no longer supported. Use --classifier-mode llm or auto.")
+        raise ValueError(
+            "Rules classifier mode is no longer supported. Use --classifier-mode llm or auto."
+        )
     use_llm = mode in {"auto", "llm"} and llm_config.enabled and bool(rules_text)
     if not use_llm:
-        raise ValueError("LLM classifier requires base URL, API key, model, and 8118 classifier markdown.")
+        raise ValueError(
+            "LLM classifier requires base URL, API key, model, and 8118 classifier markdown."
+        )
 
     llm_results: dict[int, dict[str, str]] = {}
     llm_errors: dict[int, str] = {}
@@ -107,8 +124,18 @@ def classify_components_with_llm(
         source = "llm"
         note = ""
         if override:
-            category_name = override.get("category_name") or override.get("categoryName") or comp.category_name or "其他元器件"
-            category_class = override.get("category_class") or override.get("categoryClass") or comp.category_class or "其他"
+            category_name = (
+                override.get("category_name")
+                or override.get("categoryName")
+                or comp.category_name
+                or "其他元器件"
+            )
+            category_class = (
+                override.get("category_class")
+                or override.get("categoryClass")
+                or comp.category_class
+                or "其他"
+            )
             source = "config_override"
         elif comp.index in llm_results:
             category = llm_results[comp.index]
@@ -155,9 +182,14 @@ def _classify_batches(
     system_prompt = _system_prompt(rules_text)
 
     batch_size = max(1, llm_config.batch_size)
-    batches = [components[start : start + batch_size] for start in range(0, len(components), batch_size)]
-    contents = _run_llm_batch_requests(llm_config, system_prompt, [_user_prompt(batch) for batch in batches])
-    for batch, outcome in zip(batches, contents):
+    batches = [
+        components[start : start + batch_size]
+        for start in range(0, len(components), batch_size)
+    ]
+    contents = _run_llm_batch_requests(
+        llm_config, system_prompt, [_user_prompt(batch) for batch in batches]
+    )
+    for batch, outcome in zip(batches, contents, strict=False):
         if isinstance(outcome, Exception):
             message = f"LLM request failed: {outcome}"
             for comp in batch:
@@ -171,7 +203,11 @@ def _classify_batches(
                 errors[comp.index] = message
             continue
         for comp in batch:
-            raw_value = parsed.get(str(comp.index)) or parsed.get(comp.index) or parsed.get(comp.name)
+            raw_value = (
+                parsed.get(str(comp.index))
+                or parsed.get(comp.index)
+                or parsed.get(comp.name)
+            )
             category = _clean_category_result(raw_value)
             if category:
                 results[comp.index] = category
@@ -252,8 +288,12 @@ def _parse_response(content: str) -> dict[Any, Any]:
             if isinstance(item, dict):
                 index = item.get("index")
                 category = {
-                    "category_name": item.get("category_name") or item.get("category") or item.get("name"),
-                    "category_class": item.get("category_class") or item.get("class") or item.get("level"),
+                    "category_name": item.get("category_name")
+                    or item.get("category")
+                    or item.get("name"),
+                    "category_class": item.get("category_class")
+                    or item.get("class")
+                    or item.get("level"),
                 }
                 if index is not None and category:
                     output[str(index)] = category
@@ -267,8 +307,12 @@ def _clean_category_result(value: Any) -> dict[str, str] | None:
     if value is None:
         return None
     if isinstance(value, dict):
-        category_name = _clean_text(value.get("category_name") or value.get("category") or value.get("name"))
-        category_class = _clean_text(value.get("category_class") or value.get("class") or value.get("level"))
+        category_name = _clean_text(
+            value.get("category_name") or value.get("category") or value.get("name")
+        )
+        category_class = _clean_text(
+            value.get("category_class") or value.get("class") or value.get("level")
+        )
     else:
         category_name = _clean_text(value)
         category_class = ""

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
 import re
-import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -36,7 +36,9 @@ class PostgresCatalogConfig:
     )
 
 
-def query_catalog_rows(config: PostgresCatalogConfig | None = None) -> list[dict[str, Any]]:
+def query_catalog_rows(
+    config: PostgresCatalogConfig | None = None,
+) -> list[dict[str, Any]]:
     config = config or PostgresCatalogConfig()
     sql = """
 select
@@ -57,7 +59,10 @@ select
 from component_series_outside
 where name is not null or model is not null or manufacturer is not null
 """
-    with _connect(config) as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with (
+        _connect(config) as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+    ):
         cur.execute(sql)
         return [_clean_row(dict(row)) for row in cur.fetchall()]
 
@@ -69,7 +74,7 @@ def query_catalog_candidate_rows(
     """Fetch a bounded PostgreSQL candidate set for catalog matching.
 
     The original web flow recalled a small set of catalog ids before looking up
-    component_series details.  This keeps the standalone pipeline close to that
+    component_series details.  This keeps the standalone runner close to that
     behavior without requiring the RAGFlow service: PostgreSQL does the first
     pass by model/name/manufacturer terms, then checks.py performs the existing
     detailed scoring and final candidate ranking.
@@ -88,13 +93,17 @@ def query_catalog_candidate_rows(
                 {
                     "component_index": comp.index,
                     "query_model": comp.model,
-                    "model_terms": _like_terms(comp.model, comp.name) or ["__NO_MODEL_MATCH__"],
-                    "maker_terms": _like_terms(comp.manufacturer) or ["__NO_MAKER_MATCH__"],
+                    "model_terms": _like_terms(comp.model, comp.name)
+                    or ["__NO_MODEL_MATCH__"],
+                    "maker_terms": _like_terms(comp.manufacturer)
+                    or ["__NO_MAKER_MATCH__"],
                 }
             )
         if not query_components:
             return []
-        for row in _query_batched_component_candidates(conn, table_columns, query_components, limit):
+        for row in _query_batched_component_candidates(
+            conn, table_columns, query_components, limit
+        ):
             key = (row.get("source_table", ""), row.get("id", ""))
             if key in seen:
                 continue
@@ -235,7 +244,9 @@ def _term_variants(text: str) -> list[str]:
     variants = [text]
     if compact and compact != text:
         variants.append(compact)
-    for token in re.findall(r"[A-Za-z][A-Za-z0-9/_+.\-]{2,}|[\u4e00-\u9fff]{2,}|\d{2,}", text):
+    for token in re.findall(
+        r"[A-Za-z][A-Za-z0-9/_+.\-]{2,}|[\u4e00-\u9fff]{2,}|\d{2,}", text
+    ):
         variants.append(token)
     if compact:
         for length in (10, 8, 6, 4):
@@ -269,4 +280,7 @@ def _connect(config: PostgresCatalogConfig):
 
 
 def _clean_row(row: dict[str, Any]) -> dict[str, str]:
-    return {str(key): "" if value is None else str(value).strip() for key, value in row.items()}
+    return {
+        str(key): "" if value is None else str(value).strip()
+        for key, value in row.items()
+    }

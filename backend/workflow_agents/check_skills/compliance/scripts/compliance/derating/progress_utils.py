@@ -49,7 +49,11 @@ def normalize_status(status: str, completed: bool) -> str:
         return "blocked"
     if completed or "complete" in normalized or "success" in normalized:
         return "completed"
-    if "run" in normalized or "progress" in normalized or normalized.endswith("_running"):
+    if (
+        "run" in normalized
+        or "progress" in normalized
+        or normalized.endswith("_running")
+    ):
         return "running"
     if "pending" in normalized or "wait" in normalized:
         return "pending"

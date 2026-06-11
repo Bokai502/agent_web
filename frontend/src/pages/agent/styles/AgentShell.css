@@ -1095,7 +1095,7 @@
 }
 
 .agent-page.is-derating-agent .agent-side-nav {
-  grid-template-columns: repeat(3, minmax(148px, 204px));
+  grid-template-columns: repeat(4, minmax(132px, 188px));
   justify-content: center;
   align-content: center;
   gap: 10px;
@@ -1115,16 +1115,16 @@
   border-color: rgba(23, 231, 255, 0.12);
   background: rgba(4, 17, 28, 0.52);
   box-shadow: none;
-  padding: 0 16px;
+  padding: 0 18px;
 }
 
 .agent-page.is-thermal-agent .agent-side-nav a::after,
 .agent-page.is-derating-agent .agent-side-nav a::after {
   content: "";
   position: absolute;
-  right: 14px;
+  right: 16px;
   bottom: 9px;
-  left: 14px;
+  left: 16px;
   height: 2px;
   border-radius: 999px;
   background: transparent;

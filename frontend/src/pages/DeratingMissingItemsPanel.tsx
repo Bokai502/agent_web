@@ -64,9 +64,8 @@ const COMPLIANCE_TABS = [
       { key: "manufacturer", label: "生产厂商", width: 120 },
       { key: "category_class", label: "大类", width: 120 },
       { key: "category_name", label: "类别", width: 150 },
-      { key: "classification_source", label: "来源", width: 110 },
     ],
-    description: "展示器件分类结果，可直接调整大类、类别和来源。",
+    description: "展示器件分类结果，可直接调整大类和类别。",
     emptyText: "暂无器件分类数据",
     key: "classification",
     title: "器件分类",
@@ -75,12 +74,10 @@ const COMPLIANCE_TABS = [
     artifact: "manufacturer_check",
     columns: [
       { key: "index", label: "序号", width: 70 },
-      { key: "component_name", label: "器件名称", width: 140 },
-      { key: "model", label: "型号规格", width: 140 },
-      { key: "manufacturer", label: "原厂商", width: 140 },
-      { key: "normalized_manufacturer", label: "标准厂商", width: 160 },
-      { key: "manufacturer_type", label: "厂商类型", width: 120 },
-      { key: "status", label: "状态", width: 110 },
+      { key: "厂商简称", label: "厂商简称", width: 150 },
+      { key: "厂商全称", label: "厂商全称", width: 220 },
+      { key: "国产/进口", label: "国产/进口", width: 120 },
+      { key: "目录内或外", label: "目录内或外", width: 130 },
     ],
     description: "展示厂商归一化和匹配状态，保留最关键字段供确认。",
     emptyText: "暂无厂商匹配数据",
@@ -107,13 +104,13 @@ const COMPLIANCE_TABS = [
     artifact: "catalog_match",
     columns: [
       { key: "index", label: "序号", width: 70 },
-      { key: "component_name", label: "器件名称", width: 140 },
-      { key: "model", label: "型号规格", width: 140 },
-      { key: "manufacturer", label: "生产厂商", width: 130 },
-      { key: "matched_model", label: "目录型号", width: 140 },
-      { key: "matched_manufacturer", label: "目录厂商", width: 150 },
-      { key: "status", label: "匹配状态", width: 120 },
-      { key: "note", label: "备注", width: 220 },
+      { key: "list_model", label: "清单型号", width: 150 },
+      { key: "list_manufacturer", label: "清单厂商", width: 130 },
+      { key: "国产/进口", label: "国产/进口", width: 110 },
+      { key: "catalog_model", label: "目录型号", width: 150 },
+      { key: "catalog_manufacturer", label: "目录厂商", width: 150 },
+      { key: "is_in_catalog", label: "匹配状态", width: 120 },
+      { key: "score", label: "得分", width: 90 },
     ],
     description: "展示目录匹配结果，保留型号、厂商、状态和备注。",
     emptyText: "暂无目录匹配数据",
@@ -295,11 +292,15 @@ function writeResultValue(row: JsonRow, key: string, value: string) {
 }
 
 function normalizeComplianceRow(row: JsonRow) {
+  const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
+  const firstCandidate = Array.isArray(row.candidates) && isJsonRecord(row.candidates[0]) ? row.candidates[0] : null
   const name = row.component_name ?? row.name ?? row["元器件名称"]
   const manufacturer = row.manufacturer ?? row.normalized_manufacturer ?? row["生产厂商"]
-  const status = row.status ?? row.result ?? row.match_status ?? row.compliance_status ?? row["状态"]
+  const status = row.status ?? row.result ?? row.match_status ?? row.compliance_status ?? row["状态"] ?? row["目录内或外"] ?? row.is_in_catalog
   return {
     ...row,
+    catalog_manufacturer: row.catalog_manufacturer ?? selectedCandidate?.catalog_manufacturer ?? firstCandidate?.catalog_manufacturer ?? "",
+    catalog_model: row.catalog_model ?? selectedCandidate?.catalog_model ?? firstCandidate?.catalog_model ?? "",
     component_name: name,
     manufacturer,
     model: row.model ?? row["型号规格"],
@@ -307,9 +308,27 @@ function normalizeComplianceRow(row: JsonRow) {
   }
 }
 
+function isJsonRecord(value: unknown): value is JsonRow {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function getComplianceValue(row: JsonRow, key: string) {
+  if (key === "catalog_model") {
+    const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
+    const firstCandidate = Array.isArray(row.candidates) && isJsonRecord(row.candidates[0]) ? row.candidates[0] : null
+    return row.catalog_model ?? selectedCandidate?.catalog_model ?? firstCandidate?.catalog_model ?? "无"
+  }
+  if (key === "catalog_manufacturer") {
+    const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
+    const firstCandidate = Array.isArray(row.candidates) && isJsonRecord(row.candidates[0]) ? row.candidates[0] : null
+    return row.catalog_manufacturer ?? selectedCandidate?.catalog_manufacturer ?? firstCandidate?.catalog_manufacturer ?? "无"
+  }
+  return row[key]
+}
+
 function complianceStatusCounts(rows: JsonRow[]) {
   const issue = rows.filter(row => {
-    const status = asText(row.status)
+    const status = asText(row.status ?? row["目录内或外"] ?? row.is_in_catalog ?? row["是否满足要求"])
     return status && !isPositiveJudgement(status)
   }).length
   return { issue, ok: rows.length - issue }
@@ -523,17 +542,20 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
             <EditableTable
               columns={tab.columns}
               emptyText={complianceSources[tab.key] || tab.emptyText}
-              getValue={(row, key) => row[key]}
+              getValue={getComplianceValue}
               onChange={(rowIndex, key, value) => updateComplianceCell(tab.key, rowIndex, key, value)}
               rows={rows}
               selectColumns={{
+                "国产/进口": ["国产", "进口", "无"],
+                "目录内或外": ["目录内", "目录外", "无"],
                 is_key_part: ["true", "false"],
+                is_in_catalog: ["目录内", "目录外", "未提供目录", "无"],
                 status: ["符合", "不符合", "需确认"],
               }}
-              stickyRightColumns={["status"]}
+              stickyRightColumns={tab.key === "manufacturer" ? ["目录内或外"] : tab.key === "catalog" ? ["is_in_catalog"] : ["status"]}
             />
             <div style={actionsStyle}>
-              <button type="button" onClick={() => downloadCsv(`${tab.artifact}.csv`, tableToCsv(tab.columns, rows))} disabled={rows.length === 0} style={toolbarButtonStyle}>下载 CSV</button>
+              <button type="button" onClick={() => downloadCsv(`${tab.artifact}.csv`, tableToCsv(tab.columns, rows, getComplianceValue))} disabled={rows.length === 0} style={toolbarButtonStyle}>下载 CSV</button>
               <button type="button" onClick={() => saveComplianceTab(tab)} disabled={rows.length === 0 || savingCompliance === tab.key} style={primaryButtonStyle}>{savingCompliance === tab.key ? "保存中" : "保存修改"}</button>
             </div>
           </div>
@@ -632,9 +654,13 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
   )
 }
 
-function tableToCsv(columns: readonly { key: string; label: string; width: number }[], rows: JsonRow[]) {
+function tableToCsv(
+  columns: readonly { key: string; label: string; width: number }[],
+  rows: JsonRow[],
+  getValue: (row: JsonRow, key: string) => unknown = (row, key) => row[key],
+) {
   const header = columns.map(column => column.label).join(",")
-  const csvRows = rows.map(row => columns.map(column => csvEscape(row[column.key])).join(","))
+  const csvRows = rows.map(row => columns.map(column => csvEscape(getValue(row, column.key))).join(","))
   return [header, ...csvRows].join("\n")
 }
 

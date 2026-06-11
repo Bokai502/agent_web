@@ -7,7 +7,6 @@ from typing import Any
 from .llm import async_chat_completions
 from .llm_classifier import LlmClassifierConfig
 
-
 REQUIREMENT_ITEMS = [
     "元器件划分标准",
     "关键器件划分标准",
@@ -30,9 +29,13 @@ def analyze_requirements_with_llm(
     llm_config: LlmClassifierConfig,
 ) -> list[dict[str, Any]]:
     if not llm_config.enabled:
-        raise ValueError("Step requirements_analysis requires LLM base URL, API key, and model.")
+        raise ValueError(
+            "Step requirements_analysis requires LLM base URL, API key, and model."
+        )
     system_prompt, user_prompt, max_tokens = _requirements_prompt(requirement_text)
-    rows = _parse_json(_run_single_json_completion(llm_config, system_prompt, user_prompt, max_tokens))
+    rows = _parse_json(
+        _run_single_json_completion(llm_config, system_prompt, user_prompt, max_tokens)
+    )
     return _normalize_requirement_rows(rows)
 
 
@@ -41,9 +44,13 @@ def extract_satellite_info_with_llm(
     llm_config: LlmClassifierConfig,
 ) -> list[dict[str, Any]]:
     if not llm_config.enabled:
-        raise ValueError("Step satellite_info requires LLM base URL, API key, and model.")
+        raise ValueError(
+            "Step satellite_info requires LLM base URL, API key, and model."
+        )
     system_prompt, user_prompt, max_tokens = _satellite_prompt(requirement_text)
-    rows = _parse_json(_run_single_json_completion(llm_config, system_prompt, user_prompt, max_tokens))
+    rows = _parse_json(
+        _run_single_json_completion(llm_config, system_prompt, user_prompt, max_tokens)
+    )
     return _normalize_satellite_rows(rows)
 
 
@@ -52,10 +59,14 @@ def analyze_requirements_and_satellite_with_llm(
     llm_config: LlmClassifierConfig,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if not llm_config.enabled:
-        raise ValueError("Requirement and satellite analysis require LLM base URL, API key, and model.")
+        raise ValueError(
+            "Requirement and satellite analysis require LLM base URL, API key, and model."
+        )
     req_prompt = _requirements_prompt(requirement_text)
     sat_prompt = _satellite_prompt(requirement_text)
-    req_content, sat_content = _run_parallel_chat_completions(llm_config, [req_prompt, sat_prompt])
+    req_content, sat_content = _run_parallel_chat_completions(
+        llm_config, [req_prompt, sat_prompt]
+    )
     return (
         _normalize_requirement_rows(_parse_json(req_content)),
         _normalize_satellite_rows(_parse_json(sat_content)),
@@ -107,7 +118,9 @@ def _normalize_requirement_rows(value: Any) -> list[dict[str, Any]]:
                 by_name[str(row["name"]).strip()] = row
     missing = [name for name in REQUIREMENT_ITEMS if name not in by_name]
     if missing:
-        raise ValueError(f"LLM requirements analysis missed required items: {', '.join(missing)}")
+        raise ValueError(
+            f"LLM requirements analysis missed required items: {', '.join(missing)}"
+        )
     output = []
     for name in REQUIREMENT_ITEMS:
         row = by_name[name]
@@ -131,7 +144,9 @@ def _normalize_satellite_rows(value: Any) -> list[dict[str, Any]]:
                 by_item[str(row["item"]).strip()] = row
     missing = [item for item in SATELLITE_ITEMS if item not in by_item]
     if missing:
-        raise ValueError(f"LLM satellite info extraction missed required items: {', '.join(missing)}")
+        raise ValueError(
+            f"LLM satellite info extraction missed required items: {', '.join(missing)}"
+        )
     output = []
     for item in SATELLITE_ITEMS:
         row = by_item[item]

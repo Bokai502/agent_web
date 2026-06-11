@@ -11,7 +11,6 @@ import psycopg2.extras
 from .app_config import compliance_database_config
 from .schema import ComponentRecord
 
-
 QueryType = Literal["quality", "radiation"]
 
 
@@ -26,7 +25,7 @@ class PostgresReliabilityConfig:
     dbname: str = _reliability_config_value("db", "satllm_db")
     user: str = _reliability_config_value("user", "postgres")
     password: str = _reliability_config_value("password", "lbk123")
-    host: str = _reliability_config_value("host", "localhost")
+    host: str = _reliability_config_value("host", "10.110.10.101")
     port: str = _reliability_config_value("port", "5432")
     schema: str = _reliability_config_value("schema", "staging")
     limit_per_component: int = int(
@@ -43,12 +42,18 @@ def query_postgres_reliability(
 ) -> list[dict[str, Any]]:
     config = config or PostgresReliabilityConfig()
     with _connect(config) as conn:
-        quality = [_query_component(conn, config, comp, "quality") for comp in components]
-        radiation = [_query_component(conn, config, comp, "radiation") for comp in components]
+        quality = [
+            _query_component(conn, config, comp, "quality") for comp in components
+        ]
+        radiation = [
+            _query_component(conn, config, comp, "radiation") for comp in components
+        ]
     return _combine(quality, radiation)
 
 
-def load_postgres_components(config: PostgresReliabilityConfig | None = None, limit: int | None = None) -> list[ComponentRecord]:
+def load_postgres_components(
+    config: PostgresReliabilityConfig | None = None, limit: int | None = None
+) -> list[ComponentRecord]:
     config = config or PostgresReliabilityConfig()
     sql = """
 select
@@ -71,7 +76,10 @@ order by id
     if limit:
         sql += " limit %s"
         params = (limit,)
-    with _connect(config) as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with (
+        _connect(config) as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+    ):
         cur.execute(sql, params)
         rows = [dict(row) for row in cur.fetchall()]
 
@@ -81,7 +89,8 @@ order by id
             ComponentRecord(
                 index=idx,
                 model=_clean(row.get("component_model")),
-                name=_clean(row.get("component_name")) or _clean(row.get("component_model")),
+                name=_clean(row.get("component_name"))
+                or _clean(row.get("component_model")),
                 quality_level=_clean(row.get("quality_level")),
                 package_type=_clean(row.get("package_type")),
                 working_temp=_clean(row.get("working_temp")),
@@ -124,7 +133,12 @@ def _connect(config: PostgresReliabilityConfig):
         ) from exc
 
 
-def _query_component(conn, config: PostgresReliabilityConfig, comp: ComponentRecord, query_type: QueryType) -> dict[str, Any]:
+def _query_component(
+    conn,
+    config: PostgresReliabilityConfig,
+    comp: ComponentRecord,
+    query_type: QueryType,
+) -> dict[str, Any]:
     limit = max(1, min(int(config.limit_per_component or 5), 100))
     if query_type == "quality":
         sql = _quality_sql(config.schema)
@@ -146,8 +160,14 @@ def _query_component(conn, config: PostgresReliabilityConfig, comp: ComponentRec
         "match_level_code": "db_hit" if rows else "miss",
         "match_score": 100 if rows else 0,
         "matched_terms": ", ".join(_query_terms(comp)),
-        "match_reason": "按型号、名称、厂家在可靠性数据库中检索。" if rows else "未检索到数据库记录。",
-        "matched_models": ", ".join(dict.fromkeys(str(row.get("model") or "") for row in rows if row.get("model"))),
+        "match_reason": "按型号、名称、厂家在可靠性数据库中检索。"
+        if rows
+        else "未检索到数据库记录。",
+        "matched_models": ", ".join(
+            dict.fromkeys(
+                str(row.get("model") or "") for row in rows if row.get("model")
+            )
+        ),
         "summary": _summary(query_type, rows),
         "records": rows,
         "sql_mode": "postgres",
@@ -245,7 +265,9 @@ def _query_terms(comp: ComponentRecord) -> list[str]:
         text = (value or "").strip()
         if text and text not in terms:
             terms.append(text)
-        for token in re.findall(r"[A-Za-z][A-Za-z0-9/_+.\-]{2,}|[\u4e00-\u9fff]{2,}", text):
+        for token in re.findall(
+            r"[A-Za-z][A-Za-z0-9/_+.\-]{2,}|[\u4e00-\u9fff]{2,}", text
+        ):
             if token not in terms:
                 terms.append(token)
     return terms
@@ -257,13 +279,20 @@ def _summary(query_type: QueryType, rows: list[dict[str, Any]]) -> str:
     snippets = []
     for row in rows[:5]:
         if query_type == "quality":
-            fields = [row.get("model"), row.get("component_type"), row.get("manufacturer"), row.get("issue_description")]
+            fields = [
+                row.get("model"),
+                row.get("component_type"),
+                row.get("manufacturer"),
+                row.get("issue_description"),
+            ]
         else:
             fields = [
                 row.get("model"),
                 row.get("component_type"),
                 row.get("radiation_source"),
-                row.get("single_event_effects") or row.get("total_dose_effects") or row.get("functional_impact"),
+                row.get("single_event_effects")
+                or row.get("total_dose_effects")
+                or row.get("functional_impact"),
             ]
         snippets.append("；".join(str(item) for item in fields if item))
     return "\n".join(snippets)
@@ -301,7 +330,9 @@ def _empty() -> dict[str, Any]:
     }
 
 
-def _combine(quality: list[dict[str, Any]], radiation: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _combine(
+    quality: list[dict[str, Any]], radiation: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     radiation_map = {(item.get("index"), item.get("model")): item for item in radiation}
     combined = []
     for quality_item in quality:

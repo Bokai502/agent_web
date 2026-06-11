@@ -346,6 +346,7 @@ export async function prepareCodexTurn(
     workspaceName: requestedWorkspaceName,
     approvalPolicy: config.codex.approvalPolicy,
     sandboxMode: config.codex.sandboxMode,
+    sandboxWorkspaceWriteNetworkAccess: config.codex.sandboxWorkspaceWriteNetworkAccess,
     bundledCliSrcDirs,
     promptChars: typeof prompt === "string" ? prompt.length : 0,
     sdkInputTextChars: getInputTextLength(Array.isArray(sdkInput) ? sdkInput : sdkInputBase),

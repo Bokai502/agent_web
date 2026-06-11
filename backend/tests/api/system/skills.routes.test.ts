@@ -32,7 +32,7 @@ describe("GET /api/skills", () => {
 
         assert.equal(response.statusCode, 200)
         assert.ok(Array.isArray(body))
-        assert.ok(body.some((skill: { name?: string }) => skill.name === "component-derating-classifier"))
+        assert.ok(body.some((skill: { name?: string }) => skill.name === "compliance"))
       } finally {
         await server.close()
       }

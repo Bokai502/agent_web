@@ -1,0 +1,387 @@
+{
+  "schema_version": "1.0",
+  "input_files": {
+    "requirement_document": {
+      "relative_path": "需求文档_1.pdf.md",
+      "type": "markdown",
+      "description": "需求文档"
+    },
+    "component_list": {
+      "relative_path": "test_48.xlsx",
+      "type": "excel",
+      "description": "元器件清单"
+    },
+    "derating_table": {
+      "relative_path": "降额test1.xlsx",
+      "type": "excel",
+      "description": "降额检查表"
+    },
+    "derating_standard": {
+      "relative_path": "jiange_full.csv",
+      "type": "csv",
+      "description": "降额标准数据"
+    }
+  },
+  "quality_level": {
+    "selected": "CAST C",
+    "min_required": "CAST C",
+    "selected_import_baseline_group": "semiconductor_discrete",
+    "selected_import_baseline_label": "半导体器件 / 分立器件",
+    "options": [
+      { "label": "CASS A", "value": "CASS A" },
+      { "label": "CASS B", "value": "CASS B" },
+      { "label": "CASS C", "value": "CASS C" },
+      { "label": "CASS M", "value": "CASS M" },
+      { "label": "YA", "value": "YA" },
+      { "label": "YB", "value": "YB" },
+      { "label": "YC", "value": "YC" },
+      { "label": "CAST A", "value": "CAST A" },
+      { "label": "CAST B", "value": "CAST B" },
+      { "label": "CAST C", "value": "CAST C" },
+      { "label": "CAST H1", "value": "CAST H1" },
+      { "label": "SAST", "value": "SAST" },
+      { "label": "GJB", "value": "GJB" },
+      { "label": "QJB", "value": "QJB" },
+      { "label": "G", "value": "G" },
+      { "label": "G+", "value": "G+" },
+      { "label": "QB", "value": "QB" },
+      { "label": "普军", "value": "普军" },
+      { "label": "工业级", "value": "工业级" }
+    ],
+    "selected_import_baseline": {
+      "group": { "label": "半导体器件 / 分立器件", "value": "semiconductor_discrete" },
+      "fields": [
+        {
+          "key": "key_channel_a",
+          "label": "进口关键器件-美标",
+          "channel": "channelA",
+          "options": [
+            { "label": "JAN级及以上", "value": "JAN" },
+            { "label": "JANTX级及以上", "value": "JANTX" },
+            { "label": "JANTXV级及以上", "value": "JANTXV" },
+            { "label": "JANS级", "value": "JANS" }
+          ]
+        },
+        {
+          "key": "key_channel_b",
+          "label": "进口关键器件-欧标",
+          "channel": "channelB",
+          "options": [
+            { "label": "ESCC B级", "value": "ESCC B" },
+            { "label": "ESCC C级", "value": "ESCC C" }
+          ]
+        },
+        {
+          "key": "other_channel_a",
+          "label": "进口非关键器件-美标",
+          "channel": "channelA",
+          "options": [
+            { "label": "JAN级及以上", "value": "JAN" },
+            { "label": "JANTX级及以上", "value": "JANTX" },
+            { "label": "JANTXV级及以上", "value": "JANTXV" },
+            { "label": "JANS级", "value": "JANS" }
+          ]
+        },
+        {
+          "key": "other_channel_b",
+          "label": "进口非关键器件-欧标",
+          "channel": "channelB",
+          "options": [
+            { "label": "ESCC B级", "value": "ESCC B" },
+            { "label": "ESCC C级", "value": "ESCC C" }
+          ]
+        }
+      ]
+    }
+  },
+  "quality_compare_baseline_options": {
+    "domesticQualityOptions": [
+      { "label": "CASS A", "value": "CASS A" },
+      { "label": "CASS B", "value": "CASS B" },
+      { "label": "CASS C", "value": "CASS C" },
+      { "label": "CASS M", "value": "CASS M" },
+      { "label": "YA", "value": "YA" },
+      { "label": "YB", "value": "YB" },
+      { "label": "YC", "value": "YC" },
+      { "label": "CAST A", "value": "CAST A" },
+      { "label": "CAST B", "value": "CAST B" },
+      { "label": "CAST C", "value": "CAST C" },
+      { "label": "CAST H1", "value": "CAST H1" },
+      { "label": "SAST", "value": "SAST" },
+      { "label": "GJB", "value": "GJB" },
+      { "label": "QJB", "value": "QJB" },
+      { "label": "G", "value": "G" },
+      { "label": "G+", "value": "G+" },
+      { "label": "QB", "value": "QB" },
+      { "label": "普军", "value": "普军" },
+      { "label": "工业级", "value": "工业级" }
+    ],
+    "baselineGroupOptions": [
+      { "label": "半导体器件 / 分立器件", "value": "semiconductor_discrete" },
+      { "label": "半导体器件 / 集成电路", "value": "semiconductor_ic" },
+      { "label": "电子元件 / 基础元件", "value": "electronic_basic" },
+      { "label": "机电元件 / 机电部件", "value": "electromechanical" }
+    ],
+    "fieldsPerCategory": [
+      { "key": "key_channel_a", "label": "进口关键器件-美标", "channel": "channelA" },
+      { "key": "key_channel_b", "label": "进口关键器件-欧标", "channel": "channelB" },
+      { "key": "other_channel_a", "label": "进口非关键器件-美标", "channel": "channelA" },
+      { "key": "other_channel_b", "label": "进口非关键器件-欧标", "channel": "channelB" }
+    ],
+    "importBaselineOptions": [
+      {
+        "group": { "label": "半导体器件 / 分立器件", "value": "semiconductor_discrete" },
+        "fields": [
+          {
+            "key": "key_channel_a",
+            "label": "进口关键器件-美标",
+            "channel": "channelA",
+            "options": [
+              { "label": "JAN级及以上", "value": "JAN" },
+              { "label": "JANTX级及以上", "value": "JANTX" },
+              { "label": "JANTXV级及以上", "value": "JANTXV" },
+              { "label": "JANS级", "value": "JANS" }
+            ]
+          },
+          {
+            "key": "key_channel_b",
+            "label": "进口关键器件-欧标",
+            "channel": "channelB",
+            "options": [
+              { "label": "ESCC B级", "value": "ESCC B" },
+              { "label": "ESCC C级", "value": "ESCC C" }
+            ]
+          },
+          {
+            "key": "other_channel_a",
+            "label": "进口非关键器件-美标",
+            "channel": "channelA",
+            "options": [
+              { "label": "JAN级及以上", "value": "JAN" },
+              { "label": "JANTX级及以上", "value": "JANTX" },
+              { "label": "JANTXV级及以上", "value": "JANTXV" },
+              { "label": "JANS级", "value": "JANS" }
+            ]
+          },
+          {
+            "key": "other_channel_b",
+            "label": "进口非关键器件-欧标",
+            "channel": "channelB",
+            "options": [
+              { "label": "ESCC B级", "value": "ESCC B" },
+              { "label": "ESCC C级", "value": "ESCC C" }
+            ]
+          }
+        ]
+      },
+      {
+        "group": { "label": "半导体器件 / 集成电路", "value": "semiconductor_ic" },
+        "fields": [
+          {
+            "key": "key_channel_a",
+            "label": "进口关键器件-美标",
+            "channel": "channelA",
+            "options": [
+              { "label": "MIL M级及以上", "value": "M级" },
+              { "label": "MIL Q级及以上", "value": "Q级" },
+              { "label": "MIL V级", "value": "V级" },
+              { "label": "混合集成电路 G级及以上", "value": "G级" },
+              { "label": "混合集成电路 H级及以上", "value": "H级" },
+              { "label": "混合集成电路 K级", "value": "K级" },
+              { "label": "883级", "value": "883级" }
+            ]
+          },
+          {
+            "key": "key_channel_b",
+            "label": "进口关键器件-欧标",
+            "channel": "channelB",
+            "options": [
+              { "label": "ESCC B级", "value": "ESCC B" },
+              { "label": "ESCC C级", "value": "ESCC C" }
+            ]
+          },
+          {
+            "key": "other_channel_a",
+            "label": "进口非关键器件-美标",
+            "channel": "channelA",
+            "options": [
+              { "label": "MIL M级及以上", "value": "M级" },
+              { "label": "MIL Q级及以上", "value": "Q级" },
+              { "label": "MIL V级", "value": "V级" },
+              { "label": "混合集成电路 G级及以上", "value": "G级" },
+              { "label": "混合集成电路 H级及以上", "value": "H级" },
+              { "label": "混合集成电路 K级", "value": "K级" },
+              { "label": "883级", "value": "883级" }
+            ]
+          },
+          {
+            "key": "other_channel_b",
+            "label": "进口非关键器件-欧标",
+            "channel": "channelB",
+            "options": [
+              { "label": "ESCC B级", "value": "ESCC B" },
+              { "label": "ESCC C级", "value": "ESCC C" }
+            ]
+          }
+        ]
+      },
+      {
+        "group": { "label": "电子元件 / 基础元件", "value": "electronic_basic" },
+        "fields": [
+          {
+            "key": "key_channel_a",
+            "label": "进口关键器件-美标",
+            "channel": "channelA",
+            "options": [
+              { "label": "C级及以上", "value": "C级" },
+              { "label": "M级及以上", "value": "M级" },
+              { "label": "P级及以上", "value": "P级" },
+              { "label": "R级及以上", "value": "R级" },
+              { "label": "S级", "value": "S级" },
+              { "label": "MIL-SPEC", "value": "MIL-SPEC" }
+            ]
+          },
+          {
+            "key": "key_channel_b",
+            "label": "进口关键器件-欧标",
+            "channel": "channelB",
+            "options": [
+              { "label": "ESCC B级", "value": "ESCC B" },
+              { "label": "ESCC C级", "value": "ESCC C" }
+            ]
+          },
+          {
+            "key": "other_channel_a",
+            "label": "进口非关键器件-美标",
+            "channel": "channelA",
+            "options": [
+              { "label": "C级及以上", "value": "C级" },
+              { "label": "M级及以上", "value": "M级" },
+              { "label": "P级及以上", "value": "P级" },
+              { "label": "R级及以上", "value": "R级" },
+              { "label": "S级", "value": "S级" },
+              { "label": "MIL-SPEC", "value": "MIL-SPEC" }
+            ]
+          },
+          {
+            "key": "other_channel_b",
+            "label": "进口非关键器件-欧标",
+            "channel": "channelB",
+            "options": [
+              { "label": "ESCC B级", "value": "ESCC B" },
+              { "label": "ESCC C级", "value": "ESCC C" }
+            ]
+          }
+        ]
+      },
+      {
+        "group": { "label": "机电元件 / 机电部件", "value": "electromechanical" },
+        "fields": [
+          {
+            "key": "key_channel_a",
+            "label": "进口关键器件-美标",
+            "channel": "channelA",
+            "options": [
+              { "label": "L级及以上", "value": "L级" },
+              { "label": "M级及以上", "value": "M级" },
+              { "label": "P级及以上", "value": "P级" },
+              { "label": "R级及以上", "value": "R级" },
+              { "label": "S级", "value": "S级" },
+              { "label": "MIL-SPEC", "value": "MIL-SPEC" }
+            ]
+          },
+          {
+            "key": "key_channel_b",
+            "label": "进口关键器件-欧标",
+            "channel": "channelB",
+            "options": [
+              { "label": "ESCC/SCC", "value": "ESCC" }
+            ]
+          },
+          {
+            "key": "other_channel_a",
+            "label": "进口非关键器件-美标",
+            "channel": "channelA",
+            "options": [
+              { "label": "L级及以上", "value": "L级" },
+              { "label": "M级及以上", "value": "M级" },
+              { "label": "P级及以上", "value": "P级" },
+              { "label": "R级及以上", "value": "R级" },
+              { "label": "S级", "value": "S级" },
+              { "label": "MIL-SPEC", "value": "MIL-SPEC" }
+            ]
+          },
+          {
+            "key": "other_channel_b",
+            "label": "进口非关键器件-欧标",
+            "channel": "channelB",
+            "options": [
+              { "label": "ESCC/SCC", "value": "ESCC" }
+            ]
+          }
+        ]
+      }
+    ],
+    "channelOptions": {
+      "semiconductor_discrete": {
+        "channelA": [
+          { "label": "JAN级及以上", "value": "JAN" },
+          { "label": "JANTX级及以上", "value": "JANTX" },
+          { "label": "JANTXV级及以上", "value": "JANTXV" },
+          { "label": "JANS级", "value": "JANS" }
+        ],
+        "channelB": [
+          { "label": "ESCC B级", "value": "ESCC B" },
+          { "label": "ESCC C级", "value": "ESCC C" }
+        ]
+      },
+      "semiconductor_ic": {
+        "channelA": [
+          { "label": "MIL M级及以上", "value": "M级" },
+          { "label": "MIL Q级及以上", "value": "Q级" },
+          { "label": "MIL V级", "value": "V级" },
+          { "label": "混合集成电路 G级及以上", "value": "G级" },
+          { "label": "混合集成电路 H级及以上", "value": "H级" },
+          { "label": "混合集成电路 K级", "value": "K级" },
+          { "label": "883级", "value": "883级" }
+        ],
+        "channelB": [
+          { "label": "ESCC B级", "value": "ESCC B" },
+          { "label": "ESCC C级", "value": "ESCC C" }
+        ]
+      },
+      "electronic_basic": {
+        "channelA": [
+          { "label": "C级及以上", "value": "C级" },
+          { "label": "M级及以上", "value": "M级" },
+          { "label": "P级及以上", "value": "P级" },
+          { "label": "R级及以上", "value": "R级" },
+          { "label": "S级", "value": "S级" },
+          { "label": "MIL-SPEC", "value": "MIL-SPEC" }
+        ],
+        "channelB": [
+          { "label": "ESCC B级", "value": "ESCC B" },
+          { "label": "ESCC C级", "value": "ESCC C" }
+        ]
+      },
+      "electromechanical": {
+        "channelA": [
+          { "label": "L级及以上", "value": "L级" },
+          { "label": "M级及以上", "value": "M级" },
+          { "label": "P级及以上", "value": "P级" },
+          { "label": "R级及以上", "value": "R级" },
+          { "label": "S级", "value": "S级" },
+          { "label": "MIL-SPEC", "value": "MIL-SPEC" }
+        ],
+        "channelB": [
+          { "label": "ESCC/SCC", "value": "ESCC" }
+        ]
+      }
+    }
+  },
+  "compliance_config": {
+    "quality_level": {
+      "min_required": "CAST C"
+    }
+  }
+}

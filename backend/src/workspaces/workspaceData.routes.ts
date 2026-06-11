@@ -93,11 +93,13 @@ const WORKSPACE_PROGRESS_RELATIVE_PATHS = [
   DEFAULT_PROGRESS_RELATIVE_PATH,
 ]
 const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation", "data1.txt")
-const DERATING_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "component-derating-classifier")
-const DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_mapping_completeness.json")
-const DERATING_TABLE_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_table.json")
-const DERATING_CHECK_RESULT_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_check_result.json")
 const COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "compliance")
+const LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "checks", "compliance")
+const DERATING_OUTPUT_RELATIVE_PATH = path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating")
+const DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "mapping_completeness.json")
+const DERATING_TABLE_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "table.json")
+const DERATING_CHECK_RESULT_RELATIVE_PATH = path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", "derating_check.json")
+const DERATING_DIRECT_CHECK_RESULT_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "check_result.json")
 const COMPLIANCE_ARTIFACTS = new Set([
   "component_classification",
   "manufacturer_check",
@@ -108,7 +110,7 @@ const COMPLIANCE_ARTIFACTS = new Set([
 const DERATING_REFERENCE_RELATIVE_PATH = path.join(
   "workflow_agents",
   "check_skills",
-  "component-derating-classifier",
+  "compliance",
   "reference",
   "jiange_full.json",
 )
@@ -527,6 +529,11 @@ async function readJsonObject(filePath: string) {
   return isRecord(parsed) ? parsed : null
 }
 
+function unwrapStageOutput(value: unknown) {
+  if (isRecord(value) && isRecord(value.output)) return value.output
+  return value
+}
+
 async function readDeratingReferenceRows() {
   const candidatePaths = [
     path.resolve(process.cwd(), DERATING_REFERENCE_RELATIVE_PATH),
@@ -541,32 +548,39 @@ async function readDeratingReferenceRows() {
   return []
 }
 
-async function resolveDeratingOutputFile(workspaceDir: string, preferredRelativePath: string, suffix: string) {
-  const preferredPath = path.join(workspaceDir, preferredRelativePath)
-  const preferredStat = await fs.stat(preferredPath).catch(() => null)
-  if (preferredStat?.isFile()) {
-    return {
-      fullPath: preferredPath,
-      relativePath: preferredRelativePath,
-      stat: preferredStat,
+async function resolveDeratingOutputFile(workspaceDir: string, preferredRelativePaths: string[], suffix: string, outputRelativePaths: string[]) {
+  for (const preferredRelativePath of preferredRelativePaths) {
+    const preferredPath = path.join(workspaceDir, preferredRelativePath)
+    const preferredStat = await fs.stat(preferredPath).catch(() => null)
+    if (preferredStat?.isFile()) {
+      return {
+        fullPath: preferredPath,
+        relativePath: preferredRelativePath,
+        stat: preferredStat,
+      }
     }
   }
 
-  const outputDir = path.join(workspaceDir, DERATING_OUTPUT_RELATIVE_PATH)
-  const dirents = await fs.readdir(outputDir, { withFileTypes: true }).catch(() => [])
-  const candidates = await Promise.all(dirents
-    .filter(dirent => dirent.isFile() && dirent.name.endsWith(suffix))
-    .map(async dirent => {
-      const fullPath = path.join(outputDir, dirent.name)
-      const stat = await fs.stat(fullPath).catch(() => null)
-      return stat?.isFile()
-        ? {
-            fullPath,
-            relativePath: path.join(DERATING_OUTPUT_RELATIVE_PATH, dirent.name),
-            stat,
-          }
-        : null
-    }))
+  const candidates = (await Promise.all(outputRelativePaths.map(async outputRelativePath => {
+    const outputDir = path.join(workspaceDir, outputRelativePath)
+    const dirents = await fs.readdir(outputDir, { withFileTypes: true }).catch(() => [])
+    return Promise.all(dirents
+      .filter(dirent => dirent.isFile() && (
+        dirent.name.endsWith(suffix) ||
+        dirent.name === suffix.replace(/^_/u, "")
+      ))
+      .map(async dirent => {
+        const fullPath = path.join(outputDir, dirent.name)
+        const stat = await fs.stat(fullPath).catch(() => null)
+        return stat?.isFile()
+          ? {
+              fullPath,
+              relativePath: path.join(outputRelativePath, dirent.name),
+              stat,
+            }
+          : null
+      }))
+  }))).flat()
 
   const sorted = candidates
     .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
@@ -577,6 +591,9 @@ async function resolveDeratingOutputFile(workspaceDir: string, preferredRelative
 
 async function enrichDeratingCompletenessPayload(workspaceDir: string, payload: ReturnType<typeof normalizeDeratingCompletenessPayload>) {
   const tablePayload = await readJsonObject(path.join(workspaceDir, DERATING_TABLE_RELATIVE_PATH))
+    ?? await readJsonObject(path.join(workspaceDir, DERATING_OUTPUT_RELATIVE_PATH, "input_table.json"))
+    ?? await readJsonObject(path.join(workspaceDir, LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating", "table.json"))
+    ?? await readJsonObject(path.join(workspaceDir, LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating", "input_table.json"))
   const tableRows = Array.isArray(tablePayload?.data) ? tablePayload.data.filter(isRecord) : []
   const referenceRows = await readDeratingReferenceRows()
   const requiredByType = new Map<string, string[]>()
@@ -617,8 +634,12 @@ async function enrichDeratingCompletenessPayload(workspaceDir: string, payload: 
 async function readDeratingMissingItems(workspaceDir: string) {
   const resolvedFile = await resolveDeratingOutputFile(
     workspaceDir,
-    DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH,
+    [
+      DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH,
+      path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_mapping_completeness.json"),
+    ],
     "_mapping_completeness.json",
+    [DERATING_OUTPUT_RELATIVE_PATH],
   )
   if (!resolvedFile) {
     throw new WorkspaceQueryError("derating mapping completeness JSON not found", 404)
@@ -694,8 +715,23 @@ function summarizeDeratingCheckRows(rows: JsonRecord[]) {
 async function readDeratingCheckResult(workspaceDir: string) {
   const resolvedFile = await resolveDeratingOutputFile(
     workspaceDir,
-    DERATING_CHECK_RESULT_RELATIVE_PATH,
+    [
+      DERATING_DIRECT_CHECK_RESULT_RELATIVE_PATH,
+      DERATING_CHECK_RESULT_RELATIVE_PATH,
+      path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_check_result.json"),
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating", "check_result.json"),
+      path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", "derating_check.json"),
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", "derating_check.json"),
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", "derating_check.json"),
+    ],
     "_check_result.json",
+    [
+      path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages"),
+      path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps"),
+      DERATING_OUTPUT_RELATIVE_PATH,
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages"),
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps"),
+    ],
   )
   if (!resolvedFile) {
     throw new WorkspaceQueryError("derating check result JSON not found", 404)
@@ -706,7 +742,7 @@ async function readDeratingCheckResult(workspaceDir: string) {
     throw new WorkspaceQueryError("derating check result JSON not found", 404)
   }
 
-  const payload = normalizeDeratingCheckResultPayload(JSON.parse(raw) as unknown)
+  const payload = normalizeDeratingCheckResultPayload(unwrapStageOutput(JSON.parse(raw) as unknown))
   return {
     ...payload,
     source_path: resultPath,
@@ -722,13 +758,28 @@ async function writeDeratingCheckResult(workspaceDir: string, body: DeratingChec
   }
   const resolvedFile = await resolveDeratingOutputFile(
     workspaceDir,
-    DERATING_CHECK_RESULT_RELATIVE_PATH,
+    [
+      DERATING_DIRECT_CHECK_RESULT_RELATIVE_PATH,
+      DERATING_CHECK_RESULT_RELATIVE_PATH,
+      path.join(DERATING_OUTPUT_RELATIVE_PATH, "input_check_result.json"),
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating", "check_result.json"),
+      path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", "derating_check.json"),
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", "derating_check.json"),
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", "derating_check.json"),
+    ],
     "_check_result.json",
+    [
+      path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages"),
+      path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps"),
+      DERATING_OUTPUT_RELATIVE_PATH,
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages"),
+      path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps"),
+    ],
   )
-  const resultPath = resolvedFile?.fullPath ?? path.join(workspaceDir, DERATING_CHECK_RESULT_RELATIVE_PATH)
+  const resultPath = resolvedFile?.fullPath ?? path.join(workspaceDir, DERATING_DIRECT_CHECK_RESULT_RELATIVE_PATH)
   const existingRaw = await fs.readFile(resultPath, "utf-8").catch(() => null)
   const existingPayload = existingRaw
-    ? normalizeDeratingCheckResultPayload(JSON.parse(existingRaw) as unknown)
+    ? normalizeDeratingCheckResultPayload(unwrapStageOutput(JSON.parse(existingRaw) as unknown))
     : { schema_version: "1.0", rows: [] }
   const rows = body.rows.filter(isRecord)
   const { issueCounts, summary } = summarizeDeratingCheckRows(rows)
@@ -753,8 +804,12 @@ function assertComplianceArtifact(value: unknown) {
 
 async function resolveComplianceArtifactFile(workspaceDir: string, artifact: string) {
   const candidates = [
+    path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", `${artifact}.json`),
     path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", `${artifact}.json`),
     path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, `${artifact}.json`),
+    path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", `${artifact}.json`),
+    path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", `${artifact}.json`),
+    path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, `${artifact}.json`),
   ]
   for (const relativePath of candidates) {
     const fullPath = path.join(workspaceDir, relativePath)
