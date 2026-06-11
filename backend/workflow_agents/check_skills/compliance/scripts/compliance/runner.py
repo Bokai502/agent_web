@@ -276,15 +276,7 @@ class RunnerContext:
         self.workspace_dir = (
             Path(args.workspace_dir).resolve() if args.workspace_dir else None
         )
-        self.output_dir = (
-            Path(args.output_dir)
-            if args.output_dir
-            else (
-                self.workspace_dir / DEFAULT_OUTPUT_SUBDIR
-                if self.workspace_dir
-                else Path("outputs")
-            )
-        )
+        self.output_dir = self._resolve_output_dir(args.output_dir)
         self.stages_dir = ensure_dir(self.output_dir / "stages")
         self.legacy_steps_dir = self.output_dir / "steps"
         self.config_path = (
@@ -339,6 +331,25 @@ class RunnerContext:
             if args.report_template_dir
             else reference_dir(),
         )
+
+    def _resolve_output_dir(self, output_dir: str | None) -> Path:
+        if self.workspace_dir is None:
+            return Path(output_dir).resolve() if output_dir else Path("outputs").resolve()
+
+        default_output_dir = self.workspace_dir / DEFAULT_OUTPUT_SUBDIR
+        if not output_dir:
+            return default_output_dir
+
+        requested = Path(output_dir)
+        if not requested.is_absolute():
+            requested = self.workspace_dir / requested
+        requested = requested.resolve()
+
+        try:
+            requested.relative_to(self.workspace_dir)
+        except ValueError:
+            return default_output_dir
+        return requested
 
     def _resolved_input_config(self) -> dict[str, Any]:
         if not self.workspace_dir:

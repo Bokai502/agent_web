@@ -631,6 +631,72 @@ async function enrichDeratingCompletenessPayload(workspaceDir: string, payload: 
   }
 }
 
+async function buildDeratingCompletenessFromCurrentOutputs(workspaceDir: string) {
+  const tablePath = path.join(workspaceDir, DERATING_TABLE_RELATIVE_PATH)
+  const classificationPath = path.join(workspaceDir, DERATING_OUTPUT_RELATIVE_PATH, "classification.json")
+  const [tablePayload, classificationPayload] = await Promise.all([
+    readJsonObject(tablePath),
+    readJsonObject(classificationPath),
+  ])
+  const tableRows = Array.isArray(tablePayload?.data) ? tablePayload.data.filter(isRecord) : []
+  const classificationRows = Array.isArray(classificationPayload?.components)
+    ? classificationPayload.components.filter(isRecord)
+    : []
+  if (tableRows.length === 0 && classificationRows.length === 0) return null
+
+  const tableRowsByName = new Map<string, JsonRecord[]>()
+  for (const row of tableRows) {
+    const name = cleanString(row["元器件名称"])
+    if (!name) continue
+    tableRowsByName.set(name, [...(tableRowsByName.get(name) ?? []), row])
+  }
+
+  const componentNames = uniqueCleanStrings([
+    ...classificationRows.map(row => row["元器件名称"]),
+    ...tableRows.map(row => row["元器件名称"]),
+  ])
+  const components = componentNames.map(componentName => {
+    const classification = classificationRows.find(row => cleanString(row["元器件名称"]) === componentName)
+    const matchingRows = tableRowsByName.get(componentName) ?? []
+    const standardParameters = Array.isArray(classification?.information)
+      ? uniqueCleanStrings(classification.information.filter(isRecord).map(row => row["降额参数"]))
+      : []
+    const filledParameters = uniqueCleanStrings([
+      ...matchingRows.map(row => row["降额参数"]),
+      ...(Array.isArray(classification?.["降额参数"]) ? classification["降额参数"] : []),
+    ])
+    const missingParameters = standardParameters.filter(parameter => !filledParameters.includes(parameter))
+
+    return {
+      "元器件名称": componentName,
+      "型号规格": uniqueCleanStrings([
+        ...matchingRows.map(row => row["型号规格_规格"]),
+        ...(Array.isArray(classification?.sample_models) ? classification.sample_models : []),
+      ]).join("; "),
+      "生产厂商": uniqueCleanStrings(matchingRows.map(row => row["生产厂商_生产单位"])).join("; "),
+      "元器件大类": classification?.["元器件大类"] ?? matchingRows[0]?.["元器件大类"] ?? "",
+      "元器件子类": classification?.["元器件子类"] ?? matchingRows[0]?.["元器件子类"] ?? "",
+      "标准全量参数": standardParameters.join("; "),
+      "已填参数": filledParameters.join("; "),
+      missing_count: missingParameters.length,
+      missing_standard_parameters: missingParameters.join("; "),
+    }
+  })
+  const stat = await fs.stat(classificationPath).catch(() => null) ?? await fs.stat(tablePath).catch(() => null)
+  return {
+    schema_version: "1.0",
+    components,
+    source_path: classificationPayload ? classificationPath : tablePath,
+    source_relative_path: (classificationPayload
+      ? path.join(DERATING_OUTPUT_RELATIVE_PATH, "classification.json")
+      : DERATING_TABLE_RELATIVE_PATH
+    ).split(path.sep).join("/"),
+    source_version: stat ? [classificationPayload ? classificationPath : tablePath, stat.mtimeMs, stat.size].join(":") : null,
+    summary: summarizeDeratingCompletenessComponents(components),
+    updated_at: stat?.mtime.toISOString() ?? null,
+  }
+}
+
 async function readDeratingMissingItems(workspaceDir: string) {
   const resolvedFile = await resolveDeratingOutputFile(
     workspaceDir,
@@ -642,6 +708,8 @@ async function readDeratingMissingItems(workspaceDir: string) {
     [DERATING_OUTPUT_RELATIVE_PATH],
   )
   if (!resolvedFile) {
+    const generatedPayload = await buildDeratingCompletenessFromCurrentOutputs(workspaceDir)
+    if (generatedPayload) return generatedPayload
     throw new WorkspaceQueryError("derating mapping completeness JSON not found", 404)
   }
   const completenessPath = resolvedFile.fullPath

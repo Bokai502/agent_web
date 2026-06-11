@@ -7,7 +7,8 @@ description: Run the SatLab aerospace component compliance workflow. Use for req
 
 Use the Open Codex Web execution context `workspace_dir` as the workspace root.
 Run commands from this skill directory and write generated files under the
-workspace.
+current version `workspace_dir`. Do not reuse output paths from prior turns,
+other versions, the repository checkout, or template input directories.
 
 The authoritative input manifest is
 `<workspace_dir>/00_inputs/input_config.json`. Read requirement/component paths
@@ -70,12 +71,16 @@ Command form:
 ```bash
 PYTHONPATH=scripts python -m compliance.runner \
   --stage <stage_name> \
-  --output-dir <workspace_dir>/check_outputs/compliance \
   --workspace-dir <workspace_dir> \
   --config <workspace_dir>/00_inputs/input_config.json
 ```
 
 `python -m compliance` is an alias for `python -m compliance.runner`.
+
+Omit `--output-dir` unless the user explicitly asks for a workspace-local
+subdirectory. The runner defaults to `<workspace_dir>/check_outputs/compliance`
+and ignores any output directory outside `workspace_dir` to stay within the
+versioned workspace write boundary.
 
 ## Stages
 

@@ -30,11 +30,16 @@ Run one stage at a time:
 python -m compliance.runner \
   --stage <stage_name> \
   --workspace-dir <workspace_dir> \
-  --output-dir <workspace_dir>/check_outputs/compliance \
   --config <workspace_dir>/00_inputs/input_config.json
 ```
 
 `python -m compliance` is an alias for `python -m compliance.runner`.
+
+The default output directory is `<workspace_dir>/check_outputs/compliance`.
+Avoid passing `--output-dir` for normal workflow runs. If a custom output
+directory is provided, it must be inside `workspace_dir`; paths outside the
+current version workspace are ignored and replaced by the default output
+directory.
 
 The runner writes:
 

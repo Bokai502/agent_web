@@ -92,8 +92,6 @@ const COMPLIANCE_TABS = [
       { key: "model", label: "型号规格", width: 140 },
       { key: "manufacturer", label: "生产厂商", width: 120 },
       { key: "is_key_part", label: "关键器件", width: 110 },
-      { key: "reason", label: "依据", width: 220 },
-      { key: "status", label: "状态", width: 110 },
     ],
     description: "展示关键器件识别结果，可修改关键器件标记和依据。",
     emptyText: "暂无关键器件数据",
@@ -552,7 +550,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
                 is_in_catalog: ["目录内", "目录外", "未提供目录", "无"],
                 status: ["符合", "不符合", "需确认"],
               }}
-              stickyRightColumns={tab.key === "manufacturer" ? ["目录内或外"] : tab.key === "catalog" ? ["is_in_catalog"] : ["status"]}
+              stickyRightColumns={tab.key === "manufacturer" ? ["目录内或外"] : tab.key === "catalog" ? ["is_in_catalog"] : []}
             />
             <div style={actionsStyle}>
               <button type="button" onClick={() => downloadCsv(`${tab.artifact}.csv`, tableToCsv(tab.columns, rows, getComplianceValue))} disabled={rows.length === 0} style={toolbarButtonStyle}>下载 CSV</button>
