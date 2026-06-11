@@ -3,6 +3,7 @@ import type { TFunction } from "i18next"
 import { joinApiPath } from "../../app/apiBase"
 import {
   getWorkflowLoopProgressEntries,
+  getWorkflowProgressSummary,
   type WorkflowProgressVariant,
   type WorkspaceProgressResponse,
 } from "./progressUtils"
@@ -207,6 +208,10 @@ export function useWorkspaceRuntimeData({
     () => getWorkflowLoopProgressEntries(progressData?.data, t, progressVariant),
     [progressData, progressVariant, t],
   )
+  const workflowProgressSummary = useMemo(
+    () => getWorkflowProgressSummary(progressData?.data, workflowLoopProgressEntries, t),
+    [progressData, t, workflowLoopProgressEntries],
+  )
 
   return {
     conversationLogs,
@@ -214,5 +219,6 @@ export function useWorkspaceRuntimeData({
     progressData,
     resetProgressData,
     workflowLoopProgressEntries,
+    workflowProgressSummary,
   }
 }

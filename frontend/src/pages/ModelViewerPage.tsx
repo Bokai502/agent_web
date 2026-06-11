@@ -1140,6 +1140,22 @@ export default function ModelViewerPage() {
 
   const isDeratingMode = showDeratingMode && viewerMode === "derating"
   const isLightDeratingMode = isDeratingMode && viewerTheme === "light"
+  const viewerModeOptions = lockedViewerMode
+    ? ([
+        [
+          lockedViewerMode,
+          lockedViewerMode === "temperature"
+            ? "Thermal"
+            : lockedViewerMode === "realCad"
+              ? "真实CAD"
+              : "CAD",
+        ],
+      ] as const)
+    : ([
+        ["cad", "CAD"],
+        ["realCad", "真实CAD"],
+        ["temperature", "Thermal"],
+      ] as const)
 
   return (
     <div
@@ -1159,7 +1175,7 @@ export default function ModelViewerPage() {
             left: 0,
             position: "absolute",
             right: 0,
-            top: 56,
+            top: 0,
             zIndex: 4,
             background: isLightDeratingMode ? "#f6f8fb" : "#06111d",
           }}
@@ -1173,41 +1189,24 @@ export default function ModelViewerPage() {
         </div>
       ) : null}
 
-      <div
-        style={{
-          position: "absolute",
-          left: 18,
-          top: 18,
-          display: "flex",
-          gap: 6,
-          padding: 4,
-          borderRadius: 8,
-          background: isLightDeratingMode ? "rgba(255, 255, 255, 0.84)" : "rgba(6, 12, 27, 0.74)",
-          border: isLightDeratingMode ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(122, 148, 212, 0.28)",
-          boxShadow: isLightDeratingMode ? "0 8px 24px rgba(18, 34, 51, 0.08)" : undefined,
-          backdropFilter: "blur(12px)",
-          pointerEvents: "auto",
-        }}
-      >
-        {(lockedViewerMode
-          ? ([
-              [
-                lockedViewerMode,
-                lockedViewerMode === "derating"
-                  ? "降额"
-                  : lockedViewerMode === "temperature"
-                    ? "Thermal"
-                    : lockedViewerMode === "realCad"
-                      ? "真实CAD"
-                      : "CAD",
-              ],
-            ] as const)
-          : ([
-              ["cad", "CAD"],
-              ["realCad", "真实CAD"],
-              ["temperature", "Thermal"],
-            ] as const)
-        ).map(([mode, label]) => {
+      {lockedViewerMode === "derating" ? null : (
+        <div
+          style={{
+            position: "absolute",
+            left: 18,
+            top: 18,
+            display: "flex",
+            gap: 6,
+            padding: 4,
+            borderRadius: 8,
+            background: isLightDeratingMode ? "rgba(255, 255, 255, 0.84)" : "rgba(6, 12, 27, 0.74)",
+            border: isLightDeratingMode ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(122, 148, 212, 0.28)",
+            boxShadow: isLightDeratingMode ? "0 8px 24px rgba(18, 34, 51, 0.08)" : undefined,
+            backdropFilter: "blur(12px)",
+            pointerEvents: "auto",
+          }}
+        >
+        {viewerModeOptions.map(([mode, label]) => {
           const active = viewerMode === mode
           return (
             <button
@@ -1235,7 +1234,8 @@ export default function ModelViewerPage() {
             </button>
           )
         })}
-      </div>
+        </div>
+      )}
 
       {viewerMode === "temperature" && temperatureRange && (
         <div

@@ -18,7 +18,7 @@ describe("fallbackRouting", () => {
 
     assert.equal(result.intent, "check")
     assert.deepEqual(result.managedSkills, ["task-runner"])
-    assert.deepEqual(result.selectedSkills, ["component-derating-classifier"])
+    assert.deepEqual(result.selectedSkills, ["compliance"])
     assert.deepEqual(result.skillScopes, ["public", "check"])
     assert.equal(result.source, "fallback")
   })
@@ -175,7 +175,7 @@ describe("fallbackRouting", () => {
 
     assert.equal(result.source, "fallback")
     assert.equal(result.intent, "check")
-    assert.deepEqual(result.selectedSkills, ["component-derating-classifier"])
+    assert.deepEqual(result.selectedSkills, ["compliance"])
     assert.deepEqual(result.skillScopes, ["public", "check"])
   })
 

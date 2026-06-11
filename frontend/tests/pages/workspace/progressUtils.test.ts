@@ -33,6 +33,38 @@ describe("progressUtils", () => {
     })
   })
 
+  it("shows derating compliance loops in check progress", () => {
+    const entries = getWorkflowLoopProgressEntries({
+      schema_version: "loop_progress/1.0",
+      loops: {
+        check_convert_table: { status: "table_conversion_completed", completed: true, percentage: 100 },
+        check_ai_mapping: { status: "ai_mapping_completed", completed: true, percentage: 100 },
+        check_mapping_completeness: { status: "mapping_completeness_completed", completed: true, percentage: 100 },
+        check_rule_analysis: { status: "rule_analysis_completed", completed: true, percentage: 100 },
+        check_compliance_load_inputs: { status: "load_inputs_completed", completed: true, percentage: 100 },
+        check_compliance_analysis: { status: "analysis_completed", completed: true, percentage: 100 },
+        check_compliance_checks: { status: "checks_completed", completed: true, percentage: 100 },
+        check_compliance_classification: { status: "classification_completed", completed: true, percentage: 100 },
+        check_compliance_report: { status: "report_completed", completed: true, percentage: 100 },
+      },
+    }, i18n.t, "check")
+
+    expect(entries.map(entry => entry.key)).toEqual([
+      "check_convert_table",
+      "check_ai_mapping",
+      "check_rule_analysis",
+      "check_mapping_completeness",
+      "check_compliance_load_inputs",
+      "check_compliance_analysis",
+      "check_compliance_checks",
+      "check_compliance_classification",
+      "check_compliance_report",
+    ])
+    expect(entries.every(entry => entry.percent === 100)).toBe(true)
+    expect(entries.every(entry => entry.status === "completed")).toBe(true)
+    expect(entries.find(entry => entry.key === "check_compliance_report")?.statusLabel).toBe("报告已完成")
+  })
+
   it("shows detailed simulation sub-status labels", () => {
     const entries = getWorkflowLoopProgressEntries({
       schema_version: "loop_progress/1.0",

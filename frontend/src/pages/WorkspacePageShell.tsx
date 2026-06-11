@@ -209,6 +209,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     progressData,
     resetProgressData,
     workflowLoopProgressEntries,
+    workflowProgressSummary,
   } = useWorkspaceRuntimeData({
     activeContext,
     apiBase,
@@ -391,6 +392,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       entries={workflowLoopProgressEntries}
       language={i18n.language}
       progressData={progressData}
+      summary={workflowProgressSummary}
       t={t}
     />
   )

@@ -57,7 +57,7 @@ export function fallbackRouting(body?: RunRequestBody): IntentRoutingResult {
     return {
       intent: "check",
       managedSkills: ["task-runner"],
-      selectedSkills: ["component-derating-classifier"],
+      selectedSkills: ["compliance"],
       skillScopes: ["public", "check"],
       source: "fallback",
     }

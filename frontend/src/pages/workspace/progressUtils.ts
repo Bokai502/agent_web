@@ -13,11 +13,27 @@ export type WorkflowLoopProgressEntry = {
   key: string
   label: string
   percent: number
+  rawStatus: string
   statusLabel: string
   status: "running" | "completed" | "failed" | "blocked" | "pending" | "unknown"
+  updatedAt?: string | null
 }
 
 export type WorkflowProgressVariant = "thermal" | "gnc" | "check"
+
+export type WorkflowProgressSummary = {
+  activeKey?: string | null
+  activeLabel?: string | null
+  percentage: number
+  status: WorkflowLoopProgressEntry["status"]
+  statusLabel: string
+  total: number
+  completed: number
+  failed: number
+  running: number
+  pending: number
+  blocked: number
+}
 
 const THERMAL_WORKFLOW_PROGRESS_STAGES = [
   { key: "create_cad", labelKey: "workspace.progress.createCad" },
@@ -46,10 +62,25 @@ const GNC_AIGNC_STAGE_ALIASES: Record<string, string[]> = {
 }
 
 const CHECK_WORKFLOW_PROGRESS_STAGES = [
-  { key: "check_convert_table", labelKey: "workspace.progress.checkConvertTable" },
-  { key: "check_ai_mapping", labelKey: "workspace.progress.checkAiMapping" },
-  { key: "check_rule_analysis", labelKey: "workspace.progress.checkRuleAnalysis" },
+  { key: "check_compliance_prepare", labelKey: "workspace.progress.checkCompliancePrepare" },
+  { key: "check_compliance_interpret", labelKey: "workspace.progress.checkComplianceInterpret" },
+  { key: "check_compliance_checks", labelKey: "workspace.progress.checkComplianceChecks" },
+  { key: "check_compliance_report", labelKey: "workspace.progress.checkComplianceReport" },
 ]
+
+const CHECK_STAGE_ALIASES: Record<string, string[]> = {
+  check_compliance_prepare: ["check_compliance_load_inputs"],
+  check_compliance_interpret: [
+    "check_compliance_analysis",
+    "check_compliance_classification",
+  ],
+  check_compliance_checks: [
+    "check_convert_table",
+    "check_ai_mapping",
+    "check_rule_analysis",
+    "check_mapping_completeness",
+  ],
+}
 
 function getWorkflowProgressStages(variant: WorkflowProgressVariant) {
   if (variant === "gnc") return GNC_WORKFLOW_PROGRESS_STAGES
@@ -93,6 +124,11 @@ function getStringField(record: Record<string, unknown> | null, field: string) {
   return typeof value === "string" ? value : ""
 }
 
+function getNumberField(record: Record<string, unknown> | null, field: string) {
+  const value = record?.[field]
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
 function getLoopStage(loopData: Record<string, unknown> | null) {
   const input = isRecord(loopData?.input) ? loopData.input : null
   return getStringField(loopData, "stage") || getStringField(input, "stage")
@@ -103,8 +139,13 @@ function loopMatchesStage(
   loopData: Record<string, unknown> | null,
   stageKey: string,
   variant: WorkflowProgressVariant,
+  includeAliases: boolean,
 ) {
   if (loopKey === stageKey) return true
+  if (!includeAliases) return false
+  if (variant === "check") {
+    return (CHECK_STAGE_ALIASES[stageKey] ?? []).includes(loopKey)
+  }
   if (variant !== "gnc") return false
 
   const aliases = GNC_AIGNC_STAGE_ALIASES[stageKey] ?? []
@@ -161,8 +202,10 @@ function buildLoopProgressEntry(
     key: stage.key,
     label: t(stage.labelKey),
     percent,
+    rawStatus: displayRawStatus,
     status: displayStatus,
     statusLabel: getStatusLabel(displayStatus === "completed" ? selectedRawStatus : displayRawStatus, displayStatus, t),
+    updatedAt: getStringField(selectedLoop, "updated_at") || null,
   }
 }
 
@@ -172,11 +215,81 @@ export function getWorkflowLoopProgressEntries(data: unknown, t: TFunction, vari
     : {}
 
   return getWorkflowProgressStages(variant).map(stage => {
-    const matchingLoops = Object.entries(loops)
-      .filter(([loopKey, loop]) => loopMatchesStage(loopKey, isRecord(loop) ? loop : null, stage.key, variant))
+    const loopEntries = Object.entries(loops)
+    const exactLoops = loopEntries
+      .filter(([loopKey, loop]) => loopMatchesStage(loopKey, isRecord(loop) ? loop : null, stage.key, variant, false))
       .map(([, loop]) => loop)
+    const matchingLoops = exactLoops.length > 0
+      ? exactLoops
+      : loopEntries
+        .filter(([loopKey, loop]) => loopMatchesStage(loopKey, isRecord(loop) ? loop : null, stage.key, variant, true))
+        .map(([, loop]) => loop)
     return buildLoopProgressEntry(stage, matchingLoops, t)
   })
+}
+
+export function getWorkflowProgressSummary(
+  data: unknown,
+  entries: WorkflowLoopProgressEntry[],
+  t: TFunction,
+): WorkflowProgressSummary {
+  const summary = isRecord(data) && isRecord(data.summary) ? data.summary : null
+  const activeLoop = isRecord(summary?.active_loop) ? summary.active_loop : null
+  const summaryStatus = normalizeLoopStatus(summary?.status, false)
+  const summaryPercent = normalizePercent(summary?.percentage)
+  const activeKey = getStringField(activeLoop, "key")
+  const summaryActiveEntry = activeKey ? entries.find(item => item.key === activeKey) : null
+
+  if (summary) {
+    const status = summaryStatus === "unknown" ? "pending" : summaryStatus
+    return {
+      activeKey: activeKey || null,
+      activeLabel: summaryActiveEntry?.label ?? null,
+      percentage: summaryPercent,
+      status,
+      statusLabel: summaryActiveEntry
+        ? `${summaryActiveEntry.label} · ${summaryActiveEntry.statusLabel}`
+        : getStatusLabel(getStringField(activeLoop, "status_label") || getStringField(summary, "status") || status, status, t),
+      total: getNumberField(summary, "total") ?? entries.length,
+      completed: getNumberField(summary, "completed") ?? entries.filter(item => item.status === "completed").length,
+      failed: getNumberField(summary, "failed") ?? entries.filter(item => item.status === "failed").length,
+      running: getNumberField(summary, "running") ?? entries.filter(item => item.status === "running").length,
+      pending: getNumberField(summary, "pending") ?? entries.filter(item => item.status === "pending").length,
+      blocked: getNumberField(summary, "blocked") ?? entries.filter(item => item.status === "blocked").length,
+    }
+  }
+
+  const activeEntry = entries.find(item => item.status === "running")
+    ?? entries.find(item => item.status === "failed")
+    ?? entries.find(item => item.status === "blocked")
+    ?? entries.find(item => item.percent < 100)
+    ?? entries[entries.length - 1]
+  const percentage = entries.length > 0
+    ? Math.round(entries.reduce((total, item) => total + item.percent, 0) / entries.length)
+    : 0
+  const status = entries.some(item => item.status === "failed")
+    ? "failed"
+    : entries.some(item => item.status === "blocked")
+      ? "blocked"
+      : entries.some(item => item.status === "running")
+        ? "running"
+        : entries.length > 0 && entries.every(item => item.completed)
+          ? "completed"
+          : "pending"
+
+  return {
+    activeKey: activeEntry?.key ?? null,
+    activeLabel: activeEntry?.label ?? null,
+    percentage,
+    status,
+    statusLabel: activeEntry ? `${activeEntry.label} · ${activeEntry.statusLabel}` : t("workspace.inspector.waitingUpdate"),
+    total: entries.length,
+    completed: entries.filter(item => item.status === "completed").length,
+    failed: entries.filter(item => item.status === "failed").length,
+    running: entries.filter(item => item.status === "running").length,
+    pending: entries.filter(item => item.status === "pending").length,
+    blocked: entries.filter(item => item.status === "blocked").length,
+  }
 }
 
 export function formatProgressUpdatedAt(progressData: WorkspaceProgressResponse | null, language: string, t: TFunction) {

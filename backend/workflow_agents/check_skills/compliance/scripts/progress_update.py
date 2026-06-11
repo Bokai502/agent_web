@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Update workspace loop progress for component derating checks."""
+"""Update workspace loop progress for compliance checks."""
 
 from __future__ import annotations
 

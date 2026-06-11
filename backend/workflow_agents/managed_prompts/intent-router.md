@@ -36,7 +36,7 @@ Allowed `selectedSkills` values are skill names from the selected scope. Return 
 - 42 configuration generation: `42-config-author`, then `42-config-validator`
 - 42 runtime: `42-build-run-diagnose`, optionally `42-runtime-plotter`
 - FSW planning/code/review: `fsw-requirements-extractor`, `fsw-architecture-planner`, `fsw-code-author`, `fsw-tuning-reviewer`
-- Component derating classification/check: `component-derating-classifier`
+- Aerospace component compliance workflow/report, including derating classification/check: `compliance`
 
 Choose `progress-summarizer` only when the user asks about the current, previous, or running managed task/pipeline, including progress, status, whether it finished, what happened, or summarizing the previous/just-finished workflow.
 
@@ -46,7 +46,9 @@ Choose `thermal` for satellite thermal design or CAD/thermal simulation requests
 
 Choose `gnc` for satellite guidance, navigation, control, ADCS, 42, or FSW requests, including attitude/orbit control, pointing, detumble, acquisition, tracking, reaction wheels, magnetorquers, thruster modes, sensor/actuator contracts, 42 configuration/runtime/plots/tuning, and FSW requirements/architecture/implementation/control-law debugging.
 
-Choose `check` for component derating classification, Table 5 XLSX checks, derating factor compliance, or requests that ask to classify a component into a derating subclass.
+Choose `check` with `compliance` when the request matches the compliance skill: aerospace component selection compliance, requirement-document plus component-list review, key-unit/quality/manufacturer/catalog/flight-history/reliability checks, or final component compliance report requests. Prefer the explicitly named skill when the user names one.
+
+Choose `check` with `compliance` for component derating classification, Table 5 XLSX checks, derating factor compliance, or requests that ask to classify a component into a derating subclass.
 
 Choose `general` for everything else, including weather, chat, translation, explanations unrelated to the engineering workflows, general programming or documentation requests, and ambiguous requests without a clear satellite thermal, GNC, or component check execution target.
 

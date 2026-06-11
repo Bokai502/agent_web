@@ -187,7 +187,9 @@ export default function AgentPage() {
   const showGncConfig = progressVariant === "gnc"
   const navItems = useMemo(() => {
     if (progressVariant === 'check') {
-      return NAV_ITEMS.filter(item => item.href !== '#bom' && item.href !== '#tools')
+      return NAV_ITEMS
+        .filter(item => item.href !== '#tools')
+        .map(item => item.href === '#bom' ? { ...item, label: '配置文件', meta: 'Config' } : item)
     }
     if (!showGncConfig) return NAV_ITEMS
     return NAV_ITEMS
@@ -311,6 +313,7 @@ export default function AgentPage() {
     progressData,
     resetProgressData,
     workflowLoopProgressEntries,
+    workflowProgressSummary,
   } = useWorkspaceRuntimeData({
     activeContext,
     enableConversationLogs: conversationPanelOpen,
@@ -327,7 +330,11 @@ export default function AgentPage() {
     sessionId: conversationLogSessionId,
   })
   resetProgressDataRef.current = resetProgressData
-  const recorderStatusText = getRecorderStatusText(state, visibleRunning || managedVoiceRunning)
+  const recorderStatusText = getRecorderStatusText(
+    state,
+    visibleRunning || managedVoiceRunning,
+    agentSpeechPlaying || agentSpeechState === 'synthesizing',
+  )
 
   useEffect(() => {
     invalidateManagedRun()
@@ -425,16 +432,8 @@ export default function AgentPage() {
   }, [])
   const activeNavIndex = activeView ? navItems.findIndex(item => item.href === `#${activeView}`) : -1
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
-  const progressPercent = workflowLoopProgressEntries.length > 0
-    ? Math.round(workflowLoopProgressEntries.reduce((total, item) => total + item.percent, 0) / workflowLoopProgressEntries.length)
-    : 0
-  const activeProgressEntry = workflowLoopProgressEntries.find(item => item.status === 'running')
-    ?? workflowLoopProgressEntries.find(item => item.status === 'failed')
-    ?? workflowLoopProgressEntries.find(item => item.percent < 100)
-    ?? workflowLoopProgressEntries[workflowLoopProgressEntries.length - 1]
-  const progressStatusLabel = activeProgressEntry
-    ? `${activeProgressEntry.label} · ${activeProgressEntry.statusLabel}`
-    : progressUpdatedAt
+  const progressPercent = workflowProgressSummary.percentage
+  const progressStatusLabel = workflowProgressSummary.statusLabel || progressUpdatedAt
   const recordButtonBusy = agentSpeechState === 'synthesizing' || agentSpeechPlaying
   const recordButtonDisabled = state === 'transcribing'
   const textComposerBusy = recordButtonBusy || state === 'transcribing'
@@ -548,6 +547,7 @@ export default function AgentPage() {
           setWorkspaceListOpen={() => setWorkspaceListOpen(open => !open)}
           requestDeleteVersion={requestDeleteVersion}
           showGncConfig={showGncConfig}
+          showDeratingConfig={progressVariant === 'check'}
           switchActiveWorkspace={switchActiveWorkspace}
           t={t}
           toolUrls={toolUrls}
