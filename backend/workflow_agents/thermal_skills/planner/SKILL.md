@@ -53,12 +53,19 @@ failing artifact.
 
 Report policy:
 
+- Any user request that includes report generation, report regeneration,
+  report summary, report review, "输出报告", "生成报告", "重新生成报告", or a
+  full CAD/thermal workflow ending in a report must include the Reviewer stage
+  using `cad-sim-report-agent`.
 - `cad-sim-report-agent` may generate a final report only after CAD validation
   and simulation both pass.
 - If the Debug loop reaches 3 failed attempts, generate only a failure report
   from the latest failing artifacts.
 - Do not label a failed CAD or simulation run as a completed final engineering
   result.
+- Planner, Config Editor, FreeCAD executor, and Simulation executor must not
+  hand-write Markdown/JSON report files as a substitute for
+  `cad-sim-report-agent`. They may only report transient status in chat.
 
 ## Flow
 
@@ -87,6 +94,9 @@ Report policy:
 - Debugger must not edit configuration files directly.
 - Reviewer must report from existing artifacts; it must not rerun or mutate the
   workflow.
+- If the user asks only to summarize or regenerate an existing report, hand off
+  directly to `cad-sim-report-agent`; do not select CAD or simulation executor
+  skills unless the user also asks to rerun upstream artifacts.
 - Do not read full large logs by default; use structured summaries or targeted
   snippets.
 - If the goal is already a direct execution request with no ambiguity, produce

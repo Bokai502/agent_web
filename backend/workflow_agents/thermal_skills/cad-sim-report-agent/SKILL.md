@@ -1,12 +1,18 @@
 ---
 name: cad-sim-report-agent
-description: "CLI-first report workflow for FreeCAD/COMSOL workspaces such as FreeCAD_data/v*_data. Use when Codex needs to generate a CAD geometry plus thermal simulation report, include FreeCAD/ParaView images and key data tables, inspect 01_cad and 02_sim artifacts, or produce modification suggestions from an explicit workspace path."
+description: "Mandatory CLI-first report workflow for satellite FreeCAD/COMSOL workspaces with 00_inputs, 01_cad, 02_sim, and logs. Use for any request to generate, regenerate, summarize, review, inspect, or finalize CAD/thermal simulation reports, including full workflows that end with 输出报告/report. Do not hand-write thermal_report.md or ad hoc report JSON when this skill can run."
 ---
 
 # CAD Sim Report Agent
 
 Generate a data-backed CAD and thermal simulation report from a workspace root.
 Use the bundled CLI; do not hand-write ad hoc extraction code.
+
+Use this skill whenever the user asks for a report, final report, report
+regeneration, report summary, CAD/simulation review, modification suggestions,
+or a full CAD plus thermal simulation workflow that includes report output.
+Other skills may create `00_inputs`, `01_cad`, and `02_sim`; this skill owns the
+reporting step.
 
 Expected workspace shape:
 
@@ -104,6 +110,21 @@ The CLI writes:
 
 Default output directory is `<workspace>/reports`. The CLI prints a JSON payload
 with `ok`, `workspace`, `outputs`, and `summary`.
+
+## Mandatory Usage
+
+- Do not generate `thermal_report.md`, `thermal_report_summary.json`,
+  `report.md`, `summary.json`, or equivalent report files with inline shell,
+  Node, Python snippets, or manual Markdown assembly.
+- Do not satisfy "重新生成报告", "总结报告", "输出报告", "final report", or
+  "thermal/CAD simulation report" by only checking existing report files unless
+  the user explicitly asks for file existence.
+- If upstream artifacts are missing, still run this CLI to produce the best
+  available diagnostic report, or explain which required workspace path is
+  missing before stopping.
+- When this skill is used as the final stage of a larger workflow, run it after
+  CAD/simulation execution and validation gates, rather than embedding report
+  writing in the executor step.
 
 ## Evidence Rules
 
