@@ -15,5 +15,4 @@ export const CONVERSATION_HISTORY_RELATIVE_PATH = 'logs/conversation-history.jso
 export const CONVERSATION_PREVIEW_SESSION_LIMIT = 3
 export const CONVERSATION_PREVIEW_TURN_LIMIT = 12
 export const CONVERSATION_PREVIEW_EVENT_LIMIT = 80
-export const NOVNC_URL_PARAMS = 'vnc.html?autoconnect=true&resize=scale&path=websockify'
 export const AGENT_HOME_PATH = '/agent'

@@ -44,12 +44,6 @@ async function readRootConfig() {
   return JSON.parse(raw) as RootConfig
 }
 
-async function writeRootConfig(config: RootConfig) {
-  const tmpPath = `${APP_CONFIG_JSON}.tmp-${process.pid}-${Date.now()}`
-  await fs.writeFile(tmpPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8")
-  await fs.rename(tmpPath, APP_CONFIG_JSON)
-}
-
 function getConfiguredWorkspaceDir(config: RootConfig) {
   const workspaceConfig = getWorkspaceConfig(config)
   const configured = workspaceConfig?.workspaceDir
@@ -77,14 +71,6 @@ function getWorkspaceConfig(config: RootConfig) {
   const legacy = config[LEGACY_CAD_CONFIG_KEY]
   if (typeof legacy === "object" && legacy !== null) return legacy as RootConfig["workspace"]
   return null
-}
-
-function setConfiguredWorkspaceDir(config: RootConfig, workspaceDir: string) {
-  config[WORKSPACE_CONFIG_KEY] = {
-    ...(getWorkspaceConfig(config) ?? {}),
-    workspaceDir,
-  }
-  delete config[LEGACY_CAD_CONFIG_KEY]
 }
 
 async function pathExists(filePath: string) {
@@ -324,16 +310,5 @@ export async function setWorkspace(name: unknown) {
     current: workspace.path,
     currentName: workspace.name,
     item: workspace,
-  }
-}
-
-export async function setWorkspaceDir(workspaceDir: string) {
-  const config = await readRootConfig()
-  const resolvedWorkspaceDir = path.resolve(workspaceDir)
-  setConfiguredWorkspaceDir(config, resolvedWorkspaceDir)
-  await writeRootConfig(config)
-  return {
-    current: resolvedWorkspaceDir,
-    currentName: path.basename(resolvedWorkspaceDir),
   }
 }

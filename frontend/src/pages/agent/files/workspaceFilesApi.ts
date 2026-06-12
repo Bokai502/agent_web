@@ -95,22 +95,6 @@ export async function fetchWorkspaceArchive({
   return response.blob()
 }
 
-export async function fetchWorkspaceFileContent({
-  apiBase,
-  context,
-  relativePath,
-}: {
-  apiBase?: string
-  context: WorkspaceContextQuery
-  relativePath: string
-}) {
-  const query = buildWorkspaceFilesQuery(context, { relativePath })
-  if (!query) throw new Error('当前工作区未就绪')
-  const response = await fetch(`${joinApiPath(apiBase, '/workspace/files/content')}${query}`, { cache: 'no-store' })
-  if (!response.ok) throw new Error('文件内容读取失败')
-  return response.json() as Promise<WorkspaceFileContentResponse>
-}
-
 export async function fetchWorkspaceTextFile({
   apiBase,
   context,

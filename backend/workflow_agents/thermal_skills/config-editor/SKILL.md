@@ -83,6 +83,19 @@ continue into the FreeCAD build stage.
   If the component is not present in that database, do not add it. Also verify
   the component's mounting-face information and keep placement/topology
   consistent with that mounting face.
+- When adding or moving a component, keep `real_bom.json`,
+  `layout_topology.json`, and `geom.json` geometrically consistent:
+  `layout_topology.placements[].component_mount_face_id` is the component-local
+  face that touches `mount_face_id`, and `geom.components[].bbox` must describe
+  the final world-coordinate occupied volume after that local face is rotated
+  onto the target face. Do not write an unrotated bbox for a rotated mounting
+  relation. For example, if a component's `local_xmax` face is mounted to
+  `template_outer_shell.zmax_inner`, the component's local X dimension becomes
+  its world-Z depth and the bbox must extend inward from the `zmax_inner` plane,
+  not outward through the shell. For `*_inner` target faces, expand the component
+  volume toward the cabin interior; for `*_outer` faces, expand away from the
+  cabin/body. Record this assumption in `config_editor_output.md` when the
+  database mounting face and the requested target face require rotation.
 - For component overlap or geometry problems, make the smallest targeted
   change: modify only the component(s) identified as problematic by the
   request, config, or logs.

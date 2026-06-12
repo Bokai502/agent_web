@@ -33,15 +33,6 @@ export async function apiLoad(apiBase?: string): Promise<Session[]> {
   }
 }
 
-export function formatSessionTime(createdAt: number) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(createdAt))
-}
-
 export function getSessionIdFromPath(pathname: string, homePath = HOME_PATH): string | null {
   if (pathname === HOME_PATH || pathname === homePath) return null
   if (pathname.startsWith(`${homePath}/`)) {

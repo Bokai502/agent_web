@@ -6,24 +6,6 @@ const LIGHTWEIGHT_EDGE_COLOR = 0x9ec4d3
 
 export type ComponentColorMap = Record<string, THREE.Color>
 
-export function applyTransparency(material: THREE.Material, opacity = 0.42) {
-  material.transparent = true
-  material.opacity = opacity
-  material.depthWrite = false
-  material.side = THREE.DoubleSide
-
-  if (
-    material instanceof THREE.MeshStandardMaterial ||
-    material instanceof THREE.MeshPhysicalMaterial
-  ) {
-    material.roughness = Math.max(material.roughness, 0.72)
-    material.metalness = Math.min(material.metalness, 0.02)
-    material.envMapIntensity = 0.22
-  }
-
-  material.needsUpdate = true
-}
-
 function disposeMaterialResources(material: THREE.Material) {
   Object.values(material).forEach((value) => {
     if (value instanceof THREE.Texture) {

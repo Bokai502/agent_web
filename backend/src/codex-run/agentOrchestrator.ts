@@ -8,7 +8,6 @@ import { getRequestUserId } from "../server/requestContext.js"
 import { findWorkspaceSession, upsertWorkspaceSessionHistory } from "../sessions/sessionStore.js"
 import { readManagedPrompt, type SkillScope } from "../system/skills.js"
 import { resolveProgressFromLatestSessionRun } from "../workspaces/workspaceRegistry.js"
-import { buildCodexConfig } from "./codexConfig.js"
 import { executeCodexTurn, prepareCodexTurn, type RunCodexTurnResult } from "./codexTurn.js"
 import { routeManagedRunIntent } from "./intentRouter.js"
 import type { RunRequestBody } from "./runTypes.js"
@@ -100,10 +99,6 @@ const MANAGED_PROGRESS_ANSWER_TIMEOUT_MS = Number(process.env.CODEX_MANAGED_PROG
 const MANAGED_CHAT_OUTPUT_TOKENS = Number(process.env.CODEX_MANAGED_CHAT_OUTPUT_TOKENS ?? 512)
 const MANAGED_START_SUMMARY = "当前任务已接收，正在分析。"
 const RESPONSES_API_TEXT_MAX_CHARS = 20_000
-
-function getManagedPromptContent(name: string, fallback: string) {
-  return readManagedPrompt(name)?.content.trim() || fallback
-}
 
 function buildManagedAnswerCodexEnv() {
   return Object.fromEntries(
@@ -668,14 +663,6 @@ function isLikelyTruncatedSummary(text: string) {
   if (/[，、；;]$/u.test(trimmed)) return true
 
   return false
-}
-
-function getFinalResponse(turn: unknown) {
-  if (turn && typeof turn === "object" && "finalResponse" in turn) {
-    const response = (turn as { finalResponse?: unknown }).finalResponse
-    return typeof response === "string" ? response.trim() : ""
-  }
-  return ""
 }
 
 export function getResponseOutputText(payload: unknown) {
@@ -1805,11 +1792,4 @@ export async function runAgentTurn(
     turnId: prepared.runContext.turnId,
   })
   return response
-}
-
-export async function dispatchManagedRun(
-  body: RunRequestBody,
-  context: { config: AppConfig; logger: Logger; requestId?: string },
-) {
-  return runAgentTurn({ body, inputType: "text" }, context)
 }

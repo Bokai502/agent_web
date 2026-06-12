@@ -4,7 +4,6 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import { loadConfig } from "../config.js"
 import { getString, isPathInside } from "../shared/index.js"
-import { getRequestWorkspaceRootOverride } from "../server/requestContext.js"
 import {
   getConfiguredWorkspaceDirFromConfig,
   getWorkspaceRoot,
@@ -46,10 +45,6 @@ function normalizeDirectChildName(value: string, field: string) {
 
 function getStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim() !== "") : []
-}
-
-function getRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
 function remapVersionWorkspaceDir(value: unknown, rootDir: string, versionId: unknown) {
@@ -343,8 +338,7 @@ export async function getWorkspaceManifest(sessionId: string) {
   const rootDir = await getVersionRoot(trimmedSessionId)
   await fs.mkdir(rootDir, { recursive: true })
   await applyWorkspaceFilesystemGroup(rootDir, { recursive: false })
-  const file = manifestPath(rootDir)
-  try {
+    try {
     return await readManifestFile(rootDir, trimmedSessionId)
   } catch {
     return await writeManifest(emptyManifest(trimmedSessionId, rootDir))

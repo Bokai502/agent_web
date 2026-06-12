@@ -33,7 +33,7 @@ describe("progressUtils", () => {
     })
   })
 
-  it("shows derating compliance loops in check progress", () => {
+  it("shows derating compliance loops grouped in check progress", () => {
     const entries = getWorkflowLoopProgressEntries({
       schema_version: "loop_progress/1.0",
       loops: {
@@ -50,18 +50,16 @@ describe("progressUtils", () => {
     }, i18n.t, "check")
 
     expect(entries.map(entry => entry.key)).toEqual([
-      "check_convert_table",
-      "check_ai_mapping",
-      "check_rule_analysis",
-      "check_mapping_completeness",
-      "check_compliance_load_inputs",
-      "check_compliance_analysis",
+      "check_compliance_prepare",
+      "check_compliance_interpret",
       "check_compliance_checks",
-      "check_compliance_classification",
       "check_compliance_report",
     ])
     expect(entries.every(entry => entry.percent === 100)).toBe(true)
     expect(entries.every(entry => entry.status === "completed")).toBe(true)
+    expect(entries.find(entry => entry.key === "check_compliance_prepare")?.label).toBe("准备输入")
+    expect(entries.find(entry => entry.key === "check_compliance_interpret")?.label).toBe("解析需求与器件")
+    expect(entries.find(entry => entry.key === "check_compliance_checks")?.label).toBe("合规检查")
     expect(entries.find(entry => entry.key === "check_compliance_report")?.statusLabel).toBe("报告已完成")
   })
 

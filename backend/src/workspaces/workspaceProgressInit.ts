@@ -2,7 +2,7 @@ import fs from "fs/promises"
 import path from "path"
 import { resolveWorkspaceDir } from "./workspaceManager.js"
 
-export async function getProgressPercentagesFile() {
+async function getProgressPercentagesFile() {
   return path.join(await resolveWorkspaceDir(), "logs", "progress.json")
 }
 

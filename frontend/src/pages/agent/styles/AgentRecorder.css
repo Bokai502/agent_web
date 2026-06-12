@@ -286,6 +286,22 @@
   min-height: 148px;
 }
 
+.agent-panel--robot.is-docked.is-user-positioned {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  justify-self: auto;
+  align-self: auto;
+  margin: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.agent-panel--robot.is-docked.is-user-positioned:active {
+  cursor: grabbing;
+}
+
 .agent-robot-button {
   position: relative;
   z-index: 1;
@@ -300,6 +316,8 @@
   cursor: pointer;
   padding: 0;
   pointer-events: auto;
+  touch-action: none;
+  user-select: none;
   transform-style: preserve-3d;
   transform: translate3d(var(--robot-shift-x), var(--robot-shift-y), 0) perspective(1000px) rotateX(var(--robot-rotate-x)) rotateY(var(--robot-rotate-y)) translateZ(0);
   transition: transform 120ms ease, filter 180ms ease;
