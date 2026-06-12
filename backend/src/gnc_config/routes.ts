@@ -99,14 +99,6 @@ function arr(value: unknown) {
   return Array.isArray(value) ? value : []
 }
 
-function num(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : toNumber(String(value ?? "0"))
-}
-
-function int(value: unknown) {
-  return Math.trunc(num(value))
-}
-
 function boolText(value: unknown) {
   return value === true ? "TRUE" : value === false ? "FALSE" : String(value ?? "")
 }
@@ -375,7 +367,7 @@ async function parseOrbit(configDir: string, file: string) {
   return orbit
 }
 
-function parseCountedItems<T>(r: ConfigReader, count: number, parser: (index: number) => T) {
+function parseCountedItems<T>(count: number, parser: (index: number) => T) {
   const items: T[] = []
   for (let index = 0; index < count; index += 1) items.push(parser(index))
   return items
@@ -416,7 +408,7 @@ async function parseSpacecraft(configDir: string, file: string) {
 
   const bodyCount = toInt(r.nextTokens()[0])
   sc.body_count = bodyCount
-  sc.bodies = parseCountedItems(r, bodyCount, index => ({
+  sc.bodies = parseCountedItems(bodyCount, index => ({
     index,
     mass_kg: toNumber(r.nextTokens()[0]),
     inertia_diag_kg_m2: vec(r.nextTokens(), 0, 3),
@@ -431,7 +423,7 @@ async function parseSpacecraft(configDir: string, file: string) {
 
   const jointCount = Math.max(0, bodyCount - 1)
   sc.joint_count = jointCount
-  sc.joints = parseCountedItems(r, jointCount, index => {
+  sc.joints = parseCountedItems(jointCount, index => {
     const joint: Record<string, unknown> = { index, type: r.nextTokens()[0] ?? "" }
     let tokens = r.nextTokens()
     joint.bin = toInt(tokens[0])
@@ -463,7 +455,7 @@ async function parseSpacecraft(configDir: string, file: string) {
   sc.wheels = { drag_active: toBool(r.nextTokens()[0]), jitter_active: toBool(r.nextTokens()[0]) }
   const wheelCount = toInt(r.nextTokens()[0])
   ;(sc.wheels as Record<string, unknown>).count = wheelCount
-  ;(sc.wheels as Record<string, unknown>).items = parseCountedItems(r, wheelCount, index => {
+  ;(sc.wheels as Record<string, unknown>).items = parseCountedItems(wheelCount, index => {
     let tokens = r.nextTokens()
     const wheel: Record<string, unknown> = { index, initial_momentum_nms: toNumber(tokens[0]) }
     wheel.axis = vec(r.nextTokens(), 0, 3)
@@ -478,16 +470,16 @@ async function parseSpacecraft(configDir: string, file: string) {
   })
 
   const collectionParsers: Array<[string, number, (count: number) => unknown[]]> = [
-    ["mtbs", 3, count => parseCountedItems(r, count, index => ({ index, mmax_a_m2: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), node: toInt(r.nextTokens()[0]) }))],
-    ["thrusters", 5, count => parseCountedItems(r, count, index => ({ index, mode: r.nextTokens()[0] ?? "", fmax_n: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), body: toInt(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
-    ["gyros", 10, count => parseCountedItems(r, count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), max_rate_deg_s: toNumber(r.nextTokens()[0]), scale_error_ppm: toNumber(r.nextTokens()[0]), quantization_arcsec: toNumber(r.nextTokens()[0]), angle_random_walk_deg_rt_hr: toNumber(r.nextTokens()[0]), bias_stability_deg_hr_and_timespan_hr: vec(r.nextTokens(), 0, 2), angle_noise_arcsec_rms: toNumber(r.nextTokens()[0]), initial_bias_deg_hr: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
-    ["magnetometers", 7, count => parseCountedItems(r, count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), saturation_tesla: toNumber(r.nextTokens()[0]), scale_error_ppm: toNumber(r.nextTokens()[0]), quantization_tesla: toNumber(r.nextTokens()[0]), noise_tesla_rms: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
-    ["css", 7, count => parseCountedItems(r, count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), fov_half_angle_deg: toNumber(r.nextTokens()[0]), scale: toNumber(r.nextTokens()[0]), quantization: toNumber(r.nextTokens()[0]), body: toInt(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
-    ["fss", 7, count => parseCountedItems(r, count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), mounting_angles_deg_seq: (() => { const tokens = r.nextTokens(); return [toNumber(tokens[0]), toNumber(tokens[1]), toNumber(tokens[2]), toInt(tokens[3])] })(), bore_axis: r.nextTokens()[0] ?? "", fov_size_deg: vec(r.nextTokens(), 0, 2), nea_deg_rms: toNumber(r.nextTokens()[0]), quantization_deg: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
-    ["star_trackers", 7, count => parseCountedItems(r, count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), mounting_angles_deg_seq: (() => { const tokens = r.nextTokens(); return [toNumber(tokens[0]), toNumber(tokens[1]), toNumber(tokens[2]), toInt(tokens[3])] })(), bore_axis: r.nextTokens()[0] ?? "", fov_size_deg: vec(r.nextTokens(), 0, 2), sun_earth_moon_exclusion_deg: vec(r.nextTokens(), 0, 3), nea_arcsec_rms: vec(r.nextTokens(), 0, 3), node: toInt(r.nextTokens()[0]) }))],
-    ["gps", 5, count => parseCountedItems(r, count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), position_noise_m_rms: toNumber(r.nextTokens()[0]), velocity_noise_m_s_rms: toNumber(r.nextTokens()[0]), time_noise_s_rms: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
-    ["accelerometers", 10, count => parseCountedItems(r, count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), max_acceleration_m_s2: toNumber(r.nextTokens()[0]), scale_error_ppm: toNumber(r.nextTokens()[0]), quantization_m_s2: toNumber(r.nextTokens()[0]), dv_random_walk_m_s_rt_hr: toNumber(r.nextTokens()[0]), bias_stability_m_s2_and_timespan_hr: vec(r.nextTokens(), 0, 2), dv_noise_m_s: toNumber(r.nextTokens()[0]), initial_bias_m_s2: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
-    ["fgs", 10, count => parseCountedItems(r, count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), mounting_angles_deg_seq: (() => { const tokens = r.nextTokens(); return [toNumber(tokens[0]), toNumber(tokens[1]), toNumber(tokens[2]), toInt(tokens[3])] })(), bore_axis: r.nextTokens()[0] ?? "", fov_size_arcsec: vec(r.nextTokens(), 0, 2), nea_arcsec_rms: toNumber(r.nextTokens()[0]), detector_scale_arcsec_pixel: toNumber(r.nextTokens()[0]), body_node: r.nextTokens().map(toInt), fov_frame_angles_deg_seq: (() => { const tokens = r.nextTokens(); return [toNumber(tokens[0]), toNumber(tokens[1]), toNumber(tokens[2]), toInt(tokens[3])] })(), guide_star_hv_deg: vec(r.nextTokens(), 0, 2), optics_file: r.nextTokens()[0] ?? "", psf_image_file: r.nextTokens()[0] ?? "" }))],
+    ["mtbs", 3, count => parseCountedItems(count, index => ({ index, mmax_a_m2: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), node: toInt(r.nextTokens()[0]) }))],
+    ["thrusters", 5, count => parseCountedItems(count, index => ({ index, mode: r.nextTokens()[0] ?? "", fmax_n: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), body: toInt(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
+    ["gyros", 10, count => parseCountedItems(count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), max_rate_deg_s: toNumber(r.nextTokens()[0]), scale_error_ppm: toNumber(r.nextTokens()[0]), quantization_arcsec: toNumber(r.nextTokens()[0]), angle_random_walk_deg_rt_hr: toNumber(r.nextTokens()[0]), bias_stability_deg_hr_and_timespan_hr: vec(r.nextTokens(), 0, 2), angle_noise_arcsec_rms: toNumber(r.nextTokens()[0]), initial_bias_deg_hr: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
+    ["magnetometers", 7, count => parseCountedItems(count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), saturation_tesla: toNumber(r.nextTokens()[0]), scale_error_ppm: toNumber(r.nextTokens()[0]), quantization_tesla: toNumber(r.nextTokens()[0]), noise_tesla_rms: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
+    ["css", 7, count => parseCountedItems(count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), fov_half_angle_deg: toNumber(r.nextTokens()[0]), scale: toNumber(r.nextTokens()[0]), quantization: toNumber(r.nextTokens()[0]), body: toInt(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
+    ["fss", 7, count => parseCountedItems(count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), mounting_angles_deg_seq: (() => { const tokens = r.nextTokens(); return [toNumber(tokens[0]), toNumber(tokens[1]), toNumber(tokens[2]), toInt(tokens[3])] })(), bore_axis: r.nextTokens()[0] ?? "", fov_size_deg: vec(r.nextTokens(), 0, 2), nea_deg_rms: toNumber(r.nextTokens()[0]), quantization_deg: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
+    ["star_trackers", 7, count => parseCountedItems(count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), mounting_angles_deg_seq: (() => { const tokens = r.nextTokens(); return [toNumber(tokens[0]), toNumber(tokens[1]), toNumber(tokens[2]), toInt(tokens[3])] })(), bore_axis: r.nextTokens()[0] ?? "", fov_size_deg: vec(r.nextTokens(), 0, 2), sun_earth_moon_exclusion_deg: vec(r.nextTokens(), 0, 3), nea_arcsec_rms: vec(r.nextTokens(), 0, 3), node: toInt(r.nextTokens()[0]) }))],
+    ["gps", 5, count => parseCountedItems(count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), position_noise_m_rms: toNumber(r.nextTokens()[0]), velocity_noise_m_s_rms: toNumber(r.nextTokens()[0]), time_noise_s_rms: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
+    ["accelerometers", 10, count => parseCountedItems(count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), axis: vec(r.nextTokens(), 0, 3), max_acceleration_m_s2: toNumber(r.nextTokens()[0]), scale_error_ppm: toNumber(r.nextTokens()[0]), quantization_m_s2: toNumber(r.nextTokens()[0]), dv_random_walk_m_s_rt_hr: toNumber(r.nextTokens()[0]), bias_stability_m_s2_and_timespan_hr: vec(r.nextTokens(), 0, 2), dv_noise_m_s: toNumber(r.nextTokens()[0]), initial_bias_m_s2: toNumber(r.nextTokens()[0]), node: toInt(r.nextTokens()[0]) }))],
+    ["fgs", 10, count => parseCountedItems(count, index => ({ index, sample_time_s: toNumber(r.nextTokens()[0]), mounting_angles_deg_seq: (() => { const tokens = r.nextTokens(); return [toNumber(tokens[0]), toNumber(tokens[1]), toNumber(tokens[2]), toInt(tokens[3])] })(), bore_axis: r.nextTokens()[0] ?? "", fov_size_arcsec: vec(r.nextTokens(), 0, 2), nea_arcsec_rms: toNumber(r.nextTokens()[0]), detector_scale_arcsec_pixel: toNumber(r.nextTokens()[0]), body_node: r.nextTokens().map(toInt), fov_frame_angles_deg_seq: (() => { const tokens = r.nextTokens(); return [toNumber(tokens[0]), toNumber(tokens[1]), toNumber(tokens[2]), toInt(tokens[3])] })(), guide_star_hv_deg: vec(r.nextTokens(), 0, 2), optics_file: r.nextTokens()[0] ?? "", psf_image_file: r.nextTokens()[0] ?? "" }))],
   ]
   for (const [key, zeroTemplateLines, parser] of collectionParsers) {
     const count = toInt(r.nextTokens()[0])

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict"
 import fs from "node:fs/promises"
-import http from "node:http"
 import os from "node:os"
 import path from "node:path"
 import { describe, it } from "node:test"
@@ -8,58 +7,47 @@ import { createTestServer } from "../../helpers/createTestServer.js"
 import { createTestConfig } from "../../helpers/testConfig.js"
 
 describe("remote tools routes", () => {
-  it("reports available remote desktop ports when TCP and HTTP checks pass", async () => {
-    const remoteDesktopServer = http.createServer((_req, res) => {
-      res.writeHead(204)
-      res.end()
-    })
-    await new Promise<void>(resolve => remoteDesktopServer.listen(0, "127.0.0.1", resolve))
-    const address = remoteDesktopServer.address()
-    assert.ok(address && typeof address === "object")
-    const noVncPort = address.port
-    const config = createTestConfig({
-      tools: {
-        cad: { noVncPort },
-        comsol: { noVncPort },
-        paraview: { noVncPort },
-      },
-    })
-    const server = await createTestServer({ config })
+  it("reports functional interface status from the port-status compatibility route", async () => {
+    const server = await createTestServer({ config: createTestConfig() })
 
     try {
       const response = await server.inject({ method: "GET", url: "/api/remote-tools/port-status" })
       const body = response.json()
 
-      assert.equal(response.statusCode, 200)
-      assert.equal(body.ok, true)
-      assert.equal(body.ports.every((port: { ok: boolean; tcpOk: boolean; httpOk: boolean; httpStatus: number }) =>
-        port.ok && port.tcpOk && port.httpOk && port.httpStatus === 204
-      ), true)
+      assert.equal(response.statusCode, body.ok ? 200 : 503)
+      assert.equal(typeof body.ok, "boolean")
+      assert.equal(typeof body.checkedAt, "string")
+      assert.equal(body.cacheTtlMs, 0)
+      assert.equal(path.basename(body.command.at(-2)), "check_function_interfaces.mjs")
+      assert.equal(body.command.at(-1), "--json")
+      assert.equal(Array.isArray(body.results), true)
+      assert.equal(typeof body.requiredFailureCount, "number")
+      assert.equal(typeof body.optionalFailureCount, "number")
+      assert.equal(typeof body.skippedCount, "number")
     } finally {
       await server.close()
-      await new Promise<void>((resolve, reject) => remoteDesktopServer.close(error => error ? reject(error) : resolve()))
     }
   })
 
-  it("reports unavailable remote desktop ports", async () => {
-    const config = createTestConfig({
-      tools: {
-        cad: { noVncPort: 9 },
-        comsol: { noVncPort: 10 },
-        paraview: { noVncPort: 11 },
-      },
-    })
-    const server = await createTestServer({ config })
+  it("reports functional interface status from the interface-status route", async () => {
+    const server = await createTestServer({ config: createTestConfig() })
 
     try {
-      const response = await server.inject({ method: "GET", url: "/api/remote-tools/port-status" })
+      const response = await server.inject({ method: "GET", url: "/api/remote-tools/interface-status" })
       const body = response.json()
 
-      assert.equal(response.statusCode, 503)
-      assert.equal(body.ok, false)
-      assert.equal(body.timeoutMs, 1800)
-      assert.deepEqual(body.ports.map((port: { tool: string }) => port.tool), ["freecad", "paraview", "comsol"])
-      assert.equal(body.ports.every((port: { tcpOk: boolean; httpOk: boolean }) => !port.tcpOk && !port.httpOk), true)
+      assert.equal(response.statusCode, body.ok ? 200 : 503)
+      assert.equal(typeof body.ok, "boolean")
+      assert.equal(Array.isArray(body.results), true)
+      for (const result of body.results as Array<Record<string, unknown>>) {
+        assert.equal(typeof result.group, "string")
+        assert.equal(typeof result.name, "string")
+        assert.equal(typeof result.target, "string")
+        assert.equal(typeof result.required, "boolean")
+        assert.equal(typeof result.ok, "boolean")
+        assert.equal(typeof result.skipped, "boolean")
+        assert.equal(typeof result.durationMs, "number")
+      }
     } finally {
       await server.close()
     }

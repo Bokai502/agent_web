@@ -85,13 +85,22 @@ describe("auth routes", () => {
       assert.deepEqual(body.seeded.find((item: { name: string }) => item.name === "derating"), {
         copied: true,
         name: "derating",
+        workspaceId: "ws_derating",
       })
       assert.deepEqual(body.seeded.find((item: { name: string }) => item.name === "gnc"), {
         copied: false,
         name: "gnc",
         reason: "template-missing",
+        workspaceId: "ws_gnc",
+      })
+      assert.deepEqual(body.workspaces.find((item: { name: string }) => item.name === "gnc"), {
+        copied: false,
+        name: "gnc",
+        reason: "template-missing",
+        workspaceId: "ws_gnc",
       })
       assert.equal(body.workspaces.find((item: { name: string }) => item.name === "derating").workspaceId, "ws_derating")
+      assert.equal(await fs.access(path.join(usersRoot, ".._Alice_Smith", "derating")).then(() => true).catch(() => false), false)
       assert.equal(
         await fs.readFile(path.join(usersRoot, ".._Alice_Smith", "workspaces", "ws_derating", "versions", "v0001", "00_inputs", "input.txt"), "utf-8"),
         "seed",
@@ -107,6 +116,7 @@ describe("auth routes", () => {
         copied: false,
         name: "derating",
         reason: "already-exists",
+        workspaceId: "ws_derating",
       })
     } finally {
       await server.close()

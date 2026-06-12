@@ -7,10 +7,6 @@ import {
 import { buildWorkspaceFilesQuery } from './files/workspaceFilesApi'
 import type { WorkspaceContextQuery, WorkspaceFilePreview } from './types'
 
-export function buildWorkspaceQuery(activeContext: WorkspaceContextQuery) {
-  return buildWorkspaceFilesQuery(activeContext)
-}
-
 export function buildWorkspaceFileQuery(activeContext: WorkspaceContextQuery, relativePath: string) {
   return buildWorkspaceFilesQuery(activeContext, { relativePath })
 }
@@ -64,8 +60,4 @@ export function getConversationHistoryContent(file: WorkspaceFilePreview) {
   } catch {
     return null
   }
-}
-
-export function normalizeSpeechText(text: string) {
-  return text.replace(/_/gu, ' ')
 }

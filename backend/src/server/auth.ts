@@ -1,4 +1,3 @@
-import path from "node:path"
 import type { FastifyRequest } from "fastify"
 import type { AppConfig } from "../config.js"
 import { resolveUserWorkspaceRoot, resolveUsersRootFromConfig } from "../workspaces/workspacePaths.js"

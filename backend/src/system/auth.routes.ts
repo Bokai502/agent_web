@@ -30,36 +30,6 @@ async function pathExists(filePath: string) {
   return fs.access(filePath).then(() => true).catch(() => false)
 }
 
-async function seedUserData(inputDataRoot: string, usersRoot: string, userId: string): Promise<UserSeedStatus[]> {
-  const userRoot = path.join(usersRoot, userId)
-  await fs.mkdir(userRoot, { recursive: true })
-
-  const statuses: UserSeedStatus[] = []
-  for (const { name } of USER_TEMPLATE_DIRS) {
-    const source = path.join(inputDataRoot, name)
-    const target = path.join(userRoot, name)
-
-    if (!await pathExists(source)) {
-      statuses.push({ copied: false, name, reason: "template-missing" })
-      continue
-    }
-    if (await pathExists(target)) {
-      statuses.push({ copied: false, name, reason: "already-exists" })
-      continue
-    }
-
-    await fs.cp(source, target, {
-      errorOnExist: true,
-      force: false,
-      preserveTimestamps: true,
-      recursive: true,
-    })
-    statuses.push({ copied: true, name })
-  }
-
-  return statuses
-}
-
 async function readJsonObject(filePath: string) {
   try {
     const parsed = JSON.parse(await fs.readFile(filePath, "utf-8")) as unknown
@@ -81,15 +51,16 @@ async function writeJsonObject(filePath: string, value: Record<string, unknown>)
 async function seedUserWorkspaceVersions(inputDataRoot: string, usersRoot: string, userId: string): Promise<WorkspaceSeedStatus[]> {
   const userRoot = path.join(usersRoot, userId)
   const statuses: WorkspaceSeedStatus[] = []
+  await fs.mkdir(userRoot, { recursive: true })
 
   for (const { name, sessionId, workspaceId } of USER_TEMPLATE_DIRS) {
-    const source = path.join(userRoot, name)
+    const source = path.join(inputDataRoot, name)
     const workspaceRoot = path.join(userRoot, "workspaces", workspaceId)
     const versionDir = path.join(workspaceRoot, "versions", "v0001")
     const manifestPath = path.join(workspaceRoot, "workspace_manifest.json")
 
     if (!await pathExists(source)) {
-      statuses.push({ copied: false, name, reason: "source-missing", workspaceId })
+      statuses.push({ copied: false, name, reason: "template-missing", workspaceId })
       continue
     }
 
@@ -182,10 +153,9 @@ export async function authRoutes(fastify: FastifyInstance, { config }: { config:
     }
     const rawUserId = typeof req.body?.userId === "string" ? req.body.userId : null
     const userId = sanitizeUserId(rawUserId, config.auth.devUserId)
-    const seeded = await seedUserData(inputDataRoot, usersRoot, userId)
     const workspaces = await seedUserWorkspaceVersions(inputDataRoot, usersRoot, userId)
     reply.header("Set-Cookie", buildUserCookie(config, userId))
-    return reply.send({ seeded, userId, workspaces })
+    return reply.send({ seeded: workspaces, userId, workspaces })
   })
 
   fastify.post("/api/auth/logout", async (_req, reply) => {

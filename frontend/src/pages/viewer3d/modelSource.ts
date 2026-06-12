@@ -50,11 +50,3 @@ export async function fetchResolvedModel(source: ViewerModelSource, signal: Abor
   }
   return response.json() as Promise<ResolvedModel>
 }
-
-export function getModelDisplayName(resolvedModel: ResolvedModel | null) {
-  if (!resolvedModel) return "geometry_after.glb"
-  if (resolvedModel.documentName?.trim()) return resolvedModel.documentName
-
-  const normalizedPath = resolvedModel.glbPath.replace(/\\/gu, "/")
-  return normalizedPath.split("/").pop() || "geometry_after.glb"
-}

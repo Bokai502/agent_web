@@ -1,5 +1,4 @@
 import { execFile, spawn } from "node:child_process"
-import net from "node:net"
 import path from "node:path"
 import { promisify } from "node:util"
 import type { FastifyInstance } from "fastify"
@@ -7,22 +6,12 @@ import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 
 const REMOTE_DESKTOP_TOOLS = ["freecad", "paraview", "comsol"] as const
-const TCP_CHECK_TIMEOUT_MS = 1200
-const HTTP_CHECK_TIMEOUT_MS = 1800
 const INTERFACE_CHECK_CACHE_MS = 0
 const INTERFACE_CHECK_TIMEOUT_MS = 360_000
 const execFileAsync = promisify(execFile)
 
 type RemoteDesktopTool = typeof REMOTE_DESKTOP_TOOLS[number]
 type RemoteToolConfigKey = "cad" | "paraview" | "comsol"
-
-type RemoteToolPortConfig = {
-  tool: RemoteDesktopTool
-  label: string
-  host: string
-  port: number
-  url: string
-}
 
 type LauncherResult = {
   ok: boolean
@@ -33,20 +22,6 @@ type LauncherResult = {
   stdout: string
   stderr: string
   error?: string
-}
-
-type RemoteToolPortStatus = {
-  ok: boolean
-  tool: RemoteDesktopTool
-  label: string
-  host: string
-  port: number
-  url: string
-  latencyMs: number | null
-  message: string
-  tcpOk: boolean
-  httpOk: boolean
-  httpStatus: number | null
 }
 
 type InterfaceCheckResult = {
@@ -76,14 +51,6 @@ type InterfaceCheckSummary = {
 
 function toolConfigKey(tool: RemoteDesktopTool): RemoteToolConfigKey {
   return tool === "freecad" ? "cad" : tool
-}
-
-function buildRemoteToolPorts(config: AppConfig): RemoteToolPortConfig[] {
-  return [
-    { tool: "freecad", label: "FreeCAD", host: "127.0.0.1", port: config.tools.cad.noVncPort, url: `http://127.0.0.1:${config.tools.cad.noVncPort}/` },
-    { tool: "paraview", label: "ParaView", host: "127.0.0.1", port: config.tools.paraview.noVncPort, url: `http://127.0.0.1:${config.tools.paraview.noVncPort}/` },
-    { tool: "comsol", label: "COMSOL", host: "127.0.0.1", port: config.tools.comsol.noVncPort, url: `http://127.0.0.1:${config.tools.comsol.noVncPort}/` },
-  ]
 }
 
 function runLauncher(tool: RemoteDesktopTool, config: AppConfig): Promise<LauncherResult> {
@@ -131,91 +98,6 @@ function runLauncher(tool: RemoteDesktopTool, config: AppConfig): Promise<Launch
       })
     })
   })
-}
-
-type TcpCheckResult = {
-  ok: boolean
-  latencyMs: number
-  message: string
-}
-
-type HttpCheckResult = {
-  ok: boolean
-  status: number | null
-  message: string
-}
-
-function checkTcpPort(tool: RemoteToolPortConfig): Promise<TcpCheckResult> {
-  const startedAt = process.hrtime.bigint()
-
-  return new Promise(resolve => {
-    const socket = net.createConnection({ host: tool.host, port: tool.port })
-    let resolved = false
-
-    const finish = (ok: boolean, message: string) => {
-      if (resolved) return
-      resolved = true
-      socket.removeAllListeners()
-      socket.destroy()
-      const latencyMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000
-      resolve({
-        ok,
-        latencyMs: Math.round(latencyMs),
-        message,
-      })
-    }
-
-    socket.setTimeout(TCP_CHECK_TIMEOUT_MS)
-    socket.once("connect", () => finish(true, "listening"))
-    socket.once("timeout", () => finish(false, "connection timeout"))
-    socket.once("error", error => finish(false, error.message))
-  })
-}
-
-async function checkHttpEndpoint(url: string): Promise<HttpCheckResult> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), HTTP_CHECK_TIMEOUT_MS)
-
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "manual",
-      signal: controller.signal,
-    })
-    return {
-      ok: response.status >= 200 && response.status < 500,
-      status: response.status,
-      message: `http ${response.status}`,
-    }
-  } catch (error) {
-    const message = error instanceof Error && error.name === "AbortError"
-      ? "http timeout"
-      : error instanceof Error
-        ? error.message
-        : String(error)
-    return { ok: false, status: null, message }
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
-async function checkRemoteTool(tool: RemoteToolPortConfig): Promise<RemoteToolPortStatus> {
-  const tcp = await checkTcpPort(tool)
-  const http = tcp.ok ? await checkHttpEndpoint(tool.url) : { ok: false, status: null, message: "tcp unavailable" }
-
-  return {
-    ok: tcp.ok && http.ok,
-    tool: tool.tool,
-    label: tool.label,
-    host: tool.host,
-    port: tool.port,
-    url: tool.url,
-    latencyMs: tcp.latencyMs,
-    message: tcp.ok ? http.message : tcp.message,
-    tcpOk: tcp.ok,
-    httpOk: http.ok,
-    httpStatus: http.status,
-  }
 }
 
 function resolveProjectRoot() {
@@ -316,7 +198,7 @@ export async function remoteToolsRoutes(
     return reply.status(summary.ok ? 200 : 503).send(summary)
   })
 
-  fastify.get("/api/remote-tools/interface-status", async (req, reply) => {
+  fastify.get("/api/remote-tools/interface-status", async (_req, reply) => {
     const summary = await getInterfaceCheckSummary()
     return reply.status(summary.ok ? 200 : 503).send(summary)
   })

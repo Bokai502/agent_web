@@ -1,17 +1,17 @@
 {
   "openai": {
-    "apiKey": "sk-REPLACE-ME",
-    "baseUrl": "xxx",
+    "apiKey": "xxx",
+    "baseUrl": "https://token.satlab.sbs/v1",
     "model": "gpt-5.5",
-    "modelProvider": "openai",
-    "modelProviderName": "OpenAI",
+    "modelProvider": "nexahub",
+    "modelProviderName": "NexaHub",
     "wireApi": "responses",
     "supportsWebsockets": false
   },
   "chatModel": {
-    "apiKey": "EMPTY",
-    "baseUrl": "xxx",
-    "model": "gpt-5.5",
+    "apiKey": "xxx",
+    "baseUrl": "http://10.110.34.83:4000/v1",
+    "model": "Qwen3.6",
     "modelReasoningEffort": "low",
     "approvalPolicy": "never",
     "sandboxMode": "read-only",
@@ -25,7 +25,7 @@
     "usersDir": "users"
   },
   "codex": {
-    "modelReasoningEffort": "low",
+    "modelReasoningEffort": "high",
     "approvalPolicy": "never",
     "sandboxMode": "workspace-write",
     "sandboxWorkspaceWriteNetworkAccess": true,
@@ -37,21 +37,21 @@
   },
   "frontend": {
     "host": "0.0.0.0",
-    "publicHost": "localhost",
+    "publicHost": "10.110.10.11",
     "port": 5274,
     "httpsPort": 5275,
     "strictPort": true
   },
   "tmux": {
-    "backendSession": "ocw-backend",
-    "frontendSession": "ocw-frontend"
+    "backendSession": "ocw-main-backend",
+    "frontendSession": "ocw-main-frontend"
   },
   "tools": {
     "remoteDesktopLauncher": "/usr/local/bin/start-remote-cad-desktop",
     "cad": {
       "displayNum": ":1",
       "launcher": "/usr/local/bin/start-freecad-remote",
-      "bin": "/path/to/freecad",
+      "bin": "/usr/bin/freecad",
       "vncPort": 5901,
       "noVncPort": 6080
     },
@@ -76,21 +76,21 @@
     "dashboard": {
       "telemetryMaxBytes": 8388608,
       "telemetryPaths": {
-        "time": "00_inputs/Output/Run/runtime_case/InOut/time.42",
-        "wbn": "00_inputs/Output/Run/runtime_case/InOut/wbn.42",
-        "qbn": "00_inputs/Output/Run/runtime_case/InOut/qbn.42",
-        "posn": "00_inputs/Output/Run/runtime_case/InOut/PosN.42",
-        "veln": "00_inputs/Output/Run/runtime_case/InOut/VelN.42",
-        "hwhl": "00_inputs/Output/Run/runtime_case/InOut/Hwhl.42",
-        "mtb": "00_inputs/Output/Run/runtime_case/InOut/MTB.42",
+        "time": "02_sim/42_run/runtime_case/InOut/time.42",
+        "wbn": "02_sim/42_run/runtime_case/InOut/wbn.42",
+        "qbn": "02_sim/42_run/runtime_case/InOut/qbn.42",
+        "posn": "02_sim/42_run/runtime_case/InOut/PosN.42",
+        "veln": "02_sim/42_run/runtime_case/InOut/VelN.42",
+        "hwhl": "02_sim/42_run/runtime_case/InOut/Hwhl.42",
+        "mtb": "02_sim/42_run/runtime_case/InOut/MTB.42",
         "modeSummary": "AIGNC_Workflow/08_run/run_summary.json"
       }
     }
   },
   "whisper": {
-    "modelPath": "/path/to/whisper/model.bin",
+    "modelPath": "/data/llm_models/Whisper/ggml-large-v3-turbo.bin",
     "ffmpegBin": "ffmpeg",
-    "cudaVisibleDevices": null,
+    "cudaVisibleDevices": "1",
     "defaultLanguage": "zh-en"
   },
   "cosyvoice": {
@@ -101,14 +101,35 @@
     "ttsMaxTextLength": 5000
   },
   "workflowAgents": {
-    "contractDir": "/path/to/open_codex_web/backend/workflow_agents",
+    "contractDir": "xxx",
     "plannerMode": "codex",
     "plannerModel": "gpt-5.5",
     "plannerReasoningEffort": "high",
-    "plannerWorkingDirectory": "/path/to/your/workspace",
+    "plannerWorkingDirectory": "xxx",
     "plannerTimeoutMs": 120000,
     "plannerSandboxMode": "read-only",
     "plannerSkipGitRepoCheck": true
+  },
+  "compliance": {
+    "database": {
+      "catalog": {
+        "db": "components_db",
+        "user": "postgres",
+        "password": "xxx",
+        "host": "10.110.10.101",
+        "port": "5432",
+        "recallLimitPerComponent": 80
+      },
+      "reliability": {
+        "db": "satllm_db",
+        "user": "postgres",
+        "password": "xxx",
+        "host": "10.110.10.101",
+        "port": "5432",
+        "schema": "staging",
+        "limitPerComponent": 5
+      }
+    }
   },
   "logging": {
     "level": "info",
@@ -116,9 +137,9 @@
     "alsoStdout": true
   },
   "workspace": {
-    "templateDir": "/path/to/open_codex_web/data/input_data",
-    "usersRoot": "/path/to/codex_web/data/users",
-    "filesystemGroup": "users",
+    "templateDir": "xxx",
+    "usersRoot": "xxx",
+    "filesystemGroup": "xieteam",
     "rpcHost": "localhost",
     "rpcPort": 9877,
     "componentInfoMaxStepSizeMb": 5,
