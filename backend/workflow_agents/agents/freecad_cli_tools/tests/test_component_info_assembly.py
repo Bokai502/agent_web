@@ -55,6 +55,7 @@ def sample_geom() -> dict:
                 "component_id": "P001",
                 "position": [1, 2, 3],
                 "dims": [10, 20, 30],
+                "bbox": {"min": [1, 2, 3], "max": [11, 22, 33]},
                 "category": "payload",
                 "color": [10, 20, 30, 255],
             },
@@ -62,6 +63,7 @@ def sample_geom() -> dict:
                 "component_id": "P002",
                 "position": [4, 5, 6],
                 "dims": [12, 14, 16],
+                "bbox": {"min": [3, 4, 5], "max": [16, 19, 22]},
                 "category": "avionics",
                 "color": [100, 110, 120, 255],
             },
@@ -110,6 +112,22 @@ def test_normalize_component_info_assembly_prefers_component_info_bbox(tmp_path:
     assert normalized["components"]["P001"]["target_bbox"]["max"] == [11.0, 22.0, 33.0]
     assert normalized["components"]["P002"]["source"]["kind"] == "box"
     assert normalized["components"]["P002"]["category"] == "avionics"
+
+
+def test_normalize_component_info_assembly_prefers_geom_bbox_over_position_dims(
+    tmp_path: Path,
+) -> None:
+    normalized = normalize_component_info_assembly(
+        layout_topology=sample_layout_topology(),
+        geom=sample_geom(),
+        geom_component_info=sample_geom_component_info(None),
+        geom_component_info_path=tmp_path / "geom_component_info.json",
+    )
+
+    assert normalized["components"]["P002"]["target_bbox"] == {
+        "min": [3.0, 4.0, 5.0],
+        "max": [16.0, 19.0, 22.0],
+    }
 
 
 def test_load_and_normalize_component_info_assembly_reads_files(tmp_path: Path) -> None:
@@ -195,4 +213,5 @@ def test_build_geom_component_info_from_real_bom_reads_template_csv_step(tmp_pat
 
     entry = component_info["components"][0]
     assert entry["component_id"] == "P001"
+    assert entry["bbox"] == {"min": [1, 2, 3], "max": [11, 22, 33]}
     assert entry["display_info"]["assets"]["cad_rotated_path"] == str(step_path)

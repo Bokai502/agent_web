@@ -80,6 +80,9 @@ def build_geom_component_info_from_real_bom(
             "position": geom_component.get("position"),
             "dims": geom_component.get("dims") or item.get("size_mm"),
         }
+        bbox = geom_component.get("bbox")
+        if isinstance(bbox, dict):
+            entry["bbox"] = bbox
         color = geom_component.get("color")
         if isinstance(color, list):
             entry["color"] = color
@@ -352,10 +355,12 @@ def _resolve_target_bbox(
 ) -> dict[str, list[float]]:
     bbox = entry.get("bbox")
     if isinstance(bbox, dict):
-        return {
-            "min": vector3(bbox.get("min"), f"geom_component_info[{component_id!r}].bbox.min"),
-            "max": vector3(bbox.get("max"), f"geom_component_info[{component_id!r}].bbox.max"),
-        }
+        return _parse_bbox(bbox, f"geom_component_info[{component_id!r}].bbox")
+
+    if isinstance(geom_component, dict):
+        bbox = geom_component.get("bbox")
+        if isinstance(bbox, dict):
+            return _parse_bbox(bbox, f"geom.components[{component_id!r}].bbox")
 
     position = entry.get("position")
     dims = entry.get("dims", entry.get("size"))
@@ -381,6 +386,13 @@ def _resolve_target_bbox(
     raise LayoutDatasetError(
         f"Component {component_id!r} requires bbox or position+dims in geom_component_info.json."
     )
+
+
+def _parse_bbox(bbox: dict[str, Any], label: str) -> dict[str, list[float]]:
+    return {
+        "min": vector3(bbox.get("min"), f"{label}.min"),
+        "max": vector3(bbox.get("max"), f"{label}.max"),
+    }
 
 
 def _resolve_category(entry: dict[str, Any], geom_component: dict[str, Any] | None) -> str | None:
