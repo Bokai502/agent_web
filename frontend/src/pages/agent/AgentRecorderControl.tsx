@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import type { AgentWorkspaceView, RecorderState } from './types'
 
 type AgentInputMode = 'voice' | 'text'
@@ -17,6 +17,14 @@ type AgentRecorderControlProps = {
   textInputValue: string
 }
 
+const DOCKED_ROBOT_DRAG_THRESHOLD = 6
+const DOCKED_ROBOT_MARGIN = 12
+
+type DockedRobotPosition = {
+  left: number
+  top: number
+}
+
 export function AgentRecorderControl({
   activeView,
   busy,
@@ -31,7 +39,20 @@ export function AgentRecorderControl({
   textInputValue,
 }: AgentRecorderControlProps) {
   const [textDialogOpen, setTextDialogOpen] = useState(false)
+  const [dockedPosition, setDockedPosition] = useState<DockedRobotPosition | null>(null)
   const robotTrackRef = useRef<HTMLElement | null>(null)
+  const dockedPositionRef = useRef<DockedRobotPosition | null>(null)
+  const dragRef = useRef<{
+    buttonStarted: boolean
+    dragging: boolean
+    offsetX: number
+    offsetY: number
+    pointerId: number
+    startX: number
+    startY: number
+  } | null>(null)
+  const canDragDockedRobot = Boolean(activeView)
+
   const handleTextKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
     event.preventDefault()
@@ -58,6 +79,28 @@ export function AgentRecorderControl({
     setTextDialogOpen(false)
   }
   const handleRobotPointerMove = (event: PointerEvent<HTMLElement>) => {
+    const drag = dragRef.current
+    if (drag?.pointerId === event.pointerId) {
+      const distanceX = event.clientX - drag.startX
+      const distanceY = event.clientY - drag.startY
+      if (!drag.dragging && Math.hypot(distanceX, distanceY) >= DOCKED_ROBOT_DRAG_THRESHOLD) {
+        drag.dragging = true
+        resetRobotTransform()
+      }
+      if (drag.dragging) {
+        const bounds = robotTrackRef.current?.getBoundingClientRect()
+        const nextPosition = clampDockedRobotPosition(
+          {
+            left: event.clientX - drag.offsetX,
+            top: event.clientY - drag.offsetY,
+          },
+          bounds,
+        )
+        dockedPositionRef.current = nextPosition
+        setDockedPosition(nextPosition)
+      }
+      return
+    }
     const track = robotTrackRef.current
     if (!track) return
     if (textDialogOpen) {
@@ -85,13 +128,54 @@ export function AgentRecorderControl({
     track.style.setProperty('--robot-chat-rotate-y', '0deg')
   }
   const handleRobotPointerLeave = () => resetRobotTransform()
+  const handleDockedPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (!canDragDockedRobot || event.button !== 0) return
+    const target = event.target as HTMLElement
+    if (target.closest('.agent-robot-chat')) return
+    const track = robotTrackRef.current
+    if (!track) return
+    const bounds = track.getBoundingClientRect()
+    dragRef.current = {
+      buttonStarted: Boolean(target.closest('.agent-robot-button')),
+      dragging: false,
+      offsetX: event.clientX - bounds.left,
+      offsetY: event.clientY - bounds.top,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const handleDockedPointerUp = (event: PointerEvent<HTMLElement>) => {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    dragRef.current = null
+    if (drag.dragging) return
+    if (drag.buttonStarted) handleRobotClick()
+  }
+  const handleDockedPointerCancel = (event: PointerEvent<HTMLElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    dragRef.current = null
+  }
+  const robotStyle: CSSProperties | undefined = canDragDockedRobot && dockedPosition
+    ? { left: dockedPosition.left, top: dockedPosition.top }
+    : undefined
 
   return (
     <section
-      className={`agent-panel agent-panel--robot ${activeView ? 'is-docked' : 'is-centered'} ${inputMode === 'text' ? 'is-text-mode' : 'is-voice-mode'} ${textDialogOpen ? 'is-chat-open' : ''}`}
+      className={`agent-panel agent-panel--robot ${activeView ? 'is-docked' : 'is-centered'} ${inputMode === 'text' ? 'is-text-mode' : 'is-voice-mode'} ${textDialogOpen ? 'is-chat-open' : ''} ${canDragDockedRobot && dockedPosition ? 'is-user-positioned' : ''}`}
+      onPointerCancel={handleDockedPointerCancel}
+      onPointerDown={handleDockedPointerDown}
       onPointerLeave={handleRobotPointerLeave}
       onPointerMove={handleRobotPointerMove}
+      onPointerUp={handleDockedPointerUp}
       ref={robotTrackRef}
+      style={robotStyle}
     >
       <button
         aria-label={inputMode === 'text' ? '打开文字对话' : recorderStatusText}
@@ -155,4 +239,15 @@ export function AgentRecorderControl({
       <small className="agent-recorder-status">{recorderStatusText}</small>
     </section>
   )
+}
+
+function clampDockedRobotPosition(position: DockedRobotPosition, bounds?: DOMRect): DockedRobotPosition {
+  const width = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth)
+  const height = Math.min(window.innerHeight, document.documentElement.clientHeight || window.innerHeight)
+  const panelWidth = bounds?.width || 132
+  const panelHeight = bounds?.height || 148
+  return {
+    left: Math.max(DOCKED_ROBOT_MARGIN, Math.min(position.left, width - DOCKED_ROBOT_MARGIN - panelWidth)),
+    top: Math.max(DOCKED_ROBOT_MARGIN, Math.min(position.top, height - DOCKED_ROBOT_MARGIN - panelHeight)),
+  }
 }
