@@ -92,6 +92,7 @@ const WORKSPACE_PROGRESS_RELATIVE_PATHS = [
   AIGNC_PROGRESS_RELATIVE_PATH,
   DEFAULT_PROGRESS_RELATIVE_PATH,
 ]
+const DEFAULT_TEMPERATURE_THREEJS_RELATIVE_PATH = path.join("02_sim", "postprocess", "temperature_field_threejs.json")
 const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation", "data1.txt")
 const COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "compliance")
 const LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "checks", "compliance")
@@ -491,8 +492,23 @@ function temperatureColor(temperature: number, tempMin: number, tempMax: number)
   return [t, 1 - t, 0]
 }
 
+function isFiniteNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every(item => typeof item === "number" && Number.isFinite(item))
+}
+
 function isRecord(value: unknown): value is JsonRecord {
   return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
+function isRenderableTemperaturePointCloud(value: unknown): value is JsonRecord {
+  if (!isRecord(value) || !isRecord(value.attributes)) return false
+  const positions = value.attributes.position
+  const temperatures = value.attributes.temperature_K
+  const colors = value.attributes.color_rgb
+  if (!isFiniteNumberArray(positions) || positions.length < 3 || positions.length % 3 !== 0) return false
+  if (!isFiniteNumberArray(temperatures) || temperatures.length !== positions.length / 3) return false
+  if (!isFiniteNumberArray(colors) || colors.length !== positions.length) return false
+  return true
 }
 
 function normalizeDeratingCompletenessPayload(value: unknown) {
@@ -1480,6 +1496,16 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
     async (req, reply) => {
       try {
         const workspaceDir = (await resolveQueryWorkspaceContext(req.query)).workspaceDir
+        const threejsFieldPath = resolveScopedWorkspaceFilePath(DEFAULT_TEMPERATURE_THREEJS_RELATIVE_PATH, workspaceDir)
+        if (threejsFieldPath) {
+          const threejsData = await readJsonObject(threejsFieldPath).catch(() => null)
+          if (isRenderableTemperaturePointCloud(threejsData)) {
+            reply.header("Content-Type", "application/json; charset=utf-8")
+            reply.header("Cache-Control", "no-cache")
+            return reply.send(threejsData)
+          }
+        }
+
         const fieldPath = resolveScopedWorkspaceFilePath(DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH, workspaceDir)
         if (!fieldPath) {
           return reply.status(404).send({ error: "temperature field not found" })

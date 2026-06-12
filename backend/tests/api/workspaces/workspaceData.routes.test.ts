@@ -708,6 +708,40 @@ describe("workspace data routes", () => {
     }
   })
 
+  it("prefers postprocessed Three.js temperature point clouds", async () => {
+    await writeJson(path.join(versionDir(), "02_sim", "postprocess", "temperature_field_threejs.json"), {
+      schema_version: "1.0",
+      format: "threejs_temperature_point_cloud",
+      source: { temperature_array: "T" },
+      point_count: 3,
+      bounds: { min: [0, 0, 0], max: [2, 0, 0] },
+      temperature_range_K: { min: 280, max: 320 },
+      attributes: {
+        position: [0, 0, 0, 1, 0, 0, 2, 0, 0],
+        temperature_K: [280, 300, 320],
+        color_rgb: [0, 0, 1, 0, 1, 0, 1, 0, 0],
+      },
+    })
+    await fs.mkdir(path.join(versionDir(), "02_sim", "simulation"), { recursive: true })
+    await fs.writeFile(path.join(versionDir(), "02_sim", "simulation", "data1.txt"), "0 0 0 280\n", "utf-8")
+    const server = await createTestServer()
+
+    try {
+      const response = await server.inject({
+        method: "GET",
+        url: `/api/workspace/temperature-field?workspaceDir=${encodeURIComponent(versionDir())}`,
+      })
+      const body = response.json()
+
+      assert.equal(response.statusCode, 200)
+      assert.equal(body.point_count, 3)
+      assert.deepEqual(body.attributes.position, [0, 0, 0, 1, 0, 0, 2, 0, 0])
+      assert.deepEqual(body.attributes.temperature_K, [280, 300, 320])
+    } finally {
+      await server.close()
+    }
+  })
+
   it("handles uniform COMSOL temperature fields", async () => {
     await fs.mkdir(path.join(versionDir(), "02_sim", "simulation"), { recursive: true })
     await fs.writeFile(path.join(versionDir(), "02_sim", "simulation", "data1.txt"), [
