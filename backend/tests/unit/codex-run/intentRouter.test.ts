@@ -34,6 +34,18 @@ describe("fallbackRouting", () => {
     assert.deepEqual(result.skillScopes, ["public", "thermal"])
   })
 
+  it("routes thermal_catch workspaces to the thermal workflow skills", () => {
+    const result = fallbackRouting({
+      input: "做新型号热仿真",
+      workspaceId: "ws_thermal_catch",
+      workspaceName: "thermal_catch",
+    })
+
+    assert.equal(result.intent, "thermal")
+    assert.deepEqual(result.selectedSkills, ["planner", "config-editor", "freecad", "simulation-skill"])
+    assert.deepEqual(result.skillScopes, ["public", "thermal"])
+  })
+
   it("routes GNC workspaces to the AIGNC orchestrator", () => {
     const result = fallbackRouting({
       input: "设计姿控场景",

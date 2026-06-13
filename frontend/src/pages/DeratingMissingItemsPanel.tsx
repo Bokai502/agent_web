@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { CSSProperties } from "react"
+import { useTranslation } from "react-i18next"
 import { joinApiPath } from "../app/apiBase"
+import {
+  getWorkflowLoopProgressEntries,
+  getWorkflowProgressSummary,
+  type WorkflowProgressSummary,
+  type WorkspaceProgressResponse,
+} from "./workspace/progressUtils"
 
 type JsonRow = Record<string, unknown>
 
@@ -118,7 +125,48 @@ const COMPLIANCE_TABS = [
 ] as const
 
 type ComplianceTab = typeof COMPLIANCE_TABS[number]
-type ActiveTabKey = "derating" | ComplianceTab["key"]
+type ActiveTabKey = "dashboard" | "derating" | ComplianceTab["key"]
+
+type DashboardMetric = {
+  label: string
+  tone: "neutral" | "ok" | "warn" | "bad"
+  value: string
+}
+
+type DashboardDistributionItem = {
+  color: string
+  label: string
+  value: number
+}
+
+type DashboardRiskRow = {
+  action: string
+  component: string
+  issue: string
+  manufacturer: string
+  model: string
+  module: string
+  status: string
+}
+
+type DashboardModuleRow = {
+  count: number
+  done: boolean
+  issue: number
+  label: string
+  ok: number
+}
+
+type DashboardRecommendation = {
+  text: string
+  tone: "neutral" | "ok" | "warn" | "bad"
+}
+
+type DashboardProgress = {
+  percentage: number
+  statusLabel: string
+  status: WorkflowProgressSummary["status"]
+}
 
 const RESULT_CSV_COLUMNS = [
   ["excel_row", "序号"],
@@ -171,6 +219,14 @@ function buildWorkspaceQuery({ versionId, workspaceDir, workspaceId }: DeratingM
 
 function buildWorkspaceApiPath(path: string, query: string) {
   return `${joinApiPath(undefined, path)}${query}`
+}
+
+function progressFromSummary(summary: WorkflowProgressSummary): DashboardProgress {
+  return {
+    percentage: summary.percentage,
+    status: summary.status,
+    statusLabel: summary.statusLabel,
+  }
 }
 
 function csvEscape(value: unknown) {
@@ -408,6 +464,257 @@ function complianceStatusCounts(rows: JsonRow[]) {
   return { issue, ok: rows.length - issue }
 }
 
+function statusTone(status: string): "ok" | "bad" | "warn" {
+  if (isPositiveJudgement(status)) return "ok"
+  if (isNegativeJudgement(status)) return "bad"
+  return "warn"
+}
+
+function dashboardIssueLabel(row: JsonRow) {
+  const missing = asText(row["missing_standard_parameters"])
+  if (missing) return "缺少降额项"
+  if (hasIssue(row, /实际值/u)) return "实际值问题"
+  if (hasIssue(row, /允许值/u)) return "允许值问题"
+  if (hasIssue(row, /降额因子/u)) return "降额因子问题"
+  return asText(row["降额参数"]) || "需人工确认"
+}
+
+function dashboardAction(row: JsonRow) {
+  const detail = asText(row["综合判定详情"]) || issueText(row)
+  if (/实际值大于允许值|实际值.*超限|热设计/u.test(detail)) return "复核热设计"
+  if (/允许值.*错误|应为/u.test(detail)) return "修正允许值"
+  if (/降额因子/u.test(detail)) return "复核降额因子"
+  if (/缺少/u.test(detail)) return "补充参数"
+  return "人工确认"
+}
+
+function componentName(row: JsonRow) {
+  return asText(row.component_name ?? row.name ?? row["元器件名称"] ?? row.list_model) || "-"
+}
+
+function componentModel(row: JsonRow) {
+  return asText(row.model ?? row["型号规格_规格"] ?? row["型号规格"] ?? row.list_model) || "-"
+}
+
+function componentManufacturer(row: JsonRow) {
+  return asText(row.manufacturer ?? row.normalized_manufacturer ?? row["生产厂商_生产单位"] ?? row["生产厂商"] ?? row.list_manufacturer) || "-"
+}
+
+function buildDashboardRiskRows(resultRows: JsonRow[], missingRows: JsonRow[]): DashboardRiskRow[] {
+  const missingByComponent = new Map(missingRows.map(row => [asText(row["元器件名称"]), row]))
+  const issueRows = resultRows
+    .filter(row => statusText(row) !== "符合")
+    .slice(0, 5)
+    .map(row => ({
+      action: dashboardAction(row),
+      component: componentName(row),
+      issue: dashboardIssueLabel(row),
+      manufacturer: componentManufacturer(row),
+      model: componentModel(row),
+      module: "降额检查",
+      status: statusText(row),
+    }))
+
+  if (issueRows.length >= 5) return issueRows
+
+  const existing = new Set(issueRows.map(row => row.component))
+  const missingIssueRows = missingRows
+    .filter(row => Number(row.missing_count ?? 0) > 0 && !existing.has(asText(row["元器件名称"])))
+    .slice(0, 5 - issueRows.length)
+    .map(row => {
+      const component = asText(row["元器件名称"])
+      const source = missingByComponent.get(component) ?? row
+      return {
+        action: "补充降额参数",
+        component: component || "-",
+        issue: asText(source["missing_standard_parameters"]) || "缺少降额项",
+        manufacturer: componentManufacturer(source),
+        model: componentModel(source),
+        module: "降额缺项",
+        status: "待确认",
+      }
+    })
+
+  return [...issueRows, ...missingIssueRows]
+}
+
+function complianceIssueRows(rows: JsonRow[], module: string, issueLabel: string, action: string): DashboardRiskRow[] {
+  return rows
+    .filter(row => {
+      const status = asText(row.status ?? row["目录内或外"] ?? row.is_in_catalog ?? row["是否满足要求"])
+      return status && !isPositiveJudgement(status)
+    })
+    .map(row => ({
+      action,
+      component: componentName(row),
+      issue: issueLabel,
+      manufacturer: componentManufacturer(row),
+      model: componentModel(row),
+      module,
+      status: asText(row.status ?? row["目录内或外"] ?? row.is_in_catalog ?? "待确认") || "待确认",
+    }))
+}
+
+function manufacturerIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
+  return rows
+    .filter(row => {
+      const status = asText(row.status ?? row["目录内或外"] ?? row["是否满足要求"])
+      return status && !isPositiveJudgement(status)
+    })
+    .map(row => {
+      const shortName = asText(row["厂商简称"] ?? row.normalized_manufacturer ?? row.manufacturer)
+      const fullName = asText(row["厂商全称"] ?? row.manufacturer_full_name)
+      const origin = asText(row["国产/进口"])
+      const catalogStatus = asText(row["目录内或外"] ?? row.status ?? "待确认") || "待确认"
+      return {
+        action: "确认厂商来源与目录状态",
+        component: shortName || fullName || "-",
+        issue: [origin, catalogStatus].filter(Boolean).join(" / ") || "厂商状态待确认",
+        manufacturer: fullName || shortName || "-",
+        model: origin || "-",
+        module: "厂商匹配",
+        status: catalogStatus,
+      }
+    })
+}
+
+function catalogIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
+  return rows
+    .filter(row => {
+      const status = asText(row.status ?? row.is_in_catalog ?? row["目录内或外"])
+      return status && !isPositiveJudgement(status)
+    })
+    .map(row => ({
+      action: "选择或确认目录条目",
+      component: asText(row.list_model ?? row.catalog_model) || "-",
+      issue: asText(row.reason) || "目录匹配待确认",
+      manufacturer: asText(row.list_manufacturer ?? row.catalog_manufacturer) || "-",
+      model: asText(row.catalog_model) || "-",
+      module: "目录匹配",
+      status: asText(row.is_in_catalog ?? row.status ?? "待确认") || "待确认",
+    }))
+}
+
+function moduleRows(missingRows: JsonRow[], resultRows: JsonRow[], complianceRows: Record<string, JsonRow[]>, finalRows: JsonRow[], finalGenerated: boolean, progress?: DashboardProgress): DashboardModuleRow[] {
+  const missingCount = missingRows.filter(row => Number(row.missing_count ?? 0) > 0).length
+  const resultIssue = problemCount(resultRows)
+  const progressPercentage = progress?.percentage ?? 0
+  const deratingComplete = progress?.status === "completed" || progressPercentage >= 100
+  const finalDone = finalGenerated || finalRows.length > 0 || deratingComplete
+  const rows: DashboardModuleRow[] = [
+    {
+      count: missingRows.length,
+      done: missingRows.length > 0,
+      issue: missingCount,
+      label: "降额缺项分析",
+      ok: Math.max(0, missingRows.length - missingCount),
+    },
+    {
+      count: resultRows.length,
+      done: resultRows.length > 0,
+      issue: resultIssue,
+      label: "AI判定结果",
+      ok: passCount(resultRows),
+    },
+    {
+      count: finalRows.length || resultRows.length,
+      done: finalDone,
+      issue: resultIssue,
+      label: "降额总表",
+      ok: Math.max(0, (finalRows.length || resultRows.length) - resultIssue),
+    },
+  ]
+
+  COMPLIANCE_TABS.forEach(tab => {
+    const tabRows = complianceRows[tab.key] ?? []
+    const counts = complianceStatusCounts(tabRows)
+    rows.push({
+      count: tabRows.length,
+      done: tabRows.length > 0,
+      issue: counts.issue,
+      label: tab.title,
+      ok: counts.ok,
+    })
+  })
+
+  return rows
+}
+
+function buildDashboardRecommendations(totalIssues: number, missingCount: number, catalogIssues: number, completedModules: number, moduleCount: number): DashboardRecommendation[] {
+  const items: DashboardRecommendation[] = []
+  if (completedModules < moduleCount) {
+    items.push({ text: `还有 ${moduleCount - completedModules} 个报告模块未生成，建议先补齐输出后再定稿。`, tone: "warn" })
+  }
+  if (missingCount > 0) {
+    items.push({ text: `优先补充 ${missingCount} 个器件的标准降额参数，避免后续判定依据不足。`, tone: "bad" })
+  }
+  if (catalogIssues > 0) {
+    items.push({ text: `${catalogIssues} 条目录匹配需人工确认，建议先处理国产器件目录命中情况。`, tone: "warn" })
+  }
+  if (totalIssues === 0 && completedModules === moduleCount) {
+    items.push({ text: "所有模块已生成且暂无待确认项，可进入报告归档。", tone: "ok" })
+  }
+  if (items.length < 3) {
+    items.push({ text: "完成确认后生成降额总表，确保报告文件与明细表保持一致。", tone: "neutral" })
+  }
+  return items.slice(0, 4)
+}
+
+function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], complianceRows: Record<string, JsonRow[]>, finalRows: JsonRow[], finalGenerated: boolean, progress?: DashboardProgress) {
+  const missingCount = missingRows.filter(row => Number(row.missing_count ?? 0) > 0).length
+  const modules = moduleRows(missingRows, resultRows, complianceRows, finalRows, finalGenerated, progress)
+  const totalRows = modules.reduce((total, module) => total + module.count, 0)
+  const totalIssues = modules.reduce((total, module) => total + module.issue, 0)
+  const completedModules = modules.filter(module => module.done).length
+  const okRows = modules.reduce((total, module) => total + module.ok, 0)
+  const passPercent = totalRows > 0 ? Math.round((okRows / totalRows) * 100) : 0
+  const issuePercent = totalRows > 0 ? Math.round((totalIssues / totalRows) * 100) : 0
+  const manufacturerCounts = complianceStatusCounts(complianceRows.manufacturer ?? [])
+  const keyUnitCounts = complianceStatusCounts(complianceRows["key-units"] ?? [])
+  const catalogCounts = complianceStatusCounts(complianceRows.catalog ?? [])
+  const distribution = [
+    { color: HUD_RED, label: "降额问题", value: missingCount + problemCount(resultRows) },
+    { color: HUD_WARN, label: "厂商匹配", value: manufacturerCounts.issue },
+    { color: HUD_MUTED, label: "关键器件", value: keyUnitCounts.issue },
+    { color: HUD_CYAN, label: "目录匹配", value: catalogCounts.issue },
+    { color: HUD_GREEN, label: "分类确认", value: complianceStatusCounts(complianceRows.classification ?? []).issue },
+  ]
+  const issueTotal = distribution.reduce((total, item) => total + item.value, 0)
+  const complianceRisks = [
+    ...manufacturerIssueRows(complianceRows.manufacturer ?? []),
+    ...complianceIssueRows(complianceRows["key-units"] ?? [], "关键器件", "关键器件标记待确认", "确认关键器件属性"),
+    ...catalogIssueRows(complianceRows.catalog ?? []),
+  ]
+  const riskRows = [...buildDashboardRiskRows(resultRows, missingRows), ...complianceRisks].slice(0, 8)
+  const generatedRows = modules.filter(module => module.done).reduce((total, module) => total + module.count, 0)
+  const moduleCount = modules.length
+
+  return {
+    catalogIssues: catalogCounts.issue,
+    completedModules,
+    dataCompleteness: totalRows > 0 ? Math.round((generatedRows / totalRows) * 100) : 0,
+    distribution,
+    issue: totalIssues,
+    issuePercent,
+    issueTotal,
+    metrics: [
+      { label: "报告模块", tone: "neutral", value: `${completedModules}/${moduleCount}` },
+      { label: "器件覆盖", tone: "neutral", value: String(missingRows.length || resultRows.length) },
+      { label: "合规通过项", tone: "ok", value: String(okRows) },
+      { label: "问题/待确认", tone: totalIssues > 0 ? "bad" : "ok", value: String(totalIssues) },
+      { label: "模块生成", tone: completedModules === moduleCount ? "ok" : "warn", value: `${completedModules}/${moduleCount}` },
+      { label: "目录待确认", tone: catalogCounts.issue > 0 ? "warn" : "ok", value: String(catalogCounts.issue) },
+    ] satisfies DashboardMetric[],
+    missingCount,
+    moduleCount,
+    modules,
+    passPercent,
+    recommendations: buildDashboardRecommendations(totalIssues, missingCount, catalogCounts.issue, completedModules, moduleCount),
+    riskRows,
+    totalRows,
+  }
+}
+
 function buildFinalRows(rows: JsonRow[], missingRows: JsonRow[]) {
   return rows.map(row => {
     const component = missingRows.find(item => asText(item["元器件名称"]) === asText(row["元器件名称"]))
@@ -421,15 +728,16 @@ function buildFinalRows(rows: JsonRow[], missingRows: JsonRow[]) {
 }
 
 export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps) {
-  const [activeTab, setActiveTab] = useState<ActiveTabKey>("derating")
+  const { t } = useTranslation()
+  const [activeTab, setActiveTab] = useState<ActiveTabKey>("dashboard")
   const [missingRows, setMissingRows] = useState<JsonRow[]>([])
   const [resultRows, setResultRows] = useState<JsonRow[]>([])
   const [finalRows, setFinalRows] = useState<JsonRow[]>([])
   const [complianceRows, setComplianceRows] = useState<Record<string, JsonRow[]>>({})
   const [complianceSources, setComplianceSources] = useState<Record<string, string>>({})
+  const [progressData, setProgressData] = useState<WorkspaceProgressResponse | null>(null)
   const [missingSourcePath, setMissingSourcePath] = useState("")
   const [resultSourcePath, setResultSourcePath] = useState("")
-  const [status, setStatus] = useState("加载中...")
   const [savingResults, setSavingResults] = useState(false)
   const [savingCompliance, setSavingCompliance] = useState("")
   const [finalGenerated, setFinalGenerated] = useState(false)
@@ -437,7 +745,6 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
   const themeVars = props.theme === "light" ? lightThemeVars : darkThemeVars
 
   const loadAll = useCallback(() => {
-    setStatus("加载中...")
     Promise.allSettled([
       fetch(buildWorkspaceApiPath("/workspace/derating/missing-items", query), { cache: "no-store" }).then(async response => {
         const data = await response.json().catch(() => null) as DeratingPayload | { error?: string } | null
@@ -467,10 +774,8 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
         setResultRows([])
         setResultSourcePath(checkResult.reason instanceof Error ? checkResult.reason.message : "校验结果 JSON 加载失败")
       }
-
-      setStatus("")
     }).catch(error => {
-      setStatus(error instanceof Error ? error.message : "加载失败")
+      console.error(error)
     })
 
     Promise.allSettled(COMPLIANCE_TABS.map(tab =>
@@ -503,6 +808,36 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
     loadAll()
   }, [loadAll])
 
+  useEffect(() => {
+    let cancelled = false
+    let controller: AbortController | null = null
+
+    const loadProgress = () => {
+      controller?.abort()
+      controller = new AbortController()
+      fetch(buildWorkspaceApiPath("/workspace/progress", query), {
+        cache: "no-store",
+        signal: controller.signal,
+      })
+        .then(response => response.ok ? response.json() as Promise<WorkspaceProgressResponse> : null)
+        .then(data => {
+          if (!cancelled) setProgressData(data)
+        })
+        .catch(error => {
+          if (error instanceof DOMException && error.name === "AbortError") return
+          if (!cancelled) setProgressData(null)
+        })
+    }
+
+    loadProgress()
+    const intervalId = window.setInterval(loadProgress, 3000)
+    return () => {
+      cancelled = true
+      controller?.abort()
+      window.clearInterval(intervalId)
+    }
+  }, [query])
+
   const missingSummary = useMemo(() => {
     const componentCount = missingRows.length
     const missingCount = missingRows.filter(row => Number(row.missing_count ?? 0) > 0).length
@@ -514,6 +849,23 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
       unmatchedCount,
     }
   }, [missingRows])
+
+  const workflowProgressEntries = useMemo(
+    () => getWorkflowLoopProgressEntries(progressData?.data, t, "check"),
+    [progressData?.data, t],
+  )
+  const workflowProgressSummary = useMemo(
+    () => getWorkflowProgressSummary(progressData?.data, workflowProgressEntries, t),
+    [progressData?.data, t, workflowProgressEntries],
+  )
+  const dashboardProgress = useMemo(
+    () => progressFromSummary(workflowProgressSummary),
+    [workflowProgressSummary],
+  )
+  const dashboardSummary = useMemo(
+    () => buildDashboardSummary(missingRows, resultRows, complianceRows, finalRows, finalGenerated, dashboardProgress),
+    [complianceRows, dashboardProgress, finalGenerated, finalRows, missingRows, resultRows],
+  )
 
   const updateResultCell = (rowIndex: number, key: string, value: string) => {
     setResultRows(previous => previous.map((row, index) => index === rowIndex ? writeResultValue(row, key, value) : row))
@@ -550,7 +902,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
         setFinalRows(buildFinalRows(savedRows, missingRows))
         setFinalGenerated(true)
       })
-      .catch(error => setStatus(error instanceof Error ? error.message : "保存失败"))
+      .catch(error => console.error(error))
       .finally(() => setSavingResults(false))
   }
 
@@ -574,7 +926,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
           [tab.key]: payload.source_relative_path ?? previous[tab.key] ?? "",
         }))
       })
-      .catch(error => setStatus(error instanceof Error ? error.message : "保存失败"))
+      .catch(error => console.error(error))
       .finally(() => setSavingCompliance(""))
   }
 
@@ -608,6 +960,11 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
   }
 
   const activeComplianceTab = COMPLIANCE_TABS.find(tab => tab.key === activeTab)
+  const navItems = [
+    { key: "dashboard" as const, label: "报告看板", meta: "总览" },
+    { key: "derating" as const, label: "降额检查", meta: "Derating" },
+    ...COMPLIANCE_TABS.map(tab => ({ key: tab.key, label: tab.title, meta: tab.artifact })),
+  ]
   const renderComplianceTab = (tab: ComplianceTab) => {
     const rows = complianceRows[tab.key] ?? []
     const counts = complianceStatusCounts(rows)
@@ -655,19 +1012,26 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
 
   return (
     <div style={{ ...pageStyle, ...themeVars }}>
-      <div style={topbarStyle}>
-        <strong>合规检查</strong>
-        <span style={statusTextStyle}>{status}</span>
-      </div>
+      <div style={viewerShellStyle}>
+        <aside style={sideNavStyle}>
+          {navItems.map(item => (
+            <button key={item.key} type="button" onClick={() => setActiveTab(item.key)} style={sideNavButtonStyle(activeTab === item.key)}>
+              <span style={sideNavIconStyle}>{navIcon(item.key)}</span>
+              <span style={sideNavTextStyle}>{item.label}</span>
+            </button>
+          ))}
+        </aside>
 
-      <div style={tabsStyle}>
-        <button type="button" onClick={() => setActiveTab("derating")} style={tabButtonStyle(activeTab === "derating")}>降额检查</button>
-        {COMPLIANCE_TABS.map(tab => (
-          <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={tabButtonStyle(activeTab === tab.key)}>{tab.title}</button>
-        ))}
-      </div>
-
-      {activeTab === "derating" ? (
+        <main style={viewerContentStyle}>
+          {activeTab === "dashboard" ? (
+          <DeratingReportDashboard
+            onConfirm={confirmAndGenerateFinal}
+            onDownload={downloadFinalCsv}
+            progress={dashboardProgress}
+            saving={savingResults}
+            summary={dashboardSummary}
+          />
+          ) : activeTab === "derating" ? (
         <>
           <section style={sectionStyle}>
         <details open>
@@ -738,9 +1102,262 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
         </details>
       </section>
         </>
-      ) : activeComplianceTab ? renderComplianceTab(activeComplianceTab) : null}
+          ) : activeComplianceTab ? renderComplianceTab(activeComplianceTab) : null}
+        </main>
+      </div>
     </div>
   )
+}
+
+function DeratingReportDashboard({
+  onConfirm,
+  onDownload,
+  progress,
+  saving,
+  summary,
+}: {
+  onConfirm: () => void
+  onDownload: () => void
+  progress: DashboardProgress
+  saving: boolean
+  summary: ReturnType<typeof buildDashboardSummary>
+}) {
+  return (
+    <section style={dashboardStyle}>
+      <div style={dashboardHeaderStyle}>
+        <div style={dashboardTitleGroupStyle}>
+          <strong style={dashboardTitleStyle}>合规报告总览</strong>
+          <span style={dashboardSubtitleStyle}>任务进度 {progress.percentage}% · {progress.statusLabel}</span>
+        </div>
+        <div style={dashboardActionGroupStyle}>
+          <button type="button" onClick={onDownload} disabled={summary.totalRows === 0} style={toolbarButtonStyle}>导出总表</button>
+          <button type="button" onClick={onConfirm} disabled={summary.totalRows === 0 || saving} style={primaryButtonStyle}>{saving ? "生成中" : "确认生成总表"}</button>
+        </div>
+      </div>
+
+          <div style={dashboardMetricGridStyle}>
+        {summary.metrics.map(metric => (
+          <div key={metric.label} style={dashboardMetricCardStyle}>
+            <span style={dashboardMetricLabelStyle}>{metric.label}</span>
+            <strong style={{ ...dashboardMetricValueStyle, color: metricToneColor(metric.tone) }}>{metric.value}</strong>
+          </div>
+        ))}
+        <div style={dashboardMetricCardStyle}>
+          <span style={dashboardMetricLabelStyle}>任务进度</span>
+          <strong style={{ ...dashboardMetricValueStyle, color: progressToneColor(progress.status) }}>{progress.percentage}%</strong>
+        </div>
+      </div>
+
+      <div style={dashboardMainGridStyle}>
+        <div style={dashboardConclusionStyle}>
+          <div style={dashboardPanelHeaderStyle}>
+            <strong>综合结论</strong>
+            <span style={{ ...dashboardStatusPillStyle, color: summary.issue > 0 || summary.missingCount > 0 ? HUD_RED : HUD_GREEN }}>
+              {summary.issue > 0 || summary.missingCount > 0 ? "需确认" : "符合"}
+            </span>
+          </div>
+          <div style={dashboardPercentRowStyle}>
+            <span><b style={{ color: progressToneColor(progress.status) }}>{progress.percentage}%</b> 任务进度</span>
+            <span><b style={greenText}>{summary.passPercent}%</b> 数据通过率</span>
+            <span><b style={redText}>{summary.issuePercent}%</b> 问题/待确认</span>
+          </div>
+          <div style={dashboardBarStyle}>
+            <span style={{ ...dashboardBarSegmentStyle, background: progressToneColor(progress.status), width: `${Math.max(0, Math.min(100, progress.percentage))}%` }} />
+            <span style={{ ...dashboardBarSegmentStyle, background: HUD_LINE, flex: 1 }} />
+          </div>
+          <div style={dashboardInsightListStyle}>
+            <span>{summary.completedModules} 个报告模块已生成，覆盖 {summary.totalRows} 条结果记录</span>
+            <span>{summary.issue} 条跨模块问题需要确认或补充</span>
+            <span>其中 {summary.missingCount} 个器件存在降额参数缺失，{summary.catalogIssues} 个目录匹配待确认</span>
+          </div>
+        </div>
+
+        <div style={dashboardPanelStyle}>
+          <div style={dashboardPanelHeaderStyle}>
+            <strong>跨模块问题分布</strong>
+            <span style={mutedTextStyle}>共 {summary.issueTotal} 项</span>
+          </div>
+          <div style={dashboardDistributionStyle}>
+            <IssueDonut items={summary.distribution} total={summary.issueTotal} />
+            <div style={dashboardLegendStyle}>
+              {summary.distribution.map(item => (
+                <div key={item.label} style={dashboardLegendItemStyle}>
+                  <span style={{ ...dashboardLegendDotStyle, background: item.color }} />
+                  <span>{item.label}</span>
+                  <b>{item.value}</b>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={dashboardPanelStyle}>
+          <div style={dashboardPanelHeaderStyle}>
+            <strong>模块状态</strong>
+            <span style={mutedTextStyle}>报告组成</span>
+          </div>
+          <div style={dashboardStepListStyle}>
+            {summary.modules.map(module => (
+              <div key={module.label} style={dashboardStepItemStyle}>
+                <span style={{ ...dashboardStepDotStyle, background: module.done ? module.issue > 0 ? HUD_RED : HUD_GREEN : HUD_DIM }} />
+                <span>{module.label}</span>
+                <b style={{ color: module.done ? module.issue > 0 ? HUD_RED : HUD_GREEN : HUD_DIM }}>
+                  {module.done ? `${module.count} 行 / ${module.issue} 问题` : "未生成"}
+                </b>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={dashboardSignalGridStyle}>
+        <DashboardSignal label="任务进度" value={`${progress.percentage}%`} tone={progress.status === "completed" ? "ok" : progress.status === "failed" || progress.status === "blocked" ? "bad" : "warn"} />
+        <DashboardSignal label="数据完整性" value={`${summary.dataCompleteness}%`} tone={summary.dataCompleteness === 100 ? "ok" : "warn"} />
+        <DashboardSignal label="综合通过率" value={`${summary.passPercent}%`} tone={summary.passPercent >= 90 ? "ok" : summary.passPercent >= 70 ? "warn" : "bad"} />
+        <DashboardSignal label="待处理密度" value={`${summary.issuePercent}%`} tone={summary.issuePercent === 0 ? "ok" : summary.issuePercent <= 10 ? "warn" : "bad"} />
+      </div>
+
+      <div style={dashboardLowerGridStyle}>
+        <div style={dashboardPanelStyle}>
+          <div style={dashboardPanelHeaderStyle}>
+            <strong>重点待处理事项</strong>
+            <span style={mutedTextStyle}>优先处理前 {summary.riskRows.length} 项</span>
+          </div>
+          <div style={dashboardRiskTableWrapStyle}>
+            <table style={dashboardRiskTableStyle}>
+              <thead>
+                <tr>
+                  {["模块", "器件名称", "型号规格", "生产厂商", "问题类型", "当前状态", "建议动作"].map(label => (
+                    <th key={label} style={dashboardRiskHeaderStyle}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {summary.riskRows.map((row, index) => (
+                  <tr key={`${row.component}-${row.model}-${index}`}>
+                    <td style={dashboardRiskCellStyle}>{row.module}</td>
+                    <td style={dashboardRiskCellStyle}>{row.component}</td>
+                    <td style={dashboardRiskCellStyle}>{row.model}</td>
+                    <td style={dashboardRiskCellStyle}>{row.manufacturer}</td>
+                    <td style={dashboardRiskCellStyle}>{row.issue}</td>
+                    <td style={{ ...dashboardRiskCellStyle, color: metricToneColor(statusTone(row.status)), fontWeight: 800 }}>{row.status}</td>
+                    <td style={dashboardRiskCellStyle}>{row.action}</td>
+                  </tr>
+                ))}
+                {summary.riskRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={emptyCellStyle}>暂无待处理事项</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style={dashboardPanelStyle}>
+          <div style={dashboardPanelHeaderStyle}>
+            <strong>报告文件</strong>
+            <span style={mutedTextStyle}>输出状态</span>
+          </div>
+          <div style={dashboardFileListStyle}>
+            {summary.modules.map(module => (
+              <DashboardFileRow key={module.label} label={module.label} ready={module.done} />
+            ))}
+          </div>
+        </div>
+
+        <div style={dashboardPanelStyle}>
+          <div style={dashboardPanelHeaderStyle}>
+            <strong>处理建议</strong>
+            <span style={mutedTextStyle}>自动汇总</span>
+          </div>
+          <div style={dashboardAdviceListStyle}>
+            {summary.recommendations.map((item, index) => (
+              <div key={`${item.text}-${index}`} style={dashboardAdviceItemStyle}>
+                <span style={{ ...dashboardAdviceMarkStyle, background: metricToneColor(item.tone) }} />
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function DashboardSignal({ label, tone, value }: { label: string; tone: DashboardMetric["tone"]; value: string }) {
+  return (
+    <div style={dashboardSignalStyle}>
+      <span style={dashboardSignalLabelStyle}>{label}</span>
+      <b style={{ ...dashboardSignalValueStyle, color: metricToneColor(tone) }}>{value}</b>
+    </div>
+  )
+}
+
+function IssueDonut({ items, total }: { items: DashboardDistributionItem[]; total: number }) {
+  const radius = 40
+  const circumference = 2 * Math.PI * radius
+  let offset = 0
+
+  return (
+    <svg aria-hidden="true" height="112" viewBox="0 0 112 112" width="112">
+      <circle cx="56" cy="56" fill="none" r={radius} stroke={HUD_LINE} strokeWidth="14" />
+      {items.map(item => {
+        const length = total > 0 ? (item.value / total) * circumference : 0
+        const dashOffset = -offset
+        offset += length
+        return (
+          <circle
+            key={item.label}
+            cx="56"
+            cy="56"
+            fill="none"
+            r={radius}
+            stroke={item.color}
+            strokeDasharray={`${length} ${circumference - length}`}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="round"
+            strokeWidth="14"
+            transform="rotate(-90 56 56)"
+          />
+        )
+      })}
+      <text fill={HUD_TEXT} fontSize="18" fontWeight="800" textAnchor="middle" x="56" y="54">{total}</text>
+      <text fill={HUD_MUTED} fontSize="10" fontWeight="700" textAnchor="middle" x="56" y="70">问题项</text>
+    </svg>
+  )
+}
+
+function DashboardFileRow({ label, ready }: { label: string; ready: boolean }) {
+  return (
+    <div style={dashboardFileRowStyle}>
+      <span>{label}</span>
+      <b style={{ ...dashboardFileBadgeStyle, color: ready ? HUD_GREEN : HUD_DIM }}>{ready ? "已完成" : "待生成"}</b>
+    </div>
+  )
+}
+
+function navIcon(key: ActiveTabKey) {
+  if (key === "dashboard") return "□"
+  if (key === "derating") return "✓"
+  if (key === "classification") return "◇"
+  if (key === "manufacturer") return "↔"
+  if (key === "key-units") return "◆"
+  return "◎"
+}
+
+function metricToneColor(tone: "neutral" | "ok" | "warn" | "bad") {
+  if (tone === "ok") return HUD_GREEN
+  if (tone === "bad") return HUD_RED
+  if (tone === "warn") return HUD_WARN
+  return HUD_CYAN
+}
+
+function progressToneColor(status: WorkflowProgressSummary["status"]) {
+  if (status === "completed") return HUD_GREEN
+  if (status === "failed" || status === "blocked") return HUD_RED
+  if (status === "running") return HUD_CYAN
+  return HUD_WARN
 }
 
 function tableToCsv(
@@ -1100,6 +1717,7 @@ const HUD_DIM = "var(--derating-dim)"
 const HUD_CYAN = "var(--derating-cyan)"
 const HUD_GREEN = "var(--derating-green)"
 const HUD_RED = "var(--derating-red)"
+const HUD_WARN = "var(--derating-warn)"
 const HUD_CONTROL_BG = "var(--derating-control-bg)"
 const HUD_PRIMARY_BG = "var(--derating-primary-bg)"
 const HUD_PRIMARY_BORDER = "var(--derating-primary-border)"
@@ -1144,6 +1762,7 @@ const darkThemeVars = {
   "--derating-table-header": "rgba(10, 35, 56, 0.98)",
   "--derating-table-header-text": "rgba(234, 247, 255, 0.72)",
   "--derating-text": "#eaf7ff",
+  "--derating-warn": "#ffd166",
 } satisfies DeratingThemeVars
 
 const lightThemeVars = {
@@ -1174,13 +1793,13 @@ const lightThemeVars = {
   "--derating-table-header": "#eef6ff",
   "--derating-table-header-text": "#344054",
   "--derating-text": "#1f2937",
+  "--derating-warn": "#b54708",
 } satisfies DeratingThemeVars
 
 const greenText = { color: HUD_GREEN }
 const redText = { color: HUD_RED }
 const mutedTextStyle = { color: HUD_MUTED } satisfies CSSProperties
 const hintTextStyle = { color: HUD_CYAN, fontWeight: 800 } satisfies CSSProperties
-const statusTextStyle = { color: HUD_MUTED, marginLeft: "auto" } satisfies CSSProperties
 
 const pageStyle = {
   background: `linear-gradient(180deg, ${HUD_PAGE_TOP} 0%, ${HUD_BG} 100%)`,
@@ -1190,37 +1809,69 @@ const pageStyle = {
   padding: "16px",
 } satisfies CSSProperties
 
-const topbarStyle = {
-  alignItems: "center",
-  borderBottom: `1px solid ${HUD_LINE}`,
-  display: "flex",
-  gap: 10,
-  minHeight: 44,
-  paddingBottom: 12,
-  flexWrap: "wrap",
+const viewerShellStyle = {
+  alignItems: "start",
+  display: "grid",
+  gap: 14,
+  gridTemplateColumns: "190px minmax(0, 1fr)",
+  minHeight: 0,
 } satisfies CSSProperties
 
-const tabsStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 8,
+const sideNavStyle = {
+  background: HUD_PANEL,
+  border: `1px solid ${HUD_LINE}`,
+  borderRadius: 8,
+  boxShadow: HUD_SECTION_SHADOW,
+  display: "grid",
+  gap: 6,
   marginTop: 14,
+  padding: 8,
+  position: "sticky",
+  top: 12,
 } satisfies CSSProperties
 
-function tabButtonStyle(active: boolean): CSSProperties {
+function sideNavButtonStyle(active: boolean): CSSProperties {
   return {
-    background: active ? HUD_PRIMARY_BG : HUD_CONTROL_BG,
+    alignItems: "center",
+    background: active ? HUD_PRIMARY_BG : "transparent",
     border: `1px solid ${active ? HUD_PRIMARY_BORDER : HUD_LINE}`,
     borderRadius: 6,
     boxShadow: active ? HUD_PRIMARY_SHADOW : "none",
     color: active ? HUD_PRIMARY_TEXT : HUD_TEXT,
     cursor: "pointer",
+    display: "grid",
     fontSize: 13,
+    gap: 9,
+    gridTemplateColumns: "24px minmax(0, 1fr)",
     fontWeight: 800,
-    height: 34,
-    padding: "0 12px",
+    minHeight: 42,
+    padding: "0 10px",
+    textAlign: "left",
   }
 }
+
+const sideNavIconStyle = {
+  alignItems: "center",
+  background: HUD_LABEL_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  color: HUD_CYAN,
+  display: "inline-flex",
+  fontSize: 13,
+  height: 24,
+  justifyContent: "center",
+  width: 24,
+} satisfies CSSProperties
+
+const sideNavTextStyle = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+} satisfies CSSProperties
+
+const viewerContentStyle = {
+  minWidth: 0,
+} satisfies CSSProperties
 
 const sectionStyle = {
   background: HUD_PANEL,
@@ -1290,6 +1941,328 @@ const primaryButtonStyle = {
   border: `1px solid ${HUD_PRIMARY_BORDER}`,
   boxShadow: HUD_PRIMARY_SHADOW,
   color: HUD_PRIMARY_TEXT,
+} satisfies CSSProperties
+
+const dashboardStyle = {
+  background: HUD_PANEL,
+  border: `1px solid ${HUD_LINE}`,
+  borderRadius: 8,
+  boxShadow: HUD_SECTION_SHADOW,
+  display: "grid",
+  gap: 12,
+  marginTop: 14,
+  padding: 14,
+} satisfies CSSProperties
+
+const dashboardHeaderStyle = {
+  alignItems: "center",
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 12,
+  justifyContent: "space-between",
+} satisfies CSSProperties
+
+const dashboardTitleGroupStyle = {
+  display: "grid",
+  gap: 4,
+  minWidth: 260,
+} satisfies CSSProperties
+
+const dashboardTitleStyle = {
+  color: HUD_TEXT,
+  fontSize: 18,
+  lineHeight: 1.2,
+} satisfies CSSProperties
+
+const dashboardSubtitleStyle = {
+  color: HUD_MUTED,
+  fontSize: 12,
+  fontWeight: 700,
+} satisfies CSSProperties
+
+const dashboardActionGroupStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+} satisfies CSSProperties
+
+const dashboardMetricGridStyle = {
+  display: "grid",
+  gap: 10,
+  gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))",
+} satisfies CSSProperties
+
+const dashboardMetricCardStyle = {
+  background: HUD_PANEL_SOFT,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 8,
+  display: "grid",
+  gap: 6,
+  minHeight: 74,
+  padding: "11px 12px",
+} satisfies CSSProperties
+
+const dashboardMetricLabelStyle = {
+  color: HUD_MUTED,
+  fontSize: 12,
+  fontWeight: 800,
+} satisfies CSSProperties
+
+const dashboardMetricValueStyle = {
+  fontSize: 26,
+  lineHeight: 1,
+} satisfies CSSProperties
+
+const dashboardMainGridStyle = {
+  display: "grid",
+  gap: 12,
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+} satisfies CSSProperties
+
+const dashboardLowerGridStyle = {
+  display: "grid",
+  gap: 12,
+  gridTemplateColumns: "minmax(360px, 1.3fr) minmax(220px, 0.7fr) minmax(240px, 0.8fr)",
+} satisfies CSSProperties
+
+const dashboardConclusionStyle = {
+  background: HUD_PANEL_SOFT,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 8,
+  display: "grid",
+  gap: 12,
+  minWidth: 0,
+  padding: 12,
+} satisfies CSSProperties
+
+const dashboardPanelStyle = {
+  background: HUD_PANEL_SOFT,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 8,
+  minWidth: 0,
+  padding: 12,
+} satisfies CSSProperties
+
+const dashboardPanelHeaderStyle = {
+  alignItems: "center",
+  color: HUD_TEXT,
+  display: "flex",
+  gap: 10,
+  justifyContent: "space-between",
+  marginBottom: 10,
+} satisfies CSSProperties
+
+const dashboardStatusPillStyle = {
+  background: HUD_LABEL_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 900,
+  lineHeight: 1,
+  padding: "6px 8px",
+} satisfies CSSProperties
+
+const dashboardPercentRowStyle = {
+  color: HUD_MUTED,
+  display: "flex",
+  flexWrap: "wrap",
+  fontSize: 13,
+  fontWeight: 800,
+  gap: 12,
+} satisfies CSSProperties
+
+const dashboardBarStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 999,
+  display: "flex",
+  height: 12,
+  overflow: "hidden",
+} satisfies CSSProperties
+
+const dashboardBarSegmentStyle = {
+  display: "block",
+  minWidth: 0,
+} satisfies CSSProperties
+
+const dashboardInsightListStyle = {
+  color: HUD_MUTED,
+  display: "grid",
+  fontSize: 13,
+  fontWeight: 700,
+  gap: 8,
+  lineHeight: 1.45,
+} satisfies CSSProperties
+
+const dashboardDistributionStyle = {
+  alignItems: "center",
+  display: "grid",
+  gap: 10,
+  gridTemplateColumns: "112px minmax(0, 1fr)",
+} satisfies CSSProperties
+
+const dashboardLegendStyle = {
+  display: "grid",
+  gap: 8,
+} satisfies CSSProperties
+
+const dashboardLegendItemStyle = {
+  alignItems: "center",
+  color: HUD_MUTED,
+  display: "grid",
+  fontSize: 12,
+  fontWeight: 800,
+  gap: 7,
+  gridTemplateColumns: "10px minmax(0, 1fr) auto",
+} satisfies CSSProperties
+
+const dashboardLegendDotStyle = {
+  borderRadius: 999,
+  height: 10,
+  width: 10,
+} satisfies CSSProperties
+
+const dashboardSignalGridStyle = {
+  display: "grid",
+  gap: 10,
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+} satisfies CSSProperties
+
+const dashboardSignalStyle = {
+  alignItems: "center",
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 8,
+  display: "flex",
+  justifyContent: "space-between",
+  minHeight: 48,
+  padding: "0 12px",
+} satisfies CSSProperties
+
+const dashboardSignalLabelStyle = {
+  color: HUD_MUTED,
+  fontSize: 12,
+  fontWeight: 800,
+} satisfies CSSProperties
+
+const dashboardSignalValueStyle = {
+  fontSize: 18,
+  lineHeight: 1,
+} satisfies CSSProperties
+
+const dashboardStepListStyle = {
+  display: "grid",
+  gap: 9,
+} satisfies CSSProperties
+
+const dashboardStepItemStyle = {
+  alignItems: "center",
+  color: HUD_MUTED,
+  display: "grid",
+  fontSize: 12,
+  fontWeight: 800,
+  gap: 8,
+  gridTemplateColumns: "10px minmax(0, 1fr) auto",
+} satisfies CSSProperties
+
+const dashboardStepDotStyle = {
+  borderRadius: 999,
+  height: 9,
+  width: 9,
+} satisfies CSSProperties
+
+const dashboardRiskTableWrapStyle = {
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  overflow: "auto",
+  scrollbarColor: `${HUD_SCROLLBAR} transparent`,
+} satisfies CSSProperties
+
+const dashboardRiskTableStyle = {
+  borderCollapse: "collapse",
+  minWidth: 780,
+  tableLayout: "fixed",
+  width: "100%",
+} satisfies CSSProperties
+
+const dashboardRiskHeaderStyle = {
+  background: HUD_TABLE_HEADER,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  color: HUD_TABLE_HEADER_TEXT,
+  fontSize: 12,
+  fontWeight: 800,
+  padding: "9px 8px",
+  position: "static",
+  textAlign: "left",
+} satisfies CSSProperties
+
+const dashboardRiskCellStyle = {
+  background: HUD_TABLE_CELL,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  color: HUD_TEXT,
+  fontSize: 12,
+  fontWeight: 650,
+  lineHeight: 1.4,
+  overflowWrap: "anywhere",
+  padding: "8px",
+  verticalAlign: "top",
+} satisfies CSSProperties
+
+const dashboardFileListStyle = {
+  display: "grid",
+  gap: 9,
+} satisfies CSSProperties
+
+const dashboardFileRowStyle = {
+  alignItems: "center",
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  color: HUD_TEXT,
+  display: "flex",
+  fontSize: 12,
+  fontWeight: 800,
+  gap: 8,
+  justifyContent: "space-between",
+  minHeight: 38,
+  padding: "0 10px",
+} satisfies CSSProperties
+
+const dashboardFileBadgeStyle = {
+  background: HUD_LABEL_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 999,
+  fontSize: 11,
+  lineHeight: 1,
+  padding: "5px 7px",
+  whiteSpace: "nowrap",
+} satisfies CSSProperties
+
+const dashboardAdviceListStyle = {
+  display: "grid",
+  gap: 9,
+} satisfies CSSProperties
+
+const dashboardAdviceItemStyle = {
+  alignItems: "start",
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  color: HUD_MUTED,
+  display: "grid",
+  fontSize: 12,
+  fontWeight: 750,
+  gap: 8,
+  gridTemplateColumns: "8px minmax(0, 1fr)",
+  lineHeight: 1.45,
+  padding: "9px 10px",
+} satisfies CSSProperties
+
+const dashboardAdviceMarkStyle = {
+  borderRadius: 999,
+  height: 8,
+  marginTop: 5,
+  width: 8,
 } satisfies CSSProperties
 
 const headerCellStyle = {

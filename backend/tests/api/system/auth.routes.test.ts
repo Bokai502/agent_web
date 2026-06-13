@@ -56,6 +56,8 @@ describe("auth routes", () => {
     const templateDir = path.join(TEST_DATA_ROOT, "templates")
     await fs.mkdir(path.join(templateDir, "derating", "00_inputs"), { recursive: true })
     await fs.writeFile(path.join(templateDir, "derating", "00_inputs", "input.txt"), "seed", "utf-8")
+    await fs.mkdir(path.join(templateDir, "thermal_catch", "00_inputs"), { recursive: true })
+    await fs.writeFile(path.join(templateDir, "thermal_catch", "00_inputs", "input.txt"), "catch-seed", "utf-8")
 
     const usersRoot = path.join(TEST_DATA_ROOT, "users")
     const server = await createTestServer({
@@ -99,11 +101,20 @@ describe("auth routes", () => {
         reason: "template-missing",
         workspaceId: "ws_gnc",
       })
+      assert.deepEqual(body.seeded.find((item: { name: string }) => item.name === "thermal_catch"), {
+        copied: true,
+        name: "thermal_catch",
+        workspaceId: "ws_thermal_catch",
+      })
       assert.equal(body.workspaces.find((item: { name: string }) => item.name === "derating").workspaceId, "ws_derating")
       assert.equal(await fs.access(path.join(usersRoot, ".._Alice_Smith", "derating")).then(() => true).catch(() => false), false)
       assert.equal(
         await fs.readFile(path.join(usersRoot, ".._Alice_Smith", "workspaces", "ws_derating", "versions", "v0001", "00_inputs", "input.txt"), "utf-8"),
         "seed",
+      )
+      assert.equal(
+        await fs.readFile(path.join(usersRoot, ".._Alice_Smith", "workspaces", "ws_thermal_catch", "versions", "v0001", "00_inputs", "input.txt"), "utf-8"),
+        "catch-seed",
       )
 
       const repeat = await server.inject({
