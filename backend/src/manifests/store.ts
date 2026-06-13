@@ -384,6 +384,37 @@ async function ensureInitialVersion(manifest: WorkspaceManifest, sourceWorkspace
     return await syncConfigToActiveVersion(await writeManifest({ ...manifest, activeVersionId: active.id }))
   }
 
+  const versionsRoot = path.join(manifest.rootDir, "versions")
+  const existingVersionDirents = await fs.readdir(versionsRoot, { withFileTypes: true }).catch(() => [])
+  const existingVersionIds = existingVersionDirents
+    .filter(dirent => dirent.isDirectory() && /^v\d+$/u.test(dirent.name))
+    .map(dirent => dirent.name)
+    .sort((a, b) => a.localeCompare(b, "en"))
+  const recoverableVersionIds: string[] = []
+  for (const versionId of existingVersionIds) {
+    if (await pathExists(path.join(versionsRoot, versionId, "00_inputs"))) {
+      recoverableVersionIds.push(versionId)
+    }
+  }
+  if (recoverableVersionIds.length > 0) {
+    const timestamp = nowIso()
+    const versions = recoverableVersionIds.map((versionId, index): VersionRecord => ({
+      id: versionId,
+      parentVersionId: index === 0 ? null : recoverableVersionIds[index - 1],
+      group: manifest.group ?? DEFAULT_WORKSPACE_GROUP,
+      label: index === 0 ? "Recovered import" : "Recovered version",
+      status: index === recoverableVersionIds.length - 1 ? "active" : "archived",
+      workspaceDir: path.join(versionsRoot, versionId),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }))
+    return await syncConfigToActiveVersion(await writeManifest({
+      ...manifest,
+      activeVersionId: recoverableVersionIds[recoverableVersionIds.length - 1],
+      versions,
+    }))
+  }
+
   const sourceWorkspace = sourceWorkspaceDir
     ? await assertPathInsideWorkspaceRoot(sourceWorkspaceDir, "sourceWorkspaceDir")
     : path.resolve(await getConfiguredWorkspaceDirFromConfig() ?? await resolveWorkspaceDir())
@@ -594,6 +625,7 @@ export async function deleteVersion(versionId: string, body: Record<string, unkn
   const manifest = await getManifestForBody(body)
   const target = manifest.versions.find(version => version.id === versionId)
   if (!target) throw new Error(`version not found: ${versionId}`)
+  if (manifest.versions.length <= 1) throw new Error("cannot delete the last version")
 
   const timestamp = nowIso()
   const versions = manifest.versions

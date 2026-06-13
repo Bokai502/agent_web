@@ -77,9 +77,9 @@ def validate_cad_build(
         simulation_input=simulation_input,
         failures=failures,
     )
-    bbox_check = _check_bboxes(after_geom, after_topology, failures, tolerance_mm)
-    contact_check = _check_mount_contact(after_geom, after_topology, failures, tolerance_mm)
-    occupancy = _face_occupancy(after_geom, after_topology, failures, max_occupancy_ratio)
+    bbox_check = _check_bboxes(after_geom, after_topology, warnings, tolerance_mm)
+    contact_check = _check_mount_contact(after_geom, after_topology, warnings, tolerance_mm)
+    occupancy = _face_occupancy(after_geom, after_topology, warnings, max_occupancy_ratio)
 
     summary = {
         "component_count": len(after_topology.get("placements") or []),
@@ -92,10 +92,11 @@ def validate_cad_build(
         "over_capacity_face_count": len(occupancy["over_capacity_faces"]),
     }
     success = not failures
+    status = "failed" if not success else "passed_with_warnings" if warnings else "passed"
     report = {
         "schema_version": "1.0",
         "success": success,
-        "status": "passed" if success else "failed",
+        "status": status,
         "summary": summary,
         "checks": {
             "files": files_check,

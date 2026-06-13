@@ -40,20 +40,22 @@ python -m freecad_cli_tools.cli.main cad validate \
   --workspace-dir <workspace_dir>
 ```
 
-Use `--strict` only when the caller wants a nonzero exit status for validation
-failures. Use `--no-screenshot` only when screenshot capture should be skipped.
+Use `--strict` only when the caller wants a nonzero exit status for hard
+validation failures. Geometry quality warnings do not make `--strict` fail
+when `validation.success == true`. Use `--no-screenshot` only when screenshot
+capture should be skipped.
 
 ## Checks
 
 The validator checks:
 
-- required `01_cad` artifacts exist
-- input/output ID contracts match
-- component bounding-box overlaps
-- mount-plane contact
-- footprint bounds on install faces
-- face occupancy ratio against `--max-occupancy-ratio`
-- CAD-stage output contracts such as `simulation_input.json`
+- required `01_cad` artifacts exist as hard failures
+- input/output ID contracts match as hard failures
+- CAD-stage output contracts such as `simulation_input.json` as hard failures
+- component bounding-box overlaps as warnings
+- mount-plane contact as warnings
+- footprint bounds on install faces as warnings
+- face occupancy ratio against `--max-occupancy-ratio` as warnings
 
 ## Screenshot Outputs
 
@@ -86,11 +88,15 @@ paths and capture metadata.
 
 Report validation in this order:
 
-1. State whether validation passed or failed.
-2. If failed, list blocking errors first, especially overlaps, mount contact,
-   footprint, or occupancy failures.
-3. State where `cad_agent_output.json` was updated.
-4. State screenshot paths when screenshots were captured.
-5. State `progress_json_path` and the three progress percentages.
-6. If `--strict` was not used, remember that operational success can still
-   contain `validation.success=false`.
+1. State whether validation passed, passed with warnings, or failed.
+2. If failed, list blocking hard errors first, especially missing artifacts or
+   broken ID/output contracts.
+3. List geometry quality warnings such as overlaps, mount contact, footprint,
+   or occupancy issues as non-blocking warnings when `validation.success == true`.
+4. State where `cad_agent_output.json` was updated.
+5. State screenshot paths when screenshots were captured.
+6. State `progress_json_path` and the three progress percentages.
+7. If non-blocking geometry warnings are present, ask the user whether they
+   want to modify the CAD/layout to resolve those warnings.
+8. If `--strict` was not used, remember that the CLI process can exit
+   successfully while the report contains `validation.success=false`.

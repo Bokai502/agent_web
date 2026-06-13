@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -276,6 +277,8 @@ class RunnerContext:
         self.workspace_dir = (
             Path(args.workspace_dir).resolve() if args.workspace_dir else None
         )
+        if self.workspace_dir is not None:
+            os.chdir(self.workspace_dir)
         self.output_dir = self._resolve_output_dir(args.output_dir)
         self.stages_dir = ensure_dir(self.output_dir / "stages")
         self.legacy_steps_dir = self.output_dir / "steps"

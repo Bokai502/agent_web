@@ -3,11 +3,13 @@
 This workflow intentionally has no central pipeline. The model or operator
 chooses and runs each stage explicitly with `compliance.runner`.
 
-Run commands from the compliance skill directory:
+Run commands from the active version workspace directory, and use the compliance
+skill's absolute `scripts` path for `PYTHONPATH`. This keeps writes inside the
+version workspace when the broader `/data` tree is read-only in the sandbox:
 
 ```bash
-cd <skill_dir>
-export PYTHONPATH=scripts
+cd <workspace_dir>
+export PYTHONPATH=<skill_dir>/scripts
 ```
 
 `<workspace_dir>` must be the active version workspace directory. For versioned
@@ -37,6 +39,7 @@ tables.
 Run one stage at a time:
 
 ```bash
+cd <workspace_dir>
 python -m compliance.runner \
   --stage <stage_name> \
   --workspace-dir <workspace_dir> \

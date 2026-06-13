@@ -139,7 +139,9 @@ FreeCAD screenshots.
   or exported artifacts support it.
 - Do not claim thermal visualization is complete unless `native.vtu`,
   `field_stats.json`, `render_summary.json`, and PNG outputs are present.
-- Do not hide CAD validation failures just because COMSOL solved.
+- Do not hide CAD validation hard failures just because COMSOL solved. CAD
+  validation warnings must be reported as residual geometry risk, but they do
+  not make a successful CAD gate fail.
 - Keep report claims factual and tied to workspace evidence.
 - Markdown links in `report.md` must be relative to the report directory, not
   absolute local paths.
@@ -149,8 +151,12 @@ FreeCAD screenshots.
 ## Report Gating
 
 - Before generating a final report, check CAD validation and simulation status.
-- If CAD validation or simulation failed, generate and describe the output only
-  as a failure report or diagnostic report.
+- If CAD validation hard failures or simulation failures occurred, generate and
+  describe the output only as a failure report or diagnostic report.
+- If CAD validation has `success == true` with warnings, a final report is
+  allowed, and the warnings must be included in the validation/risk discussion.
+- When CAD validation warnings are present, the final user-facing response
+  should ask whether the user wants to modify CAD/layout inputs to resolve them.
 - Never mark a report as a final or completed engineering result when upstream
   execution failed.
 

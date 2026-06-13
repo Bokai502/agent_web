@@ -56,10 +56,11 @@ export function CurrentWorkspaceCard({
   workspaceItems,
   workspaceListOpen,
 }: CurrentWorkspaceCardProps) {
+  const versionCount = branchManifest?.versions?.length ?? 0
   const renderVersionNode = useCallback((node: VersionTreeNode) => {
     const versionId = node.version.id ?? ""
     const isActive = versionId === branchManifest?.activeVersionId
-    const canDelete = !!versionId && versionAction !== "delete"
+    const canDelete = !!versionId && versionCount > 1 && versionAction !== "delete"
     return (
       <div className="wa-version-branch" key={versionId}>
         <div className={`wa-version-node${isActive ? " active" : ""}`}>
@@ -77,7 +78,7 @@ export function CurrentWorkspaceCard({
             className="wa-version-delete"
             disabled={!canDelete || versionAction !== null}
             onClick={() => onRequestDeleteVersion(versionId)}
-            title={`删除 ${versionId}`}
+            title={versionCount <= 1 ? "至少保留一个版本" : `删除 ${versionId}`}
             aria-label={`删除 ${versionId}`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
@@ -97,7 +98,7 @@ export function CurrentWorkspaceCard({
         )}
       </div>
     )
-  }, [branchManifest?.activeVersionId, onCheckoutVersion, onRequestDeleteVersion, versionAction])
+  }, [branchManifest?.activeVersionId, onCheckoutVersion, onRequestDeleteVersion, versionAction, versionCount])
 
   const activeVersionId = branchManifest?.activeVersionId ?? "-"
 
@@ -167,7 +168,7 @@ export function CurrentWorkspaceCard({
           <div className="wa-context-popover-header">
             <span>选择版本</span>
             <div className="wa-version-header-actions">
-              <strong>{branchManifest?.versions?.length ?? 0}</strong>
+              <strong>{versionCount}</strong>
               <button
                 type="button"
                 disabled={!branchManifest?.activeVersionId || versionAction !== null}
@@ -222,7 +223,7 @@ export function CurrentWorkspaceCard({
                 </svg>
               </div>
               <h3 id="wa-version-delete-title">删除版本？</h3>
-              <p>版本 {versionDeleteTarget} 的工作区文件和版本记录会被删除。若这是最后一个版本，任务会暂时进入暂无版本状态。</p>
+              <p>版本 {versionDeleteTarget} 的工作区文件和版本记录会被删除。任务至少需要保留一个版本。</p>
               {versionError && <span className="wa-version-delete-dialog-error">{versionError}</span>}
             </div>
             <div className="wa-version-delete-dialog-actions">
