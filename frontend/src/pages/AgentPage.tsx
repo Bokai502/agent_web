@@ -160,7 +160,7 @@ export default function AgentPage() {
     if (/gnc|aignc|adcs|region/.test(marker)) return "gnc"
     return "thermal"
   }, [activeContext.versionDir, activeContext.workspaceId, activeContext.workspaceKey, activeContext.workspaceName])
-  const lockViewerToDerating = useMemo(() => {
+  const lockViewerToComplianceCheck = useMemo(() => {
     const marker = [
       activeContext.workspaceName,
       activeContext.workspaceId,
@@ -177,13 +177,13 @@ export default function AgentPage() {
     if (activeContext.workspaceId) params.set('workspaceId', activeContext.workspaceId)
     if (activeContext.versionId) params.set('versionId', activeContext.versionId)
     if (activeContext.versionDir) params.set('workspaceDir', activeContext.versionDir)
-    if (lockViewerToDerating) {
+    if (lockViewerToComplianceCheck) {
       params.set('mode', 'derating')
       params.set('lockMode', 'derating')
     }
     if (workspaceRefreshNonce > 0) params.set('workspaceVersion', String(workspaceRefreshNonce))
     return `/viewer?${params.toString()}`
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, agentTheme, lockViewerToDerating, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, agentTheme, lockViewerToComplianceCheck, workspaceRefreshNonce])
   const showGncConfig = progressVariant === "gnc"
   const navItems = useMemo(() => {
     if (progressVariant === 'check') {
@@ -547,7 +547,7 @@ export default function AgentPage() {
           setWorkspaceListOpen={() => setWorkspaceListOpen(open => !open)}
           requestDeleteVersion={requestDeleteVersion}
           showGncConfig={showGncConfig}
-          showDeratingConfig={progressVariant === 'check'}
+          showComplianceCheckConfig={progressVariant === 'check'}
           switchActiveWorkspace={switchActiveWorkspace}
           t={t}
           toolUrls={toolUrls}

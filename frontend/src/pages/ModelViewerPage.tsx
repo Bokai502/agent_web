@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import * as THREE from "three/webgpu"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
-import { DeratingMissingItemsPanel } from "./DeratingMissingItemsPanel"
+import { ComplianceCheckPanel } from "./ComplianceCheckPanel"
 import {
   ANNOTATION_PALETTES,
   DEFAULT_ANNOTATION_HEIGHT,
@@ -226,7 +226,7 @@ function getMissingModelMessage(mode: ViewerMode) {
   return "Unable to resolve a CAD GLB artifact."
 }
 
-function shouldShowDeratingMode(params: URLSearchParams, values: string[]) {
+function shouldShowComplianceCheckMode(params: URLSearchParams, values: string[]) {
   const explicit = params.get("showDerating") ?? params.get("derating")
   if (explicit) return /^(1|true|yes)$/iu.test(explicit)
 
@@ -254,9 +254,9 @@ export default function ModelViewerPage() {
   const workspaceDir = pageParams.get("workspaceDir")?.trim() ?? ""
   const workspaceId = pageParams.get("workspaceId")?.trim() ?? ""
   const workspaceKey = pageParams.get("workspaceKey")?.trim() ?? ""
-  const showDeratingMode = shouldShowDeratingMode(pageParams, [sessionId, versionId, workspaceDir, workspaceId, workspaceKey])
+  const showComplianceCheckMode = shouldShowComplianceCheckMode(pageParams, [sessionId, versionId, workspaceDir, workspaceId, workspaceKey])
   const requestedViewerMode = parseViewerMode(pageParams.get("lockMode")) ?? parseViewerMode(pageParams.get("mode"))
-  const lockedViewerMode = showDeratingMode ? "derating" : requestedViewerMode === "derating" ? null : requestedViewerMode
+  const lockedViewerMode = showComplianceCheckMode ? "derating" : requestedViewerMode === "derating" ? null : requestedViewerMode
   const initialViewerMode = lockedViewerMode ?? "cad"
   const viewerTheme = getViewerTheme(pageParams)
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
@@ -271,12 +271,12 @@ export default function ModelViewerPage() {
   }, [viewerMode])
 
   useEffect(() => {
-    if (showDeratingMode && viewerMode !== "derating") {
+    if (showComplianceCheckMode && viewerMode !== "derating") {
       setViewerMode("derating")
       return
     }
-    if (!showDeratingMode && viewerMode === "derating") setViewerMode("cad")
-  }, [showDeratingMode, viewerMode])
+    if (!showComplianceCheckMode && viewerMode === "derating") setViewerMode("cad")
+  }, [showComplianceCheckMode, viewerMode])
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") return
@@ -1138,8 +1138,8 @@ export default function ModelViewerPage() {
     window.dispatchEvent(new Event("viewer3d:mode-change"))
   }, [viewerMode])
 
-  const isDeratingMode = showDeratingMode && viewerMode === "derating"
-  const isLightDeratingMode = isDeratingMode && viewerTheme === "light"
+  const isComplianceCheckMode = showComplianceCheckMode && viewerMode === "derating"
+  const isLightComplianceCheckMode = isComplianceCheckMode && viewerTheme === "light"
   const viewerModeOptions = lockedViewerMode
     ? ([
         [
@@ -1162,13 +1162,13 @@ export default function ModelViewerPage() {
       style={{
         width: "100vw",
         height: "100vh",
-        background: isLightDeratingMode ? "#f6f8fb" : "#111318",
+        background: isLightComplianceCheckMode ? "#f6f8fb" : "#111318",
         position: "relative",
         overflow: "hidden",
       }}
     >
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
-      {showDeratingMode && viewerMode === "derating" ? (
+      {showComplianceCheckMode && viewerMode === "derating" ? (
         <div
           style={{
             bottom: 0,
@@ -1177,10 +1177,10 @@ export default function ModelViewerPage() {
             right: 0,
             top: 0,
             zIndex: 4,
-            background: isLightDeratingMode ? "#f6f8fb" : "#06111d",
+            background: isLightComplianceCheckMode ? "#f6f8fb" : "#06111d",
           }}
         >
-          <DeratingMissingItemsPanel
+          <ComplianceCheckPanel
             theme={viewerTheme}
             versionId={versionId}
             workspaceDir={workspaceDir}
@@ -1199,9 +1199,9 @@ export default function ModelViewerPage() {
             gap: 6,
             padding: 4,
             borderRadius: 8,
-            background: isLightDeratingMode ? "rgba(255, 255, 255, 0.84)" : "rgba(6, 12, 27, 0.74)",
-            border: isLightDeratingMode ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(122, 148, 212, 0.28)",
-            boxShadow: isLightDeratingMode ? "0 8px 24px rgba(18, 34, 51, 0.08)" : undefined,
+            background: isLightComplianceCheckMode ? "rgba(255, 255, 255, 0.84)" : "rgba(6, 12, 27, 0.74)",
+            border: isLightComplianceCheckMode ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(122, 148, 212, 0.28)",
+            boxShadow: isLightComplianceCheckMode ? "0 8px 24px rgba(18, 34, 51, 0.08)" : undefined,
             backdropFilter: "blur(12px)",
             pointerEvents: "auto",
           }}
@@ -1216,12 +1216,12 @@ export default function ModelViewerPage() {
               style={{
                 minWidth: 92,
                 height: 32,
-                border: isLightDeratingMode ? "1px solid rgba(0, 102, 204, 0.24)" : "1px solid rgba(143, 172, 230, 0.28)",
+                border: isLightComplianceCheckMode ? "1px solid rgba(0, 102, 204, 0.24)" : "1px solid rgba(143, 172, 230, 0.28)",
                 borderRadius: 6,
-                background: isLightDeratingMode
+                background: isLightComplianceCheckMode
                   ? active ? "#e8f2ff" : "#ffffff"
                   : active ? "rgba(65, 167, 255, 0.24)" : "rgba(11, 21, 45, 0.68)",
-                color: isLightDeratingMode
+                color: isLightComplianceCheckMode
                   ? active ? "#003f88" : "#344054"
                   : active ? "#f4f9ff" : "rgba(211, 226, 255, 0.78)",
                 cursor: "pointer",

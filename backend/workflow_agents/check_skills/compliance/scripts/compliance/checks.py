@@ -241,7 +241,7 @@ def catalog_match_with_candidates(
         if origin == "进口":
             rows.append(_import_catalog_unavailable_row(comp, with_candidates=True))
             continue
-        candidates = llm_scored.get(comp.index, candidates)
+        candidates = _sort_catalog_candidates_by_score(llm_scored.get(comp.index, candidates))
         selected = candidates[0] if candidates else None
         selected_score = float(selected.get("_score", 0)) if selected else 0
         is_confident = bool(selected and selected_score >= threshold)
@@ -517,11 +517,20 @@ def _catalog_candidates(
                 "_score": round(score, 3),
             }
         )
-    candidates.sort(
-        key=lambda item: (item["_score"], item.get("catalog_group") == "A"), reverse=True
-    )
+    candidates = _sort_catalog_candidates_by_score(candidates)
     candidates = _dedupe_catalog_candidates(candidates)[:CATALOG_CANDIDATE_LIMIT]
     return candidates
+
+
+def _catalog_candidate_score(candidate: dict[str, Any]) -> float:
+    try:
+        return float(candidate.get("_score", candidate.get("score", 0)) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _sort_catalog_candidates_by_score(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(candidates, key=_catalog_candidate_score, reverse=True)
 
 
 def _dedupe_catalog_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -29,12 +29,12 @@ type WorkspaceFilesQuery = WorkspaceQuery & {
 }
 
 type WorkspaceFileContentQuery = WorkspaceFilesQuery
-type DeratingMissingItemsQuery = WorkspaceQuery
-type DeratingMissingItemsBody = {
+type ComplianceCheckMissingItemsQuery = WorkspaceQuery
+type ComplianceCheckMissingItemsBody = {
   components?: unknown
 }
-type DeratingCheckResultQuery = WorkspaceQuery
-type DeratingCheckResultBody = {
+type ComplianceCheckResultQuery = WorkspaceQuery
+type ComplianceCheckResultBody = {
   rows?: unknown
 }
 type ComplianceArtifactQuery = WorkspaceQuery
@@ -495,7 +495,7 @@ function isRecord(value: unknown): value is JsonRecord {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
-function normalizeDeratingCompletenessPayload(value: unknown) {
+function normalizeComplianceCheckCompletenessPayload(value: unknown) {
   if (!isRecord(value)) {
     throw new WorkspaceQueryError("derating completeness JSON root must be an object", 422)
   }
@@ -508,7 +508,7 @@ function normalizeDeratingCompletenessPayload(value: unknown) {
   }
 }
 
-function summarizeDeratingCompletenessComponents(components: JsonRecord[]) {
+function summarizeComplianceCheckCompletenessComponents(components: JsonRecord[]) {
   return {
     component_count: components.length,
     components_with_missing: components.filter(component => Number(component.missing_count ?? 0) > 0).length,
@@ -534,7 +534,7 @@ function unwrapStageOutput(value: unknown) {
   return value
 }
 
-async function readDeratingReferenceRows() {
+async function readComplianceCheckReferenceRows() {
   const candidatePaths = [
     path.resolve(process.cwd(), DERATING_REFERENCE_RELATIVE_PATH),
     path.resolve(process.cwd(), "backend", DERATING_REFERENCE_RELATIVE_PATH),
@@ -548,7 +548,7 @@ async function readDeratingReferenceRows() {
   return []
 }
 
-async function resolveDeratingOutputFile(workspaceDir: string, preferredRelativePaths: string[], suffix: string, outputRelativePaths: string[]) {
+async function resolveComplianceCheckOutputFile(workspaceDir: string, preferredRelativePaths: string[], suffix: string, outputRelativePaths: string[]) {
   for (const preferredRelativePath of preferredRelativePaths) {
     const preferredPath = path.join(workspaceDir, preferredRelativePath)
     const preferredStat = await fs.stat(preferredPath).catch(() => null)
@@ -589,13 +589,13 @@ async function resolveDeratingOutputFile(workspaceDir: string, preferredRelative
   return sorted[0] ?? null
 }
 
-async function enrichDeratingCompletenessPayload(workspaceDir: string, payload: ReturnType<typeof normalizeDeratingCompletenessPayload>) {
+async function enrichComplianceCheckCompletenessPayload(workspaceDir: string, payload: ReturnType<typeof normalizeComplianceCheckCompletenessPayload>) {
   const tablePayload = await readJsonObject(path.join(workspaceDir, DERATING_TABLE_RELATIVE_PATH))
     ?? await readJsonObject(path.join(workspaceDir, DERATING_OUTPUT_RELATIVE_PATH, "input_table.json"))
     ?? await readJsonObject(path.join(workspaceDir, LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating", "table.json"))
     ?? await readJsonObject(path.join(workspaceDir, LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating", "input_table.json"))
   const tableRows = Array.isArray(tablePayload?.data) ? tablePayload.data.filter(isRecord) : []
-  const referenceRows = await readDeratingReferenceRows()
+  const referenceRows = await readComplianceCheckReferenceRows()
   const requiredByType = new Map<string, string[]>()
 
   for (const row of referenceRows) {
@@ -631,7 +631,7 @@ async function enrichDeratingCompletenessPayload(workspaceDir: string, payload: 
   }
 }
 
-async function buildDeratingCompletenessFromCurrentOutputs(workspaceDir: string) {
+async function buildComplianceCheckCompletenessFromCurrentOutputs(workspaceDir: string) {
   const tablePath = path.join(workspaceDir, DERATING_TABLE_RELATIVE_PATH)
   const classificationPath = path.join(workspaceDir, DERATING_OUTPUT_RELATIVE_PATH, "classification.json")
   const [tablePayload, classificationPayload] = await Promise.all([
@@ -692,13 +692,13 @@ async function buildDeratingCompletenessFromCurrentOutputs(workspaceDir: string)
       : DERATING_TABLE_RELATIVE_PATH
     ).split(path.sep).join("/"),
     source_version: stat ? [classificationPayload ? classificationPath : tablePath, stat.mtimeMs, stat.size].join(":") : null,
-    summary: summarizeDeratingCompletenessComponents(components),
+    summary: summarizeComplianceCheckCompletenessComponents(components),
     updated_at: stat?.mtime.toISOString() ?? null,
   }
 }
 
-async function readDeratingMissingItems(workspaceDir: string) {
-  const resolvedFile = await resolveDeratingOutputFile(
+async function readComplianceCheckMissingItems(workspaceDir: string) {
+  const resolvedFile = await resolveComplianceCheckOutputFile(
     workspaceDir,
     [
       DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH,
@@ -708,7 +708,7 @@ async function readDeratingMissingItems(workspaceDir: string) {
     [DERATING_OUTPUT_RELATIVE_PATH],
   )
   if (!resolvedFile) {
-    const generatedPayload = await buildDeratingCompletenessFromCurrentOutputs(workspaceDir)
+    const generatedPayload = await buildComplianceCheckCompletenessFromCurrentOutputs(workspaceDir)
     if (generatedPayload) return generatedPayload
     throw new WorkspaceQueryError("derating mapping completeness JSON not found", 404)
   }
@@ -718,9 +718,9 @@ async function readDeratingMissingItems(workspaceDir: string) {
     throw new WorkspaceQueryError("derating mapping completeness JSON not found", 404)
   }
 
-  const payload = await enrichDeratingCompletenessPayload(
+  const payload = await enrichComplianceCheckCompletenessPayload(
     workspaceDir,
-    normalizeDeratingCompletenessPayload(JSON.parse(raw) as unknown),
+    normalizeComplianceCheckCompletenessPayload(JSON.parse(raw) as unknown),
   )
   return {
     ...payload,
@@ -731,27 +731,27 @@ async function readDeratingMissingItems(workspaceDir: string) {
   }
 }
 
-async function writeDeratingMissingItems(workspaceDir: string, body: DeratingMissingItemsBody) {
+async function writeComplianceCheckMissingItems(workspaceDir: string, body: ComplianceCheckMissingItemsBody) {
   if (!Array.isArray(body.components)) {
     throw new WorkspaceQueryError("components array is required", 400)
   }
   const completenessPath = path.join(workspaceDir, DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH)
   const existingRaw = await fs.readFile(completenessPath, "utf-8").catch(() => null)
   const existingPayload = existingRaw
-    ? normalizeDeratingCompletenessPayload(JSON.parse(existingRaw) as unknown)
+    ? normalizeComplianceCheckCompletenessPayload(JSON.parse(existingRaw) as unknown)
     : { schema_version: "1.0", components: [] }
   const components = body.components.filter(isRecord)
   const nextPayload = {
     ...existingPayload,
-    summary: summarizeDeratingCompletenessComponents(components),
+    summary: summarizeComplianceCheckCompletenessComponents(components),
     components,
   }
   await fs.mkdir(path.dirname(completenessPath), { recursive: true })
   await fs.writeFile(completenessPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
-  return readDeratingMissingItems(workspaceDir)
+  return readComplianceCheckMissingItems(workspaceDir)
 }
 
-function normalizeDeratingCheckResultPayload(value: unknown) {
+function normalizeComplianceCheckResultPayload(value: unknown) {
   if (!isRecord(value)) {
     throw new WorkspaceQueryError("derating check result JSON root must be an object", 422)
   }
@@ -764,7 +764,7 @@ function normalizeDeratingCheckResultPayload(value: unknown) {
   }
 }
 
-function summarizeDeratingCheckRows(rows: JsonRecord[]) {
+function summarizeComplianceCheckRows(rows: JsonRecord[]) {
   const summary: Record<string, number> = { total_rows: rows.length }
   const issueCounts: Record<string, number> = {}
   for (const row of rows) {
@@ -780,8 +780,8 @@ function summarizeDeratingCheckRows(rows: JsonRecord[]) {
   return { issueCounts, summary }
 }
 
-async function readDeratingCheckResult(workspaceDir: string) {
-  const resolvedFile = await resolveDeratingOutputFile(
+async function readComplianceCheckResult(workspaceDir: string) {
+  const resolvedFile = await resolveComplianceCheckOutputFile(
     workspaceDir,
     [
       DERATING_DIRECT_CHECK_RESULT_RELATIVE_PATH,
@@ -810,7 +810,7 @@ async function readDeratingCheckResult(workspaceDir: string) {
     throw new WorkspaceQueryError("derating check result JSON not found", 404)
   }
 
-  const payload = normalizeDeratingCheckResultPayload(unwrapStageOutput(JSON.parse(raw) as unknown))
+  const payload = normalizeComplianceCheckResultPayload(unwrapStageOutput(JSON.parse(raw) as unknown))
   return {
     ...payload,
     source_path: resultPath,
@@ -820,11 +820,11 @@ async function readDeratingCheckResult(workspaceDir: string) {
   }
 }
 
-async function writeDeratingCheckResult(workspaceDir: string, body: DeratingCheckResultBody) {
+async function writeComplianceCheckResult(workspaceDir: string, body: ComplianceCheckResultBody) {
   if (!Array.isArray(body.rows)) {
     throw new WorkspaceQueryError("rows array is required", 400)
   }
-  const resolvedFile = await resolveDeratingOutputFile(
+  const resolvedFile = await resolveComplianceCheckOutputFile(
     workspaceDir,
     [
       DERATING_DIRECT_CHECK_RESULT_RELATIVE_PATH,
@@ -847,10 +847,10 @@ async function writeDeratingCheckResult(workspaceDir: string, body: DeratingChec
   const resultPath = resolvedFile?.fullPath ?? path.join(workspaceDir, DERATING_DIRECT_CHECK_RESULT_RELATIVE_PATH)
   const existingRaw = await fs.readFile(resultPath, "utf-8").catch(() => null)
   const existingPayload = existingRaw
-    ? normalizeDeratingCheckResultPayload(unwrapStageOutput(JSON.parse(existingRaw) as unknown))
+    ? normalizeComplianceCheckResultPayload(unwrapStageOutput(JSON.parse(existingRaw) as unknown))
     : { schema_version: "1.0", rows: [] }
   const rows = body.rows.filter(isRecord)
-  const { issueCounts, summary } = summarizeDeratingCheckRows(rows)
+  const { issueCounts, summary } = summarizeComplianceCheckRows(rows)
   const nextPayload = {
     ...existingPayload,
     issue_counts: issueCounts,
@@ -859,7 +859,7 @@ async function writeDeratingCheckResult(workspaceDir: string, body: DeratingChec
   }
   await fs.mkdir(path.dirname(resultPath), { recursive: true })
   await fs.writeFile(resultPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
-  return readDeratingCheckResult(workspaceDir)
+  return readComplianceCheckResult(workspaceDir)
 }
 
 function assertComplianceArtifact(value: unknown) {
@@ -1223,41 +1223,41 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
     }
   })
 
-  fastify.get<{ Querystring: DeratingMissingItemsQuery }>("/api/workspace/derating/missing-items", async (req, reply) => {
+  fastify.get<{ Querystring: ComplianceCheckMissingItemsQuery }>("/api/workspace/derating/missing-items", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       reply.header("Cache-Control", "no-cache")
-      return reply.send(await readDeratingMissingItems(workspaceDir))
+      return reply.send(await readComplianceCheckMissingItems(workspaceDir))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to resolve derating missing items")
     }
   })
 
-  fastify.put<{ Body: DeratingMissingItemsBody; Querystring: DeratingMissingItemsQuery }>("/api/workspace/derating/missing-items", async (req, reply) => {
+  fastify.put<{ Body: ComplianceCheckMissingItemsBody; Querystring: ComplianceCheckMissingItemsQuery }>("/api/workspace/derating/missing-items", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       reply.header("Cache-Control", "no-cache")
-      return reply.send(await writeDeratingMissingItems(workspaceDir, req.body ?? {}))
+      return reply.send(await writeComplianceCheckMissingItems(workspaceDir, req.body ?? {}))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to save derating missing items")
     }
   })
 
-  fastify.get<{ Querystring: DeratingCheckResultQuery }>("/api/workspace/derating/check-result", async (req, reply) => {
+  fastify.get<{ Querystring: ComplianceCheckResultQuery }>("/api/workspace/derating/check-result", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       reply.header("Cache-Control", "no-cache")
-      return reply.send(await readDeratingCheckResult(workspaceDir))
+      return reply.send(await readComplianceCheckResult(workspaceDir))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to resolve derating check result")
     }
   })
 
-  fastify.put<{ Body: DeratingCheckResultBody; Querystring: DeratingCheckResultQuery }>("/api/workspace/derating/check-result", async (req, reply) => {
+  fastify.put<{ Body: ComplianceCheckResultBody; Querystring: ComplianceCheckResultQuery }>("/api/workspace/derating/check-result", async (req, reply) => {
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       reply.header("Cache-Control", "no-cache")
-      return reply.send(await writeDeratingCheckResult(workspaceDir, req.body ?? {}))
+      return reply.send(await writeComplianceCheckResult(workspaceDir, req.body ?? {}))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to save derating check result")
     }

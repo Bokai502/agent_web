@@ -66,7 +66,7 @@ PYTHONPATH=<skill_dir>/scripts python -m compliance.input_config \
 
 There is no central pipeline. Follow `reference/runner.md` and run each stage
 explicitly. `derating_check` uses the local
-`scripts/compliance/derating` implementation when `input_config.json` contains
+`scripts/compliance/compliance_check` implementation when `input_config.json` contains
 `derating_table`.
 
 ```text

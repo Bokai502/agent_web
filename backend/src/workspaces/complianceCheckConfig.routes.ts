@@ -14,7 +14,7 @@ type WorkspaceQuery = {
   workspaceId?: string
 }
 
-type DeratingInputConfigBody = {
+type ComplianceCheckInputConfigBody = {
   config?: unknown
 }
 
@@ -98,7 +98,7 @@ function normalizeInputFileSelections(config: Record<string, unknown>, fileOptio
   }
 }
 
-export async function registerDeratingConfigRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+export async function registerComplianceCheckConfigRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
   const fallbackConfigPath = path.join(resolveWorkspaceTemplateRoot(config), "derating", INPUTS_DIRNAME, INPUT_CONFIG_FILENAME)
 
   fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/derating/input-config", async (req, reply) => {
@@ -125,7 +125,7 @@ export async function registerDeratingConfigRoutes(fastify: FastifyInstance, { c
     }
   })
 
-  fastify.put<{ Body: DeratingInputConfigBody; Querystring: WorkspaceQuery }>("/api/workspace/derating/input-config", async (req, reply) => {
+  fastify.put<{ Body: ComplianceCheckInputConfigBody; Querystring: WorkspaceQuery }>("/api/workspace/derating/input-config", async (req, reply) => {
     try {
       const context = await resolveQueryWorkspaceContext(req.query)
       if (!isJsonRecord(req.body?.config)) {
