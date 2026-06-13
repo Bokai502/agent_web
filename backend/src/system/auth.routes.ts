@@ -24,6 +24,7 @@ const USER_TEMPLATE_DIRS = [
   { name: "derating", sessionId: "derating", workspaceId: "ws_derating" },
   { name: "gnc", sessionId: "gnc", workspaceId: "ws_gnc" },
   { name: "thermal", sessionId: "thermal", workspaceId: "ws_thermal" },
+  { name: "thermal_catch", sessionId: "thermal_catch", workspaceId: "ws_thermal_catch" },
 ] as const
 
 async function pathExists(filePath: string) {

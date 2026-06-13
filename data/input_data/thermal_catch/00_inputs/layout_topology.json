@@ -1,0 +1,1021 @@
+{
+  "schema_version": "1.0",
+  "layout_id": "catch01_sl_panel_layout",
+  "source_design_id": "catch01_sl",
+  "outer_shell": {
+    "id": "catch_outer_shell"
+  },
+  "cabins": [
+    {
+      "id": "catch_cabin",
+      "parent": "catch_outer_shell",
+      "role": "catch_bus_volume"
+    }
+  ],
+  "walls": [],
+  "install_faces": [
+    {
+      "id": "01_DIBAN_BJ.zmin_outer",
+      "owner_id": "01_DIBAN_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 2,
+      "plane_value": -160.05674682269327,
+      "normal_sign": -1
+    },
+    {
+      "id": "01_DIBAN_BJ.zmax_inner",
+      "owner_id": "01_DIBAN_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 2,
+      "plane_value": -149.94325317731676,
+      "normal_sign": 1
+    },
+    {
+      "id": "02_JIZHUNBAN_BJ.xmin_outer",
+      "owner_id": "02_JIZHUNBAN_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": -173.04011831591671,
+      "normal_sign": -1
+    },
+    {
+      "id": "02_JIZHUNBAN_BJ.xmax_inner",
+      "owner_id": "02_JIZHUNBAN_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": -159.95988168408329,
+      "normal_sign": 1
+    },
+    {
+      "id": "03_GB_ZY_BJ.ymin_outer",
+      "owner_id": "03_GB_ZY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": -123.301462255115,
+      "normal_sign": -1
+    },
+    {
+      "id": "03_GB_ZY_BJ.ymax_inner",
+      "owner_id": "03_GB_ZY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": -112.421284780085,
+      "normal_sign": 1
+    },
+    {
+      "id": "04_GB_FY_BJ.ymax_outer",
+      "owner_id": "04_GB_FY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": 122.84005702039042,
+      "normal_sign": 1
+    },
+    {
+      "id": "04_GB_FY_BJ.ymin_inner",
+      "owner_id": "04_GB_FY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": 112.48498719580958,
+      "normal_sign": -1
+    },
+    {
+      "id": "05_CB_FX_BJ.xmax_outer",
+      "owner_id": "05_CB_FX_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 170.00003487778454,
+      "normal_sign": 1
+    },
+    {
+      "id": "05_CB_FX_BJ.xmin_inner",
+      "owner_id": "05_CB_FX_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 159.9999651222205,
+      "normal_sign": -1
+    },
+    {
+      "id": "06_CB_ZXFY_BJ.xmin_outer",
+      "owner_id": "06_CB_ZXFY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": -171.00535935520864,
+      "normal_sign": -1
+    },
+    {
+      "id": "06_CB_ZXFY_BJ.xmax_inner",
+      "owner_id": "06_CB_ZXFY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": -159.99464064479136,
+      "normal_sign": 1
+    },
+    {
+      "id": "07_CB_FXZY_BJ.xmax_outer",
+      "owner_id": "07_CB_FXZY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 170.00000010001202,
+      "normal_sign": 1
+    },
+    {
+      "id": "07_CB_FXZY_BJ.xmin_inner",
+      "owner_id": "07_CB_FXZY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 159.9999999,
+      "normal_sign": -1
+    },
+    {
+      "id": "08_CB_FXFY_BJ.xmax_outer",
+      "owner_id": "08_CB_FXFY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 170.0000001,
+      "normal_sign": 1
+    },
+    {
+      "id": "08_CB_FXFY_BJ.xmin_inner",
+      "owner_id": "08_CB_FXFY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 159.9999999,
+      "normal_sign": -1
+    },
+    {
+      "id": "09_CB_ZY_BJ.ymin_outer",
+      "owner_id": "09_CB_ZY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": -283.000128463272,
+      "normal_sign": -1
+    },
+    {
+      "id": "09_CB_ZY_BJ.ymax_inner",
+      "owner_id": "09_CB_ZY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": -274.999871536742,
+      "normal_sign": 1
+    },
+    {
+      "id": "10_CB_FY_BJ.ymax_outer",
+      "owner_id": "10_CB_FY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": 283.0001284632548,
+      "normal_sign": 1
+    },
+    {
+      "id": "10_CB_FY_BJ.ymin_inner",
+      "owner_id": "10_CB_FY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": 274.99987153674533,
+      "normal_sign": -1
+    },
+    {
+      "id": "11_DINGBAN_BJ.zmax_outer",
+      "owner_id": "11_DINGBAN_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 2,
+      "plane_value": 169.78089174726432,
+      "normal_sign": 1
+    },
+    {
+      "id": "11_DINGBAN_BJ.zmin_inner",
+      "owner_id": "11_DINGBAN_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 2,
+      "plane_value": 159.96804904823563,
+      "normal_sign": -1
+    }
+  ],
+  "placements": [
+    {
+      "component_id": "CATCH-P001",
+      "semantic_name": "catch_catch_p001_星箭分离机构_WF50",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P001.local_zmax",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G001",
+      "thermal_id": "CATCH-T001",
+      "category": "mechanism",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P002",
+      "semantic_name": "catch_catch_p002_行程开关_1",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P002.local_zmax",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G002",
+      "thermal_id": "CATCH-T002",
+      "category": "mechanism",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P003",
+      "semantic_name": "catch_catch_p003_行程开关_2",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P003.local_zmax",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G003",
+      "thermal_id": "CATCH-T003",
+      "category": "mechanism",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P004",
+      "semantic_name": "catch_catch_p004_反作用轮候选_DIBAN-1",
+      "kind": "internal",
+      "cabin_id": "catch_cabin",
+      "component_mount_face_id": "CATCH-P004.local_zmin",
+      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G004",
+      "thermal_id": "CATCH-T004",
+      "category": "adcs",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "inner"
+    },
+    {
+      "component_id": "CATCH-P005",
+      "semantic_name": "catch_catch_p005_反作用轮候选_DIBAN-2_含斜装支架",
+      "kind": "internal",
+      "cabin_id": "catch_cabin",
+      "component_mount_face_id": "CATCH-P005.local_zmin",
+      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G005",
+      "thermal_id": "CATCH-T005",
+      "category": "adcs",
+      "color": [
+        140,
+        64,
+        194,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "inner"
+    },
+    {
+      "component_id": "CATCH-P006",
+      "semantic_name": "catch_catch_p006_综合电子_星务电子箱候选_含安装板",
+      "kind": "internal",
+      "cabin_id": "catch_cabin",
+      "component_mount_face_id": "CATCH-P006.local_zmin",
+      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G006",
+      "thermal_id": "CATCH-T006",
+      "category": "avionics",
+      "color": [
+        31,
+        171,
+        184,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "inner"
+    },
+    {
+      "component_id": "CATCH-P007",
+      "semantic_name": "catch_catch_p007_短报文_GNSS_专有电子盒候选",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P007.local_zmax",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G007",
+      "thermal_id": "CATCH-T007",
+      "category": "communication",
+      "color": [
+        219,
+        76,
+        143,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P008",
+      "semantic_name": "catch_catch_p008_电池组或电源类盒体候选",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P008.local_zmax",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G008",
+      "thermal_id": "CATCH-T008",
+      "category": "power",
+      "color": [
+        128,
+        128,
+        31,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P009",
+      "semantic_name": "catch_catch_p009_磁强计",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P009.local_zmax",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G009",
+      "thermal_id": "CATCH-T009",
+      "category": "adcs",
+      "color": [
+        92,
+        92,
+        92,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P010",
+      "semantic_name": "catch_catch_p010_载荷防污染_防尘机构",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P010.local_xmax",
+      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G010",
+      "thermal_id": "CATCH-T010",
+      "category": "payload",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "panel_id": "02_JIZHUNBAN_BJ",
+      "panel_name": "JIZHUNBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P011",
+      "semantic_name": "catch_catch_p011_星敏感器_A",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P011.local_xmax",
+      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G011",
+      "thermal_id": "CATCH-T011",
+      "category": "adcs",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "panel_id": "02_JIZHUNBAN_BJ",
+      "panel_name": "JIZHUNBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P012",
+      "semantic_name": "catch_catch_p012_星敏感器_B",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P012.local_xmax",
+      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G012",
+      "thermal_id": "CATCH-T012",
+      "category": "adcs",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "panel_id": "02_JIZHUNBAN_BJ",
+      "panel_name": "JIZHUNBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P013",
+      "semantic_name": "catch_catch_p013_测控数传一体机_A_Z0001",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P013.local_ymax",
+      "mount_face_id": "03_GB_ZY_BJ.ymin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G013",
+      "thermal_id": "CATCH-T013",
+      "category": "communication",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "03_GB_ZY_BJ",
+      "panel_name": "GB_ZY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P014",
+      "semantic_name": "catch_catch_p014_电推进_微推力器候选_含安装板",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P014.local_ymin",
+      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G014",
+      "thermal_id": "CATCH-T014",
+      "category": "propulsion",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "04_GB_FY_BJ",
+      "panel_name": "GB_FY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P015",
+      "semantic_name": "catch_catch_p015_光纤陀螺_YH50_含热控垫片",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P015.local_ymin",
+      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G015",
+      "thermal_id": "CATCH-T015",
+      "category": "adcs",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "panel_id": "04_GB_FY_BJ",
+      "panel_name": "GB_FY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P016",
+      "semantic_name": "catch_catch_p016_MEMS_陀螺_100_含热控垫片",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P016.local_ymin",
+      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G016",
+      "thermal_id": "CATCH-T016",
+      "category": "adcs",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "panel_id": "04_GB_FY_BJ",
+      "panel_name": "GB_FY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P017",
+      "semantic_name": "catch_catch_p017_载荷伸展_展开机构",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P017.local_xmin",
+      "mount_face_id": "05_CB_FX_BJ.xmax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G017",
+      "thermal_id": "CATCH-T017",
+      "category": "mechanism",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "05_CB_FX_BJ",
+      "panel_name": "CB_FX_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P018",
+      "semantic_name": "catch_catch_p018_探测器机箱候选",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P018.local_xmin",
+      "mount_face_id": "05_CB_FX_BJ.xmax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G018",
+      "thermal_id": "CATCH-T018",
+      "category": "payload",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "panel_id": "05_CB_FX_BJ",
+      "panel_name": "CB_FX_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P019",
+      "semantic_name": "catch_catch_p019_星敏_小光学组件候选",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P019.local_xmax",
+      "mount_face_id": "06_CB_ZXFY_BJ.xmin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G019",
+      "thermal_id": "CATCH-T019",
+      "category": "adcs",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "06_CB_ZXFY_BJ",
+      "panel_name": "CB_ZXFY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P020",
+      "semantic_name": "catch_catch_p020_测控_数传_短报文天线候选_FXZY",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P020.local_xmin",
+      "mount_face_id": "07_CB_FXZY_BJ.xmax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G020",
+      "thermal_id": "CATCH-T020",
+      "category": "communication",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "07_CB_FXZY_BJ",
+      "panel_name": "CB_FXZY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P021",
+      "semantic_name": "catch_catch_p021_测控_数传_短报文天线候选_FXFY",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P021.local_xmin",
+      "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G021",
+      "thermal_id": "CATCH-T021",
+      "category": "communication",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "08_CB_FXFY_BJ",
+      "panel_name": "CB_FXFY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P022",
+      "semantic_name": "catch_catch_p022_反作用轮候选_FXFY",
+      "kind": "internal",
+      "cabin_id": "catch_cabin",
+      "component_mount_face_id": "CATCH-P022.local_xmax",
+      "mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G022",
+      "thermal_id": "CATCH-T022",
+      "category": "adcs",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "panel_id": "08_CB_FXFY_BJ",
+      "panel_name": "CB_FXFY_BJ",
+      "mount_side": "inner"
+    },
+    {
+      "component_id": "CATCH-P023",
+      "semantic_name": "catch_catch_p023_小型相机_光学设备候选",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P023.local_xmin",
+      "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G023",
+      "thermal_id": "CATCH-T023",
+      "category": "payload",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "panel_id": "08_CB_FXFY_BJ",
+      "panel_name": "CB_FXFY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P024",
+      "semantic_name": "catch_catch_p024_测控_数传_短报文天线候选_ZY",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P024.local_ymax",
+      "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G024",
+      "thermal_id": "CATCH-T024",
+      "category": "communication",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P025",
+      "semantic_name": "catch_catch_p025_测控数传一体机_B_Z0001",
+      "kind": "internal",
+      "cabin_id": "catch_cabin",
+      "component_mount_face_id": "CATCH-P025.local_ymin",
+      "mount_face_id": "09_CB_ZY_BJ.ymax_inner",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G025",
+      "thermal_id": "CATCH-T025",
+      "category": "communication",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "mount_side": "inner"
+    },
+    {
+      "component_id": "CATCH-P026",
+      "semantic_name": "catch_catch_p026_磁力矩器_磁棒_ZY",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P026.local_ymax",
+      "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G026",
+      "thermal_id": "CATCH-T026",
+      "category": "adcs",
+      "color": [
+        140,
+        64,
+        194,
+        255
+      ],
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P027",
+      "semantic_name": "catch_catch_p027_测控_数传_短报文天线候选_FY",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P027.local_ymin",
+      "mount_face_id": "10_CB_FY_BJ.ymax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G027",
+      "thermal_id": "CATCH-T027",
+      "category": "communication",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "10_CB_FY_BJ",
+      "panel_name": "CB_FY_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P028",
+      "semantic_name": "catch_catch_p028_反作用轮候选_FY",
+      "kind": "internal",
+      "cabin_id": "catch_cabin",
+      "component_mount_face_id": "CATCH-P028.local_ymax",
+      "mount_face_id": "10_CB_FY_BJ.ymin_inner",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G028",
+      "thermal_id": "CATCH-T028",
+      "category": "adcs",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "panel_id": "10_CB_FY_BJ",
+      "panel_name": "CB_FY_BJ",
+      "mount_side": "inner"
+    },
+    {
+      "component_id": "CATCH-P029",
+      "semantic_name": "catch_catch_p029_太阳电池阵_帆板",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P029.local_zmin",
+      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G029",
+      "thermal_id": "CATCH-T029",
+      "category": "power",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "11_DINGBAN_BJ",
+      "panel_name": "DINGBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P030",
+      "semantic_name": "catch_catch_p030_磁力矩器_磁棒_顶板_1",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P030.local_zmin",
+      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G030",
+      "thermal_id": "CATCH-T030",
+      "category": "adcs",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "panel_id": "11_DINGBAN_BJ",
+      "panel_name": "DINGBAN_BJ",
+      "mount_side": "outer"
+    },
+    {
+      "component_id": "CATCH-P031",
+      "semantic_name": "catch_catch_p031_磁力矩器_磁棒_顶板_2",
+      "kind": "external",
+      "cabin_id": null,
+      "component_mount_face_id": "CATCH-P031.local_zmin",
+      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
+      "alignment": {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": true,
+        "in_plane_rotation_deg": 0.0
+      },
+      "geometry_id": "CATCH-G031",
+      "thermal_id": "CATCH-T031",
+      "category": "adcs",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "panel_id": "11_DINGBAN_BJ",
+      "panel_name": "DINGBAN_BJ",
+      "mount_side": "outer"
+    }
+  ],
+  "metadata": {
+    "geometry_source": "catch01_sl_panel_visual_checks + catch_task/00_inputs/catch_box.json",
+    "body_bbox": {
+      "min": [
+        -173.04011831591671,
+        -283.0319509517643,
+        -170.0001284632565
+      ],
+      "max": [
+        170.05674682268437,
+        283.0319509517643,
+        169.78089174726432
+      ]
+    },
+    "whole_bbox": {
+      "min": [
+        -321.0936353324423,
+        -356.9429391854993,
+        -235.19293918549926
+      ],
+      "max": [
+        326.29322729879925,
+        372.19195724511127,
+        252.19293918522538
+      ]
+    },
+    "note": "Placements are keyed to panel-level install faces while retaining freecad_cli_tools face-token compatibility."
+  }
+}
