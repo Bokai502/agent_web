@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,7 @@ from .app_config import reference_dir
 from .catalog_db import PostgresCatalogConfig, query_catalog_candidate_rows
 from .component_io import load_components, load_reference_rows
 from .config import ComplianceConfig
-from .derating import analyze_xlsx
+from .compliance_check import analyze_xlsx
 from .input_config import read_input_config
 from .io_utils import (
     ensure_dir,
@@ -276,6 +277,8 @@ class RunnerContext:
         self.workspace_dir = (
             Path(args.workspace_dir).resolve() if args.workspace_dir else None
         )
+        if self.workspace_dir is not None:
+            os.chdir(self.workspace_dir)
         self.output_dir = self._resolve_output_dir(args.output_dir)
         self.stages_dir = ensure_dir(self.output_dir / "stages")
         self.legacy_steps_dir = self.output_dir / "steps"
@@ -302,8 +305,8 @@ class RunnerContext:
         self.reliability_path = self._path_arg(
             args.reliability_db, "reliability_db"
         ) or self._path_arg(None, "reliability_evidence")
-        self.derating_table = self._path_arg(args.derating_table, "derating_table")
-        self.derating_standard = self._path_arg(
+        self.compliance_check_table = self._path_arg(args.derating_table, "derating_table")
+        self.compliance_check_standard = self._path_arg(
             args.derating_standard, "derating_standard"
         )
         self.classifier_standard_path = (
@@ -369,23 +372,23 @@ class RunnerContext:
         )
         if isinstance(files, dict) and files.get(input_key):
             return Path(files[input_key])
-        derating = (
+        compliance_check_config = (
             self.resolved_inputs.get("derating")
             if isinstance(self.resolved_inputs, dict)
             else {}
         )
         if (
             input_key == "derating_table"
-            and isinstance(derating, dict)
-            and derating.get("table")
+            and isinstance(compliance_check_config, dict)
+            and compliance_check_config.get("table")
         ):
-            return Path(derating["table"])
+            return Path(compliance_check_config["table"])
         if (
             input_key == "derating_standard"
-            and isinstance(derating, dict)
-            and derating.get("standard")
+            and isinstance(compliance_check_config, dict)
+            and compliance_check_config.get("standard")
         ):
-            return Path(derating["standard"])
+            return Path(compliance_check_config["standard"])
         return None
 
 
@@ -506,7 +509,7 @@ def run_stage(stage: str, context: RunnerContext) -> Any:
             ),
         )
     if stage == "derating_check":
-        return run_derating(context)
+        return run_compliance_check(context)
     if stage == "reliability_query":
         return run_reliability(context, components)
     if stage == "report_generation":
@@ -643,7 +646,7 @@ def load_components_from_step(context: RunnerContext) -> list[ComponentRecord]:
     return [ComponentRecord(**row) for row in rows if isinstance(row, dict)]
 
 
-def run_derating(context: RunnerContext) -> dict[str, Any]:
+def run_compliance_check(context: RunnerContext) -> dict[str, Any]:
     configured = context.config.external_results("derating_results")
     if configured:
         return {
@@ -654,7 +657,7 @@ def run_derating(context: RunnerContext) -> dict[str, Any]:
             ),
             "rows": configured,
         }
-    if context.derating_table is None:
+    if context.compliance_check_table is None:
         return {
             "source": "compliance.derating",
             "status": "unavailable",
@@ -662,19 +665,19 @@ def run_derating(context: RunnerContext) -> dict[str, Any]:
             "rows": [],
             "results": [],
         }
-    if not context.derating_table.exists():
+    if not context.compliance_check_table.exists():
         return {
             "source": "compliance.derating",
             "status": "unavailable",
-            "message": f"Derating table not found: {context.derating_table}",
+            "message": f"Derating table not found: {context.compliance_check_table}",
             "rows": [],
             "results": [],
         }
-    standard = context.derating_standard
+    standard = context.compliance_check_standard
     if not standard or standard.suffix.lower() != ".json" or not standard.exists():
         standard = reference_dir() / "jiange_full.json"
     output = analyze_xlsx.run_analysis(
-        xlsx_path=context.derating_table,
+        xlsx_path=context.compliance_check_table,
         workspace_dir=context.workspace_dir,
         reference_path=standard,
         rules_path=reference_dir() / "rules.md",

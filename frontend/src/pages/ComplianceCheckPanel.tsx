@@ -11,7 +11,7 @@ import {
 
 type JsonRow = Record<string, unknown>
 
-type DeratingPayload = {
+type ComplianceCheckPayload = {
   components?: JsonRow[]
   rows?: JsonRow[]
   source_relative_path?: string
@@ -25,9 +25,9 @@ type CompliancePayload = {
   source_relative_path?: string
 }
 
-type DeratingThemeVars = CSSProperties & Record<`--derating-${string}`, string>
+type ComplianceCheckThemeVars = CSSProperties & Record<`--derating-${string}`, string>
 
-type DeratingMissingItemsPanelProps = {
+type ComplianceCheckPanelProps = {
   theme?: "dark" | "light"
   versionId: string
   workspaceDir: string
@@ -72,10 +72,10 @@ const COMPLIANCE_TABS = [
       { key: "category_class", label: "大类", width: 120 },
       { key: "category_name", label: "类别", width: 150 },
     ],
-    description: "展示器件分类结果，可直接调整大类和类别。",
-    emptyText: "暂无器件分类数据",
+    description: "展示AI器件分类结果，可直接调整大类和类别。",
+    emptyText: "暂无AI器件分类数据",
     key: "classification",
-    title: "器件分类",
+    title: "AI器件分类",
   },
   {
     artifact: "manufacturer_check",
@@ -125,18 +125,12 @@ const COMPLIANCE_TABS = [
 ] as const
 
 type ComplianceTab = typeof COMPLIANCE_TABS[number]
-type ActiveTabKey = "dashboard" | "derating" | ComplianceTab["key"]
+type ActiveTabKey = "dashboard" | "compliance-check" | ComplianceTab["key"]
 
 type DashboardMetric = {
   label: string
   tone: "neutral" | "ok" | "warn" | "bad"
   value: string
-}
-
-type DashboardDistributionItem = {
-  color: string
-  label: string
-  value: number
 }
 
 type DashboardRiskRow = {
@@ -146,6 +140,7 @@ type DashboardRiskRow = {
   manufacturer: string
   model: string
   module: string
+  priority: "高" | "中" | "低"
   status: string
 }
 
@@ -160,6 +155,41 @@ type DashboardModuleRow = {
 type DashboardRecommendation = {
   text: string
   tone: "neutral" | "ok" | "warn" | "bad"
+}
+
+type PercentItem = {
+  color: string
+  label: string
+  value: number
+}
+
+type ModuleInsight = {
+  catalog: {
+    averageScore: number
+    groupShare: PercentItem[]
+    matchedCount: number
+    unmatchedCount: number
+  }
+  classification: {
+    classShare: PercentItem[]
+    categoryShare: PercentItem[]
+    total: number
+  }
+  complianceCheck: {
+    aiPassRate: number
+    missingItemCount: number
+  }
+  keyUnits: {
+    keyCount: number
+    keyShare: number
+    samples: string[]
+    total: number
+  }
+  manufacturer: {
+    catalogInRate: number
+    unmatchedCount: number
+    originShare: PercentItem[]
+  }
 }
 
 type DashboardProgress = {
@@ -208,7 +238,7 @@ function asText(value: unknown): string {
   return typeof value === "string" ? value : ""
 }
 
-function buildWorkspaceQuery({ versionId, workspaceDir, workspaceId }: DeratingMissingItemsPanelProps) {
+function buildWorkspaceQuery({ versionId, workspaceDir, workspaceId }: ComplianceCheckPanelProps) {
   const params = new URLSearchParams()
   if (workspaceId) params.set("workspaceId", workspaceId)
   if (versionId) params.set("versionId", versionId)
@@ -347,14 +377,14 @@ function writeResultValue(row: JsonRow, key: string, value: string) {
 
 function normalizeComplianceRow(row: JsonRow) {
   const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
-  const firstCandidate = Array.isArray(row.candidates) && isJsonRecord(row.candidates[0]) ? row.candidates[0] : null
+  const bestCandidate = bestCatalogCandidate(row)
   const name = row.component_name ?? row.name ?? row["元器件名称"]
   const manufacturer = row.manufacturer ?? row.normalized_manufacturer ?? row["生产厂商"]
   const status = row.status ?? row.result ?? row.match_status ?? row.compliance_status ?? row["状态"] ?? row["目录内或外"] ?? row.is_in_catalog
   return {
     ...row,
-    catalog_manufacturer: row.catalog_manufacturer ?? selectedCandidate?.catalog_manufacturer ?? firstCandidate?.catalog_manufacturer ?? "",
-    catalog_model: row.catalog_model ?? selectedCandidate?.catalog_model ?? firstCandidate?.catalog_model ?? "",
+    catalog_manufacturer: row.catalog_manufacturer ?? selectedCandidate?.catalog_manufacturer ?? bestCandidate?.catalog_manufacturer ?? "",
+    catalog_model: row.catalog_model ?? selectedCandidate?.catalog_model ?? bestCandidate?.catalog_model ?? "",
     component_name: name,
     manufacturer,
     model: row.model ?? row["型号规格"],
@@ -369,24 +399,51 @@ function isJsonRecord(value: unknown): value is JsonRow {
 function getComplianceValue(row: JsonRow, key: string) {
   if (key === "catalog_model") {
     const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
-    const firstCandidate = Array.isArray(row.candidates) && isJsonRecord(row.candidates[0]) ? row.candidates[0] : null
-    return row.catalog_model ?? selectedCandidate?.catalog_model ?? firstCandidate?.catalog_model ?? "无"
+    const bestCandidate = bestCatalogCandidate(row)
+    return row.catalog_model ?? selectedCandidate?.catalog_model ?? bestCandidate?.catalog_model ?? "无"
   }
   if (key === "catalog_manufacturer") {
     const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
-    const firstCandidate = Array.isArray(row.candidates) && isJsonRecord(row.candidates[0]) ? row.candidates[0] : null
-    return row.catalog_manufacturer ?? selectedCandidate?.catalog_manufacturer ?? firstCandidate?.catalog_manufacturer ?? "无"
+    const bestCandidate = bestCatalogCandidate(row)
+    return row.catalog_manufacturer ?? selectedCandidate?.catalog_manufacturer ?? bestCandidate?.catalog_manufacturer ?? "无"
   }
   return row[key]
 }
 
 function catalogCandidates(row: JsonRow) {
-  return Array.isArray(row.candidates) ? row.candidates.filter(isJsonRecord) : []
+  return flattenCatalogCandidates(row.candidates).sort((left, right) => catalogCandidateScore(right) - catalogCandidateScore(left))
+}
+
+function flattenCatalogCandidates(value: unknown): JsonRow[] {
+  if (!Array.isArray(value)) return []
+  const output: JsonRow[] = []
+  value.forEach(item => {
+    if (!isJsonRecord(item)) return
+    const nested = item.candidates ?? item.items ?? item.options
+    if (Array.isArray(nested)) {
+      output.push(...flattenCatalogCandidates(nested))
+      return
+    }
+    output.push(item)
+  })
+  return output
+}
+
+function catalogCandidateScore(candidate: JsonRow | null) {
+  if (!candidate) return Number.NEGATIVE_INFINITY
+  const raw = candidate.score ?? candidate._score
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw
+  const value = Number(asText(raw))
+  return Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY
+}
+
+function bestCatalogCandidate(row: JsonRow) {
+  return catalogCandidates(row)[0] ?? null
 }
 
 function selectedCatalogCandidate(row: JsonRow) {
-  if (isJsonRecord(row.selected_candidate)) return row.selected_candidate
-  return catalogCandidates(row)[0] ?? null
+  if (row.selected_by_user === true && isJsonRecord(row.selected_candidate)) return row.selected_candidate
+  return bestCatalogCandidate(row) ?? (isJsonRecord(row.selected_candidate) ? row.selected_candidate : null)
 }
 
 function catalogCandidateKey(candidate: JsonRow | null) {
@@ -464,6 +521,97 @@ function complianceStatusCounts(rows: JsonRow[]) {
   return { issue, ok: rows.length - issue }
 }
 
+function percent(part: number, total: number) {
+  return total > 0 ? Math.round((part / total) * 100) : 0
+}
+
+function countBy(rows: JsonRow[], getKey: (row: JsonRow) => string, fallback = "未识别") {
+  const counts = new Map<string, number>()
+  rows.forEach(row => {
+    const key = getKey(row) || fallback
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  })
+  return counts
+}
+
+function percentItems(counts: Map<string, number>, colors: string[], limit = 5): PercentItem[] {
+  const total = Array.from(counts.values()).reduce((sum, value) => sum + value, 0)
+  return Array.from(counts.entries())
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, limit)
+    .map(([label, value], index) => ({
+      color: colors[index % colors.length],
+      label,
+      value: percent(value, total),
+    }))
+}
+
+function catalogGroup(row: JsonRow) {
+  const selected = selectedCatalogCandidate(row)
+  return asText(row.catalog_group ?? selected?.catalog_group ?? catalogDetail(selected).group).toUpperCase()
+}
+
+function isKnownCatalogGroup(group: string) {
+  return Boolean(group && !["-", "无", "未知", "未分组"].includes(group))
+}
+
+function keyUnitFlag(row: JsonRow) {
+  const value = asText(row.is_key_part ?? row["关键器件"] ?? row.status)
+  return /^(true|是|关键|yes|1)$/iu.test(value)
+}
+
+function buildModuleInsights(missingRows: JsonRow[], resultRows: JsonRow[], complianceRows: Record<string, JsonRow[]>): ModuleInsight {
+  const classificationRows = complianceRows.classification ?? []
+  const manufacturerRows = complianceRows.manufacturer ?? []
+  const keyRows = complianceRows["key-units"] ?? []
+  const catalogRows = complianceRows.catalog ?? []
+  const totalComponentCount = classificationRows.length || missingRows.length || resultRows.length || keyRows.length
+  const keyCount = keyRows.filter(keyUnitFlag).length
+  const groupedCatalogRows = catalogRows.filter(row => isKnownCatalogGroup(catalogGroup(row)))
+  const catalogScores = groupedCatalogRows
+    .map(row => catalogCandidateScore(selectedCatalogCandidate(row)) > Number.NEGATIVE_INFINITY ? catalogCandidateScore(selectedCatalogCandidate(row)) : Number(row.score))
+    .filter(score => Number.isFinite(score) && score >= 0)
+  const averageScore = catalogScores.length > 0
+    ? Math.round((catalogScores.reduce((sum, value) => sum + value, 0) / catalogScores.length) * 1000) / 10
+    : 0
+  const keySamples = keyRows
+    .filter(keyUnitFlag)
+    .slice(0, 3)
+    .map(row => [componentName(row), componentModel(row)].filter(value => value !== "-").join(" / ") || componentName(row))
+
+  return {
+    catalog: {
+      averageScore,
+      groupShare: percentItems(countBy(groupedCatalogRows, row => catalogGroup(row)), [KPI_BLUE, KPI_TEAL, KPI_ORANGE, KPI_VIOLET], 4),
+      matchedCount: catalogRows.filter(row => /目录内/u.test(asText(row.is_in_catalog ?? row.status))).length,
+      unmatchedCount: catalogRows.filter(row => !/目录内/u.test(asText(row.is_in_catalog ?? row.status))).length,
+    },
+    classification: {
+      categoryShare: percentItems(countBy(classificationRows, row => asText(row.category_name ?? row["类别"] ?? row["元器件子类"])), [KPI_BLUE, KPI_TEAL, KPI_ORANGE, KPI_PINK, KPI_VIOLET], 6),
+      classShare: percentItems(countBy(classificationRows, row => asText(row.category_class ?? row["大类"] ?? row["元器件大类"])), [KPI_BLUE, KPI_TEAL, KPI_ORANGE], 3),
+      total: classificationRows.length,
+    },
+    complianceCheck: {
+      aiPassRate: percent(passCount(resultRows), resultRows.length),
+      missingItemCount: missingRows.reduce((total, row) => total + Math.max(0, Number(row.missing_count ?? 0) || 0), 0),
+    },
+    keyUnits: {
+      keyCount,
+      keyShare: percent(keyCount, totalComponentCount),
+      samples: keySamples,
+      total: totalComponentCount,
+    },
+    manufacturer: {
+      catalogInRate: percent(manufacturerRows.filter(row => /目录内/u.test(asText(row["目录内或外"] ?? row.status))).length, manufacturerRows.length),
+      originShare: percentItems(countBy(manufacturerRows, row => asText(row["国产/进口"] ?? row.origin)), [KPI_TEAL, KPI_ORANGE, KPI_BLUE], 3),
+      unmatchedCount: manufacturerRows.filter(row => {
+        const status = asText(row["目录内或外"] ?? row.status)
+        return status && !/目录内/u.test(status)
+      }).length,
+    },
+  }
+}
+
 function statusTone(status: string): "ok" | "bad" | "warn" {
   if (isPositiveJudgement(status)) return "ok"
   if (isNegativeJudgement(status)) return "bad"
@@ -505,13 +653,14 @@ function buildDashboardRiskRows(resultRows: JsonRow[], missingRows: JsonRow[]): 
   const issueRows = resultRows
     .filter(row => statusText(row) !== "符合")
     .slice(0, 5)
-    .map(row => ({
+    .map((row): DashboardRiskRow => ({
       action: dashboardAction(row),
       component: componentName(row),
       issue: dashboardIssueLabel(row),
       manufacturer: componentManufacturer(row),
       model: componentModel(row),
       module: "降额检查",
+      priority: "高",
       status: statusText(row),
     }))
 
@@ -521,7 +670,7 @@ function buildDashboardRiskRows(resultRows: JsonRow[], missingRows: JsonRow[]): 
   const missingIssueRows = missingRows
     .filter(row => Number(row.missing_count ?? 0) > 0 && !existing.has(asText(row["元器件名称"])))
     .slice(0, 5 - issueRows.length)
-    .map(row => {
+    .map((row): DashboardRiskRow => {
       const component = asText(row["元器件名称"])
       const source = missingByComponent.get(component) ?? row
       return {
@@ -531,6 +680,7 @@ function buildDashboardRiskRows(resultRows: JsonRow[], missingRows: JsonRow[]): 
         manufacturer: componentManufacturer(source),
         model: componentModel(source),
         module: "降额缺项",
+        priority: "高",
         status: "待确认",
       }
     })
@@ -551,6 +701,7 @@ function complianceIssueRows(rows: JsonRow[], module: string, issueLabel: string
       manufacturer: componentManufacturer(row),
       model: componentModel(row),
       module,
+      priority: module === "目录匹配" ? "中" : "低",
       status: asText(row.status ?? row["目录内或外"] ?? row.is_in_catalog ?? "待确认") || "待确认",
     }))
 }
@@ -573,6 +724,7 @@ function manufacturerIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
         manufacturer: fullName || shortName || "-",
         model: origin || "-",
         module: "厂商匹配",
+        priority: "中",
         status: catalogStatus,
       }
     })
@@ -591,6 +743,7 @@ function catalogIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
       manufacturer: asText(row.list_manufacturer ?? row.catalog_manufacturer) || "-",
       model: asText(row.catalog_model) || "-",
       module: "目录匹配",
+      priority: "中",
       status: asText(row.is_in_catalog ?? row.status ?? "待确认") || "待确认",
     }))
 }
@@ -599,8 +752,8 @@ function moduleRows(missingRows: JsonRow[], resultRows: JsonRow[], complianceRow
   const missingCount = missingRows.filter(row => Number(row.missing_count ?? 0) > 0).length
   const resultIssue = problemCount(resultRows)
   const progressPercentage = progress?.percentage ?? 0
-  const deratingComplete = progress?.status === "completed" || progressPercentage >= 100
-  const finalDone = finalGenerated || finalRows.length > 0 || deratingComplete
+  const complianceCheckComplete = progress?.status === "completed" || progressPercentage >= 100
+  const finalDone = finalGenerated || finalRows.length > 0 || complianceCheckComplete
   const rows: DashboardModuleRow[] = [
     {
       count: missingRows.length,
@@ -655,7 +808,7 @@ function buildDashboardRecommendations(totalIssues: number, missingCount: number
     items.push({ text: "所有模块已生成且暂无待确认项，可进入报告归档。", tone: "ok" })
   }
   if (items.length < 3) {
-    items.push({ text: "完成确认后生成降额总表，确保报告文件与明细表保持一致。", tone: "neutral" })
+    items.push({ text: "完成确认后生成降额总表，确保确认结果与明细表保持一致。", tone: "neutral" })
   }
   return items.slice(0, 4)
 }
@@ -673,11 +826,11 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
   const keyUnitCounts = complianceStatusCounts(complianceRows["key-units"] ?? [])
   const catalogCounts = complianceStatusCounts(complianceRows.catalog ?? [])
   const distribution = [
-    { color: HUD_RED, label: "降额问题", value: missingCount + problemCount(resultRows) },
-    { color: HUD_WARN, label: "厂商匹配", value: manufacturerCounts.issue },
-    { color: HUD_MUTED, label: "关键器件", value: keyUnitCounts.issue },
-    { color: HUD_CYAN, label: "目录匹配", value: catalogCounts.issue },
-    { color: HUD_GREEN, label: "分类确认", value: complianceStatusCounts(complianceRows.classification ?? []).issue },
+    { color: HUD_RED, key: "降额", label: "降额问题", value: missingCount + problemCount(resultRows) },
+    { color: HUD_WARN, key: "厂商匹配", label: "厂商匹配", value: manufacturerCounts.issue },
+    { color: HUD_MUTED, key: "关键器件", label: "关键器件", value: keyUnitCounts.issue },
+    { color: HUD_CYAN, key: "目录匹配", label: "目录匹配", value: catalogCounts.issue },
+    { color: HUD_GREEN, key: "AI器件分类", label: "分类确认", value: complianceStatusCounts(complianceRows.classification ?? []).issue },
   ]
   const issueTotal = distribution.reduce((total, item) => total + item.value, 0)
   const complianceRisks = [
@@ -686,25 +839,17 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
     ...catalogIssueRows(complianceRows.catalog ?? []),
   ]
   const riskRows = [...buildDashboardRiskRows(resultRows, missingRows), ...complianceRisks].slice(0, 8)
-  const generatedRows = modules.filter(module => module.done).reduce((total, module) => total + module.count, 0)
   const moduleCount = modules.length
+  const moduleInsights = buildModuleInsights(missingRows, resultRows, complianceRows)
 
   return {
     catalogIssues: catalogCounts.issue,
     completedModules,
-    dataCompleteness: totalRows > 0 ? Math.round((generatedRows / totalRows) * 100) : 0,
     distribution,
     issue: totalIssues,
     issuePercent,
     issueTotal,
-    metrics: [
-      { label: "报告模块", tone: "neutral", value: `${completedModules}/${moduleCount}` },
-      { label: "器件覆盖", tone: "neutral", value: String(missingRows.length || resultRows.length) },
-      { label: "合规通过项", tone: "ok", value: String(okRows) },
-      { label: "问题/待确认", tone: totalIssues > 0 ? "bad" : "ok", value: String(totalIssues) },
-      { label: "模块生成", tone: completedModules === moduleCount ? "ok" : "warn", value: `${completedModules}/${moduleCount}` },
-      { label: "目录待确认", tone: catalogCounts.issue > 0 ? "warn" : "ok", value: String(catalogCounts.issue) },
-    ] satisfies DashboardMetric[],
+    moduleInsights,
     missingCount,
     moduleCount,
     modules,
@@ -727,9 +872,10 @@ function buildFinalRows(rows: JsonRow[], missingRows: JsonRow[]) {
   })
 }
 
-export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps) {
+export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<ActiveTabKey>("dashboard")
+  const [dashboardFilter] = useState("全部")
   const [missingRows, setMissingRows] = useState<JsonRow[]>([])
   const [resultRows, setResultRows] = useState<JsonRow[]>([])
   const [finalRows, setFinalRows] = useState<JsonRow[]>([])
@@ -747,14 +893,14 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
   const loadAll = useCallback(() => {
     Promise.allSettled([
       fetch(buildWorkspaceApiPath("/workspace/derating/missing-items", query), { cache: "no-store" }).then(async response => {
-        const data = await response.json().catch(() => null) as DeratingPayload | { error?: string } | null
+        const data = await response.json().catch(() => null) as ComplianceCheckPayload | { error?: string } | null
         if (!response.ok) throw new Error(data && "error" in data && data.error ? data.error : "缺项 JSON 不可用")
-        return data as DeratingPayload
+        return data as ComplianceCheckPayload
       }),
       fetch(buildWorkspaceApiPath("/workspace/derating/check-result", query), { cache: "no-store" }).then(async response => {
-        const data = await response.json().catch(() => null) as DeratingPayload | { error?: string } | null
+        const data = await response.json().catch(() => null) as ComplianceCheckPayload | { error?: string } | null
         if (!response.ok) throw new Error(data && "error" in data && data.error ? data.error : "校验结果 JSON 不可用")
-        return data as DeratingPayload
+        return data as ComplianceCheckPayload
       }),
     ]).then(([missingResult, checkResult]) => {
       if (missingResult.status === "fulfilled") {
@@ -867,6 +1013,17 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
     [complianceRows, dashboardProgress, finalGenerated, finalRows, missingRows, resultRows],
   )
 
+  const navIssueCounts = useMemo(() => {
+    const counts: Partial<Record<ActiveTabKey, number>> = {
+      dashboard: dashboardSummary.issue,
+      "compliance-check": dashboardSummary.missingCount + problemCount(resultRows),
+    }
+    COMPLIANCE_TABS.forEach(tab => {
+      counts[tab.key] = complianceStatusCounts(complianceRows[tab.key] ?? []).issue
+    })
+    return counts
+  }, [complianceRows, dashboardSummary.issue, dashboardSummary.missingCount, resultRows])
+
   const updateResultCell = (rowIndex: number, key: string, value: string) => {
     setResultRows(previous => previous.map((row, index) => index === rowIndex ? writeResultValue(row, key, value) : row))
     setFinalGenerated(false)
@@ -894,9 +1051,9 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
       method: "PUT",
     })
       .then(async response => {
-        const data = await response.json().catch(() => null) as DeratingPayload | { error?: string } | null
+        const data = await response.json().catch(() => null) as ComplianceCheckPayload | { error?: string } | null
         if (!response.ok) throw new Error(data && "error" in data && data.error ? data.error : "保存失败")
-        const payload = data as DeratingPayload
+        const payload = data as ComplianceCheckPayload
         const savedRows = Array.isArray(payload.rows) ? payload.rows : resultRows
         setResultRows(savedRows)
         setFinalRows(buildFinalRows(savedRows, missingRows))
@@ -962,7 +1119,7 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
   const activeComplianceTab = COMPLIANCE_TABS.find(tab => tab.key === activeTab)
   const navItems = [
     { key: "dashboard" as const, label: "报告看板", meta: "总览" },
-    { key: "derating" as const, label: "降额检查", meta: "Derating" },
+    { key: "compliance-check" as const, label: "降额检查", meta: "Compliance Check" },
     ...COMPLIANCE_TABS.map(tab => ({ key: tab.key, label: tab.title, meta: tab.artifact })),
   ]
   const renderComplianceTab = (tab: ComplianceTab) => {
@@ -1018,20 +1175,23 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
             <button key={item.key} type="button" onClick={() => setActiveTab(item.key)} style={sideNavButtonStyle(activeTab === item.key)}>
               <span style={sideNavIconStyle}>{navIcon(item.key)}</span>
               <span style={sideNavTextStyle}>{item.label}</span>
+              <span style={sideNavBadgeStyle(navIssueCounts[item.key] ?? 0)}>{navIssueCounts[item.key] ?? 0}</span>
             </button>
           ))}
         </aside>
 
         <main style={viewerContentStyle}>
           {activeTab === "dashboard" ? (
-          <DeratingReportDashboard
+          <ComplianceCheckReportDashboard
             onConfirm={confirmAndGenerateFinal}
             onDownload={downloadFinalCsv}
             progress={dashboardProgress}
             saving={savingResults}
+            selectedFilter={dashboardFilter}
+            setActiveTab={setActiveTab}
             summary={dashboardSummary}
           />
-          ) : activeTab === "derating" ? (
+          ) : activeTab === "compliance-check" ? (
         <>
           <section style={sectionStyle}>
         <details open>
@@ -1109,19 +1269,48 @@ export function DeratingMissingItemsPanel(props: DeratingMissingItemsPanelProps)
   )
 }
 
-function DeratingReportDashboard({
+function ComplianceCheckReportDashboard({
   onConfirm,
   onDownload,
   progress,
   saving,
+  selectedFilter,
+  setActiveTab,
   summary,
 }: {
   onConfirm: () => void
   onDownload: () => void
   progress: DashboardProgress
   saving: boolean
+  selectedFilter: string
+  setActiveTab: (tab: ActiveTabKey) => void
   summary: ReturnType<typeof buildDashboardSummary>
 }) {
+  const [priorityFilter, setPriorityFilter] = useState("全部")
+  const [statusFilter, setStatusFilter] = useState("全部")
+  const [manufacturerFilter, setManufacturerFilter] = useState("")
+  const moduleFilteredRiskRows = selectedFilter === "全部"
+    ? summary.riskRows
+    : summary.riskRows.filter(row => row.module.includes(selectedFilter) || selectedFilter.includes(row.module))
+  const statusOptions = Array.from(new Set(moduleFilteredRiskRows.map(row => row.status).filter(Boolean)))
+  const filteredRiskRows = moduleFilteredRiskRows.filter(row => {
+    if (priorityFilter !== "全部" && row.priority !== priorityFilter) return false
+    if (statusFilter !== "全部" && row.status !== statusFilter) return false
+    if (manufacturerFilter.trim() && !row.manufacturer.toLowerCase().includes(manufacturerFilter.trim().toLowerCase())) return false
+    return true
+  })
+  const selectedDistribution = summary.distribution.find(item => item.key === selectedFilter)
+  const filteredRecommendations = selectedFilter === "全部"
+    ? summary.recommendations
+    : [
+        {
+          text: `当前聚焦 ${selectedFilter}，共 ${selectedDistribution?.value ?? filteredRiskRows.length} 项待处理，请优先关闭表格中的高优先级记录。`,
+          tone: (filteredRiskRows.some(row => row.priority === "高") ? "bad" : "warn") as DashboardRecommendation["tone"],
+        },
+        ...summary.recommendations,
+      ].slice(0, 4)
+  const canFinalize = summary.issue === 0 && summary.completedModules === summary.moduleCount
+
   return (
     <section style={dashboardStyle}>
       <div style={dashboardHeaderStyle}>
@@ -1131,122 +1320,146 @@ function DeratingReportDashboard({
         </div>
         <div style={dashboardActionGroupStyle}>
           <button type="button" onClick={onDownload} disabled={summary.totalRows === 0} style={toolbarButtonStyle}>导出总表</button>
-          <button type="button" onClick={onConfirm} disabled={summary.totalRows === 0 || saving} style={primaryButtonStyle}>{saving ? "生成中" : "确认生成总表"}</button>
+          <button
+            title={canFinalize ? "确认生成总表" : `仍有 ${summary.issue} 项待确认，建议处理后再生成`}
+            type="button"
+            onClick={onConfirm}
+            disabled={summary.totalRows === 0 || saving}
+            style={canFinalize ? primaryButtonStyle : secondaryPrimaryButtonStyle}
+          >
+            {saving ? "生成中" : "确认生成总表"}
+          </button>
         </div>
       </div>
 
-          <div style={dashboardMetricGridStyle}>
-        {summary.metrics.map(metric => (
-          <div key={metric.label} style={dashboardMetricCardStyle}>
-            <span style={dashboardMetricLabelStyle}>{metric.label}</span>
-            <strong style={{ ...dashboardMetricValueStyle, color: metricToneColor(metric.tone) }}>{metric.value}</strong>
-          </div>
-        ))}
-        <div style={dashboardMetricCardStyle}>
-          <span style={dashboardMetricLabelStyle}>任务进度</span>
-          <strong style={{ ...dashboardMetricValueStyle, color: progressToneColor(progress.status) }}>{progress.percentage}%</strong>
-        </div>
+      <div style={dashboardKpiGridStyle}>
+        <KpiTile
+          detail={summary.moduleInsights.classification.classShare.slice(0, 3).map(item => `${item.label} ${item.value}%`).join(" · ") || "暂无分类数据"}
+          label="AI器件分类"
+          palette="orange"
+          value={`${summary.moduleInsights.classification.total}项`}
+        />
+        <KpiTile
+          detail={`缺少${summary.moduleInsights.complianceCheck.missingItemCount}降额项 · 降额检查通过率${summary.moduleInsights.complianceCheck.aiPassRate}%`}
+          label="AI降额检查"
+          palette="violet"
+          value={`${summary.moduleInsights.complianceCheck.aiPassRate}%`}
+        />
+        <KpiTile
+          detail={`国产比例 ${summary.moduleInsights.manufacturer.originShare.find(item => item.label === "国产")?.value ?? 0}% · 目录内比例 ${summary.moduleInsights.manufacturer.catalogInRate}%`}
+          label="AI厂商匹配"
+          palette="teal"
+          value={`${summary.moduleInsights.manufacturer.catalogInRate}%`}
+        />
+        <KpiTile label="关键器件" palette="pink" value={`${summary.moduleInsights.keyUnits.keyCount}/${summary.moduleInsights.keyUnits.total}`} />
+        <KpiTile
+          detail={`平均分 ${summary.moduleInsights.catalog.averageScore}分`}
+          label="AI目录匹配"
+          palette="blue"
+          value={`${summary.moduleInsights.catalog.matchedCount}个`}
+        />
       </div>
 
-      <div style={dashboardMainGridStyle}>
-        <div style={dashboardConclusionStyle}>
-          <div style={dashboardPanelHeaderStyle}>
-            <strong>综合结论</strong>
-            <span style={{ ...dashboardStatusPillStyle, color: summary.issue > 0 || summary.missingCount > 0 ? HUD_RED : HUD_GREEN }}>
-              {summary.issue > 0 || summary.missingCount > 0 ? "需确认" : "符合"}
-            </span>
-          </div>
-          <div style={dashboardPercentRowStyle}>
-            <span><b style={{ color: progressToneColor(progress.status) }}>{progress.percentage}%</b> 任务进度</span>
-            <span><b style={greenText}>{summary.passPercent}%</b> 数据通过率</span>
-            <span><b style={redText}>{summary.issuePercent}%</b> 问题/待确认</span>
-          </div>
-          <div style={dashboardBarStyle}>
-            <span style={{ ...dashboardBarSegmentStyle, background: progressToneColor(progress.status), width: `${Math.max(0, Math.min(100, progress.percentage))}%` }} />
-            <span style={{ ...dashboardBarSegmentStyle, background: HUD_LINE, flex: 1 }} />
-          </div>
-          <div style={dashboardInsightListStyle}>
-            <span>{summary.completedModules} 个报告模块已生成，覆盖 {summary.totalRows} 条结果记录</span>
-            <span>{summary.issue} 条跨模块问题需要确认或补充</span>
-            <span>其中 {summary.missingCount} 个器件存在降额参数缺失，{summary.catalogIssues} 个目录匹配待确认</span>
-          </div>
-        </div>
-
-        <div style={dashboardPanelStyle}>
-          <div style={dashboardPanelHeaderStyle}>
-            <strong>跨模块问题分布</strong>
-            <span style={mutedTextStyle}>共 {summary.issueTotal} 项</span>
-          </div>
-          <div style={dashboardDistributionStyle}>
-            <IssueDonut items={summary.distribution} total={summary.issueTotal} />
-            <div style={dashboardLegendStyle}>
-              {summary.distribution.map(item => (
-                <div key={item.label} style={dashboardLegendItemStyle}>
-                  <span style={{ ...dashboardLegendDotStyle, background: item.color }} />
-                  <span>{item.label}</span>
-                  <b>{item.value}</b>
-                </div>
-              ))}
+      <div style={dashboardAnalyticsGridStyle}>
+        <ModuleInsightCard title="AI器件分类" variant="large">
+          <div style={moduleChartSplitStyle}>
+            <PercentDonut items={summary.moduleInsights.classification.classShare} centerLabel="大类" />
+            <div>
+              <div style={moduleSubTitleStyle}>类别占比</div>
+              <SmallBarChart items={summary.moduleInsights.classification.categoryShare} compact />
             </div>
           </div>
-        </div>
+        </ModuleInsightCard>
 
-        <div style={dashboardPanelStyle}>
-          <div style={dashboardPanelHeaderStyle}>
-            <strong>模块状态</strong>
-            <span style={mutedTextStyle}>报告组成</span>
+        <ModuleInsightCard title="厂商匹配">
+          <PercentDonut items={summary.moduleInsights.manufacturer.originShare} centerLabel="来源" />
+          <div style={moduleMetricPairStyle}>
+            <DashboardSignal label="目录内占比" value={`${summary.moduleInsights.manufacturer.catalogInRate}%`} tone={summary.moduleInsights.manufacturer.catalogInRate >= 90 ? "ok" : "warn"} />
+            <DashboardSignal label="未匹配数量" value={`${summary.moduleInsights.manufacturer.unmatchedCount}`} tone={summary.moduleInsights.manufacturer.unmatchedCount > 0 ? "bad" : "ok"} />
           </div>
-          <div style={dashboardStepListStyle}>
-            {summary.modules.map(module => (
-              <div key={module.label} style={dashboardStepItemStyle}>
-                <span style={{ ...dashboardStepDotStyle, background: module.done ? module.issue > 0 ? HUD_RED : HUD_GREEN : HUD_DIM }} />
-                <span>{module.label}</span>
-                <b style={{ color: module.done ? module.issue > 0 ? HUD_RED : HUD_GREEN : HUD_DIM }}>
-                  {module.done ? `${module.count} 行 / ${module.issue} 问题` : "未生成"}
-                </b>
-              </div>
-            ))}
-          </div>
-        </div>
+        </ModuleInsightCard>
+
+        <ModuleInsightCard title="目录匹配">
+          <DashboardSignal label="AI平均分" value={`${summary.moduleInsights.catalog.averageScore}`} tone={summary.moduleInsights.catalog.averageScore >= 80 ? "ok" : summary.moduleInsights.catalog.averageScore >= 60 ? "warn" : "bad"} />
+          <SmallBarChart items={summary.moduleInsights.catalog.groupShare} />
+        </ModuleInsightCard>
       </div>
 
-      <div style={dashboardSignalGridStyle}>
-        <DashboardSignal label="任务进度" value={`${progress.percentage}%`} tone={progress.status === "completed" ? "ok" : progress.status === "failed" || progress.status === "blocked" ? "bad" : "warn"} />
-        <DashboardSignal label="数据完整性" value={`${summary.dataCompleteness}%`} tone={summary.dataCompleteness === 100 ? "ok" : "warn"} />
-        <DashboardSignal label="综合通过率" value={`${summary.passPercent}%`} tone={summary.passPercent >= 90 ? "ok" : summary.passPercent >= 70 ? "warn" : "bad"} />
-        <DashboardSignal label="待处理密度" value={`${summary.issuePercent}%`} tone={summary.issuePercent === 0 ? "ok" : summary.issuePercent <= 10 ? "warn" : "bad"} />
+      <div style={dashboardStatusGridStyle}>
+        <ModuleInsightCard title="降额检查">
+          <div style={moduleMetricPairStyle}>
+            <DashboardSignal label="缺少降额项" value={`${summary.moduleInsights.complianceCheck.missingItemCount}`} tone={summary.moduleInsights.complianceCheck.missingItemCount > 0 ? "bad" : "ok"} />
+            <DashboardSignal label="AI降额检查" value={`${summary.moduleInsights.complianceCheck.aiPassRate}%`} tone={summary.moduleInsights.complianceCheck.aiPassRate >= 90 ? "ok" : summary.moduleInsights.complianceCheck.aiPassRate >= 70 ? "warn" : "bad"} />
+          </div>
+          <MiniGauge value={summary.moduleInsights.complianceCheck.aiPassRate} tone={summary.moduleInsights.complianceCheck.aiPassRate >= 90 ? "ok" : summary.moduleInsights.complianceCheck.aiPassRate >= 70 ? "warn" : "bad"} />
+        </ModuleInsightCard>
+
+        <ModuleInsightCard title="关键器件">
+          <div style={moduleMetricPairStyle}>
+            <DashboardSignal label="关键器件" value={`${summary.moduleInsights.keyUnits.keyCount}/${summary.moduleInsights.keyUnits.total}`} tone={summary.moduleInsights.keyUnits.keyCount > 0 ? "warn" : "ok"} />
+            <DashboardSignal label="关键占比" value={`${summary.moduleInsights.keyUnits.keyShare}%`} tone={summary.moduleInsights.keyUnits.keyShare > 20 ? "warn" : "neutral"} />
+          </div>
+          <div style={moduleListStyle}>
+            {(summary.moduleInsights.keyUnits.samples.length ? summary.moduleInsights.keyUnits.samples : ["暂无关键器件"]).map(item => <span key={item}>{item}</span>)}
+          </div>
+        </ModuleInsightCard>
       </div>
 
       <div style={dashboardLowerGridStyle}>
         <div style={dashboardPanelStyle}>
           <div style={dashboardPanelHeaderStyle}>
             <strong>重点待处理事项</strong>
-            <span style={mutedTextStyle}>优先处理前 {summary.riskRows.length} 项</span>
+            <span style={mutedTextStyle}>{selectedFilter === "全部" ? "优先处理前" : selectedFilter} {filteredRiskRows.length} 项</span>
+          </div>
+          <div style={dashboardRiskToolbarStyle}>
+            {["全部", "高", "中", "低"].map(priority => (
+              <button
+                key={priority}
+                type="button"
+                onClick={() => setPriorityFilter(priority)}
+                style={dashboardFilterButtonStyle(priorityFilter === priority, priority === "全部" ? moduleFilteredRiskRows.length > 0 : moduleFilteredRiskRows.filter(row => row.priority === priority).length > 0)}
+              >
+                {priority === "全部" ? "全部优先级" : `${priority}优先级`}
+              </button>
+            ))}
+            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} style={dashboardFilterSelectStyle}>
+              <option value="全部" style={optionStyle}>全部状态</option>
+              {statusOptions.map(status => <option key={status} value={status} style={optionStyle}>{status}</option>)}
+            </select>
+            <input
+              value={manufacturerFilter}
+              onChange={event => setManufacturerFilter(event.target.value)}
+              placeholder="筛选厂商"
+              style={dashboardFilterInputStyle}
+            />
           </div>
           <div style={dashboardRiskTableWrapStyle}>
             <table style={dashboardRiskTableStyle}>
               <thead>
                 <tr>
-                  {["模块", "器件名称", "型号规格", "生产厂商", "问题类型", "当前状态", "建议动作"].map(label => (
+                  {["优先级", "模块", "器件名称", "型号规格", "生产厂商", "问题原因", "当前状态", "操作"].map(label => (
                     <th key={label} style={dashboardRiskHeaderStyle}>{label}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {summary.riskRows.map((row, index) => (
+                {filteredRiskRows.map((row, index) => (
                   <tr key={`${row.component}-${row.model}-${index}`}>
+                    <td style={{ ...dashboardRiskCellStyle, color: priorityToneColor(row.priority), fontWeight: 900 }}>{row.priority}</td>
                     <td style={dashboardRiskCellStyle}>{row.module}</td>
                     <td style={dashboardRiskCellStyle}>{row.component}</td>
                     <td style={dashboardRiskCellStyle}>{row.model}</td>
                     <td style={dashboardRiskCellStyle}>{row.manufacturer}</td>
                     <td style={dashboardRiskCellStyle}>{row.issue}</td>
                     <td style={{ ...dashboardRiskCellStyle, color: metricToneColor(statusTone(row.status)), fontWeight: 800 }}>{row.status}</td>
-                    <td style={dashboardRiskCellStyle}>{row.action}</td>
+                    <td style={dashboardRiskCellStyle}>
+                      <button type="button" onClick={() => setActiveTab(tabForDashboardModule(row.module))} style={dashboardInlineActionStyle}>{row.action}</button>
+                    </td>
                   </tr>
                 ))}
-                {summary.riskRows.length === 0 ? (
+                {filteredRiskRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={emptyCellStyle}>暂无待处理事项</td>
+                    <td colSpan={8} style={emptyCellStyle}>暂无待处理事项</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -1256,23 +1469,11 @@ function DeratingReportDashboard({
 
         <div style={dashboardPanelStyle}>
           <div style={dashboardPanelHeaderStyle}>
-            <strong>报告文件</strong>
-            <span style={mutedTextStyle}>输出状态</span>
-          </div>
-          <div style={dashboardFileListStyle}>
-            {summary.modules.map(module => (
-              <DashboardFileRow key={module.label} label={module.label} ready={module.done} />
-            ))}
-          </div>
-        </div>
-
-        <div style={dashboardPanelStyle}>
-          <div style={dashboardPanelHeaderStyle}>
             <strong>处理建议</strong>
             <span style={mutedTextStyle}>自动汇总</span>
           </div>
           <div style={dashboardAdviceListStyle}>
-            {summary.recommendations.map((item, index) => (
+            {filteredRecommendations.map((item, index) => (
               <div key={`${item.text}-${index}`} style={dashboardAdviceItemStyle}>
                 <span style={{ ...dashboardAdviceMarkStyle, background: metricToneColor(item.tone) }} />
                 <span>{item.text}</span>
@@ -1294,52 +1495,118 @@ function DashboardSignal({ label, tone, value }: { label: string; tone: Dashboar
   )
 }
 
-function IssueDonut({ items, total }: { items: DashboardDistributionItem[]; total: number }) {
-  const radius = 40
-  const circumference = 2 * Math.PI * radius
-  let offset = 0
+type KpiPalette = "orange" | "violet" | "teal" | "pink" | "blue"
 
+const KPI_ORANGE = "#ff5a1f"
+const KPI_ORANGE_2 = "#ff8a3d"
+const KPI_VIOLET = "#7c5cff"
+const KPI_VIOLET_2 = "#a78bfa"
+const KPI_TEAL = "#10b981"
+const KPI_TEAL_2 = "#34d399"
+const KPI_PINK = "#ec4899"
+const KPI_PINK_2 = "#fb7185"
+const KPI_BLUE = "#0ea5e9"
+const KPI_BLUE_2 = "#38bdf8"
+
+function KpiTile({ detail, label, palette, value }: { detail?: string; label: string; palette: KpiPalette; value: string }) {
   return (
-    <svg aria-hidden="true" height="112" viewBox="0 0 112 112" width="112">
-      <circle cx="56" cy="56" fill="none" r={radius} stroke={HUD_LINE} strokeWidth="14" />
-      {items.map(item => {
-        const length = total > 0 ? (item.value / total) * circumference : 0
-        const dashOffset = -offset
-        offset += length
-        return (
-          <circle
-            key={item.label}
-            cx="56"
-            cy="56"
-            fill="none"
-            r={radius}
-            stroke={item.color}
-            strokeDasharray={`${length} ${circumference - length}`}
-            strokeDashoffset={dashOffset}
-            strokeLinecap="round"
-            strokeWidth="14"
-            transform="rotate(-90 56 56)"
-          />
-        )
-      })}
-      <text fill={HUD_TEXT} fontSize="18" fontWeight="800" textAnchor="middle" x="56" y="54">{total}</text>
-      <text fill={HUD_MUTED} fontSize="10" fontWeight="700" textAnchor="middle" x="56" y="70">问题项</text>
-    </svg>
+    <div style={kpiTileStyle(palette)}>
+      <span style={kpiLabelStyle}>{label}</span>
+      <strong style={kpiValueStyle}>{value}</strong>
+      {detail ? <span style={kpiDetailStyle}>{detail}</span> : null}
+    </div>
   )
 }
 
-function DashboardFileRow({ label, ready }: { label: string; ready: boolean }) {
+function ModuleInsightCard({ children, title, variant = "default" }: { children: React.ReactNode; title: string; variant?: "default" | "large" }) {
   return (
-    <div style={dashboardFileRowStyle}>
-      <span>{label}</span>
-      <b style={{ ...dashboardFileBadgeStyle, color: ready ? HUD_GREEN : HUD_DIM }}>{ready ? "已完成" : "待生成"}</b>
+    <div style={moduleInsightCardStyle(variant)}>
+      <div style={dashboardPanelHeaderStyle}>
+        <strong>{title}</strong>
+      </div>
+      <div style={moduleInsightBodyStyle}>{children}</div>
+    </div>
+  )
+}
+
+function SmallBarChart({ compact = false, items }: { compact?: boolean; items: PercentItem[] }) {
+  if (items.length === 0) return <div style={moduleEmptyStyle}>暂无数据</div>
+  return (
+    <div style={compact ? smallBarCompactListStyle : smallBarListStyle}>
+      {items.map(item => (
+        <div key={item.label} style={smallBarItemStyle}>
+          <div style={smallBarLabelRowStyle}>
+            <span>{item.label}</span>
+            <b>{item.value}%</b>
+          </div>
+          <div style={smallBarTrackStyle}>
+            <span style={{ ...smallBarFillStyle, background: item.color, width: `${Math.max(0, Math.min(100, item.value))}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PercentDonut({ centerLabel, items }: { centerLabel: string; items: PercentItem[] }) {
+  const radius = 34
+  const circumference = 2 * Math.PI * radius
+  let offset = 0
+  const normalizedItems = items.filter(item => item.value > 0)
+
+  if (normalizedItems.length === 0) return <div style={moduleEmptyStyle}>暂无数据</div>
+
+  return (
+    <div style={percentDonutWrapStyle}>
+      <svg aria-hidden="true" height="104" viewBox="0 0 104 104" width="104">
+        <circle cx="52" cy="52" fill="none" r={radius} stroke={HUD_LINE} strokeWidth="12" />
+        {normalizedItems.map(item => {
+          const length = (item.value / 100) * circumference
+          const dashOffset = -offset
+          offset += length
+          return (
+            <circle
+              key={item.label}
+              cx="52"
+              cy="52"
+              fill="none"
+              r={radius}
+              stroke={item.color}
+              strokeDasharray={`${length} ${circumference - length}`}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="round"
+              strokeWidth="12"
+              transform="rotate(-90 52 52)"
+            />
+          )
+        })}
+        <text fill={HUD_TEXT} fontSize="14" fontWeight="900" textAnchor="middle" x="52" y="50">{normalizedItems[0]?.value ?? 0}%</text>
+        <text fill={HUD_MUTED} fontSize="9" fontWeight="800" textAnchor="middle" x="52" y="64">{centerLabel}</text>
+      </svg>
+      <div style={percentDonutLegendStyle}>
+        {normalizedItems.map(item => (
+          <div key={item.label} style={percentDonutLegendItemStyle}>
+            <span style={{ ...dashboardLegendDotStyle, background: item.color }} />
+            <span>{item.label}</span>
+            <b>{item.value}%</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MiniGauge({ tone, value }: { tone: DashboardMetric["tone"]; value: number }) {
+  return (
+    <div style={miniGaugeTrackStyle}>
+      <span style={{ ...miniGaugeFillStyle, background: metricToneColor(tone), width: `${Math.max(0, Math.min(100, value))}%` }} />
     </div>
   )
 }
 
 function navIcon(key: ActiveTabKey) {
   if (key === "dashboard") return "□"
-  if (key === "derating") return "✓"
+  if (key === "compliance-check") return "✓"
   if (key === "classification") return "◇"
   if (key === "manufacturer") return "↔"
   if (key === "key-units") return "◆"
@@ -1353,11 +1620,35 @@ function metricToneColor(tone: "neutral" | "ok" | "warn" | "bad") {
   return HUD_CYAN
 }
 
-function progressToneColor(status: WorkflowProgressSummary["status"]) {
-  if (status === "completed") return HUD_GREEN
-  if (status === "failed" || status === "blocked") return HUD_RED
-  if (status === "running") return HUD_CYAN
-  return HUD_WARN
+function priorityToneColor(priority: DashboardRiskRow["priority"]) {
+  if (priority === "高") return HUD_RED
+  if (priority === "中") return HUD_WARN
+  return HUD_CYAN
+}
+
+function optionToneColor(key: string, value: string) {
+  if (key === "国产/进口") {
+    if (value === "国产") return KPI_TEAL
+    if (value === "进口") return KPI_ORANGE
+    return HUD_MUTED
+  }
+  if (key === "目录内或外" || key === "is_in_catalog") {
+    if (value === "目录内") return KPI_TEAL
+    if (value === "目录外") return KPI_PINK
+    if (value === "未提供目录") return KPI_ORANGE
+    return HUD_MUTED
+  }
+  if (value === "符合") return KPI_TEAL
+  if (value === "不符合") return KPI_PINK
+  return HUD_TEXT
+}
+
+function tabForDashboardModule(module: string): ActiveTabKey {
+  if (module.includes("厂商")) return "manufacturer"
+  if (module.includes("关键")) return "key-units"
+  if (module.includes("目录")) return "catalog"
+  if (module.includes("分类")) return "classification"
+  return "compliance-check"
 }
 
 function tableToCsv(
@@ -1433,10 +1724,11 @@ function EditableTable({
                         onChange={event => onChange?.(rowIndex, column.key, event.target.value)}
                         style={{
                           ...selectCellStyle,
-                          color: value === "符合" ? HUD_GREEN : HUD_RED,
+                          borderColor: optionToneColor(column.key, value),
+                          color: optionToneColor(column.key, value),
                         }}
                       >
-                        {options.map(option => <option key={option} value={option} style={optionStyle}>{option}</option>)}
+                        {options.map(option => <option key={option} value={option} style={{ ...optionStyle, color: optionToneColor(column.key, option) }}>{option}</option>)}
                       </select>
                     ) : readOnly ? (
                       <div style={{
@@ -1534,8 +1826,8 @@ function CatalogMatchView({
                 <span style={catalogMutedStyle}>{asText(row.list_manufacturer) || "未提供厂商"}</span>
               </div>
               <div style={catalogBadgeGroupStyle}>
-                <span style={catalogBadgeStyle}>{asText(row["国产/进口"]) || "未知来源"}</span>
-                <span style={{ ...catalogBadgeStyle, color: status === "目录内" ? HUD_GREEN : HUD_RED }}>{status}</span>
+                <span style={{ ...catalogBadgeStyle, color: optionToneColor("国产/进口", asText(row["国产/进口"])) }}>{asText(row["国产/进口"]) || "未知来源"}</span>
+                <span style={{ ...catalogBadgeStyle, color: optionToneColor("目录内或外", status) }}>{status}</span>
                 <button type="button" onClick={() => clearCandidate(row, rowIndex)} style={catalogActionButtonStyle}>都不匹配</button>
               </div>
             </div>
@@ -1706,7 +1998,6 @@ function downloadCsv(filename: string, content: string) {
 }
 
 const HUD_BG = "var(--derating-bg)"
-const HUD_PAGE_TOP = "var(--derating-page-top)"
 const HUD_PANEL = "var(--derating-panel)"
 const HUD_PANEL_SOFT = "var(--derating-panel-soft)"
 const HUD_LINE = "var(--derating-line)"
@@ -1735,66 +2026,66 @@ const HUD_SCROLLBAR = "var(--derating-scrollbar)"
 const HUD_OPTION_BG = "var(--derating-option-bg)"
 
 const darkThemeVars = {
-  "--derating-bg": "#06111d",
-  "--derating-control-bg": "rgba(2, 8, 16, 0.72)",
-  "--derating-cyan": "#17e7ff",
-  "--derating-dim": "rgba(234, 247, 255, 0.42)",
-  "--derating-green": "#38f8b7",
-  "--derating-input-bg": "rgba(2, 8, 16, 0.16)",
+  "--derating-bg": "#0f172a",
+  "--derating-control-bg": "rgba(15, 23, 42, 0.76)",
+  "--derating-cyan": "#38bdf8",
+  "--derating-dim": "rgba(226, 232, 240, 0.42)",
+  "--derating-green": "#10b981",
+  "--derating-input-bg": "rgba(15, 23, 42, 0.24)",
   "--derating-label-bg": "transparent",
-  "--derating-line": "rgba(23, 231, 255, 0.18)",
-  "--derating-line-soft": "rgba(23, 231, 255, 0.1)",
-  "--derating-muted": "rgba(234, 247, 255, 0.62)",
-  "--derating-option-bg": "#06111d",
-  "--derating-page-top": "rgba(2, 8, 16, 0.96)",
-  "--derating-panel": "rgba(4, 18, 32, 0.82)",
-  "--derating-panel-soft": "rgba(7, 24, 40, 0.74)",
-  "--derating-primary-bg": "linear-gradient(90deg, rgba(0, 168, 255, 0.48), rgba(23, 231, 255, 0.22))",
-  "--derating-primary-border": "rgba(23, 231, 255, 0.62)",
-  "--derating-primary-shadow": "0 0 18px rgba(0, 168, 255, 0.16)",
-  "--derating-primary-text": "#f4fbff",
-  "--derating-red": "#ff7b8c",
-  "--derating-scrollbar": "rgba(23, 231, 255, 0.42)",
-  "--derating-section-shadow": "inset 0 0 22px rgba(0, 168, 255, 0.06)",
+  "--derating-line": "rgba(148, 163, 184, 0.22)",
+  "--derating-line-soft": "rgba(148, 163, 184, 0.14)",
+  "--derating-muted": "rgba(226, 232, 240, 0.62)",
+  "--derating-option-bg": "#111827",
+  "--derating-page-top": "#111827",
+  "--derating-panel": "rgba(17, 24, 39, 0.92)",
+  "--derating-panel-soft": "rgba(30, 41, 59, 0.7)",
+  "--derating-primary-bg": "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
+  "--derating-primary-border": "#38bdf8",
+  "--derating-primary-shadow": "0 14px 28px rgba(14, 165, 233, 0.2)",
+  "--derating-primary-text": "#f8fafc",
+  "--derating-red": "#fb7185",
+  "--derating-scrollbar": "rgba(96, 165, 250, 0.36)",
+  "--derating-section-shadow": "0 18px 40px rgba(0, 0, 0, 0.22)",
   "--derating-sticky-shadow": "rgba(0, 0, 0, 0.28)",
   "--derating-table-bg": "rgba(2, 8, 16, 0.64)",
   "--derating-table-cell": "rgba(3, 13, 24, 0.96)",
-  "--derating-table-header": "rgba(10, 35, 56, 0.98)",
-  "--derating-table-header-text": "rgba(234, 247, 255, 0.72)",
-  "--derating-text": "#eaf7ff",
-  "--derating-warn": "#ffd166",
-} satisfies DeratingThemeVars
+  "--derating-table-header": "rgba(30, 41, 59, 0.98)",
+  "--derating-table-header-text": "rgba(226, 232, 240, 0.72)",
+  "--derating-text": "#e2e8f0",
+  "--derating-warn": "#ff8a3d",
+} satisfies ComplianceCheckThemeVars
 
 const lightThemeVars = {
-  "--derating-bg": "#f6f8fb",
+  "--derating-bg": "#f3f6fa",
   "--derating-control-bg": "#ffffff",
-  "--derating-cyan": "#0066cc",
-  "--derating-dim": "#7b8794",
-  "--derating-green": "#0f7f56",
+  "--derating-cyan": "#0ea5e9",
+  "--derating-dim": "#94a3b8",
+  "--derating-green": "#10b981",
   "--derating-input-bg": "rgba(255, 255, 255, 0.86)",
-  "--derating-label-bg": "#f3f7fb",
-  "--derating-line": "rgba(35, 82, 124, 0.16)",
-  "--derating-line-soft": "rgba(35, 82, 124, 0.1)",
-  "--derating-muted": "#596574",
+  "--derating-label-bg": "#eef2f7",
+  "--derating-line": "rgba(100, 116, 139, 0.18)",
+  "--derating-line-soft": "rgba(100, 116, 139, 0.11)",
+  "--derating-muted": "#64748b",
   "--derating-option-bg": "#ffffff",
-  "--derating-page-top": "#fbfcfe",
-  "--derating-panel": "rgba(255, 255, 255, 0.92)",
-  "--derating-panel-soft": "rgba(248, 251, 255, 0.92)",
-  "--derating-primary-bg": "#0066cc",
-  "--derating-primary-border": "#0066cc",
-  "--derating-primary-shadow": "0 8px 18px rgba(0, 102, 204, 0.18)",
+  "--derating-page-top": "#f8fafc",
+  "--derating-panel": "rgba(255, 255, 255, 0.96)",
+  "--derating-panel-soft": "#ffffff",
+  "--derating-primary-bg": "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
+  "--derating-primary-border": "#38bdf8",
+  "--derating-primary-shadow": "0 14px 28px rgba(14, 165, 233, 0.18)",
   "--derating-primary-text": "#ffffff",
-  "--derating-red": "#b42318",
-  "--derating-scrollbar": "rgba(0, 102, 204, 0.28)",
-  "--derating-section-shadow": "0 12px 32px rgba(18, 34, 51, 0.06)",
+  "--derating-red": "#ec4899",
+  "--derating-scrollbar": "rgba(37, 99, 235, 0.24)",
+  "--derating-section-shadow": "0 16px 40px rgba(15, 23, 42, 0.07)",
   "--derating-sticky-shadow": "rgba(18, 34, 51, 0.12)",
   "--derating-table-bg": "#ffffff",
   "--derating-table-cell": "#ffffff",
-  "--derating-table-header": "#eef6ff",
-  "--derating-table-header-text": "#344054",
-  "--derating-text": "#1f2937",
-  "--derating-warn": "#b54708",
-} satisfies DeratingThemeVars
+  "--derating-table-header": "#f1f5f9",
+  "--derating-table-header-text": "#475569",
+  "--derating-text": "#0f172a",
+  "--derating-warn": "#ff5a1f",
+} satisfies ComplianceCheckThemeVars
 
 const greenText = { color: HUD_GREEN }
 const redText = { color: HUD_RED }
@@ -1802,7 +2093,7 @@ const mutedTextStyle = { color: HUD_MUTED } satisfies CSSProperties
 const hintTextStyle = { color: HUD_CYAN, fontWeight: 800 } satisfies CSSProperties
 
 const pageStyle = {
-  background: `linear-gradient(180deg, ${HUD_PAGE_TOP} 0%, ${HUD_BG} 100%)`,
+  background: HUD_BG,
   color: HUD_TEXT,
   height: "100%",
   overflow: "auto",
@@ -1842,11 +2133,26 @@ function sideNavButtonStyle(active: boolean): CSSProperties {
     display: "grid",
     fontSize: 13,
     gap: 9,
-    gridTemplateColumns: "24px minmax(0, 1fr)",
+    gridTemplateColumns: "24px minmax(0, 1fr) auto",
     fontWeight: 800,
     minHeight: 42,
     padding: "0 10px",
     textAlign: "left",
+  }
+}
+
+function sideNavBadgeStyle(count: number): CSSProperties {
+  return {
+    background: count > 0 ? HUD_LABEL_BG : "transparent",
+    border: `1px solid ${count > 0 ? HUD_LINE : "transparent"}`,
+    borderRadius: 999,
+    color: count > 0 ? HUD_WARN : HUD_GREEN,
+    fontSize: 11,
+    fontWeight: 900,
+    lineHeight: 1,
+    minWidth: 22,
+    padding: "4px 6px",
+    textAlign: "center",
   }
 }
 
@@ -1943,6 +2249,11 @@ const primaryButtonStyle = {
   color: HUD_PRIMARY_TEXT,
 } satisfies CSSProperties
 
+const secondaryPrimaryButtonStyle = {
+  ...primaryButtonStyle,
+  opacity: 0.78,
+} satisfies CSSProperties
+
 const dashboardStyle = {
   background: HUD_PANEL,
   border: `1px solid ${HUD_LINE}`,
@@ -1986,53 +2297,209 @@ const dashboardActionGroupStyle = {
   gap: 8,
 } satisfies CSSProperties
 
-const dashboardMetricGridStyle = {
+const dashboardKpiGridStyle = {
   display: "grid",
-  gap: 10,
-  gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))",
+  gap: 12,
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
 } satisfies CSSProperties
 
-const dashboardMetricCardStyle = {
-  background: HUD_PANEL_SOFT,
-  border: `1px solid ${HUD_LINE_SOFT}`,
-  borderRadius: 8,
-  display: "grid",
-  gap: 6,
-  minHeight: 74,
-  padding: "11px 12px",
-} satisfies CSSProperties
+function kpiGradient(palette: KpiPalette) {
+  if (palette === "orange") return `linear-gradient(135deg, ${KPI_ORANGE} 0%, ${KPI_ORANGE_2} 100%)`
+  if (palette === "violet") return `linear-gradient(135deg, ${KPI_VIOLET} 0%, ${KPI_VIOLET_2} 100%)`
+  if (palette === "teal") return `linear-gradient(135deg, ${KPI_TEAL} 0%, ${KPI_TEAL_2} 100%)`
+  if (palette === "pink") return `linear-gradient(135deg, ${KPI_PINK} 0%, ${KPI_PINK_2} 100%)`
+  return `linear-gradient(135deg, ${KPI_BLUE} 0%, ${KPI_BLUE_2} 100%)`
+}
 
-const dashboardMetricLabelStyle = {
-  color: HUD_MUTED,
+function kpiShadow(palette: KpiPalette) {
+  if (palette === "orange") return "0 16px 26px rgba(255, 90, 31, 0.22)"
+  if (palette === "violet") return "0 16px 26px rgba(124, 92, 255, 0.2)"
+  if (palette === "teal") return "0 16px 26px rgba(16, 185, 129, 0.2)"
+  if (palette === "pink") return "0 16px 26px rgba(236, 72, 153, 0.2)"
+  return "0 16px 26px rgba(14, 165, 233, 0.2)"
+}
+
+function kpiTileStyle(palette: KpiPalette): CSSProperties {
+  return {
+    background: kpiGradient(palette),
+    border: "1px solid rgba(255, 255, 255, 0.32)",
+    borderRadius: 8,
+    boxShadow: kpiShadow(palette),
+    color: "#ffffff",
+    display: "grid",
+    gap: 10,
+    minHeight: 86,
+    padding: "14px 16px",
+  }
+}
+
+const kpiLabelStyle = {
+  color: "rgba(255, 255, 255, 0.86)",
   fontSize: 12,
-  fontWeight: 800,
+  fontWeight: 850,
 } satisfies CSSProperties
 
-const dashboardMetricValueStyle = {
-  fontSize: 26,
+const kpiValueStyle = {
+  fontSize: 27,
   lineHeight: 1,
 } satisfies CSSProperties
 
-const dashboardMainGridStyle = {
+const kpiDetailStyle = {
+  color: "rgba(255, 255, 255, 0.82)",
+  fontSize: 11,
+  fontWeight: 750,
+  lineHeight: 1.25,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+} satisfies CSSProperties
+
+const dashboardAnalyticsGridStyle = {
   display: "grid",
   gap: 12,
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gridTemplateColumns: "minmax(360px, 1.3fr) repeat(2, minmax(240px, 0.85fr))",
+} satisfies CSSProperties
+
+const dashboardStatusGridStyle = {
+  display: "grid",
+  gap: 12,
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+} satisfies CSSProperties
+
+function moduleInsightCardStyle(variant: "default" | "large" = "default"): CSSProperties {
+  return {
+    background: HUD_PANEL_SOFT,
+    border: `1px solid ${HUD_LINE_SOFT}`,
+    borderRadius: 8,
+    boxShadow: HUD_SECTION_SHADOW,
+    gridColumn: variant === "large" ? "span 1" : undefined,
+    minWidth: 0,
+    padding: 12,
+  }
+}
+
+const moduleInsightBodyStyle = {
+  display: "grid",
+  gap: 10,
+} satisfies CSSProperties
+
+const moduleMetricPairStyle = {
+  display: "grid",
+  gap: 8,
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+} satisfies CSSProperties
+
+const moduleChartSplitStyle = {
+  alignItems: "start",
+  display: "grid",
+  gap: 12,
+  gridTemplateColumns: "minmax(230px, 0.9fr) minmax(180px, 1fr)",
+} satisfies CSSProperties
+
+const moduleSubTitleStyle = {
+  color: HUD_MUTED,
+  fontSize: 11,
+  fontWeight: 900,
+  marginTop: 2,
+} satisfies CSSProperties
+
+const moduleListStyle = {
+  color: HUD_MUTED,
+  display: "grid",
+  fontSize: 12,
+  fontWeight: 750,
+  gap: 6,
+  lineHeight: 1.35,
+} satisfies CSSProperties
+
+const moduleEmptyStyle = {
+  color: HUD_DIM,
+  fontSize: 12,
+  fontWeight: 800,
+  minHeight: 28,
+  paddingTop: 6,
+} satisfies CSSProperties
+
+const smallBarListStyle = {
+  display: "grid",
+  gap: 8,
+} satisfies CSSProperties
+
+const smallBarCompactListStyle = {
+  display: "grid",
+  gap: 6,
+  maxHeight: 130,
+  overflow: "auto",
+} satisfies CSSProperties
+
+const smallBarItemStyle = {
+  display: "grid",
+  gap: 4,
+} satisfies CSSProperties
+
+const smallBarLabelRowStyle = {
+  alignItems: "center",
+  color: HUD_MUTED,
+  display: "flex",
+  fontSize: 12,
+  fontWeight: 800,
+  gap: 8,
+  justifyContent: "space-between",
+} satisfies CSSProperties
+
+const smallBarTrackStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 999,
+  height: 8,
+  overflow: "hidden",
+} satisfies CSSProperties
+
+const smallBarFillStyle = {
+  display: "block",
+  height: "100%",
+} satisfies CSSProperties
+
+const percentDonutWrapStyle = {
+  alignItems: "center",
+  display: "grid",
+  gap: 10,
+  gridTemplateColumns: "104px minmax(0, 1fr)",
+} satisfies CSSProperties
+
+const percentDonutLegendStyle = {
+  display: "grid",
+  gap: 7,
+  minWidth: 0,
+} satisfies CSSProperties
+
+const percentDonutLegendItemStyle = {
+  alignItems: "center",
+  color: HUD_MUTED,
+  display: "grid",
+  fontSize: 12,
+  fontWeight: 800,
+  gap: 7,
+  gridTemplateColumns: "10px minmax(0, 1fr) auto",
+} satisfies CSSProperties
+
+const miniGaugeTrackStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 999,
+  height: 12,
+  overflow: "hidden",
+} satisfies CSSProperties
+
+const miniGaugeFillStyle = {
+  display: "block",
+  height: "100%",
 } satisfies CSSProperties
 
 const dashboardLowerGridStyle = {
   display: "grid",
   gap: 12,
-  gridTemplateColumns: "minmax(360px, 1.3fr) minmax(220px, 0.7fr) minmax(240px, 0.8fr)",
-} satisfies CSSProperties
-
-const dashboardConclusionStyle = {
-  background: HUD_PANEL_SOFT,
-  border: `1px solid ${HUD_LINE_SOFT}`,
-  borderRadius: 8,
-  display: "grid",
-  gap: 12,
-  minWidth: 0,
-  padding: 12,
+  gridTemplateColumns: "minmax(420px, 1.4fr) minmax(260px, 0.6fr)",
 } satisfies CSSProperties
 
 const dashboardPanelStyle = {
@@ -2052,85 +2519,15 @@ const dashboardPanelHeaderStyle = {
   marginBottom: 10,
 } satisfies CSSProperties
 
-const dashboardStatusPillStyle = {
-  background: HUD_LABEL_BG,
-  border: `1px solid ${HUD_LINE_SOFT}`,
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 900,
-  lineHeight: 1,
-  padding: "6px 8px",
-} satisfies CSSProperties
-
-const dashboardPercentRowStyle = {
-  color: HUD_MUTED,
-  display: "flex",
-  flexWrap: "wrap",
-  fontSize: 13,
-  fontWeight: 800,
-  gap: 12,
-} satisfies CSSProperties
-
-const dashboardBarStyle = {
-  background: HUD_TABLE_BG,
-  border: `1px solid ${HUD_LINE_SOFT}`,
-  borderRadius: 999,
-  display: "flex",
-  height: 12,
-  overflow: "hidden",
-} satisfies CSSProperties
-
-const dashboardBarSegmentStyle = {
-  display: "block",
-  minWidth: 0,
-} satisfies CSSProperties
-
-const dashboardInsightListStyle = {
-  color: HUD_MUTED,
-  display: "grid",
-  fontSize: 13,
-  fontWeight: 700,
-  gap: 8,
-  lineHeight: 1.45,
-} satisfies CSSProperties
-
-const dashboardDistributionStyle = {
-  alignItems: "center",
-  display: "grid",
-  gap: 10,
-  gridTemplateColumns: "112px minmax(0, 1fr)",
-} satisfies CSSProperties
-
-const dashboardLegendStyle = {
-  display: "grid",
-  gap: 8,
-} satisfies CSSProperties
-
-const dashboardLegendItemStyle = {
-  alignItems: "center",
-  color: HUD_MUTED,
-  display: "grid",
-  fontSize: 12,
-  fontWeight: 800,
-  gap: 7,
-  gridTemplateColumns: "10px minmax(0, 1fr) auto",
-} satisfies CSSProperties
-
 const dashboardLegendDotStyle = {
   borderRadius: 999,
   height: 10,
   width: 10,
 } satisfies CSSProperties
 
-const dashboardSignalGridStyle = {
-  display: "grid",
-  gap: 10,
-  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-} satisfies CSSProperties
-
 const dashboardSignalStyle = {
   alignItems: "center",
-  background: HUD_TABLE_BG,
+  background: HUD_LABEL_BG,
   border: `1px solid ${HUD_LINE_SOFT}`,
   borderRadius: 8,
   display: "flex",
@@ -2150,25 +2547,44 @@ const dashboardSignalValueStyle = {
   lineHeight: 1,
 } satisfies CSSProperties
 
-const dashboardStepListStyle = {
-  display: "grid",
-  gap: 9,
+const dashboardRiskToolbarStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 6,
+  marginBottom: 8,
 } satisfies CSSProperties
 
-const dashboardStepItemStyle = {
-  alignItems: "center",
-  color: HUD_MUTED,
-  display: "grid",
+function dashboardFilterButtonStyle(active: boolean, enabled: boolean): CSSProperties {
+  return {
+    background: active ? HUD_LABEL_BG : "transparent",
+    border: `1px solid ${active ? HUD_LINE : HUD_LINE_SOFT}`,
+    borderRadius: 999,
+    color: enabled ? active ? HUD_TEXT : HUD_MUTED : HUD_DIM,
+    cursor: enabled ? "pointer" : "default",
+    fontSize: 11,
+    fontWeight: 850,
+    height: 28,
+    lineHeight: 1,
+    padding: "5px 7px",
+  }
+}
+
+const dashboardFilterSelectStyle = {
+  background: HUD_CONTROL_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  color: HUD_TEXT,
   fontSize: 12,
   fontWeight: 800,
-  gap: 8,
-  gridTemplateColumns: "10px minmax(0, 1fr) auto",
+  height: 28,
+  outline: "none",
+  padding: "0 8px",
 } satisfies CSSProperties
 
-const dashboardStepDotStyle = {
-  borderRadius: 999,
-  height: 9,
-  width: 9,
+const dashboardFilterInputStyle = {
+  ...dashboardFilterSelectStyle,
+  minWidth: 120,
+  width: 140,
 } satisfies CSSProperties
 
 const dashboardRiskTableWrapStyle = {
@@ -2208,34 +2624,12 @@ const dashboardRiskCellStyle = {
   verticalAlign: "top",
 } satisfies CSSProperties
 
-const dashboardFileListStyle = {
-  display: "grid",
-  gap: 9,
-} satisfies CSSProperties
-
-const dashboardFileRowStyle = {
-  alignItems: "center",
-  background: HUD_TABLE_BG,
-  border: `1px solid ${HUD_LINE_SOFT}`,
-  borderRadius: 6,
-  color: HUD_TEXT,
-  display: "flex",
-  fontSize: 12,
-  fontWeight: 800,
-  gap: 8,
-  justifyContent: "space-between",
-  minHeight: 38,
-  padding: "0 10px",
-} satisfies CSSProperties
-
-const dashboardFileBadgeStyle = {
-  background: HUD_LABEL_BG,
-  border: `1px solid ${HUD_LINE_SOFT}`,
-  borderRadius: 999,
-  fontSize: 11,
-  lineHeight: 1,
-  padding: "5px 7px",
-  whiteSpace: "nowrap",
+const dashboardInlineActionStyle = {
+  ...toolbarButtonStyle,
+  color: HUD_CYAN,
+  height: 28,
+  maxWidth: "100%",
+  padding: "0 8px",
 } satisfies CSSProperties
 
 const dashboardAdviceListStyle = {

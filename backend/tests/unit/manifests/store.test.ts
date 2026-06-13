@@ -4,6 +4,7 @@ import path from "node:path"
 import { beforeEach, describe, it } from "node:test"
 import {
   deleteVersion,
+  getOrCreateWorkspaceManifestByLocator,
   getWorkspaceManifestSnapshotByLocator,
   resolveRunWorkspaceContext,
 } from "../../../src/manifests/store.js"
@@ -179,6 +180,49 @@ describe("manifest store helpers", () => {
       assert.deepEqual(result.manifest.scores.map(score => score.id), ["score-2"])
       assert.equal(await fs.access(versionDir()).then(() => true).catch(() => false), false)
       assert.equal(await fs.access(childDir).then(() => true).catch(() => false), true)
+    })
+  })
+
+  it("does not delete the last version", async () => {
+    await createManifestFixture()
+
+    await withWorkspaceContext(async () => {
+      await assert.rejects(
+        () => deleteVersion("v0001", { workspaceId: "ws_manifest_test" }),
+        /cannot delete the last version/u,
+      )
+      assert.equal(await fs.access(versionDir()).then(() => true).catch(() => false), true)
+    })
+  })
+
+  it("recovers an empty manifest from existing version directories", async () => {
+    const { rootDir } = await createManifestFixture()
+    await writeJson(path.join(rootDir, "workspace_manifest.json"), {
+      schemaVersion: "1.0",
+      workspaceId: "ws_manifest_test",
+      group: "test",
+      sessionId: "ws_manifest_test",
+      rootDir,
+      activeVersionId: null,
+      versions: [],
+      artifacts: [],
+      checkpoints: [],
+      createdAt: "2026-01-01T00:00:00.000Z",
+      runs: [],
+      scores: [],
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    })
+
+    await withWorkspaceContext(async () => {
+      const manifest = await getOrCreateWorkspaceManifestByLocator({
+        sessionId: "ws_manifest_test",
+        workspaceDir: rootDir,
+      })
+
+      assert.equal(manifest.activeVersionId, "v0001")
+      assert.deepEqual(manifest.versions.map(version => version.id), ["v0001"])
+      assert.equal(manifest.versions[0]?.status, "active")
+      assert.equal(manifest.versions[0]?.workspaceDir, versionDir())
     })
   })
 })

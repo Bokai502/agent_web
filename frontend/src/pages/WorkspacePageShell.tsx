@@ -48,7 +48,7 @@ function getInitialWorkspacePanel(showModel: boolean): ActivePanel {
   return showModel ? "model" : "log"
 }
 
-function isDeratingWorkspaceContext(context: {
+function isComplianceCheckWorkspaceContext(context: {
   versionDir?: string | null
   workspaceId?: string | null
   workspaceKey?: string | null
@@ -233,7 +233,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     if (activeContext.workspaceId) params.set("workspaceId", activeContext.workspaceId)
     if (activeContext.versionId) params.set("versionId", activeContext.versionId)
     if (activeContext.versionDir) params.set("workspaceDir", activeContext.versionDir)
-    if (isDeratingWorkspaceContext(activeContext)) {
+    if (isComplianceCheckWorkspaceContext(activeContext)) {
       params.set("mode", "derating")
       params.set("lockMode", "derating")
     }

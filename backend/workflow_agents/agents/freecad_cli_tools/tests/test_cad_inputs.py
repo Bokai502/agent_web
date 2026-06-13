@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -281,3 +282,66 @@ def test_validate_cad_build_accepts_outer_face_when_bbox_min_touches_plane(
 
     assert report["checks"]["mount_contact"]["ok"] is True
     assert not report["checks"]["mount_contact"]["contact_failures"]
+
+
+def test_validate_cad_build_treats_geometry_quality_issues_as_warnings(tmp_path: Path) -> None:
+    _, real_bom_path, layout_path, geom_path = write_inputs(tmp_path)
+    output_dir = tmp_path / "01_cad"
+    build_cad_stage_inputs(
+        real_bom_path=real_bom_path,
+        layout_topology_path=layout_path,
+        geom_path=geom_path,
+        output_dir=output_dir,
+        grid_shape=(4, 4, 4),
+    )
+    for name in ("geometry_after.step", "geometry_after.glb"):
+        (output_dir / name).write_text("artifact", encoding="utf-8")
+
+    after_geom_path = output_dir / "geometry_after.geom.json"
+    after_geom = json.loads(after_geom_path.read_text(encoding="utf-8"))
+    after_topology_path = output_dir / "geometry_after.layout_topology.json"
+    after_topology = json.loads(after_topology_path.read_text(encoding="utf-8"))
+    component = copy.deepcopy(after_geom["components"]["P_001_internal"])
+    component["component_id"] = "P_002"
+    component["id"] = "component.P_002"
+    after_geom["components"]["P_002"] = component
+    after_topology["placements"].append(
+        {
+            **after_topology["placements"][0],
+            "component_id": "P_002",
+            "geometry_id": "component.P_002",
+            "id": "placement.P_002",
+        }
+    )
+    registry_path = output_dir / "geometry_after_registry.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    registry["entities"].append({"component_id": "P_002", "geometry_id": "component.P_002"})
+    simulation_input_path = output_dir / "simulation_input.json"
+    simulation_input = json.loads(simulation_input_path.read_text(encoding="utf-8"))
+    simulation_input["components"].append(
+        {**simulation_input["components"][0], "component_id": "P_002"}
+    )
+    real_bom = json.loads(real_bom_path.read_text(encoding="utf-8"))
+    real_bom["items"].append({**real_bom["items"][0], "component_id": "P_002"})
+
+    after_geom_path.write_text(json.dumps(after_geom), encoding="utf-8")
+    after_topology_path.write_text(json.dumps(after_topology), encoding="utf-8")
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    simulation_input_path.write_text(json.dumps(simulation_input), encoding="utf-8")
+    real_bom_path.write_text(json.dumps(real_bom), encoding="utf-8")
+
+    report = validate_cad_build(
+        real_bom_path=real_bom_path,
+        layout_topology_path=layout_path,
+        geom_path=geom_path,
+        cad_dir=output_dir,
+        write_back=True,
+    )
+
+    assert report["success"] is True
+    assert report["status"] == "passed_with_warnings"
+    assert report["failures"] == []
+    assert any(item["code"] == "component_overlap" for item in report["warnings"])
+    assert report["summary"]["bbox_overlap_count"] == 1
+    updated = json.loads((output_dir / "cad_agent_output.json").read_text(encoding="utf-8"))
+    assert updated["status"] == "validated"

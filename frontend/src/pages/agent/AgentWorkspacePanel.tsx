@@ -5,7 +5,7 @@ import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
 import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
 import { GncDashboardPanel } from '../workspace/GncDashboardPanel'
-import { DeratingInputConfigEditor } from './DeratingInputConfigEditor'
+import { ComplianceCheckInputConfigEditor } from './ComplianceCheckInputConfigEditor'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
@@ -44,7 +44,7 @@ type AgentWorkspacePanelProps = {
   setVersionListOpen: CurrentWorkspaceCardProps['onToggleVersionList']
   setWorkspaceListOpen: CurrentWorkspaceCardProps['onToggleWorkspaceList']
   requestDeleteVersion: CurrentWorkspaceCardProps['onRequestDeleteVersion']
-  showDeratingConfig: boolean
+  showComplianceCheckConfig: boolean
   showGncConfig: boolean
   switchActiveWorkspace: CurrentWorkspaceCardProps['onSelectWorkspace']
   t: TFunction
@@ -61,9 +61,9 @@ type AgentWorkspacePanelProps = {
   workspaceRefreshNonce?: number
 }
 
-function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showDeratingConfig: boolean, showGncConfig: boolean) {
+function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showComplianceCheckConfig: boolean, showGncConfig: boolean) {
   if (activeView === 'workspace') return '当前任务'
-  if (activeView === 'bom' && showDeratingConfig) return '配置文件'
+  if (activeView === 'bom' && showComplianceCheckConfig) return '配置文件'
   if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '组件清单'
   if (activeView === 'model') return '结果预览'
   if (activeView === 'tools') return showGncConfig ? 'GNC 工具' : '仿真工具'
@@ -97,7 +97,7 @@ export function AgentWorkspacePanel({
   setVersionListOpen,
   setWorkspaceListOpen,
   requestDeleteVersion,
-  showDeratingConfig,
+  showComplianceCheckConfig,
   showGncConfig,
   switchActiveWorkspace,
   t,
@@ -161,7 +161,7 @@ export function AgentWorkspacePanel({
       )}
       <div className="agent-workspace-header">
         <div>
-          <strong>{getWorkspacePanelTitle(activeView, showDeratingConfig, showGncConfig)}</strong>
+          <strong>{getWorkspacePanelTitle(activeView, showComplianceCheckConfig, showGncConfig)}</strong>
           <span>{activeView ? `${activeContext.workspaceName}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : '选择左侧模块展开当前任务'}</span>
         </div>
         {activeView === 'tools' && (
@@ -209,8 +209,8 @@ export function AgentWorkspacePanel({
               workspaceListOpen={workspaceListOpen}
             />
           </div>
-        ) : activeView === 'bom' && showDeratingConfig ? (
-          <DeratingInputConfigEditor activeContext={activeContext} />
+        ) : activeView === 'bom' && showComplianceCheckConfig ? (
+          <ComplianceCheckInputConfigEditor activeContext={activeContext} />
         ) : activeView === 'bom' && showGncConfig ? (
           <GncConfigEditor activeContext={activeContext} />
         ) : activeView === 'bom' ? (

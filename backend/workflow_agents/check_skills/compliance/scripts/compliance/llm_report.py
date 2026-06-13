@@ -253,7 +253,7 @@ def _step_data(template_name: str, artifacts: dict[str, Any]) -> dict[str, Any]:
             ),
         }
     if template_name == "step8_derating_check.md":
-        return {**base, **_derating_data(artifacts.get("derating_check") or {})}
+        return {**base, **_compliance_check_data(artifacts.get("derating_check") or {})}
     if template_name == "step9_reliability_query_check.md":
         rows = artifacts.get("reliability_query") or []
         return {
@@ -852,7 +852,7 @@ def _reliability_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _derating_data(payload: dict[str, Any]) -> dict[str, Any]:
+def _compliance_check_data(payload: dict[str, Any]) -> dict[str, Any]:
     data = payload.get("output") if isinstance(payload.get("output"), dict) else payload
     rows = data.get("rows") if isinstance(data.get("rows"), list) else []
     return {
@@ -863,12 +863,12 @@ def _derating_data(payload: dict[str, Any]) -> dict[str, Any]:
         "issue_counts": data.get("issue_counts") or {},
         "unmatched_components": data.get("unmatched_components") or [],
         "result_files": data.get("result_files") or [],
-        "rows": _derating_rows(rows),
+        "rows": _compliance_check_rows(rows),
         "row_limit_note": "rows 仅保留最多 20 条典型不符合或需人工确认项；完整结果见 stages/derating_check.json。",
     }
 
 
-def _derating_rows(rows: list[dict[str, Any]], limit: int = 20) -> list[dict[str, Any]]:
+def _compliance_check_rows(rows: list[dict[str, Any]], limit: int = 20) -> list[dict[str, Any]]:
     attention_rows = [
         row
         for row in rows

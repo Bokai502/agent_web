@@ -162,13 +162,7 @@ def _apply_scores(candidates: list[dict[str, Any]], results: Any) -> list[dict[s
             item["_score"] = round(float(result["score"]), 3)
             item["reason"] = result["reason"]
         output.append(item)
-    output.sort(
-        key=lambda item: (
-            item.get("catalog_group") == "A",
-            float(item.get("_score") or 0),
-        ),
-        reverse=True,
-    )
+    output.sort(key=lambda item: float(item.get("_score") or 0), reverse=True)
     return output
 
 

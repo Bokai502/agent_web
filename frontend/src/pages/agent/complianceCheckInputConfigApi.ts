@@ -1,33 +1,33 @@
 import { joinApiPath } from '../../app/apiBase'
 
-export type DeratingOption = {
+export type ComplianceCheckOption = {
   label: string
   value: string
   relative_path?: string
   type?: string
 }
 
-export type DeratingInputFileConfig = {
+export type ComplianceCheckInputFileConfig = {
   description?: string
   relative_path?: string
   type?: string
   [key: string]: unknown
 }
 
-export type DeratingImportBaselineField = {
+export type ComplianceCheckImportBaselineField = {
   channel?: string
   key: string
   label: string
-  options: DeratingOption[]
+  options: ComplianceCheckOption[]
   selected?: string
 }
 
-export type DeratingImportBaselineGroup = {
-  fields: DeratingImportBaselineField[]
-  group: DeratingOption
+export type ComplianceCheckImportBaselineGroup = {
+  fields: ComplianceCheckImportBaselineField[]
+  group: ComplianceCheckOption
 }
 
-export type DeratingInputConfig = {
+export type ComplianceCheckInputConfig = {
   compliance_config?: {
     quality_level?: {
       min_required?: string
@@ -35,17 +35,17 @@ export type DeratingInputConfig = {
     }
     [key: string]: unknown
   }
-  input_files?: Record<string, DeratingInputFileConfig>
+  input_files?: Record<string, ComplianceCheckInputFileConfig>
   quality_compare_baseline_options?: {
-    domesticQualityOptions?: DeratingOption[]
-    importBaselineOptions?: DeratingImportBaselineGroup[]
+    domesticQualityOptions?: ComplianceCheckOption[]
+    importBaselineOptions?: ComplianceCheckImportBaselineGroup[]
     [key: string]: unknown
   }
   quality_level?: {
     min_required?: string
-    options?: DeratingOption[]
+    options?: ComplianceCheckOption[]
     selected?: string
-    selected_import_baseline?: DeratingImportBaselineGroup
+    selected_import_baseline?: ComplianceCheckImportBaselineGroup
     selected_import_baseline_group?: string
     selected_import_baseline_label?: string
     [key: string]: unknown
@@ -53,21 +53,21 @@ export type DeratingInputConfig = {
   [key: string]: unknown
 }
 
-export type DeratingInputConfigPayload = {
-  config: DeratingInputConfig
+export type ComplianceCheckInputConfigPayload = {
+  config: ComplianceCheckInputConfig
   config_path?: string
-  input_file_options: DeratingOption[]
+  input_file_options: ComplianceCheckOption[]
   ok?: boolean
   workspace_dir?: string
 }
 
-export type DeratingWorkspaceContext = {
+export type ComplianceCheckWorkspaceContext = {
   versionDir?: string | null
   versionId?: string | null
   workspaceId?: string | null
 }
 
-function buildQuery(context: DeratingWorkspaceContext) {
+function buildQuery(context: ComplianceCheckWorkspaceContext) {
   const params = new URLSearchParams()
   if (context.versionDir) params.set('workspaceDir', context.versionDir)
   if (context.versionId) params.set('versionId', context.versionId)
@@ -76,17 +76,17 @@ function buildQuery(context: DeratingWorkspaceContext) {
 }
 
 async function parseConfigResponse(response: Response) {
-  const data = await response.json().catch(() => null) as DeratingInputConfigPayload | { error?: string } | null
+  const data = await response.json().catch(() => null) as ComplianceCheckInputConfigPayload | { error?: string } | null
   if (!response.ok) {
     throw new Error(data && 'error' in data && data.error ? data.error : '降额输入配置请求失败')
   }
-  if (!data || !Array.isArray((data as DeratingInputConfigPayload).input_file_options)) {
+  if (!data || !Array.isArray((data as ComplianceCheckInputConfigPayload).input_file_options)) {
     throw new Error('降额输入配置响应格式异常')
   }
-  return data as DeratingInputConfigPayload
+  return data as ComplianceCheckInputConfigPayload
 }
 
-export async function fetchDeratingInputConfig(context: DeratingWorkspaceContext) {
+export async function fetchComplianceCheckInputConfig(context: ComplianceCheckWorkspaceContext) {
   const params = buildQuery(context)
   const response = await fetch(joinApiPath(undefined, `/workspace/derating/input-config?${params.toString()}`), {
     cache: 'no-store',
@@ -94,7 +94,7 @@ export async function fetchDeratingInputConfig(context: DeratingWorkspaceContext
   return parseConfigResponse(response)
 }
 
-export async function saveDeratingInputConfig(context: DeratingWorkspaceContext, config: DeratingInputConfig) {
+export async function saveComplianceCheckInputConfig(context: ComplianceCheckWorkspaceContext, config: ComplianceCheckInputConfig) {
   const params = buildQuery(context)
   const response = await fetch(joinApiPath(undefined, `/workspace/derating/input-config?${params.toString()}`), {
     body: JSON.stringify({ config }),

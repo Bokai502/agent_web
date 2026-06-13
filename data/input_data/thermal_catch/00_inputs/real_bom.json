@@ -16,7 +16,7 @@
   },
   "items": [
     {
-      "component_id": "CATCH-P001",
+      "component_id": "P001",
       "semantic_name": "catch_catch_p001_星箭分离机构_WF50",
       "kind": "external",
       "category": "mechanism",
@@ -29,10 +29,10 @@
       "power_W": 0.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P001.local_zmax",
+        "default_component_mount_face_id": "P001.local_zmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P001.local_zmax",
+            "component_mount_face_id": "P001.local_zmax",
             "local_face": "zmax",
             "normal_axis": 2,
             "normal_sign": 1,
@@ -96,7 +96,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P002",
+      "component_id": "P002",
       "semantic_name": "catch_catch_p002_行程开关_1",
       "kind": "external",
       "category": "mechanism",
@@ -109,10 +109,10 @@
       "power_W": 0.1,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P002.local_zmax",
+        "default_component_mount_face_id": "P002.local_zmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P002.local_zmax",
+            "component_mount_face_id": "P002.local_zmax",
             "local_face": "zmax",
             "normal_axis": 2,
             "normal_sign": 1,
@@ -176,7 +176,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P003",
+      "component_id": "P003",
       "semantic_name": "catch_catch_p003_行程开关_2",
       "kind": "external",
       "category": "mechanism",
@@ -189,10 +189,10 @@
       "power_W": 0.1,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P003.local_zmax",
+        "default_component_mount_face_id": "P003.local_zmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P003.local_zmax",
+            "component_mount_face_id": "P003.local_zmax",
             "local_face": "zmax",
             "normal_axis": 2,
             "normal_sign": 1,
@@ -256,7 +256,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P004",
+      "component_id": "P004",
       "semantic_name": "catch_catch_p004_反作用轮候选_DIBAN-1",
       "kind": "internal",
       "category": "adcs",
@@ -269,10 +269,10 @@
       "power_W": 2.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P004.local_zmin",
+        "default_component_mount_face_id": "P004.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P004.local_zmin",
+            "component_mount_face_id": "P004.local_zmin",
             "local_face": "zmin",
             "normal_axis": 2,
             "normal_sign": -1,
@@ -335,7 +335,7 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P005",
+      "component_id": "P005",
       "semantic_name": "catch_catch_p005_反作用轮候选_DIBAN-2_含斜装支架",
       "kind": "internal",
       "category": "adcs",
@@ -348,10 +348,10 @@
       "power_W": 2.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P005.local_zmin",
+        "default_component_mount_face_id": "P005.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P005.local_zmin",
+            "component_mount_face_id": "P005.local_zmin",
             "local_face": "zmin",
             "normal_axis": 2,
             "normal_sign": -1,
@@ -415,7 +415,7 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P006",
+      "component_id": "P006",
       "semantic_name": "catch_catch_p006_综合电子_星务电子箱候选_含安装板",
       "kind": "internal",
       "category": "avionics",
@@ -428,10 +428,10 @@
       "power_W": 12.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P006.local_zmin",
+        "default_component_mount_face_id": "P006.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P006.local_zmin",
+            "component_mount_face_id": "P006.local_zmin",
             "local_face": "zmin",
             "normal_axis": 2,
             "normal_sign": -1,
@@ -495,7 +495,7 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P007",
+      "component_id": "P007",
       "semantic_name": "catch_catch_p007_短报文_GNSS_专有电子盒候选",
       "kind": "external",
       "category": "communication",
@@ -508,10 +508,10 @@
       "power_W": 3.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P007.local_zmax",
+        "default_component_mount_face_id": "P007.local_zmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P007.local_zmax",
+            "component_mount_face_id": "P007.local_zmax",
             "local_face": "zmax",
             "normal_axis": 2,
             "normal_sign": 1,
@@ -574,7 +574,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P008",
+      "component_id": "P008",
       "semantic_name": "catch_catch_p008_电池组或电源类盒体候选",
       "kind": "external",
       "category": "power",
@@ -587,10 +587,10 @@
       "power_W": 5.0,
       "material_id": "battery_cells_aluminum_case",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P008.local_zmax",
+        "default_component_mount_face_id": "P008.local_zmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P008.local_zmax",
+            "component_mount_face_id": "P008.local_zmax",
             "local_face": "zmax",
             "normal_axis": 2,
             "normal_sign": 1,
@@ -653,7 +653,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P009",
+      "component_id": "P009",
       "semantic_name": "catch_catch_p009_磁强计",
       "kind": "external",
       "category": "adcs",
@@ -666,10 +666,10 @@
       "power_W": 0.5,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P009.local_zmax",
+        "default_component_mount_face_id": "P009.local_zmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P009.local_zmax",
+            "component_mount_face_id": "P009.local_zmax",
             "local_face": "zmax",
             "normal_axis": 2,
             "normal_sign": 1,
@@ -732,7 +732,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P010",
+      "component_id": "P010",
       "semantic_name": "catch_catch_p010_载荷防污染_防尘机构",
       "kind": "external",
       "category": "payload",
@@ -745,10 +745,10 @@
       "power_W": 2.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P010.local_xmax",
+        "default_component_mount_face_id": "P010.local_xmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P010.local_xmax",
+            "component_mount_face_id": "P010.local_xmax",
             "local_face": "xmax",
             "normal_axis": 0,
             "normal_sign": 1,
@@ -811,7 +811,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P011",
+      "component_id": "P011",
       "semantic_name": "catch_catch_p011_星敏感器_A",
       "kind": "external",
       "category": "adcs",
@@ -824,10 +824,10 @@
       "power_W": 2.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P011.local_xmax",
+        "default_component_mount_face_id": "P011.local_xmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P011.local_xmax",
+            "component_mount_face_id": "P011.local_xmax",
             "local_face": "xmax",
             "normal_axis": 0,
             "normal_sign": 1,
@@ -893,7 +893,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P012",
+      "component_id": "P012",
       "semantic_name": "catch_catch_p012_星敏感器_B",
       "kind": "external",
       "category": "adcs",
@@ -906,10 +906,10 @@
       "power_W": 2.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P012.local_xmax",
+        "default_component_mount_face_id": "P012.local_xmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P012.local_xmax",
+            "component_mount_face_id": "P012.local_xmax",
             "local_face": "xmax",
             "normal_axis": 0,
             "normal_sign": 1,
@@ -974,7 +974,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P013",
+      "component_id": "P013",
       "semantic_name": "catch_catch_p013_测控数传一体机_A_Z0001",
       "kind": "external",
       "category": "communication",
@@ -987,10 +987,10 @@
       "power_W": 8.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P013.local_ymax",
+        "default_component_mount_face_id": "P013.local_ymax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P013.local_ymax",
+            "component_mount_face_id": "P013.local_ymax",
             "local_face": "ymax",
             "normal_axis": 1,
             "normal_sign": 1,
@@ -1053,7 +1053,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P014",
+      "component_id": "P014",
       "semantic_name": "catch_catch_p014_电推进_微推力器候选_含安装板",
       "kind": "external",
       "category": "propulsion",
@@ -1066,10 +1066,10 @@
       "power_W": 3.0,
       "material_id": "stainless_steel",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P014.local_ymin",
+        "default_component_mount_face_id": "P014.local_ymin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P014.local_ymin",
+            "component_mount_face_id": "P014.local_ymin",
             "local_face": "ymin",
             "normal_axis": 1,
             "normal_sign": -1,
@@ -1133,7 +1133,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P015",
+      "component_id": "P015",
       "semantic_name": "catch_catch_p015_光纤陀螺_YH50_含热控垫片",
       "kind": "external",
       "category": "adcs",
@@ -1146,10 +1146,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P015.local_ymin",
+        "default_component_mount_face_id": "P015.local_ymin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P015.local_ymin",
+            "component_mount_face_id": "P015.local_ymin",
             "local_face": "ymin",
             "normal_axis": 1,
             "normal_sign": -1,
@@ -1213,7 +1213,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P016",
+      "component_id": "P016",
       "semantic_name": "catch_catch_p016_MEMS_陀螺_100_含热控垫片",
       "kind": "external",
       "category": "adcs",
@@ -1226,10 +1226,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P016.local_ymin",
+        "default_component_mount_face_id": "P016.local_ymin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P016.local_ymin",
+            "component_mount_face_id": "P016.local_ymin",
             "local_face": "ymin",
             "normal_axis": 1,
             "normal_sign": -1,
@@ -1293,7 +1293,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P017",
+      "component_id": "P017",
       "semantic_name": "catch_catch_p017_载荷伸展_展开机构",
       "kind": "external",
       "category": "mechanism",
@@ -1306,10 +1306,10 @@
       "power_W": 5.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P017.local_xmin",
+        "default_component_mount_face_id": "P017.local_xmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P017.local_xmin",
+            "component_mount_face_id": "P017.local_xmin",
             "local_face": "xmin",
             "normal_axis": 0,
             "normal_sign": -1,
@@ -1372,7 +1372,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P018",
+      "component_id": "P018",
       "semantic_name": "catch_catch_p018_探测器机箱候选",
       "kind": "external",
       "category": "payload",
@@ -1385,10 +1385,10 @@
       "power_W": 6.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P018.local_xmin",
+        "default_component_mount_face_id": "P018.local_xmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P018.local_xmin",
+            "component_mount_face_id": "P018.local_xmin",
             "local_face": "xmin",
             "normal_axis": 0,
             "normal_sign": -1,
@@ -1451,7 +1451,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P019",
+      "component_id": "P019",
       "semantic_name": "catch_catch_p019_星敏_小光学组件候选",
       "kind": "external",
       "category": "adcs",
@@ -1464,10 +1464,10 @@
       "power_W": 2.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P019.local_xmax",
+        "default_component_mount_face_id": "P019.local_xmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P019.local_xmax",
+            "component_mount_face_id": "P019.local_xmax",
             "local_face": "xmax",
             "normal_axis": 0,
             "normal_sign": 1,
@@ -1530,7 +1530,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P020",
+      "component_id": "P020",
       "semantic_name": "catch_catch_p020_测控_数传_短报文天线候选_FXZY",
       "kind": "external",
       "category": "communication",
@@ -1543,10 +1543,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P020.local_xmin",
+        "default_component_mount_face_id": "P020.local_xmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P020.local_xmin",
+            "component_mount_face_id": "P020.local_xmin",
             "local_face": "xmin",
             "normal_axis": 0,
             "normal_sign": -1,
@@ -1610,7 +1610,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P021",
+      "component_id": "P021",
       "semantic_name": "catch_catch_p021_测控_数传_短报文天线候选_FXFY",
       "kind": "external",
       "category": "communication",
@@ -1623,10 +1623,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P021.local_xmin",
+        "default_component_mount_face_id": "P021.local_xmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P021.local_xmin",
+            "component_mount_face_id": "P021.local_xmin",
             "local_face": "xmin",
             "normal_axis": 0,
             "normal_sign": -1,
@@ -1690,7 +1690,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P022",
+      "component_id": "P022",
       "semantic_name": "catch_catch_p022_反作用轮候选_FXFY",
       "kind": "internal",
       "category": "adcs",
@@ -1703,10 +1703,10 @@
       "power_W": 2.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P022.local_xmax",
+        "default_component_mount_face_id": "P022.local_xmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P022.local_xmax",
+            "component_mount_face_id": "P022.local_xmax",
             "local_face": "xmax",
             "normal_axis": 0,
             "normal_sign": 1,
@@ -1769,7 +1769,7 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P023",
+      "component_id": "P023",
       "semantic_name": "catch_catch_p023_小型相机_光学设备候选",
       "kind": "external",
       "category": "payload",
@@ -1782,10 +1782,10 @@
       "power_W": 3.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P023.local_xmin",
+        "default_component_mount_face_id": "P023.local_xmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P023.local_xmin",
+            "component_mount_face_id": "P023.local_xmin",
             "local_face": "xmin",
             "normal_axis": 0,
             "normal_sign": -1,
@@ -1849,7 +1849,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P024",
+      "component_id": "P024",
       "semantic_name": "catch_catch_p024_测控_数传_短报文天线候选_ZY",
       "kind": "external",
       "category": "communication",
@@ -1862,10 +1862,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P024.local_ymax",
+        "default_component_mount_face_id": "P024.local_ymax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P024.local_ymax",
+            "component_mount_face_id": "P024.local_ymax",
             "local_face": "ymax",
             "normal_axis": 1,
             "normal_sign": 1,
@@ -1929,7 +1929,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P025",
+      "component_id": "P025",
       "semantic_name": "catch_catch_p025_测控数传一体机_B_Z0001",
       "kind": "internal",
       "category": "communication",
@@ -1942,10 +1942,10 @@
       "power_W": 8.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P025.local_ymin",
+        "default_component_mount_face_id": "P025.local_ymin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P025.local_ymin",
+            "component_mount_face_id": "P025.local_ymin",
             "local_face": "ymin",
             "normal_axis": 1,
             "normal_sign": -1,
@@ -2008,7 +2008,7 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P026",
+      "component_id": "P026",
       "semantic_name": "catch_catch_p026_磁力矩器_磁棒_ZY",
       "kind": "external",
       "category": "adcs",
@@ -2021,10 +2021,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P026.local_ymax",
+        "default_component_mount_face_id": "P026.local_ymax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P026.local_ymax",
+            "component_mount_face_id": "P026.local_ymax",
             "local_face": "ymax",
             "normal_axis": 1,
             "normal_sign": 1,
@@ -2087,7 +2087,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P027",
+      "component_id": "P027",
       "semantic_name": "catch_catch_p027_测控_数传_短报文天线候选_FY",
       "kind": "external",
       "category": "communication",
@@ -2100,10 +2100,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P027.local_ymin",
+        "default_component_mount_face_id": "P027.local_ymin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P027.local_ymin",
+            "component_mount_face_id": "P027.local_ymin",
             "local_face": "ymin",
             "normal_axis": 1,
             "normal_sign": -1,
@@ -2167,7 +2167,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P028",
+      "component_id": "P028",
       "semantic_name": "catch_catch_p028_反作用轮候选_FY",
       "kind": "internal",
       "category": "adcs",
@@ -2180,10 +2180,10 @@
       "power_W": 2.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P028.local_ymax",
+        "default_component_mount_face_id": "P028.local_ymax",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P028.local_ymax",
+            "component_mount_face_id": "P028.local_ymax",
             "local_face": "ymax",
             "normal_axis": 1,
             "normal_sign": 1,
@@ -2246,7 +2246,7 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P029",
+      "component_id": "P029",
       "semantic_name": "catch_catch_p029_太阳电池阵_帆板",
       "kind": "external",
       "category": "power",
@@ -2259,10 +2259,10 @@
       "power_W": 0.0,
       "material_id": "battery_cells_aluminum_case",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P029.local_zmin",
+        "default_component_mount_face_id": "P029.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P029.local_zmin",
+            "component_mount_face_id": "P029.local_zmin",
             "local_face": "zmin",
             "normal_axis": 2,
             "normal_sign": -1,
@@ -2325,7 +2325,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P030",
+      "component_id": "P030",
       "semantic_name": "catch_catch_p030_磁力矩器_磁棒_顶板_1",
       "kind": "external",
       "category": "adcs",
@@ -2338,10 +2338,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P030.local_zmin",
+        "default_component_mount_face_id": "P030.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P030.local_zmin",
+            "component_mount_face_id": "P030.local_zmin",
             "local_face": "zmin",
             "normal_axis": 2,
             "normal_sign": -1,
@@ -2404,7 +2404,7 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P031",
+      "component_id": "P031",
       "semantic_name": "catch_catch_p031_磁力矩器_磁棒_顶板_2",
       "kind": "external",
       "category": "adcs",
@@ -2417,10 +2417,10 @@
       "power_W": 1.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "CATCH-P031.local_zmin",
+        "default_component_mount_face_id": "P031.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "CATCH-P031.local_zmin",
+            "component_mount_face_id": "P031.local_zmin",
             "local_face": "zmin",
             "normal_axis": 2,
             "normal_sign": -1,

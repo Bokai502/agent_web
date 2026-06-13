@@ -31,8 +31,11 @@ Main flow:
 
 Execution gates:
 
-- Do not run simulation unless CAD validation succeeded:
+- Do not run simulation unless CAD validation produced required CAD artifacts:
   `01_cad/cad_agent_output.json` must have `validation.success == true`.
+  CAD geometry quality checks such as bbox overlaps, mount/contact mismatch, or
+  face occupancy over-capacity are warnings, not blockers, when the validation
+  report still has `success == true`.
 - Do not run Reviewer or a final report unless simulation succeeded:
   `logs/simulation_run_stage_result.json` must report a successful status, and
   COMSOL status must have `ok == true` when present.
@@ -57,8 +60,12 @@ Report policy:
   report summary, report review, "输出报告", "生成报告", "重新生成报告", or a
   full CAD/thermal workflow ending in a report must include the Reviewer stage
   using `cad-sim-report-agent`.
-- `cad-sim-report-agent` may generate a final report only after CAD validation
-  and simulation both pass.
+- `cad-sim-report-agent` may generate a final report after CAD validation
+  `success == true` and simulation passes; CAD validation warnings must be
+  reported as residual geometry risk, not treated as a failed gate.
+- When final chat output or a report summary includes CAD validation warnings,
+  ask the user whether they want to enter a CAD/layout modification step to
+  resolve those warnings.
 - If the Debug loop reaches 3 failed attempts, generate only a failure report
   from the latest failing artifacts.
 - Do not label a failed CAD or simulation run as a completed final engineering

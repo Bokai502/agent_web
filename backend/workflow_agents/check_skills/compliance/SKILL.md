@@ -49,12 +49,16 @@ environment variables still override those defaults.
 
 ## Workflow
 
-From this skill directory:
+Run commands from the active version workspace directory, using the skill's
+absolute `scripts` path for `PYTHONPATH`. This keeps the process working
+directory inside the writable workspace bind mount when the surrounding `/data`
+tree is mounted read-only by the Codex sandbox.
 
 ### Resolve
 
 ```bash
-PYTHONPATH=scripts python -m compliance.input_config \
+cd <workspace_dir>
+PYTHONPATH=<skill_dir>/scripts python -m compliance.input_config \
   --workspace-dir <workspace_dir>
 ```
 
@@ -62,7 +66,7 @@ PYTHONPATH=scripts python -m compliance.input_config \
 
 There is no central pipeline. Follow `reference/runner.md` and run each stage
 explicitly. `derating_check` uses the local
-`scripts/compliance/derating` implementation when `input_config.json` contains
+`scripts/compliance/compliance_check` implementation when `input_config.json` contains
 `derating_table`.
 
 ```text
@@ -83,7 +87,8 @@ report_generation
 Command form:
 
 ```bash
-PYTHONPATH=scripts python -m compliance.runner \
+cd <workspace_dir>
+PYTHONPATH=<skill_dir>/scripts python -m compliance.runner \
   --stage <stage_name> \
   --workspace-dir <workspace_dir> \
   --config <workspace_dir>/00_inputs/input_config.json

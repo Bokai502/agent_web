@@ -257,5 +257,8 @@ def update_loop_progress(
     data["updated_at"] = now
     data.pop("heartbeat", None)
     rebuild_progress_summary(data)
-    write_progress(progress_path, data)
+    try:
+        write_progress(progress_path, data)
+    except OSError:
+        return None
     return progress_path

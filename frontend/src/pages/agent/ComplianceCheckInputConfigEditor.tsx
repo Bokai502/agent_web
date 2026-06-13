@@ -1,23 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import '../../../gnc_config/gnc_config.css'
 import {
-  fetchDeratingInputConfig,
-  saveDeratingInputConfig,
-  type DeratingImportBaselineGroup,
-  type DeratingInputConfig,
-  type DeratingOption,
-  type DeratingWorkspaceContext,
-} from './deratingInputConfigApi'
+  fetchComplianceCheckInputConfig,
+  saveComplianceCheckInputConfig,
+  type ComplianceCheckImportBaselineGroup,
+  type ComplianceCheckInputConfig,
+  type ComplianceCheckOption,
+  type ComplianceCheckWorkspaceContext,
+} from './complianceCheckInputConfigApi'
 
-type DeratingInputConfigEditorProps = {
-  activeContext: DeratingWorkspaceContext
+type ComplianceCheckInputConfigEditorProps = {
+  activeContext: ComplianceCheckWorkspaceContext
 }
 
-function cloneConfig(config: DeratingInputConfig): DeratingInputConfig {
-  return JSON.parse(JSON.stringify(config)) as DeratingInputConfig
+function cloneConfig(config: ComplianceCheckInputConfig): ComplianceCheckInputConfig {
+  return JSON.parse(JSON.stringify(config)) as ComplianceCheckInputConfig
 }
 
-function normalizeOptions(options: unknown): DeratingOption[] {
+function normalizeOptions(options: unknown): ComplianceCheckOption[] {
   if (!Array.isArray(options)) return []
   return options
     .map(option => {
@@ -30,27 +30,27 @@ function normalizeOptions(options: unknown): DeratingOption[] {
         ...record,
         label: typeof record.label === 'string' ? record.label : value,
         value,
-      } as DeratingOption
+      } as ComplianceCheckOption
     })
-    .filter((option): option is DeratingOption => !!option)
+    .filter((option): option is ComplianceCheckOption => !!option)
 }
 
-function getQualityOptions(config: DeratingInputConfig) {
+function getQualityOptions(config: ComplianceCheckInputConfig) {
   return normalizeOptions(config.quality_level?.options ?? config.quality_compare_baseline_options?.domesticQualityOptions)
 }
 
-function getImportBaselineGroups(config: DeratingInputConfig) {
+function getImportBaselineGroups(config: ComplianceCheckInputConfig) {
   return Array.isArray(config.quality_compare_baseline_options?.importBaselineOptions)
     ? config.quality_compare_baseline_options.importBaselineOptions
     : []
 }
 
-function getSelectedBaselineGroup(config: DeratingInputConfig, groups: DeratingImportBaselineGroup[]) {
+function getSelectedBaselineGroup(config: ComplianceCheckInputConfig, groups: ComplianceCheckImportBaselineGroup[]) {
   const selected = config.quality_level?.selected_import_baseline_group
   return groups.find(group => group.group.value === selected) ?? groups[0] ?? null
 }
 
-function updateInputFile(config: DeratingInputConfig, key: string, filename: string, options: DeratingOption[]) {
+function updateInputFile(config: ComplianceCheckInputConfig, key: string, filename: string, options: ComplianceCheckOption[]) {
   const next = cloneConfig(config)
   const current = next.input_files?.[key] ?? {}
   const option = options.find(item => item.value === filename)
@@ -65,7 +65,7 @@ function updateInputFile(config: DeratingInputConfig, key: string, filename: str
   return next
 }
 
-function updateQuality(config: DeratingInputConfig, selected: string) {
+function updateQuality(config: ComplianceCheckInputConfig, selected: string) {
   const next = cloneConfig(config)
   next.quality_level = {
     ...(next.quality_level ?? {}),
@@ -82,7 +82,7 @@ function updateQuality(config: DeratingInputConfig, selected: string) {
   return next
 }
 
-function updateBaselineGroup(config: DeratingInputConfig, group: DeratingImportBaselineGroup) {
+function updateBaselineGroup(config: ComplianceCheckInputConfig, group: ComplianceCheckImportBaselineGroup) {
   const next = cloneConfig(config)
   const normalizedGroup = {
     ...group,
@@ -100,7 +100,7 @@ function updateBaselineGroup(config: DeratingInputConfig, group: DeratingImportB
   return next
 }
 
-function updateBaselineField(config: DeratingInputConfig, fieldKey: string, value: string) {
+function updateBaselineField(config: ComplianceCheckInputConfig, fieldKey: string, value: string) {
   const next = cloneConfig(config)
   const selectedBaseline = next.quality_level?.selected_import_baseline
   if (!selectedBaseline) return next
@@ -116,7 +116,7 @@ function updateBaselineField(config: DeratingInputConfig, fieldKey: string, valu
   return next
 }
 
-function normalizeSelectedBaseline(config: DeratingInputConfig) {
+function normalizeSelectedBaseline(config: ComplianceCheckInputConfig) {
   const groups = getImportBaselineGroups(config)
   const selected = config.quality_level?.selected_import_baseline
   if (selected) {
@@ -137,10 +137,10 @@ function EditorCard({ children, subtitle, title }: { children: React.ReactNode; 
   )
 }
 
-export function DeratingInputConfigEditor({ activeContext }: DeratingInputConfigEditorProps) {
-  const [config, setConfig] = useState<DeratingInputConfig | null>(null)
+export function ComplianceCheckInputConfigEditor({ activeContext }: ComplianceCheckInputConfigEditorProps) {
+  const [config, setConfig] = useState<ComplianceCheckInputConfig | null>(null)
   const [configPath, setConfigPath] = useState('')
-  const [inputFileOptions, setInputFileOptions] = useState<DeratingOption[]>([])
+  const [inputFileOptions, setInputFileOptions] = useState<ComplianceCheckOption[]>([])
   const [status, setStatus] = useState('准备读取 input_config.json')
   const [saving, setSaving] = useState(false)
   const workspaceContext = useMemo(() => ({
@@ -159,7 +159,7 @@ export function DeratingInputConfigEditor({ activeContext }: DeratingInputConfig
 
   const loadConfig = useCallback(async () => {
     setStatus('正在读取 workspaceDir/00_inputs/input_config.json')
-    const payload = await fetchDeratingInputConfig(workspaceContext)
+    const payload = await fetchComplianceCheckInputConfig(workspaceContext)
     const nextConfig = cloneConfig(payload.config)
     setConfig(normalizeSelectedBaseline(nextConfig))
     setConfigPath(payload.config_path ?? '')
@@ -179,7 +179,7 @@ export function DeratingInputConfigEditor({ activeContext }: DeratingInputConfig
     setSaving(true)
     setStatus('正在写回 input_config.json')
     try {
-      const payload = await saveDeratingInputConfig(workspaceContext, config)
+      const payload = await saveComplianceCheckInputConfig(workspaceContext, config)
       setConfig(cloneConfig(payload.config))
       setConfigPath(payload.config_path ?? configPath)
       setInputFileOptions(payload.input_file_options)
