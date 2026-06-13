@@ -215,11 +215,11 @@
   ],
   "placements": [
     {
-      "component_id": "CATCH-P001",
+      "component_id": "P001",
       "semantic_name": "catch_catch_p001_星箭分离机构_WF50",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P001.local_zmax",
+      "component_mount_face_id": "P001.local_zmax",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -240,11 +240,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P002",
+      "component_id": "P002",
       "semantic_name": "catch_catch_p002_行程开关_1",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P002.local_zmax",
+      "component_mount_face_id": "P002.local_zmax",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -265,11 +265,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P003",
+      "component_id": "P003",
       "semantic_name": "catch_catch_p003_行程开关_2",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P003.local_zmax",
+      "component_mount_face_id": "P003.local_zmax",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -290,11 +290,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P004",
+      "component_id": "P004",
       "semantic_name": "catch_catch_p004_反作用轮候选_DIBAN-1",
       "kind": "internal",
       "cabin_id": "catch_cabin",
-      "component_mount_face_id": "CATCH-P004.local_zmin",
+      "component_mount_face_id": "P004.local_zmin",
       "mount_face_id": "01_DIBAN_BJ.zmax_inner",
       "alignment": {
         "normal_alignment": "opposite",
@@ -315,11 +315,11 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P005",
+      "component_id": "P005",
       "semantic_name": "catch_catch_p005_反作用轮候选_DIBAN-2_含斜装支架",
       "kind": "internal",
       "cabin_id": "catch_cabin",
-      "component_mount_face_id": "CATCH-P005.local_zmin",
+      "component_mount_face_id": "P005.local_zmin",
       "mount_face_id": "01_DIBAN_BJ.zmax_inner",
       "alignment": {
         "normal_alignment": "opposite",
@@ -340,11 +340,11 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P006",
+      "component_id": "P006",
       "semantic_name": "catch_catch_p006_综合电子_星务电子箱候选_含安装板",
       "kind": "internal",
       "cabin_id": "catch_cabin",
-      "component_mount_face_id": "CATCH-P006.local_zmin",
+      "component_mount_face_id": "P006.local_zmin",
       "mount_face_id": "01_DIBAN_BJ.zmax_inner",
       "alignment": {
         "normal_alignment": "opposite",
@@ -365,11 +365,11 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P007",
+      "component_id": "P007",
       "semantic_name": "catch_catch_p007_短报文_GNSS_专有电子盒候选",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P007.local_zmax",
+      "component_mount_face_id": "P007.local_zmax",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -390,11 +390,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P008",
+      "component_id": "P008",
       "semantic_name": "catch_catch_p008_电池组或电源类盒体候选",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P008.local_zmax",
+      "component_mount_face_id": "P008.local_zmax",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -415,11 +415,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P009",
+      "component_id": "P009",
       "semantic_name": "catch_catch_p009_磁强计",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P009.local_zmax",
+      "component_mount_face_id": "P009.local_zmax",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -440,11 +440,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P010",
+      "component_id": "P010",
       "semantic_name": "catch_catch_p010_载荷防污染_防尘机构",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P010.local_xmax",
+      "component_mount_face_id": "P010.local_xmax",
       "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -465,11 +465,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P011",
+      "component_id": "P011",
       "semantic_name": "catch_catch_p011_星敏感器_A",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P011.local_xmax",
+      "component_mount_face_id": "P011.local_xmax",
       "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -490,11 +490,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P012",
+      "component_id": "P012",
       "semantic_name": "catch_catch_p012_星敏感器_B",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P012.local_xmax",
+      "component_mount_face_id": "P012.local_xmax",
       "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -515,11 +515,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P013",
+      "component_id": "P013",
       "semantic_name": "catch_catch_p013_测控数传一体机_A_Z0001",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P013.local_ymax",
+      "component_mount_face_id": "P013.local_ymax",
       "mount_face_id": "03_GB_ZY_BJ.ymin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -540,11 +540,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P014",
+      "component_id": "P014",
       "semantic_name": "catch_catch_p014_电推进_微推力器候选_含安装板",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P014.local_ymin",
+      "component_mount_face_id": "P014.local_ymin",
       "mount_face_id": "04_GB_FY_BJ.ymax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -565,11 +565,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P015",
+      "component_id": "P015",
       "semantic_name": "catch_catch_p015_光纤陀螺_YH50_含热控垫片",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P015.local_ymin",
+      "component_mount_face_id": "P015.local_ymin",
       "mount_face_id": "04_GB_FY_BJ.ymax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -590,11 +590,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P016",
+      "component_id": "P016",
       "semantic_name": "catch_catch_p016_MEMS_陀螺_100_含热控垫片",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P016.local_ymin",
+      "component_mount_face_id": "P016.local_ymin",
       "mount_face_id": "04_GB_FY_BJ.ymax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -615,11 +615,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P017",
+      "component_id": "P017",
       "semantic_name": "catch_catch_p017_载荷伸展_展开机构",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P017.local_xmin",
+      "component_mount_face_id": "P017.local_xmin",
       "mount_face_id": "05_CB_FX_BJ.xmax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -640,11 +640,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P018",
+      "component_id": "P018",
       "semantic_name": "catch_catch_p018_探测器机箱候选",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P018.local_xmin",
+      "component_mount_face_id": "P018.local_xmin",
       "mount_face_id": "05_CB_FX_BJ.xmax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -665,11 +665,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P019",
+      "component_id": "P019",
       "semantic_name": "catch_catch_p019_星敏_小光学组件候选",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P019.local_xmax",
+      "component_mount_face_id": "P019.local_xmax",
       "mount_face_id": "06_CB_ZXFY_BJ.xmin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -690,11 +690,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P020",
+      "component_id": "P020",
       "semantic_name": "catch_catch_p020_测控_数传_短报文天线候选_FXZY",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P020.local_xmin",
+      "component_mount_face_id": "P020.local_xmin",
       "mount_face_id": "07_CB_FXZY_BJ.xmax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -715,11 +715,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P021",
+      "component_id": "P021",
       "semantic_name": "catch_catch_p021_测控_数传_短报文天线候选_FXFY",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P021.local_xmin",
+      "component_mount_face_id": "P021.local_xmin",
       "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -740,11 +740,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P022",
+      "component_id": "P022",
       "semantic_name": "catch_catch_p022_反作用轮候选_FXFY",
       "kind": "internal",
       "cabin_id": "catch_cabin",
-      "component_mount_face_id": "CATCH-P022.local_xmax",
+      "component_mount_face_id": "P022.local_xmax",
       "mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
       "alignment": {
         "normal_alignment": "opposite",
@@ -765,11 +765,11 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P023",
+      "component_id": "P023",
       "semantic_name": "catch_catch_p023_小型相机_光学设备候选",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P023.local_xmin",
+      "component_mount_face_id": "P023.local_xmin",
       "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -790,11 +790,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P024",
+      "component_id": "P024",
       "semantic_name": "catch_catch_p024_测控_数传_短报文天线候选_ZY",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P024.local_ymax",
+      "component_mount_face_id": "P024.local_ymax",
       "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -815,11 +815,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P025",
+      "component_id": "P025",
       "semantic_name": "catch_catch_p025_测控数传一体机_B_Z0001",
       "kind": "internal",
       "cabin_id": "catch_cabin",
-      "component_mount_face_id": "CATCH-P025.local_ymin",
+      "component_mount_face_id": "P025.local_ymin",
       "mount_face_id": "09_CB_ZY_BJ.ymax_inner",
       "alignment": {
         "normal_alignment": "opposite",
@@ -840,11 +840,11 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P026",
+      "component_id": "P026",
       "semantic_name": "catch_catch_p026_磁力矩器_磁棒_ZY",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P026.local_ymax",
+      "component_mount_face_id": "P026.local_ymax",
       "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -865,11 +865,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P027",
+      "component_id": "P027",
       "semantic_name": "catch_catch_p027_测控_数传_短报文天线候选_FY",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P027.local_ymin",
+      "component_mount_face_id": "P027.local_ymin",
       "mount_face_id": "10_CB_FY_BJ.ymax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -890,11 +890,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P028",
+      "component_id": "P028",
       "semantic_name": "catch_catch_p028_反作用轮候选_FY",
       "kind": "internal",
       "cabin_id": "catch_cabin",
-      "component_mount_face_id": "CATCH-P028.local_ymax",
+      "component_mount_face_id": "P028.local_ymax",
       "mount_face_id": "10_CB_FY_BJ.ymin_inner",
       "alignment": {
         "normal_alignment": "opposite",
@@ -915,11 +915,11 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "CATCH-P029",
+      "component_id": "P029",
       "semantic_name": "catch_catch_p029_太阳电池阵_帆板",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P029.local_zmin",
+      "component_mount_face_id": "P029.local_zmin",
       "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -940,11 +940,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P030",
+      "component_id": "P030",
       "semantic_name": "catch_catch_p030_磁力矩器_磁棒_顶板_1",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P030.local_zmin",
+      "component_mount_face_id": "P030.local_zmin",
       "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
       "alignment": {
         "normal_alignment": "opposite",
@@ -965,11 +965,11 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "CATCH-P031",
+      "component_id": "P031",
       "semantic_name": "catch_catch_p031_磁力矩器_磁棒_顶板_2",
       "kind": "external",
       "cabin_id": null,
-      "component_mount_face_id": "CATCH-P031.local_zmin",
+      "component_mount_face_id": "P031.local_zmin",
       "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
       "alignment": {
         "normal_alignment": "opposite",
