@@ -27,7 +27,7 @@ from freecad_cli_tools.component_info_assembly import load_and_normalize_compone
 from freecad_cli_tools.doc_name import add_doc_name_arg, resolve_doc_name
 from freecad_cli_tools.pipeline_logging import configure_pipeline_logging, get_pipeline_logger, pipeline_step
 from freecad_cli_tools.rpc_client import print_result as print_json
-from freecad_cli_tools.rpc_script_fragments import COMPONENT_SHAPE_HELPERS, PLACEMENT_HELPERS
+from freecad_cli_tools.rpc_script_fragments import COMPONENT_SHAPE_HELPERS, PLACEMENT_HELPERS, WALL_HELPERS
 from freecad_cli_tools.rpc_script_loader import render_rpc_script
 from freecad_cli_tools.runtime_config import (
     get_default_component_info_max_step_size_mb,
@@ -204,6 +204,7 @@ def main() -> None:
             "assembly_from_layout.py",
             {
                 "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
+                "__WALL_HELPERS__": WALL_HELPERS,
                 "__COMPONENT_SHAPE_HELPERS__": COMPONENT_SHAPE_HELPERS,
                 "__INPUT_PATH__": json.dumps(normalize_runtime_path(normalized_input_path)),
                 "__DOC_NAME__": json.dumps(args.doc_name),
@@ -254,6 +255,7 @@ def main() -> None:
                 "assembly_from_component_info.py",
                 {
                     "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
+                    "__WALL_HELPERS__": WALL_HELPERS,
                     "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
                     "__DOC_NAME__": json.dumps(real_cad_doc_name),
                     "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_output_path)),

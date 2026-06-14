@@ -847,12 +847,17 @@ export_parts = []
 renamed = []
 skipped = []
 replaced_originals = []
+wall_export_count = 0
 for obj in list(getattr(assembly, "Group", []) or []):
     if obj.Name == "Envelope_part" or getattr(obj, "Label", "") == "Envelope_part":
         if INCLUDE_ENVELOPE:
             export_parts.append(obj)
         else:
             skipped.append(obj.Name)
+        continue
+    if obj.Name == "Walls_part" or getattr(obj, "Label", "") == "Walls_part":
+        wall_export_count = len(getattr(obj, "Group", []) or [])
+        export_parts.append(obj)
         continue
     ids = object_ids(obj)
     if ids & set(component_to_step_path):
@@ -947,6 +952,7 @@ payload = {
     "glb_path": OUT_GLB,
     "normalized_input": NORMALIZED_INPUT,
     "component_export_count": len(export_parts),
+    "wall_export_count": wall_export_count,
     "original_component_export_count": len(export_parts) - len(linked_groups),
     "linked_group_count": len(linked_groups),
     "linked_instance_count": linked_instance_count,

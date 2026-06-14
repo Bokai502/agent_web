@@ -199,8 +199,65 @@ def normalize_layout_dataset(
             "geom_schema_version": geom.get("schema_version"),
         },
         "envelope": envelope,
+        "cabins": normalize_cabins(layout_topology),
+        "walls": normalize_walls(layout_topology, geom),
         "components": normalized_components,
     }
+
+
+def normalize_cabins(layout_topology: dict[str, Any]) -> list[dict[str, Any]]:
+    cabins = layout_topology.get("cabins")
+    if not isinstance(cabins, list):
+        return []
+    normalized = []
+    for cabin in cabins:
+        if not isinstance(cabin, dict):
+            continue
+        cabin_id = cabin.get("id")
+        if not isinstance(cabin_id, str) or not cabin_id.strip():
+            continue
+        normalized.append(deepcopy(cabin))
+    return normalized
+
+
+def normalize_walls(layout_topology: dict[str, Any], geom: dict[str, Any]) -> list[dict[str, Any]]:
+    """Normalize explicit structural wall/panel solids for CAD export."""
+    raw_walls = layout_topology.get("walls")
+    if not isinstance(raw_walls, list):
+        raw_walls = []
+    geom_walls = geom.get("walls")
+    if not isinstance(geom_walls, dict):
+        geom_walls = {}
+
+    normalized = []
+    for wall in raw_walls:
+        if not isinstance(wall, dict):
+            continue
+        wall_id = wall.get("id")
+        if not isinstance(wall_id, str) or not wall_id.strip():
+            continue
+        geom_wall = geom_walls.get(wall_id)
+        if not isinstance(geom_wall, dict):
+            geom_wall = {}
+        bbox = wall.get("bbox") or geom_wall.get("bbox")
+        if not isinstance(bbox, dict):
+            continue
+        bbox_min = vector3(bbox.get("min"), f"wall[{wall_id!r}].bbox.min")
+        bbox_max = vector3(bbox.get("max"), f"wall[{wall_id!r}].bbox.max")
+        size = [bbox_max[axis] - bbox_min[axis] for axis in range(3)]
+        if any(length <= 0.0 for length in size):
+            raise LayoutDatasetError(f"wall {wall_id!r} bbox must have positive size.")
+        normalized_wall = deepcopy(wall)
+        normalized_wall["id"] = wall_id
+        normalized_wall["bbox"] = {"min": bbox_min, "max": bbox_max}
+        normalized_wall["size"] = size
+        normalized_wall["position"] = bbox_min
+        if "panel_id" not in normalized_wall and isinstance(geom_wall.get("panel_id"), str):
+            normalized_wall["panel_id"] = geom_wall["panel_id"]
+        if "name" not in normalized_wall and isinstance(geom_wall.get("name"), str):
+            normalized_wall["name"] = geom_wall["name"]
+        normalized.append(normalized_wall)
+    return normalized
 
 
 def bbox_min_to_local_origin(
@@ -572,7 +629,9 @@ __all__ = [
     "layout_mount_face_to_face_id",
     "load_and_normalize_layout_dataset",
     "load_layout_dataset_files",
+    "normalize_cabins",
     "normalize_layout_dataset",
+    "normalize_walls",
     "resolve_geom_install_face",
     "resolve_layout_mount_face_id",
     "save_layout_dataset_file",

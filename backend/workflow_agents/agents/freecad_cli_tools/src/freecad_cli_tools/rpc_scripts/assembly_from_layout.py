@@ -57,6 +57,7 @@ def build_envelope(doc, assembly, data):
     return envelope_shell.Name
 
 
+__WALL_HELPERS__
 __PLACEMENT_HELPERS__
 __COMPONENT_SHAPE_HELPERS__
 
@@ -185,6 +186,7 @@ try:
         assembly = doc.addObject("App::Part", "Assembly")
 
     envelope_name = build_envelope(doc, assembly, data)
+    wall_names = build_walls(doc, assembly, data)
     created = []
     components = list(data.get("components", {}).items())
     total_components = max(len(components), 1)
@@ -233,6 +235,7 @@ try:
                 "save_path": save_path,
                 "glb_path": glb_path,
                 "component_count": len(created),
+                "wall_count": len(wall_names),
                 "envelope_object": envelope_name,
                 "view_name": VIEW_NAME,
                 "view_updated": view_updated,

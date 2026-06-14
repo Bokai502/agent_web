@@ -226,6 +226,8 @@ def test_real_layout_dataset_normalizes_into_build_spec(tmp_path: Path) -> None:
         [307.81059879046506, 284.2744524358452, 196.22139926575724]
     )
     assert len(normalized["components"]) == 2
+    assert normalized["cabins"][0]["id"] == "cabin_auto_1"
+    assert normalized["walls"] == []
 
     p000 = normalized["components"]["P000"]
     assert p000["component_id"] == "P000"

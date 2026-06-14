@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from freecad_cli_tools.layout_dataset import normalize_layout_dataset
+from freecad_cli_tools.layout_dataset import normalize_layout_dataset, normalize_walls
 from freecad_cli_tools.layout_dataset_io import load_json_file, serialize_json_payload
 
 
@@ -171,7 +171,7 @@ def build_geometry_registry(layout_topology: dict[str, Any], geom: dict[str, Any
         faces.append(
             {
                 "face_id": face_id,
-                "owner_id": face.get("belongs_to") or face.get("owner_id") or "outer_shell",
+                "owner_id": face.get("owner_id") or face.get("belongs_to") or "outer_shell",
                 "plane_axis": int(face.get("plane_axis", 0)),
                 "plane_value": float(face.get("plane_value", 0.0)),
                 "normal_sign": int(face.get("normal_sign", 1)),
@@ -180,11 +180,28 @@ def build_geometry_registry(layout_topology: dict[str, Any], geom: dict[str, Any
             }
         )
 
+    walls = []
+    for wall in normalize_walls(layout_topology, geom):
+        walls.append(
+            {
+                "wall_id": wall["id"],
+                "name": wall.get("name"),
+                "panel_id": wall.get("panel_id"),
+                "bbox": wall["bbox"],
+                "size": wall["size"],
+                "position": wall["position"],
+                "separates": wall.get("separates"),
+                "adjacent_cabins": wall.get("adjacent_cabins"),
+                "install_face_ids": wall.get("install_face_ids", []),
+            }
+        )
+
     return {
         "schema_version": "1.0",
         "units": geom.get("units") or {"length": "mm"},
         "coordinate_system": "body_fixed_xyz",
         "entities": entities,
+        "walls": walls,
         "faces": faces,
     }
 
@@ -279,9 +296,23 @@ def build_simulation_input(
                 "selection_role": "outer_shell",
             }
         ],
+        "walls": [
+            {
+                "wall_id": wall.get("wall_id"),
+                "name": wall.get("name"),
+                "panel_id": wall.get("panel_id"),
+                "bbox": wall.get("bbox"),
+                "separates": wall.get("separates"),
+                "adjacent_cabins": wall.get("adjacent_cabins"),
+                "install_face_ids": wall.get("install_face_ids", []),
+                "selection_role": "internal_partition",
+            }
+            for wall in geometry_registry.get("walls", [])
+        ],
         "cabins": [
             {
                 "cabin_id": cabin.get("id"),
+                "bbox": cabin.get("bbox"),
                 "selection_role": "internal_domain",
             }
             for cabin in layout_topology.get("cabins", [])
@@ -306,6 +337,13 @@ def build_simulation_input(
                     "face_id": face["face_id"],
                 }
                 for face in geometry_registry.get("faces", [])
+            ],
+            "wall_selections": [
+                {
+                    "selection_id": f"sel_wall_{str(wall.get('wall_id')).replace('.', '_')}",
+                    "wall_id": wall.get("wall_id"),
+                }
+                for wall in geometry_registry.get("walls", [])
             ],
             "shell_selections": [],
         },
@@ -339,12 +377,17 @@ def write_grid_inputs(
         if not isinstance(component, dict):
             continue
         bbox = _component_bbox(component)
+        _paint_bbox_into_mask(mask, bbox, bbox_min, bbox_max, grid_shape)
         min_i = _grid_index(bbox["min"], bbox_min, bbox_max, grid_shape, floor=True)
         max_i = _grid_index(bbox["max"], bbox_min, bbox_max, grid_shape, floor=False)
         slices = tuple(slice(min_i[axis], max_i[axis] + 1) for axis in range(3))
-        mask[slices] = 1
         power[slices] += np.float32(_float_value(component.get("power"), default=0.0))
         mass[slices] += np.float32(_float_value(component.get("mass"), default=0.0))
+
+    for wall in (geom.get("walls") or {}).values():
+        if not isinstance(wall, dict) or not isinstance(wall.get("bbox"), dict):
+            continue
+        _paint_bbox_into_mask(mask, wall["bbox"], bbox_min, bbox_max, grid_shape)
 
     np.savez_compressed(channels_path, mask=mask, power=power, mass=mass)
     return {
@@ -355,9 +398,29 @@ def write_grid_inputs(
         "grid_bbox_min": bbox_min,
         "grid_bbox_max": bbox_max,
         "grid_bbox_units": "mm",
-        "grid_bbox_source": "outer_shell.outer_bbox+geom.components.bbox",
+        "grid_bbox_source": "outer_shell.outer_bbox+geom.components.bbox+geom.walls.bbox",
         "grid_component_bbox_count": component_bbox_count,
+        "grid_wall_bbox_count": len(
+            [
+                wall
+                for wall in (geom.get("walls") or {}).values()
+                if isinstance(wall, dict) and isinstance(wall.get("bbox"), dict)
+            ]
+        ),
     }
+
+
+def _paint_bbox_into_mask(
+    mask: np.ndarray,
+    bbox: dict[str, list[float]],
+    bbox_min: list[float],
+    bbox_max: list[float],
+    grid_shape: tuple[int, int, int],
+) -> None:
+    min_i = _grid_index(bbox["min"], bbox_min, bbox_max, grid_shape, floor=True)
+    max_i = _grid_index(bbox["max"], bbox_min, bbox_max, grid_shape, floor=False)
+    slices = tuple(slice(min_i[axis], max_i[axis] + 1) for axis in range(3))
+    mask[slices] = 1
 
 
 def write_json_file(path: str | Path, payload: dict[str, Any]) -> None:
