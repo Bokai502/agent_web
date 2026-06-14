@@ -229,6 +229,9 @@ def build_envelope(doc, assembly, data):
     return envelope_shell.Name
 
 
+__WALL_HELPERS__
+
+
 def set_view(doc_name):
     gui_doc = FreeCADGui.getDocument(doc_name)
     if gui_doc is None:
@@ -590,6 +593,7 @@ try:
     assembly = doc.addObject("App::Part", "Assembly")
 
     envelope_name = build_envelope(doc, assembly, data)
+    wall_names = build_walls(doc, assembly, data)
     created = []
     step_component_ids = []
     box_component_ids = []
@@ -658,6 +662,8 @@ try:
                 "save_path": save_path,
                 "glb_path": glb_path,
                 "component_count": len(created),
+                "wall_count": len(wall_names),
+                "walls": wall_names,
                 "components": created,
                 "step_component_ids": step_component_ids,
                 "box_component_ids": box_component_ids,

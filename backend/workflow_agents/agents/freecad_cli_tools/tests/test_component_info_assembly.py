@@ -17,6 +17,15 @@ def sample_layout_topology() -> dict:
         "schema_version": "1.0",
         "layout_id": "layout-demo",
         "source_design_id": "demo",
+        "walls": [
+            {
+                "id": "wall_mid_y",
+                "name": "Mid Y partition",
+                "bbox": {"min": [-45.0, -2.0, -45.0], "max": [45.0, 2.0, 45.0]},
+                "separates": ["cabin_yneg", "cabin_ypos"],
+                "install_face_ids": ["wall_mid_y.ymin_outer", "wall_mid_y.ymax_outer"],
+            }
+        ],
         "placements": [
             {
                 "component_id": "P001",
@@ -68,6 +77,14 @@ def sample_geom() -> dict:
                 "color": [100, 110, 120, 255],
             },
         },
+        "walls": {
+            "wall_mid_y": {
+                "id": "wall_mid_y",
+                "name": "Mid Y partition",
+                "bbox": {"min": [-45.0, -2.0, -45.0], "max": [45.0, 2.0, 45.0]},
+                "panel_id": "wall_mid_y",
+            }
+        },
     }
 
 
@@ -112,6 +129,9 @@ def test_normalize_component_info_assembly_prefers_component_info_bbox(tmp_path:
     assert normalized["components"]["P001"]["target_bbox"]["max"] == [11.0, 22.0, 33.0]
     assert normalized["components"]["P002"]["source"]["kind"] == "box"
     assert normalized["components"]["P002"]["category"] == "avionics"
+    assert normalized["walls"][0]["id"] == "wall_mid_y"
+    assert normalized["walls"][0]["size"] == [90.0, 4.0, 90.0]
+    assert normalized["walls"][0]["panel_id"] == "wall_mid_y"
 
 
 def test_normalize_component_info_assembly_prefers_geom_bbox_over_position_dims(

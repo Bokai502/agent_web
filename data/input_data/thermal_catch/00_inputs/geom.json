@@ -96,9 +96,70 @@
   },
   "cabins": [
     {
-      "id": "catch_cabin",
+      "id": "catch_cabin_yneg",
       "parent": "catch_outer_shell",
-      "role": "catch_bus_volume"
+      "role": "catch_bus_volume_segment",
+      "axis": 1,
+      "range_mm": [
+        -283.0319509517643,
+        -123.301462255115
+      ],
+      "bbox": {
+        "min": [
+          -173.04011831591671,
+          -283.0319509517643,
+          -170.0001284632565
+        ],
+        "max": [
+          170.05674682268437,
+          -123.301462255115,
+          169.78089174726432
+        ]
+      }
+    },
+    {
+      "id": "catch_cabin_mid",
+      "parent": "catch_outer_shell",
+      "role": "catch_bus_volume_segment",
+      "axis": 1,
+      "range_mm": [
+        -112.421284780085,
+        112.48498719580958
+      ],
+      "bbox": {
+        "min": [
+          -173.04011831591671,
+          -112.421284780085,
+          -170.0001284632565
+        ],
+        "max": [
+          170.05674682268437,
+          112.48498719580958,
+          169.78089174726432
+        ]
+      }
+    },
+    {
+      "id": "catch_cabin_ypos",
+      "parent": "catch_outer_shell",
+      "role": "catch_bus_volume_segment",
+      "axis": 1,
+      "range_mm": [
+        122.84005702039042,
+        283.0319509517643
+      ],
+      "bbox": {
+        "min": [
+          -173.04011831591671,
+          122.84005702039042,
+          -170.0001284632565
+        ],
+        "max": [
+          170.05674682268437,
+          283.0319509517643,
+          169.78089174726432
+        ]
+      }
     }
   ],
   "install_faces": {
@@ -226,7 +287,7 @@
       "plane_axis": 1,
       "plane_value": -123.301462255115,
       "normal_sign": -1,
-      "belongs_to": "panel",
+      "belongs_to": "03_GB_ZY_BJ",
       "panel_id": "03_GB_ZY_BJ",
       "panel_name": "GB_ZY_BJ",
       "cabin_face_tag": "ymin",
@@ -255,7 +316,7 @@
       "plane_axis": 1,
       "plane_value": -112.421284780085,
       "normal_sign": 1,
-      "belongs_to": "panel",
+      "belongs_to": "03_GB_ZY_BJ",
       "panel_id": "03_GB_ZY_BJ",
       "panel_name": "GB_ZY_BJ",
       "cabin_face_tag": "ymax",
@@ -284,7 +345,7 @@
       "plane_axis": 1,
       "plane_value": 122.84005702039042,
       "normal_sign": 1,
-      "belongs_to": "panel",
+      "belongs_to": "04_GB_FY_BJ",
       "panel_id": "04_GB_FY_BJ",
       "panel_name": "GB_FY_BJ",
       "cabin_face_tag": "ymax",
@@ -313,7 +374,7 @@
       "plane_axis": 1,
       "plane_value": 112.48498719580958,
       "normal_sign": -1,
-      "belongs_to": "panel",
+      "belongs_to": "04_GB_FY_BJ",
       "panel_id": "04_GB_FY_BJ",
       "panel_name": "GB_FY_BJ",
       "cabin_face_tag": "ymin",
@@ -3128,6 +3189,72 @@
       },
       "source_bbox_kind": "catch_step_decomposition_original_bbox",
       "component_mount_face_id": "P031.local_zmin"
+    }
+  },
+  "walls": {
+    "03_GB_ZY_BJ": {
+      "id": "03_GB_ZY_BJ",
+      "name": "正 Y 隔板/盖板装配",
+      "panel_id": "03_GB_ZY_BJ",
+      "role": "internal_partition",
+      "axis": 1,
+      "normal_sign": -1,
+      "bbox": {
+        "min": [
+          -160.07871521991498,
+          -123.301462255115,
+          -160.07871521991558
+        ],
+        "max": [
+          160.07871521991498,
+          -112.421284780085,
+          160.07871521991498
+        ]
+      },
+      "separates": [
+        "catch_cabin_yneg",
+        "catch_cabin_mid"
+      ],
+      "adjacent_cabins": {
+        "negative_side": "catch_cabin_yneg",
+        "positive_side": "catch_cabin_mid"
+      },
+      "install_face_ids": [
+        "03_GB_ZY_BJ.ymin_outer",
+        "03_GB_ZY_BJ.ymax_inner"
+      ]
+    },
+    "04_GB_FY_BJ": {
+      "id": "04_GB_FY_BJ",
+      "name": "负 Y 隔板/盖板装配",
+      "panel_id": "04_GB_FY_BJ",
+      "role": "internal_partition",
+      "axis": 1,
+      "normal_sign": 1,
+      "bbox": {
+        "min": [
+          -160.0150128041904,
+          112.48498719580958,
+          -160.015012804191
+        ],
+        "max": [
+          160.0150128041904,
+          122.84005702039042,
+          160.0150128041904
+        ]
+      },
+      "separates": [
+        "catch_cabin_mid",
+        "catch_cabin_ypos"
+      ],
+      "adjacent_cabins": {
+        "negative_side": "catch_cabin_mid",
+        "positive_side": "catch_cabin_ypos"
+      },
+      "install_face_ids": [
+        "04_GB_FY_BJ.ymin_inner",
+        "04_GB_FY_BJ.ymax_outer"
+      ]
     }
   }
 }

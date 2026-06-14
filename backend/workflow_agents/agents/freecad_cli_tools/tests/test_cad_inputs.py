@@ -45,7 +45,15 @@ def write_inputs(root: Path) -> tuple[Path, Path, Path, Path]:
         "source_design_id": "design-test",
         "outer_shell": {"id": "outer_shell"},
         "cabins": [{"id": "cabin_auto_1", "parent": "outer_shell"}],
-        "walls": [],
+        "walls": [
+            {
+                "id": "wall_mid_y",
+                "name": "Mid Y partition",
+                "bbox": {"min": [-45.0, -2.0, -45.0], "max": [45.0, 2.0, 45.0]},
+                "separates": ["cabin_yneg", "cabin_ypos"],
+                "install_face_ids": ["wall_mid_y.ymin_outer", "wall_mid_y.ymax_outer"],
+            }
+        ],
         "install_faces": [
             {
                 "id": "cabin_auto_1.xmax",
@@ -87,6 +95,14 @@ def write_inputs(root: Path) -> tuple[Path, Path, Path, Path]:
                 "plane_axis": 0,
                 "plane_value": 50.0,
                 "normal_sign": 1,
+            }
+        },
+        "walls": {
+            "wall_mid_y": {
+                "id": "wall_mid_y",
+                "name": "Mid Y partition",
+                "bbox": {"min": [-45.0, -2.0, -45.0], "max": [45.0, 2.0, 45.0]},
+                "panel_id": "wall_mid_y",
             }
         },
         "components": {
@@ -142,11 +158,16 @@ def test_build_cad_stage_inputs_writes_expected_outputs(tmp_path: Path) -> None:
     assert simulation_input["step_file"] == "geometry_after.step"
     assert simulation_input["components"][0]["component_id"] == "P001"
     assert simulation_input["components"][0]["power_W"] == 4.0
+    assert simulation_input["walls"][0]["wall_id"] == "wall_mid_y"
+
+    registry = json.loads((output_dir / "geometry_after_registry.json").read_text())
+    assert registry["walls"][0]["wall_id"] == "wall_mid_y"
 
     cad_agent_output = json.loads((output_dir / "cad_agent_output.json").read_text())
     assert cad_agent_output["checks"]["all_placements_have_geom"] is True
     assert cad_agent_output["counts"]["cad_components"] == 1
     assert result["normalized"]["components"]["P001"]["dims"] == [10.0, 20.0, 30.0]
+    assert result["normalized"]["walls"][0]["size"] == [90.0, 4.0, 90.0]
 
     assert "coord" not in cad_agent_output["outputs"]
     assert "channels_input" not in cad_agent_output["outputs"]
@@ -154,6 +175,7 @@ def test_build_cad_stage_inputs_writes_expected_outputs(tmp_path: Path) -> None:
     assert cad_agent_output["outputs"]["comsol_channels_input"].endswith(
         "comsol_inputs/channels_input.npz"
     )
+    assert cad_agent_output["checks"]["grid_wall_bbox_count"] == 1
 
     channels = np.load(output_dir / "comsol_inputs" / "channels_input.npz")
     assert set(channels.files) == {"mask", "power", "mass"}

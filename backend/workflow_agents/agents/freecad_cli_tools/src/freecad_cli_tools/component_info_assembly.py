@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from freecad_cli_tools.geometry import FACE_DEFINITIONS, is_external_face
+from freecad_cli_tools.layout_dataset import normalize_walls
 from freecad_cli_tools.layout_dataset_common import (
     LayoutDatasetError,
     bbox_size,
@@ -220,6 +221,7 @@ def normalize_component_info_assembly(
             ),
             "shell_thickness": float(outer_shell.get("thickness") or 0.0),
         },
+        "walls": normalize_walls(layout_topology, geom),
         "components": normalized_components,
     }
 

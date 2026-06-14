@@ -30,6 +30,42 @@ def make_placement(position, rotation_rows):
 """
 
 
+WALL_HELPERS = r"""
+def build_walls(doc, assembly, data):
+    walls = data.get("walls") or []
+    if not walls:
+        return []
+
+    walls_part = doc.addObject("App::Part", "Walls_part")
+    assembly.addObject(walls_part)
+    created = []
+    for wall in walls:
+        wall_id = str(wall.get("id") or wall.get("wall_id") or f"Wall_{len(created) + 1}")
+        size = wall.get("size")
+        position = wall.get("position")
+        if not size or not position:
+            bbox = wall.get("bbox") or {}
+            bbox_min = bbox.get("min")
+            bbox_max = bbox.get("max")
+            if not bbox_min or not bbox_max:
+                continue
+            position = [float(value) for value in bbox_min]
+            size = [float(bbox_max[axis]) - float(bbox_min[axis]) for axis in range(3)]
+        if any(float(length) <= 0.0 for length in size):
+            continue
+        solid = doc.addObject("Part::Box", wall_id)
+        solid.Length = float(size[0])
+        solid.Width = float(size[1])
+        solid.Height = float(size[2])
+        solid.Placement = FreeCAD.Placement(FreeCAD.Vector(*position), FreeCAD.Rotation())
+        solid.ViewObject.ShapeColor = (0.85, 0.65, 0.25, 0.0)
+        solid.ViewObject.Transparency = 45
+        walls_part.addObject(solid)
+        created.append(wall_id)
+    return created
+"""
+
+
 COMPONENT_SHAPE_HELPERS = r"""
 import itertools
 
