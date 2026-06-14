@@ -107,6 +107,7 @@ export function AgentTopbar({
         : 'bad'
   const failedChecks = portStatus?.results.filter(item => !item.ok) ?? []
   const skippedChecks = portStatus?.results.filter(item => item.skipped) ?? []
+  const showInterfaceStatus = Boolean(portStatusError || failedChecks.length)
   const checkedAtLabel = formatCheckedAt(portStatus?.checkedAt)
   const initials = userId.trim().slice(0, 1).toUpperCase() || 'U'
   const inputModeLabel = inputMode === 'voice' ? '语音输入' : '文字输入'
@@ -266,59 +267,54 @@ export function AgentTopbar({
               <span aria-hidden="true">↪</span>
               {loggingOut ? '退出中' : '退出登录'}
             </button>
-            <section className="agent-interface-section">
-              <div className="agent-interface-summary">
-                <div>
-                  <strong>{portStatus?.ok ? '接口正常' : portStatus ? '接口异常' : '接口检测'}</strong>
-                  <span>
-                    {portStatus
-                      ? `${totalChecks} 项 · ${failedChecks.length ? `异常 ${failedChecks.length}` : '全部正常'}${skippedChecks.length ? ` · 跳过 ${skippedChecks.length}` : ''}${checkedAtLabel ? ` · ${checkedAtLabel}` : ''}`
-                      : portStatusLoading
-                        ? '正在统一检测功能接口'
-                        : '等待检测结果'}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="agent-interface-refresh"
-                  disabled={portStatusLoading}
-                  onClick={onPortStatusRefresh}
-                >
-                  {portStatusLoading ? '检测中' : '重新检测'}
-                </button>
-              </div>
-            </section>
-            {portStatusError ? (
-              <p className="agent-port-error">{portStatusError}</p>
-            ) : failedChecks.length ? (
+            {showInterfaceStatus ? (
               <>
-                <div className="agent-port-list">
-                  {failedChecks.map(item => (
-                  <div className={`agent-port-row ${item.ok ? 'ok' : 'bad'}`} key={`${item.group}:${item.name}:${item.target}`}>
-                    <span className="agent-port-row-dot" />
+                <section className="agent-interface-section">
+                  <div className="agent-interface-summary">
                     <div>
-                      <strong>{item.name}</strong>
-                      <span>{formatInterfaceDetail(item)}</span>
+                      <strong>{portStatusError || !portStatus?.ok ? '接口异常' : '接口检测'}</strong>
+                      <span>
+                        {portStatus
+                          ? `${totalChecks} 项 · 异常 ${failedChecks.length}${skippedChecks.length ? ` · 跳过 ${skippedChecks.length}` : ''}${checkedAtLabel ? ` · ${checkedAtLabel}` : ''}`
+                          : portStatusLoading
+                            ? '正在统一检测功能接口'
+                            : '等待检测结果'}
+                      </span>
                     </div>
-                    <em>{item.required ? '异常' : '警告'}</em>
+                    <button
+                      type="button"
+                      className="agent-interface-refresh"
+                      disabled={portStatusLoading}
+                      onClick={onPortStatusRefresh}
+                    >
+                      {portStatusLoading ? '检测中' : '重新检测'}
+                    </button>
                   </div>
-                  ))}
-                </div>
-                <p className="agent-port-check-note is-bad">
-                  {`检测到 ${failedChecks.length} 个功能接口异常`}
-                  {checkedAtLabel ? ` · ${checkedAtLabel}` : ''}
-                </p>
+                </section>
+                {portStatusError ? (
+                  <p className="agent-port-error">{portStatusError}</p>
+                ) : (
+                  <>
+                    <div className="agent-port-list">
+                      {failedChecks.map(item => (
+                        <div className={`agent-port-row ${item.ok ? 'ok' : 'bad'}`} key={`${item.group}:${item.name}:${item.target}`}>
+                          <span className="agent-port-row-dot" />
+                          <div>
+                            <strong>{item.name}</strong>
+                            <span>{formatInterfaceDetail(item)}</span>
+                          </div>
+                          <em>{item.required ? '异常' : '警告'}</em>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="agent-port-check-note is-bad">
+                      {`检测到 ${failedChecks.length} 个功能接口异常`}
+                      {checkedAtLabel ? ` · ${checkedAtLabel}` : ''}
+                    </p>
+                  </>
+                )}
               </>
-            ) : (
-              portStatusLoading ? <p>正在统一检测功能接口...</p> : (
-                portStatus ? (
-                  <p className="agent-port-check-note is-ok">
-                    {`全部 ${totalChecks - skippedChecks.length} 个已执行接口正常`}
-                    {skippedChecks.length ? `，${skippedChecks.length} 个跳过` : ''}
-                  </p>
-                ) : null
-              )
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>

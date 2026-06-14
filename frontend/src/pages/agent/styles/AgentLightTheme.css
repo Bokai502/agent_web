@@ -664,6 +664,98 @@
   color: #24292f;
 }
 
+.agent-page.is-light-theme .derating-config-shell {
+  color: var(--light-text);
+  background: linear-gradient(180deg, rgba(246, 248, 251, 0.74), rgba(255, 255, 255, 0.28));
+}
+
+.agent-page.is-light-theme .derating-config-top,
+.agent-page.is-light-theme .derating-config-summary,
+.agent-page.is-light-theme .derating-config-card,
+.agent-page.is-light-theme .derating-config-empty {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: var(--light-panel);
+  box-shadow: none;
+}
+
+.agent-page.is-light-theme .derating-config-title strong,
+.agent-page.is-light-theme .derating-config-stat strong,
+.agent-page.is-light-theme .derating-config-card-head strong,
+.agent-page.is-light-theme .derating-file-copy strong,
+.agent-page.is-light-theme .derating-rule-row strong {
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .derating-config-title span,
+.agent-page.is-light-theme .derating-config-title small,
+.agent-page.is-light-theme .derating-config-card-meta,
+.agent-page.is-light-theme .derating-config-stat span,
+.agent-page.is-light-theme .derating-file-copy span,
+.agent-page.is-light-theme .derating-file-row label > span,
+.agent-page.is-light-theme .derating-select-field > span,
+.agent-page.is-light-theme .derating-rule-row span,
+.agent-page.is-light-theme .derating-config-card-head span {
+  color: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .derating-config-card-head,
+.agent-page.is-light-theme .derating-config-status {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.agent-page.is-light-theme .derating-config-stat,
+.agent-page.is-light-theme .derating-config-status,
+.agent-page.is-light-theme .derating-file-row,
+.agent-page.is-light-theme .derating-rule-row {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.agent-page.is-light-theme .derating-file-row,
+.agent-page.is-light-theme .derating-rule-row {
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+.agent-page.is-light-theme .derating-config-status {
+  color: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .derating-config-status.is-ok {
+  color: #0b6f48;
+}
+
+.agent-page.is-light-theme .derating-config-status.is-bad,
+.agent-page.is-light-theme .derating-config-empty.is-bad {
+  color: #b42318;
+}
+
+.agent-page.is-light-theme .derating-file-row select,
+.agent-page.is-light-theme .derating-select-field select,
+.agent-page.is-light-theme .derating-rule-row select {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--light-text);
+  color-scheme: light;
+}
+
+.agent-page.is-light-theme .derating-file-row select:focus,
+.agent-page.is-light-theme .derating-select-field select:focus,
+.agent-page.is-light-theme .derating-rule-row select:focus {
+  border-color: rgba(0, 113, 227, 0.36);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.1);
+}
+
+.agent-page.is-light-theme .derating-config-actions button {
+  border-color: rgba(0, 113, 227, 0.18);
+  background: rgba(0, 113, 227, 0.08);
+  color: #0057b8;
+}
+
+.agent-page.is-light-theme .derating-config-actions button.primary {
+  border-color: transparent;
+  background: #0a84ff;
+  color: #fff;
+}
+
 .agent-page.is-light-theme .wa-file-tree-error,
 .agent-page.is-light-theme .agent-file-preview.is-error strong {
   color: #b42318;

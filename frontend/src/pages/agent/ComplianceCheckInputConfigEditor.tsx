@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import '../../../gnc_config/gnc_config.css'
 import {
   fetchComplianceCheckInputConfig,
@@ -125,12 +126,24 @@ function normalizeSelectedBaseline(config: ComplianceCheckInputConfig) {
   return groups[0] ? updateBaselineGroup(config, groups[0]) : config
 }
 
-function EditorCard({ children, subtitle, title }: { children: React.ReactNode; subtitle: string; title: string }) {
+function getOptionLabel(options: ComplianceCheckOption[], value?: string) {
+  if (!value) return '未选择'
+  return options.find(option => option.value === value)?.label ?? value
+}
+
+function getStatusTone(status: string) {
+  return /失败|异常|错误|error/i.test(status) ? 'bad' : /保存|加载|已/.test(status) ? 'ok' : 'neutral'
+}
+
+function EditorCard({ children, meta, subtitle, title }: { children: ReactNode; meta?: ReactNode; subtitle: string; title: string }) {
   return (
-    <section className="gnc-editor-card">
-      <div className="gnc-editor-card-head">
-        <strong>{title}</strong>
-        <span>{subtitle}</span>
+    <section className="derating-config-card">
+      <div className="derating-config-card-head">
+        <div>
+          <strong>{title}</strong>
+          <span>{subtitle}</span>
+        </div>
+        {meta ? <div className="derating-config-card-meta">{meta}</div> : null}
       </div>
       {children}
     </section>
@@ -156,6 +169,15 @@ export function ComplianceCheckInputConfigEditor({ activeContext }: ComplianceCh
     return getSelectedBaselineGroup(config, importBaselineGroups)
   }, [config, importBaselineGroups])
   const displayedBaseline = config?.quality_level?.selected_import_baseline ?? selectedBaseline
+  const configuredFileCount = useMemo(
+    () => inputFileEntries.filter(([, value]) => value.relative_path).length,
+    [inputFileEntries],
+  )
+  const selectedQualityLabel = useMemo(
+    () => getOptionLabel(qualityOptions, config?.quality_level?.selected),
+    [config?.quality_level?.selected, qualityOptions],
+  )
+  const statusTone = getStatusTone(status)
 
   const loadConfig = useCallback(async () => {
     setStatus('正在读取 workspaceDir/00_inputs/input_config.json')
@@ -193,48 +215,74 @@ export function ComplianceCheckInputConfigEditor({ activeContext }: ComplianceCh
 
   if (!config) {
     return (
-      <div className="gnc-editor-shell">
-        <div className="gnc-editor-empty">{status}</div>
+      <div className="derating-config-shell">
+        <div className={`derating-config-empty is-${getStatusTone(status)}`}>{status}</div>
       </div>
     )
   }
 
   return (
-    <div className="gnc-editor-shell derating-editor-shell">
-      <div className="gnc-editor-top">
-        <div>
-          <span>INPUT CONFIG</span>
+    <div className="derating-config-shell">
+      <div className="derating-config-top">
+        <div className="derating-config-title">
+          <span>降额合规输入</span>
+          <strong>配置文件</strong>
           <small>{configPath || 'workspaceDir/00_inputs/input_config.json'}</small>
         </div>
-        <div className="gnc-editor-actions">
-          <button type="button" disabled={saving} onClick={() => loadConfig().catch(error => setStatus(error instanceof Error ? error.message : '读取失败'))}>Reload</button>
-          <button type="button" className="primary" disabled={saving} onClick={() => saveConfig()}>{saving ? 'Saving' : 'Save'}</button>
+        <div className="derating-config-actions">
+          <button type="button" disabled={saving} onClick={() => loadConfig().catch(error => setStatus(error instanceof Error ? error.message : '读取失败'))}>重新读取</button>
+          <button type="button" className="primary" disabled={saving} onClick={() => saveConfig()}>{saving ? '保存中' : '保存配置'}</button>
         </div>
       </div>
-      <div className="gnc-editor-status">{status}</div>
 
-      <div className="gnc-editor-grid">
-        <EditorCard title="Input Files" subtitle="Options are read from current workspaceDir/00_inputs">
-          <div className="gnc-form-grid">
+      <div className="derating-config-summary">
+        <div className="derating-config-stat">
+          <span>输入文件</span>
+          <strong>{configuredFileCount}/{inputFileEntries.length}</strong>
+        </div>
+        <div className="derating-config-stat">
+          <span>国产质量等级</span>
+          <strong>{selectedQualityLabel}</strong>
+        </div>
+        <div className="derating-config-stat">
+          <span>进口基线组</span>
+          <strong>{displayedBaseline?.group.label ?? '未选择'}</strong>
+        </div>
+        <div className={`derating-config-status is-${statusTone}`}>{status}</div>
+      </div>
+
+      <div className="derating-config-layout">
+        <EditorCard
+          title="输入文件映射"
+          subtitle="选择本工作区 00_inputs 下用于合规检查的源文件"
+          meta={<span>{inputFileOptions.length} 个可选文件</span>}
+        >
+          <div className="derating-file-grid">
             {inputFileEntries.map(([key, value]) => (
-              <label key={key} className="gnc-editor-field">
-                <span>{value.description || key}</span>
-                <select
-                  value={value.relative_path ?? ''}
-                  onChange={event => setConfig(updateInputFile(config, key, event.target.value, inputFileOptions))}
-                >
-                  <option value="">未选择</option>
-                  {inputFileOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </label>
+              <div key={key} className="derating-file-row">
+                <div className="derating-file-copy">
+                  <strong>{value.description || key}</strong>
+                  <span>{key}</span>
+                </div>
+                <label>
+                  <span>文件</span>
+                  <select
+                    value={value.relative_path ?? ''}
+                    onChange={event => setConfig(updateInputFile(config, key, event.target.value, inputFileOptions))}
+                  >
+                    <option value="">未选择</option>
+                    {inputFileOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </label>
+              </div>
             ))}
           </div>
         </EditorCard>
 
-        <EditorCard title="Domestic Quality Level" subtitle="quality_level from input_config.json">
-          <div className="gnc-form-grid">
-            <label className="gnc-editor-field wide">
-              <span>Quality Level</span>
+        <div className="derating-config-side">
+          <EditorCard title="国产质量等级" subtitle="设置降额检查要求的最低质量等级">
+            <label className="derating-select-field">
+              <span>最低要求</span>
               <select
                 value={config.quality_level?.selected ?? ''}
                 onChange={event => setConfig(updateQuality(config, event.target.value))}
@@ -242,13 +290,11 @@ export function ComplianceCheckInputConfigEditor({ activeContext }: ComplianceCh
                 {qualityOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
-          </div>
-        </EditorCard>
+          </EditorCard>
 
-        <EditorCard title="Import Baseline Group" subtitle="selected_import_baseline in quality_level">
-          <div className="gnc-form-grid">
-            <label className="gnc-editor-field wide">
-              <span>Baseline Group</span>
+          <EditorCard title="进口质量基线" subtitle="选择进口器件质量等级的对照基线">
+            <label className="derating-select-field">
+              <span>基线组</span>
               <select
                 value={displayedBaseline?.group.value ?? ''}
                 onChange={event => {
@@ -259,21 +305,28 @@ export function ComplianceCheckInputConfigEditor({ activeContext }: ComplianceCh
                 {importBaselineGroups.map(group => <option key={group.group.value} value={group.group.value}>{group.group.label}</option>)}
               </select>
             </label>
-          </div>
-        </EditorCard>
+          </EditorCard>
+        </div>
 
-        <EditorCard title="Import Quality Rules" subtitle="Four imported quality selections for the selected group">
-          <div className="gnc-form-grid">
+        <EditorCard
+          title="进口质量规则"
+          subtitle="按当前基线组设置各通道的质量等级判据"
+          meta={<span>{displayedBaseline?.fields.length ?? 0} 条规则</span>}
+        >
+          <div className="derating-rule-grid">
             {(displayedBaseline?.fields ?? []).map(field => (
-              <label key={field.key} className="gnc-editor-field">
-                <span>{field.label}</span>
+              <div key={field.key} className="derating-rule-row">
+                <div>
+                  <strong>{field.label}</strong>
+                  <span>{field.channel || field.key}</span>
+                </div>
                 <select
                   value={field.selected ?? field.options[0]?.value ?? ''}
                   onChange={event => setConfig(updateBaselineField(config, field.key, event.target.value))}
                 >
                   {field.options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
-              </label>
+              </div>
             ))}
           </div>
         </EditorCard>
