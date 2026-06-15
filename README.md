@@ -1,6 +1,6 @@
 # Open Codex Web
 
-Open Codex Web 是一个由 React 前端和 Fastify 后端组成的 Codex 工程工作台。项目通过根目录下的 `config.json` 读取 OpenAI/Codex、服务端口、工作区、语音和远程工具配置。
+Open Codex Web 是一个由 React 前端和 Fastify 后端组成的 Codex 工程工作台。项目通过根目录下的 `config.json` 读取模型、服务端口、工作区、语音和远程工具配置。
 
 ## 配置文件
 
@@ -19,10 +19,7 @@ cp config.example.json config.json
 
 | 字段 | 说明 |
 | --- | --- |
-| `openai.apiKey` | OpenAI 或兼容服务的 API Key。也可以用 `OPENAI_API_KEY` 环境变量覆盖。 |
-| `openai.baseUrl` | OpenAI 或兼容服务的 API Base URL。也可以用 `OPENAI_BASE_URL` 环境变量覆盖。 |
-| `openai.model` | Codex 默认使用的模型。 |
-| `chatModel` | routing、managed progress/general answer 使用的轻量模型配置，可独立设置 `apiKey`、`baseUrl`、`model`、`modelReasoningEffort`、`approvalPolicy`、`sandboxMode`、`skipGitRepoCheck`。 |
+| `chatModel` | 所有 Codex、routing、managed progress/general answer 使用的模型配置，可设置 `apiKey`、`baseUrl`、`model`、`modelProvider`、`wireApi`、`modelReasoningEffort`、`approvalPolicy`、`sandboxMode`、`skipGitRepoCheck`。环境变量 `CHAT_MODEL_API_KEY`、`CHAT_MODEL_BASE_URL`、`CHAT_MODEL_NAME` 可覆盖。 |
 | `codex.approvalPolicy` | Codex approval policy，例如 `never`、`on-request`。 |
 | `codex.sandboxMode` | Codex sandbox mode，例如 `workspace-write`、`danger-full-access`。 |
 | `codex.sandboxWorkspaceWriteNetworkAccess` | 当 `sandboxMode` 为 `workspace-write` 时是否允许 Agent 命令访问网络；需要连接本机 FreeCAD RPC 或 COMSOL 私有 `mphserver` 时应设为 `true`。 |
