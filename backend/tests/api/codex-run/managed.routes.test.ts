@@ -466,6 +466,21 @@ describe("managed run routes", () => {
 
       assert.equal(response.statusCode, 400)
       assert.deepEqual(response.json(), { error: "prompt or input is required" })
+
+      const invalidBackend = await server.inject({
+        method: "POST",
+        payload: {
+          input: "run a thermal workflow",
+          modelBackend: "local",
+          sessionId: "session-dispatch-validation",
+          turnId: "turn-dispatch-validation",
+          workspaceName: "thermal-demo",
+        },
+        url: "/api/run/managed/dispatch",
+      })
+
+      assert.equal(invalidBackend.statusCode, 400)
+      assert.deepEqual(invalidBackend.json(), { error: "modelBackend must be one of: openai, chatModel" })
     } finally {
       await server.close()
     }

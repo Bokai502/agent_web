@@ -17,8 +17,8 @@ const REGION_WORKSPACE_ROOT = configuredWorkspaceRoot
 const DEFAULT_WORKSPACE_ROOT = configuredWorkspaceRoot
 
 logger.info("backend starting", {
-  baseUrl: config.openai.baseUrl,
-  model: config.openai.model,
+  baseUrl: config.chatModel.baseUrl,
+  model: config.chatModel.model,
   port: config.server.port,
   sandboxWorkspaceWriteNetworkAccess: config.codex.sandboxWorkspaceWriteNetworkAccess,
 })
@@ -42,11 +42,12 @@ const fastify = Fastify({
 fastify.addHook("onRequest", async (request) => {
   const originalUrl = request.originalUrl ?? request.raw.url ?? request.url
   const isAuthRequest = originalUrl?.startsWith("/api/auth/") === true
+  const isInternalCodexRequest = originalUrl?.startsWith("/internal/codex/") === true
   const isGncRequest = originalUrl?.startsWith("/api/gnc/") === true
   const isRegionRequest = originalUrl?.startsWith("/api/region/") === true
   const baseWorkspaceRoot = isRegionRequest ? REGION_WORKSPACE_ROOT : isGncRequest ? GNC_WORKSPACE_ROOT : DEFAULT_WORKSPACE_ROOT
   const user = resolveRequestUser(request, config, baseWorkspaceRoot)
-  if (config.auth.enabled && !user.authenticated && !isAuthRequest) {
+  if (config.auth.enabled && !user.authenticated && !isAuthRequest && !isInternalCodexRequest) {
     throw Object.assign(new Error("authentication required"), { statusCode: 401 })
   }
   const workspaceRootOverride = path.resolve(user.workspaceRoot)

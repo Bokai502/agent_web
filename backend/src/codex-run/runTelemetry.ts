@@ -16,6 +16,12 @@ export function summarizeCodexEvent(event: unknown): Record<string, unknown> {
       text?: unknown
     }
     thread_id?: unknown
+    message?: unknown
+    error?: {
+      message?: unknown
+      code?: unknown
+      type?: unknown
+    }
   }
 
   const summary: Record<string, unknown> = {
@@ -24,6 +30,20 @@ export function summarizeCodexEvent(event: unknown): Record<string, unknown> {
 
   if (typeof record.thread_id === "string") {
     summary.threadId = record.thread_id
+  }
+
+  if (typeof record.message === "string") {
+    summary.message = record.message.length > 300
+      ? `${record.message.slice(0, 297)}...`
+      : record.message
+  }
+
+  if (record.error && typeof record.error === "object") {
+    summary.errorMessage = typeof record.error.message === "string"
+      ? record.error.message.slice(0, 300)
+      : record.error.message
+    summary.errorCode = record.error.code
+    summary.errorType = record.error.type
   }
 
   if (record.item && typeof record.item === "object") {

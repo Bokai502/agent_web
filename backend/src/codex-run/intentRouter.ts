@@ -1,5 +1,6 @@
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
+import { resolveModelBackend, type ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { readManagedPrompt, type SkillScope } from "../system/skills.js"
 import { normalizeRunInput } from "./runInput.js"
 import type { RunRequestBody } from "./runTypes.js"
@@ -156,38 +157,44 @@ function getResponseOutputText(payload: unknown) {
   const output = (payload as { output?: unknown }).output
   if (!Array.isArray(output)) return ""
   const parts: string[] = []
+  const fallbackParts: string[] = []
   for (const item of output) {
     if (!item || typeof item !== "object") continue
     const itemType = (item as { type?: unknown }).type
-    if (itemType === "reasoning") continue
     const content = (item as { content?: unknown }).content
     if (!Array.isArray(content)) continue
     for (const contentItem of content) {
       if (!contentItem || typeof contentItem !== "object") continue
       const contentType = (contentItem as { type?: unknown }).type
-      if (contentType === "reasoning_text") continue
       const text = (contentItem as { text?: unknown }).text
-      if (typeof text === "string" && text.trim()) parts.push(text.trim())
+      if (typeof text !== "string" || !text.trim()) continue
+      if (itemType === "reasoning" || contentType === "reasoning_text") {
+        fallbackParts.push(text.trim())
+      } else {
+        parts.push(text.trim())
+      }
     }
   }
-  return parts.join("\n").trim()
+  return (parts.length > 0 ? parts : fallbackParts).join("\n").trim()
 }
 
 async function createRoutingResponse({
   config,
   logger,
+  modelBackend,
   prompt,
   requestId,
   signal,
 }: {
   config: AppConfig
   logger: Logger
+  modelBackend: ResolvedModelBackend
   prompt: string
   requestId?: string
   signal: AbortSignal
 }) {
-  const baseUrl = config.chatModel.baseUrl.replace(/\/+$/u, "")
-  const model = config.chatModel.model
+  const baseUrl = modelBackend.baseUrl.replace(/\/+$/u, "")
+  const model = modelBackend.model
   const startedAt = process.hrtime.bigint()
   logger.info("responses api request started", {
     apiKind: "responses",
@@ -201,13 +208,13 @@ async function createRoutingResponse({
   const response = await fetch(`${baseUrl}/responses`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.chatModel.apiKey}`,
+      Authorization: `Bearer ${modelBackend.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       input: prompt.slice(0, 12_000),
       max_output_tokens: INTENT_ROUTER_OUTPUT_TOKENS,
-      model,
+      ...(model ? { model } : {}),
     }),
     signal,
   })
@@ -263,6 +270,7 @@ export async function routeManagedRunIntent(
   body: RunRequestBody,
   { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
 ): Promise<IntentRoutingResult> {
+  const modelBackend = resolveModelBackend(config, body.modelBackend)
   const userInput = getInputText(body)
   if (!userInput) return fallbackRouting(body)
 
@@ -285,6 +293,7 @@ export async function routeManagedRunIntent(
       createRoutingResponse({
         config,
         logger,
+        modelBackend,
         prompt,
         requestId,
         signal: abort.signal,
@@ -296,7 +305,8 @@ export async function routeManagedRunIntent(
     if (parsed) {
       logger.info("managed run intent routed", {
         intent: parsed.intent,
-        model: config.chatModel.model,
+        model: modelBackend.model,
+        modelBackend: modelBackend.id,
         managedSkills: parsed.managedSkills,
         requestId,
         selectedSkills: parsed.selectedSkills,
@@ -321,7 +331,8 @@ export async function routeManagedRunIntent(
           ? "gnc-workspace-or-request"
           : "general-default",
     intent: fallback.intent,
-    model: config.chatModel.model,
+    model: modelBackend.model,
+    modelBackend: modelBackend.id,
     managedSkills: fallback.managedSkills,
     requestId,
     managedPromptFile: managedPrompt.file,

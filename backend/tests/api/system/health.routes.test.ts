@@ -7,7 +7,7 @@ describe("GET /api/health", () => {
     mock.restoreAll()
   })
 
-  it("returns 200 when the configured OpenAI-compatible endpoint is reachable", async () => {
+  it("returns 200 when the configured chatModel endpoint is reachable", async () => {
     mock.method(globalThis, "fetch", async () => new Response("{}", { status: 200 }))
     const server = await createTestServer()
 
@@ -18,7 +18,7 @@ describe("GET /api/health", () => {
       assert.equal(response.statusCode, 200)
       assert.equal(body.ok, true)
       assert.equal(body.baseUrl, "http://127.0.0.1:9")
-      assert.equal(body.model, "test-model")
+      assert.equal(body.model, "test-chat-model")
     } finally {
       await server.close()
     }

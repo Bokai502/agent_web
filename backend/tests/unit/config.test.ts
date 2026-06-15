@@ -67,17 +67,19 @@ async function failLoadConfigInChild(env: Record<string, string | undefined>, co
 
 function minimalConfig(overrides: Record<string, any> = {}) {
   return {
+    openai: {
+      apiKey: "test-openai-key",
+      baseUrl: "http://127.0.0.1:9999",
+      model: "openai-model",
+    },
     chatModel: {
+      apiKey: "test-chat-key",
+      baseUrl: "http://127.0.0.1:8888",
       model: "chat-model",
     },
     frontend: {
       httpsPort: 5174,
       port: 5173,
-    },
-    openai: {
-      apiKey: "test-openai-key",
-      baseUrl: "http://127.0.0.1:9999",
-      model: "openai-model",
     },
     server: {
       port: 3001,
@@ -115,8 +117,8 @@ describe("loadConfig", () => {
   it("loads the project config with normalized defaults", async () => {
     const config = await loadConfigInChild()
 
-    assert.equal(typeof config.openai.apiKey, "string")
-    assert.equal(typeof config.openai.baseUrl, "string")
+    assert.equal(typeof config.chatModel.apiKey, "string")
+    assert.equal(typeof config.chatModel.baseUrl, "string")
     assert.equal(typeof config.chatModel.model, "string")
     assert.equal(typeof config.server.port, "number")
     assert.equal(config.frontend.strictPort, true)
@@ -127,6 +129,8 @@ describe("loadConfig", () => {
   it("applies environment overrides for auth, model, workspace, whisper, and cosyvoice settings", async () => {
     const config = await loadConfigInChild({
       BACKEND_PORT: "4567",
+      OPENAI_API_KEY: "env-openai-key",
+      OPENAI_BASE_URL: "http://127.0.0.1:4569",
       CHAT_MODEL_API_KEY: "env-chat-key",
       CHAT_MODEL_BASE_URL: "http://127.0.0.1:4568",
       CHAT_MODEL_NAME: "env-chat-model",
@@ -142,8 +146,6 @@ describe("loadConfig", () => {
       COSYVOICE_TTS_CACHE_MAX_ITEMS: "3",
       COSYVOICE_TTS_CACHE_TTL_MS: "4000",
       COSYVOICE_TTS_MAX_TEXT_LENGTH: "120",
-      OPENAI_API_KEY: "env-openai-key",
-      OPENAI_BASE_URL: "http://127.0.0.1:4569",
       WHISPER_CPP_BIN: "/tmp/whisper",
       WHISPER_CUDA_VISIBLE_DEVICES: "0",
       WHISPER_FFMPEG_BIN: "/tmp/ffmpeg",
@@ -210,15 +212,6 @@ describe("loadConfig", () => {
         publicHost: "public.local",
         strictPort: "false",
       },
-      openai: {
-        apiKey: "openai-key",
-        base_url: "http://127.0.0.1:7777",
-        model: "openai-model",
-        model_provider: "provider",
-        model_provider_name: "Provider Name",
-        supports_websockets: "true",
-        wire_api: "responses",
-      },
       server: {
         port: 3001,
       },
@@ -233,12 +226,8 @@ describe("loadConfig", () => {
       },
     })))
 
-    assert.equal(config.openai.baseUrl, "http://127.0.0.1:7777")
-    assert.equal(config.openai.modelProvider, "provider")
-    assert.equal(config.openai.modelProviderName, "Provider Name")
-    assert.equal(config.openai.supportsWebsockets, true)
-    assert.equal(config.openai.wireApi, "responses")
     assert.equal(config.chatModel.apiKey, "legacy-chat-key")
+    assert.equal(config.chatModel.baseUrl, "http://127.0.0.1:8888")
     assert.equal(config.chatModel.approvalPolicy, "on-request")
     assert.equal(config.chatModel.modelReasoningEffort, "high")
     assert.equal(config.chatModel.sandboxMode, "workspace-write")
@@ -301,9 +290,6 @@ describe("loadConfig", () => {
       [{ CHAT_MODEL_BASE_URL: "not a url" }, /chatModel\.baseUrl 不是合法 URL/u],
       [{ CHAT_MODEL_NAME: "" }, /chatModel\.model 未设置/u],
       [{ CODEX_AUTH_ENABLED: "maybe" }, /auth\.enabled 必须是布尔值/u],
-      [{ OPENAI_API_KEY: "" }, /openai\.apiKey 未设置/u],
-      [{ OPENAI_API_KEY: "sk-REPLACE-ME" }, /openai\.apiKey 仍是占位符/u],
-      [{ OPENAI_BASE_URL: "not a url" }, /openai\.baseUrl 不是合法 URL/u],
       [{ WORKSPACE_TEXT_CHUNK_BYTES: "0" }, /workspace\.textChunkBytes 必须是正整数/u],
       [{ WORKSPACE_TEXT_FILE_MAX_BYTES: "NaN" }, /workspace\.textFileMaxBytes 必须是数字/u],
     ]
@@ -319,13 +305,19 @@ describe("loadConfig", () => {
   it("rejects malformed config file values", async () => {
     const cases: Array<[Record<string, any> | string, RegExp]> = [
       ["{", /config\.json 不是合法 JSON/u],
+      [minimalConfig({ openai: { apiKey: "   ", baseUrl: "http://127.0.0.1:9999" } }), /openai\.apiKey 未设置/u],
+      [minimalConfig({ openai: { apiKey: "sk-REPLACE-ME", baseUrl: "http://127.0.0.1:9999" } }), /openai\.apiKey 仍是占位符/u],
+      [minimalConfig({ openai: { apiKey: "test-openai-key", baseUrl: "" } }), /openai\.baseUrl 未设置/u],
+      [minimalConfig({ openai: { apiKey: "test-openai-key", baseUrl: "notaurl" } }), /openai\.baseUrl 不是合法 URL/u],
+      [minimalConfig({ openai: { apiKey: "test-openai-key", base_url: 1 } }), /openai\.base_url 必须是字符串/u],
+      [minimalConfig({ openai: { apiKey: "test-openai-key", baseUrl: "http://127.0.0.1:9999", supportsWebsockets: "maybe" } }), /openai\.supportsWebsockets 必须是布尔值/u],
       [minimalConfig({ frontend: { httpsPort: 5174, port: 0 } }), /frontend\.port 必须是正整数/u],
       [minimalConfig({ frontend: { httpsPort: 5174 } }), /frontend\.port 未设置/u],
       [minimalConfig({ frontend: { host: 123, httpsPort: 5174, port: 5173 } }), /frontend\.host 必须是字符串/u],
       [minimalConfig({ chatModel: { apiKey: "   ", model: "chat-model" } }), /chatModel\.apiKey 未设置/u],
-      [minimalConfig({ chatModel: { baseUrl: "", model: "chat-model" }, openai: { apiKey: "key", baseUrl: "", model: "openai-model" } }), /openai\.baseUrl 未设置/u],
+      [minimalConfig({ chatModel: { baseUrl: "", model: "chat-model" } }), /chatModel\.baseUrl 未设置/u],
       [minimalConfig({ chatModel: { baseUrl: "notaurl", model: "chat-model" } }), /chatModel\.baseUrl 不是合法 URL/u],
-      [minimalConfig({ openai: { apiKey: "key", baseUrl: "http://127.0.0.1:1", supportsWebsockets: "maybe" } }), /openai\.supportsWebsockets 必须是布尔值/u],
+      [minimalConfig({ chatModel: { model: "chat-model", supportsWebsockets: "maybe" } }), /chatModel\.supportsWebsockets 必须是布尔值/u],
       [minimalConfig({ chatModel: { approvalPolicy: "always", model: "chat-model" } }), /chatModel\.approvalPolicy 必须是以下值之一/u],
       [minimalConfig({ chatModel: { model: "chat-model", modelReasoningEffort: 1 } }), /chatModel\.modelReasoningEffort 必须是字符串/u],
       [minimalConfig({ chatModel: { base_url: 1, model: "chat-model" } }), /chatModel\.base_url 必须是字符串/u],

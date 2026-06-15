@@ -86,4 +86,33 @@ describe("buildSdkInput", () => {
     assert.deepEqual(result[2], input[2])
     assert.doesNotMatch(result[1].text, /Agent guide:/u)
   })
+
+  it("can compact skill instructions for internal Responses-compatible models", () => {
+    const input: RunInputItem[] = [{ type: "text", text: "thermal task" }]
+    const longSkillBody = [
+      "---",
+      "name: freecad",
+      "description: Full body",
+      "---",
+      "# FreeCAD",
+      "Detailed command rule ".repeat(500),
+    ].join("\n")
+    const result = buildSdkInput(input, context, true, "", [
+      {
+        content: longSkillBody,
+        description: "FreeCAD workflow",
+        file: "/repo/freecad/SKILL.md",
+        name: "freecad",
+      },
+    ], { compactSkillInstructions: true })
+
+    assert.ok(Array.isArray(result))
+    const first = result[0]
+    assert.equal(first.type, "text")
+    assert.match(first.text, /compact mode is active/u)
+    assert.match(first.text, /Source: \/repo\/freecad\/SKILL\.md/u)
+    assert.match(first.text, /read its Source file/u)
+    assert.doesNotMatch(first.text, /Detailed command rule Detailed command rule/u)
+    assert.ok(first.text.length < 4000)
+  })
 })

@@ -3,8 +3,8 @@
     "apiKey": "xxx",
     "baseUrl": "https://token.satlab.sbs/v1",
     "model": "gpt-5.5",
-    "modelProvider": "nexahub",
-    "modelProviderName": "NexaHub",
+    "modelProvider": "custom",
+    "modelProviderName": "custom",
     "wireApi": "responses",
     "supportsWebsockets": false
   },
@@ -12,9 +12,13 @@
     "apiKey": "xxx",
     "baseUrl": "http://10.110.34.83:4000/v1",
     "model": "Qwen3.6",
+    "modelProvider": "nexahub",
+    "modelProviderName": "NexaHub",
+    "wireApi": "responses",
+    "supportsWebsockets": false,
     "modelReasoningEffort": "low",
     "approvalPolicy": "never",
-    "sandboxMode": "read-only",
+    "sandboxMode": "workspace-write",
     "skipGitRepoCheck": true
   },
   "auth": {
@@ -32,14 +36,14 @@
     "skipGitRepoCheck": true
   },
   "server": {
-    "port": 3102,
+    "port": 3002,
     "host": "0.0.0.0"
   },
   "frontend": {
     "host": "0.0.0.0",
     "publicHost": "10.110.10.11",
-    "port": 5274,
-    "httpsPort": 5275,
+    "port": 5174,
+    "httpsPort": 5175,
     "strictPort": true
   },
   "tmux": {
@@ -107,7 +111,7 @@
     "plannerReasoningEffort": "high",
     "plannerWorkingDirectory": "xxx",
     "plannerTimeoutMs": 120000,
-    "plannerSandboxMode": "read-only",
+    "plannerSandboxMode": "workspace-write",
     "plannerSkipGitRepoCheck": true
   },
   "compliance": {
@@ -142,7 +146,7 @@
     "filesystemGroup": "xieteam",
     "rpcHost": "localhost",
     "rpcPort": 9877,
-    "componentInfoMaxStepSizeMb": 5,
+    "componentInfoMaxStepSizeMb": 6.5,
     "filePreviewMaxBytes": 5242880,
     "textFileMaxBytes": 67108864,
     "textChunkBytes": 1048576,

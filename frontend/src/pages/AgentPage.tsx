@@ -16,7 +16,7 @@ import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentVoiceExchange } from './agent/AgentVoiceExchange'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
-import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex } from './agent/managedRun'
+import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -55,6 +55,7 @@ export default function AgentPage() {
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
   const [inputMode, setInputMode] = useState<AgentInputMode>('text')
+  const [modelBackend, setModelBackend] = useState<ManagedModelBackend>('chatModel')
   const [textInput, setTextInput] = useState('')
   const [textInputDisplay, setTextInputDisplay] = useState('')
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
@@ -229,6 +230,7 @@ export default function AgentPage() {
     setManagedVoiceRunning,
   } = useManagedAgentRun({
     activeContext,
+    modelBackend,
     refreshWorkspaceViews,
     resetProgressDataRef,
     setBranchManifest: versionState.setBranchManifest,
@@ -266,6 +268,7 @@ export default function AgentPage() {
         ? await cancelManagedCodex(runningManagedStatus.managedRunId)
         : await summarizeManagedCodex({
             input: '请总结当前或刚才停止的 Codex 任务已经完成的进度和结果。',
+            modelBackend,
             sessionId,
             threadId,
             workspace: {
@@ -295,7 +298,7 @@ export default function AgentPage() {
     } finally {
       setStopSummaryPending(false)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, latestManagedStatus, refreshWorkspaceViews, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, latestManagedStatus, modelBackend, refreshWorkspaceViews, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
   const {
     cancelRecording,
     clearRecorderDisplay,
@@ -489,8 +492,10 @@ export default function AgentPage() {
         dataSourceLabel={dataSourceLabel}
         agentTheme={agentTheme}
         inputMode={inputMode}
+        modelBackend={modelBackend}
         onAgentThemeChange={handleAgentThemeChange}
         onInputModeChange={handleInputModeChange}
+        onModelBackendChange={setModelBackend}
         onConversationToggle={() => setConversationPanelOpen(open => !open)}
         portStatus={remoteToolPortStatus}
         portStatusError={remoteToolPortError}

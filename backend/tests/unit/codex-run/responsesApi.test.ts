@@ -35,6 +35,19 @@ describe("Responses API helpers", () => {
     }), "visible answer")
   })
 
+  it("uses reasoning text as a fallback for compatible Responses providers", () => {
+    assert.equal(getResponseOutputText({
+      output: [
+        {
+          type: "reasoning",
+          content: [
+            { type: "reasoning_text", text: " fallback answer " },
+          ],
+        },
+      ],
+    }), "fallback answer")
+  })
+
   it("posts trimmed configuration to /responses and returns parsed text", async () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = []
     mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
