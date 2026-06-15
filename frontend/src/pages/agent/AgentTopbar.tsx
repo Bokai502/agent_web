@@ -3,6 +3,7 @@ import { APP_NAVIGATION_EVENT } from '../../app/sessionUtils'
 import type { WorkspaceSessionStatus } from '../workspace/workspaceSessionVisibility'
 
 type AgentInputMode = 'voice' | 'text'
+type AgentModelBackend = 'openai' | 'chatModel'
 type AgentTheme = 'dark' | 'light'
 
 type AuthMe = {
@@ -52,8 +53,10 @@ type AgentTopbarProps = {
   conversationOpen: boolean
   dataSourceLabel: string
   inputMode: AgentInputMode
+  modelBackend: AgentModelBackend
   onAgentThemeChange: (nextTheme: AgentTheme) => void
   onInputModeChange: (nextMode: AgentInputMode) => void
+  onModelBackendChange: (nextBackend: AgentModelBackend) => void
   onConversationToggle: () => void
   portStatus: RemoteToolPortSummary | null
   portStatusError: string
@@ -76,8 +79,10 @@ export function AgentTopbar({
   conversationOpen,
   dataSourceLabel,
   inputMode,
+  modelBackend,
   onAgentThemeChange,
   onInputModeChange,
+  onModelBackendChange,
   onConversationToggle,
   portStatus,
   portStatusError,
@@ -238,6 +243,27 @@ export function AgentTopbar({
                     onClick={() => onInputModeChange('text')}
                   >
                     文字
+                  </button>
+                </div>
+              </div>
+              <div className="agent-port-mode-row">
+                <span>模型</span>
+                <div className="agent-input-mode-switch" role="group" aria-label="模型">
+                  <button
+                    type="button"
+                    className={modelBackend === 'openai' ? 'is-active' : ''}
+                    aria-pressed={modelBackend === 'openai'}
+                    onClick={() => onModelBackendChange('openai')}
+                  >
+                    OpenAI
+                  </button>
+                  <button
+                    type="button"
+                    className={modelBackend === 'chatModel' ? 'is-active' : ''}
+                    aria-pressed={modelBackend === 'chatModel'}
+                    onClick={() => onModelBackendChange('chatModel')}
+                  >
+                    内网模型
                   </button>
                 </div>
               </div>
