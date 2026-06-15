@@ -76,6 +76,11 @@ const TEXT_FILE_EXTENSIONS = new Set([
   ".yml",
 ])
 
+const OFFICE_FILE_MIME_TYPES = new Map([
+  [".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  [".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+])
+
 type WorkspaceProgressData = {
   data: unknown
   sourcePath: string
@@ -272,19 +277,20 @@ async function readWorkspaceFileContent(workspaceDir: string, relativePath: unkn
     ? "text/markdown"
     : extension === ".json"
       ? "application/json"
-      : extension === ".png"
-        ? "image/png"
-        : extension === ".jpg" || extension === ".jpeg"
-          ? "image/jpeg"
-          : extension === ".webp"
-            ? "image/webp"
-            : extension === ".gif"
-              ? "image/gif"
-              : TEXT_FILE_EXTENSIONS.has(extension)
-                ? "text/plain"
-                : "application/octet-stream"
+      : OFFICE_FILE_MIME_TYPES.get(extension) ?? (extension === ".png"
+          ? "image/png"
+          : extension === ".jpg" || extension === ".jpeg"
+            ? "image/jpeg"
+            : extension === ".webp"
+              ? "image/webp"
+              : extension === ".gif"
+                ? "image/gif"
+                : TEXT_FILE_EXTENSIONS.has(extension)
+                  ? "text/plain"
+                  : "application/octet-stream")
   const isImage = mimeType.startsWith("image/")
   const isText = mimeType.startsWith("text/") || mimeType === "application/json"
+  const isOfficePreview = OFFICE_FILE_MIME_TYPES.has(extension)
 
   if (isImage) {
     const data = await fs.readFile(targetPath)
@@ -310,6 +316,20 @@ async function readWorkspaceFileContent(workspaceDir: string, relativePath: unkn
       relativePath: normalizedRelativePath,
       size: stat.size,
       type: "text",
+    }
+  }
+
+  if (isOfficePreview && stat.size <= workspaceFileLimits.filePreviewMaxBytes) {
+    const data = await fs.readFile(targetPath)
+    return {
+      contentBase64: data.toString("base64"),
+      encoding: "base64",
+      mimeType,
+      mtimeMs: stat.mtimeMs,
+      name: path.basename(targetPath),
+      relativePath: normalizedRelativePath,
+      size: stat.size,
+      type: "binary",
     }
   }
 
