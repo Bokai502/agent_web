@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
-import { executeCodexTurn, prepareCodexTurn, RunRequestError } from "./codexTurn.js"
+import { executeCodexTurn, prepareCodexTurn } from "./codexTurn.js"
 import { registerInputFilesRoute } from "./inputFiles.routes.js"
+import { RunRequestError } from "./runErrors.js"
 import type { RunRequestBody } from "./runTypes.js"
 
 export async function taskRoutes(

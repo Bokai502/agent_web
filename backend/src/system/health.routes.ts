@@ -13,27 +13,27 @@ export interface HealthResult {
 }
 
 export async function checkCodexEndpoint(config: AppConfig): Promise<HealthResult> {
-  const baseUrl = config.openai.baseUrl.replace(/\/+$/, "")
+  const baseUrl = config.chatModel.baseUrl.replace(/\/+$/, "")
   const url = `${baseUrl}/models`
   const t0 = Date.now()
   try {
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${config.openai.apiKey}` },
+      headers: { Authorization: `Bearer ${config.chatModel.apiKey}` },
       signal: AbortSignal.timeout(5000),
     })
     const latencyMs = Date.now() - t0
     if (res.status === 401 || res.status === 403) {
-      return { ok: false, baseUrl, model: config.openai.model, latencyMs, reason: "auth_failed", status: res.status }
+      return { ok: false, baseUrl, model: config.chatModel.model, latencyMs, reason: "auth_failed", status: res.status }
     }
     if (!res.ok) {
-      return { ok: false, baseUrl, model: config.openai.model, latencyMs, reason: "bad_status", status: res.status }
+      return { ok: false, baseUrl, model: config.chatModel.model, latencyMs, reason: "bad_status", status: res.status }
     }
-    return { ok: true, baseUrl, model: config.openai.model, latencyMs }
+    return { ok: true, baseUrl, model: config.chatModel.model, latencyMs }
   } catch (err) {
     return {
       ok: false,
       baseUrl,
-      model: config.openai.model,
+      model: config.chatModel.model,
       reason: "unreachable",
       error: err instanceof Error ? err.message : String(err),
     }

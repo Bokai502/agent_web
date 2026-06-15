@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { cancelManagedRunAndSummarize, getLatestManagedStatusForWorkspace, getManagedRunEvents, getManagedRunStatus, runAgentTurn, subscribeManagedRunStatus, summarizeManagedProgress, type ManagedRunEvent } from "./agentOrchestrator.js"
-import { RunRequestError } from "./codexTurn.js"
+import { RunRequestError } from "./runErrors.js"
 import type { RunRequestBody } from "./runTypes.js"
 
 export async function managedRunRoutes(

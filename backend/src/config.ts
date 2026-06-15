@@ -35,9 +35,14 @@ export interface AppConfig {
     approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted"
     baseUrl: string
     model: string
+    modelProvider: string | null
+    modelProviderName: string | null
     modelReasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh"
     sandboxMode: "read-only" | "workspace-write" | "danger-full-access"
     skipGitRepoCheck: boolean
+    wireApi: string | null
+    supportsWebsockets: boolean | null
+    responsesCompat: boolean | null
   }
   codex: {
     modelReasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh"
@@ -130,9 +135,14 @@ type RawChatModelConfig = Partial<AppConfig["chatModel"]> & {
   api_key?: unknown
   base_url?: unknown
   approval_policy?: unknown
+  model_provider?: unknown
+  model_provider_name?: unknown
   model_reasoning_effort?: unknown
   sandbox_mode?: unknown
   skip_git_repo_check?: unknown
+  wire_api?: unknown
+  supports_websockets?: unknown
+  responses_compat?: unknown
 }
 
 type RawConfig = Partial<AppConfig> & {
@@ -194,6 +204,12 @@ function optionalString(value: unknown, field: string): string | null {
   return trimmed || null
 }
 
+function stringValue(value: unknown, field: string): string | null {
+  if (value == null) return null
+  if (typeof value !== "string") die(`${field} 必须是字符串。`)
+  return value
+}
+
 function optionalBoolean(value: unknown, field: string): boolean | null {
   if (value == null) return null
   if (typeof value === "boolean") return value
@@ -241,7 +257,7 @@ export function loadConfig(): AppConfig {
   if (!fs.existsSync(CONFIG_FILE)) {
     die(
       `配置文件不存在: ${CONFIG_FILE}\n` +
-      `请在 open_codex_web/config.json 中配置 openai、server、frontend、workspace 等参数后再启动。`
+      `请在 open_codex_web/config.json 中配置 openai、chatModel、server、frontend、workspace 等参数后再启动。`
     )
   }
 
@@ -272,16 +288,53 @@ export function loadConfig(): AppConfig {
     openai.supportsWebsockets ?? openai.supports_websockets,
     "openai.supportsWebsockets",
   )
-
   if (!apiKey) die("openai.apiKey 未设置（或为空）。")
   if (apiKey === "sk-REPLACE-ME") die("openai.apiKey 仍是占位符，请填真实 key。")
   if (!baseUrl) die("openai.baseUrl 未设置（或为空）。")
   try { new URL(baseUrl) } catch { die(`openai.baseUrl 不是合法 URL: ${baseUrl}`) }
 
   const chatModelConfig: RawChatModelConfig = cfg.chatModel ?? cfg.chat_model ?? {}
-  const chatApiKey = (envChatKey ?? chatModelConfig.apiKey ?? optionalString(chatModelConfig.api_key, "chatModel.api_key") ?? "EMPTY").trim()
-  const chatBaseUrl = (envChatBase ?? chatModelConfig.baseUrl ?? optionalString(chatModelConfig.base_url, "chatModel.base_url") ?? baseUrl).trim()
-  const chatModel = (envChatModel ?? chatModelConfig.model ?? model ?? "").trim()
+  const chatApiKeyValue = stringValue(chatModelConfig.apiKey, "chatModel.apiKey")
+  const chatBaseUrlValue = stringValue(chatModelConfig.baseUrl, "chatModel.baseUrl")
+  const chatModelValue = stringValue(chatModelConfig.model, "chatModel.model")
+  const chatApiKey = (
+    envChatKey ??
+    chatApiKeyValue ??
+    optionalString(chatModelConfig.api_key, "chatModel.api_key") ??
+    "EMPTY"
+  ).trim()
+  const chatBaseUrl = (
+    envChatBase ??
+    chatBaseUrlValue ??
+    optionalString(chatModelConfig.base_url, "chatModel.base_url") ??
+    baseUrl
+  ).trim()
+  const chatModel = (
+    envChatModel ??
+    chatModelValue ??
+    model ??
+    ""
+  ).trim()
+  const chatModelProvider = optionalString(
+    chatModelConfig.modelProvider ?? chatModelConfig.model_provider,
+    "chatModel.modelProvider",
+  )
+  const chatModelProviderName = optionalString(
+    chatModelConfig.modelProviderName ?? chatModelConfig.model_provider_name,
+    "chatModel.modelProviderName",
+  )
+  const chatWireApi = optionalString(
+    chatModelConfig.wireApi ?? chatModelConfig.wire_api,
+    "chatModel.wireApi",
+  )
+  const chatSupportsWebsockets = optionalBoolean(
+    chatModelConfig.supportsWebsockets ?? chatModelConfig.supports_websockets,
+    "chatModel.supportsWebsockets",
+  )
+  const chatResponsesCompat = optionalBoolean(
+    chatModelConfig.responsesCompat ?? chatModelConfig.responses_compat,
+    "chatModel.responsesCompat",
+  )
   const chatModelReasoningEffort = optionalEnum(
     chatModelConfig.modelReasoningEffort ?? chatModelConfig.model_reasoning_effort,
     "chatModel.modelReasoningEffort",
@@ -360,9 +413,14 @@ export function loadConfig(): AppConfig {
       approvalPolicy: chatApprovalPolicy ?? "never",
       baseUrl: chatBaseUrl,
       model: chatModel,
+      modelProvider: chatModelProvider,
+      modelProviderName: chatModelProviderName,
       modelReasoningEffort: chatModelReasoningEffort ?? "medium",
       sandboxMode: chatSandboxMode ?? "read-only",
       skipGitRepoCheck: chatSkipGitRepoCheck ?? true,
+      wireApi: chatWireApi,
+      supportsWebsockets: chatSupportsWebsockets,
+      responsesCompat: chatResponsesCompat,
     },
     codex: {
       modelReasoningEffort: codex.modelReasoningEffort ?? "medium",

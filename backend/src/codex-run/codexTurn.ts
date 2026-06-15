@@ -4,6 +4,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
+import { resolveModelBackend, type ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { getString } from "../shared/index.js"
 import { initializeWorkspaceProgressForSession } from "../workspaces/workspaceProgressInit.js"
 import { resolveWorkspaceDir } from "../workspaces/workspaceManager.js"
@@ -12,22 +13,15 @@ import { createRun, patchRun, resolveRunWorkspaceContext } from "../manifests/st
 import { isGncRequestContext } from "../server/requestContext.js"
 import { getWorkspaceSkillScopes, readScopedSkillInstructions, readSkillInstructions, type SkillInstruction, type SkillScope } from "../system/skills.js"
 import { ASK_USER_TAG_START, extractAskUserPayload } from "./askUserProtocol.js"
-import { buildCodexConfig } from "./codexConfig.js"
+import { buildCodexConfig, getCodexBaseUrl } from "./codexConfig.js"
 import { buildSdkInput, readAgentGuide, shouldInjectPromptPrefixForSession } from "./promptPrefix.js"
+import { RunRequestError } from "./runErrors.js"
 import { getInputTextLength, normalizeRunInput, summarizeInput } from "./runInput.js"
 import { completeRunSessionTurn, ensureRunSession, persistRunSessionTurn } from "./runSessionStore.js"
 import { elapsedMs, summarizeCodexEvent } from "./runTelemetry.js"
 import type { RunContext, RunInputItem, RunRequestBody } from "./runTypes.js"
 
-export class RunRequestError extends Error {
-  statusCode: number
-
-  constructor(statusCode: number, message: string) {
-    super(message)
-    this.name = "RunRequestError"
-    this.statusCode = statusCode
-  }
-}
+export { RunRequestError } from "./runErrors.js"
 
 type PreparedRun = {
   config: AppConfig
@@ -35,6 +29,7 @@ type PreparedRun = {
   effectiveWorkingDirectory: string
   logger: Logger
   manifestRunId: string | null
+  modelBackend: ResolvedModelBackend
   normalizedInput: RunInputItem[]
   promptTextForHistory: string
   requestedWorkspaceName: string | null
@@ -212,6 +207,7 @@ export async function prepareCodexTurn(
   },
 ): Promise<PreparedRun> {
   const { prompt, input, sessionId, threadId, turnId, enabledSkills } = body
+  const modelBackend = resolveModelBackend(config, body.modelBackend)
   const skillNames = (enabledSkills ?? [])
     .filter(s => typeof s === "string" && s.trim() !== "")
     .map(s => s.trim())
@@ -287,7 +283,10 @@ export async function prepareCodexTurn(
 
   const injectPromptPrefix = injectSessionPrefix || skillInstructions.length > 0
   const agentGuide = injectSessionPrefix ? await readAgentGuide() : ""
-  const sdkInput = buildSdkInput(sdkInputBase, runContext, injectPromptPrefix, agentGuide, skillInstructions)
+  const compactSkillInstructions = modelBackend.id === "chatModel" && skillInstructions.length > 0
+  const sdkInput = buildSdkInput(sdkInputBase, runContext, injectPromptPrefix, agentGuide, skillInstructions, {
+    compactSkillInstructions,
+  })
   const requestStartedAt = process.hrtime.bigint()
 
   await ensureRunSession({
@@ -335,11 +334,12 @@ export async function prepareCodexTurn(
     turnId: trimmedTurnId,
     workspaceId: runContext.workspaceId,
     versionId: runContext.versionId,
-    baseUrl: config.openai.baseUrl,
-    model: config.openai.model,
-    modelProvider: config.openai.modelProvider,
-    wireApi: config.openai.wireApi,
-    supportsWebsockets: config.openai.supportsWebsockets,
+    modelBackend: modelBackend.id,
+    baseUrl: modelBackend.baseUrl,
+    model: modelBackend.model,
+    modelProvider: modelBackend.modelProvider,
+    wireApi: modelBackend.wireApi,
+    supportsWebsockets: modelBackend.supportsWebsockets,
     modelReasoningEffort: config.codex.modelReasoningEffort,
     workingDirectory: effectiveWorkingDirectory,
     workspaceDir: runContext.workspaceDir,
@@ -352,6 +352,7 @@ export async function prepareCodexTurn(
     sdkInputTextChars: getInputTextLength(Array.isArray(sdkInput) ? sdkInput : sdkInputBase),
     promptPrefixInjected: injectPromptPrefix,
     agentGuideInjected: injectSessionPrefix && agentGuide.trim() !== "",
+    compactSkillInstructions,
     skillInstructionsInjected: skillInstructions.map(skill => skill.name),
     input: summarizeInput(sdkInputBase),
     enabledSkills: skillNames,
@@ -376,6 +377,7 @@ export async function prepareCodexTurn(
     effectiveWorkingDirectory,
     logger,
     manifestRunId,
+    modelBackend,
     normalizedInput: sdkInputBase,
     promptTextForHistory,
     requestedWorkspaceName,
@@ -403,6 +405,7 @@ export async function executeCodexTurn(
     effectiveWorkingDirectory,
     logger,
     manifestRunId,
+    modelBackend,
     normalizedInput,
     promptTextForHistory,
     requestedWorkspaceName,
@@ -448,17 +451,17 @@ export async function executeCodexTurn(
   }
 
   try {
-    const codexConfig = buildCodexConfig(config)
+    const codexConfig = buildCodexConfig(config, modelBackend)
     const bundledCliSrcDirs = getBundledAgentCliSrcDirs()
     const codex = new Codex({
-      apiKey: config.openai.apiKey,
-      baseUrl: config.openai.baseUrl,
+      apiKey: modelBackend.apiKey,
+      baseUrl: getCodexBaseUrl(config, modelBackend),
       config: codexConfig,
       env: buildCodexEnv(),
     })
 
     const threadOptions = {
-      ...(config.openai.model ? { model: config.openai.model } : {}),
+      ...(modelBackend.model ? { model: modelBackend.model } : {}),
       ...(bundledCliSrcDirs.length > 0 ? { additionalDirectories: bundledCliSrcDirs } : {}),
       workingDirectory: effectiveWorkingDirectory,
       approvalPolicy: config.codex.approvalPolicy,

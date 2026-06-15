@@ -508,34 +508,15 @@ async function buildChecks(config, args) {
     })
   }
 
-  const openai = config.openai ?? {}
-  if (openai.baseUrl && openai.apiKey) {
-    checks.push({
-      group: "model-api",
-      name: "OpenAI-compatible /models",
-      target: maskUrl(resolveUrl(openai.baseUrl, "/models")),
-      required: true,
-      run: () => openAiModelsCheck({ baseUrl: openai.baseUrl, apiKey: openai.apiKey, timeoutMs: args.timeoutMs }),
-    })
-    if (openai.model) {
-      checks.push({
-        group: "model-api",
-        name: "OpenAI-compatible /responses",
-        target: `${maskUrl(resolveUrl(openai.baseUrl, "/responses"))} model=${openai.model}`,
-        required: true,
-        skip: args.quick ? "skipped by --quick" : null,
-        run: () => responsesCheck({
-          baseUrl: openai.baseUrl,
-          apiKey: openai.apiKey,
-          model: openai.model,
-          timeoutMs: Math.max(args.timeoutMs, 30000),
-        }),
-      })
-    }
-  }
-
   const chatModel = config.chatModel ?? config.chat_model ?? {}
   if (chatModel.baseUrl && chatModel.apiKey && chatModel.model) {
+    checks.push({
+      group: "model-api",
+      name: "chatModel /models",
+      target: maskUrl(resolveUrl(chatModel.baseUrl, "/models")),
+      required: true,
+      run: () => openAiModelsCheck({ baseUrl: chatModel.baseUrl, apiKey: chatModel.apiKey, timeoutMs: args.timeoutMs }),
+    })
     checks.push({
       group: "model-api",
       name: "chatModel /responses",

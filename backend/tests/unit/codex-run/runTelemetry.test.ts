@@ -33,6 +33,20 @@ describe("runTelemetry", () => {
     assert.equal(summary.textLength, 14)
   })
 
+  it("includes Codex error event details in summaries", () => {
+    const summary = summarizeCodexEvent({
+      error: { code: "do_request_failed", message: "upstream failed", type: "new_api_error" },
+      message: "Reconnecting... 1/5",
+      type: "error",
+    })
+
+    assert.equal(summary.eventType, "error")
+    assert.equal(summary.message, "Reconnecting... 1/5")
+    assert.equal(summary.errorMessage, "upstream failed")
+    assert.equal(summary.errorCode, "do_request_failed")
+    assert.equal(summary.errorType, "new_api_error")
+  })
+
   it("detects terminal events worth persisting", () => {
     assert.equal(hasPersistableTerminalEvent([]), false)
     assert.equal(hasPersistableTerminalEvent([{ type: "item.completed" }]), false)
