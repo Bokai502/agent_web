@@ -46,6 +46,7 @@ type AgentWorkspacePanelProps = {
   requestDeleteVersion: CurrentWorkspaceCardProps['onRequestDeleteVersion']
   showComplianceCheckConfig: boolean
   showGncConfig: boolean
+  showModelPreview: boolean
   switchActiveWorkspace: CurrentWorkspaceCardProps['onSelectWorkspace']
   t: TFunction
   toolUrls: Partial<Record<AgentToolView, string>>
@@ -99,6 +100,7 @@ export function AgentWorkspacePanel({
   requestDeleteVersion,
   showComplianceCheckConfig,
   showGncConfig,
+  showModelPreview,
   switchActiveWorkspace,
   t,
   toolUrls,
@@ -221,12 +223,14 @@ export function AgentWorkspacePanel({
             selectedBom={selectedBom}
             t={t}
           />
-        ) : activeView === 'model' ? (
+        ) : activeView === 'model' && showModelPreview ? (
           activeContext.versionDir ? (
             <iframe className="agent-embed-frame" title="结果预览" src={viewerHref} />
           ) : (
             <div className="agent-empty-state">等待当前任务生成结果预览</div>
           )
+        ) : activeView === 'model' ? (
+          <div className="agent-empty-state">当前任务没有 3D 结果预览</div>
         ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
           <GncDashboardPanel activeContext={activeContext} />
         ) : activeView === 'tools' ? (

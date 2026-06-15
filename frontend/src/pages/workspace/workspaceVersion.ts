@@ -54,6 +54,16 @@ export type WorkspaceVersionContext = {
   workspaceItem: WorkspaceItem | null
 }
 
+export type WorkspaceIdentity = {
+  manifestRoot?: string | null
+  sourceWorkspaceDir?: string | null
+  versionDir?: string | null
+  workspaceId?: string | null
+  workspaceKey?: string | null
+  workspaceName?: string | null
+  workspaceRoot?: string | null
+}
+
 function isVersionWorkspaceDir(value?: string | null) {
   return /[\\/]versions[\\/][^\\/]+$/u.test(value ?? "")
 }
@@ -61,6 +71,29 @@ function isVersionWorkspaceDir(value?: string | null) {
 function getWorkspaceIdFromRoot(rootDir?: string | null) {
   if (!rootDir) return null
   return rootDir.split(/[\\/]/u).filter(Boolean).pop() ?? null
+}
+
+function getWorkspaceIdentitySegments(value?: string | null) {
+  return (value ?? "")
+    .toLowerCase()
+    .split(/[\\/]+/u)
+    .map(segment => segment.replace(/[^a-z0-9]+/gu, "_").replace(/^_+|_+$/gu, ""))
+    .flatMap(segment => [segment, segment.replace(/^ws_/u, "")])
+    .filter(Boolean)
+}
+
+export function isThermalCadWorkspace(context: WorkspaceIdentity) {
+  const segments = [
+    context.workspaceName,
+    context.workspaceId,
+    context.workspaceKey,
+    context.workspaceRoot,
+    context.manifestRoot,
+    context.sourceWorkspaceDir,
+    context.versionDir,
+  ].flatMap(getWorkspaceIdentitySegments)
+
+  return segments.some(segment => segment === "thermal" || segment === "thermal_catch")
 }
 
 export function resolveWorkspaceVersionContext({

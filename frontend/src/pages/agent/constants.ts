@@ -2,7 +2,13 @@ import type { AgentWorkspaceView } from './types'
 
 export const TARGET_SAMPLE_RATE = 16000
 export const DEFAULT_LANGUAGE = 'zh-en'
-export const NAV_ITEMS = [
+export type AgentNavItem = {
+  href: `#${AgentWorkspaceView}`
+  label: string
+  meta: string
+}
+
+export const NAV_ITEMS: AgentNavItem[] = [
   { label: '当前任务', href: '#workspace', meta: 'Workspace' },
   { label: '组件清单', href: '#bom', meta: 'Components' },
   { label: '结果预览', href: '#model', meta: 'Preview' },

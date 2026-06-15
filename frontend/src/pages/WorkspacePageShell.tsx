@@ -21,6 +21,7 @@ import { getVisibleWorkspaceSessionState } from "./workspace/workspaceSessionVis
 import {
   fetchWorkspaceManifest,
   getActiveVersion,
+  isThermalCadWorkspace,
   resolveWorkspaceVersionContext,
 } from "./workspace/workspaceVersion"
 import type { WorkflowProgressVariant } from "./workspace/progressUtils"
@@ -224,9 +225,12 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   })
   const selectedLog = logEntries.find(entry => entry.id === selectedLogId) ?? logEntries[0] ?? null
   const externalModelViewerUrl = modelViewerUrl?.trim() ?? ""
-  const hasModelPreview = showModel && (!!externalModelViewerUrl || !!activeContext.versionDir)
+  const canUseDefaultModelPreview = isThermalCadWorkspace(activeContext)
+  const effectiveShowModel = showModel && (!!externalModelViewerUrl || canUseDefaultModelPreview)
+  const hasModelPreview = effectiveShowModel && (!!externalModelViewerUrl || !!activeContext.versionDir)
   const viewerHref = useMemo(() => {
     if (externalModelViewerUrl) return externalModelViewerUrl
+    if (!canUseDefaultModelPreview) return ""
     const params = new URLSearchParams()
     params.set("glbPath", WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
     if (activeContext.workspaceKey) params.set("workspaceKey", activeContext.workspaceKey)
@@ -240,15 +244,16 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
-  }, [activeContext, externalModelViewerUrl, progressVariant, workspaceRefreshNonce])
+  }, [activeContext, canUseDefaultModelPreview, externalModelViewerUrl, progressVariant, workspaceRefreshNonce])
   const cadHref = getRemoteToolUrl("cad", remoteToolHost)
   const paraviewHref = getRemoteToolUrl("paraview", remoteToolHost)
   const comsolHref = getRemoteToolUrl("comsol", remoteToolHost)
-  const activeTool = activePanel === "cad"
+  const visibleActivePanel: ActivePanel = activePanel === "model" && !effectiveShowModel ? "log" : activePanel
+  const activeTool = visibleActivePanel === "cad"
     ? { label: "CAD", subtitle: t("workspace.tools.cadSubtitle"), title: t("workspace.tools.cadTitle"), url: cadHref }
-    : activePanel === "paraview"
+    : visibleActivePanel === "paraview"
       ? { label: "ParaView", subtitle: t("workspace.tools.paraviewSubtitle"), title: t("workspace.tools.paraviewTitle"), url: paraviewHref }
-      : activePanel === "comsol"
+      : visibleActivePanel === "comsol"
         ? { label: "COMSOL", subtitle: t("workspace.tools.comsolSubtitle"), title: t("workspace.tools.comsolTitle"), url: comsolHref }
         : null
   const orderedBomComponents = useMemo(() => {
@@ -451,12 +456,12 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   }, [logEntries, selectedLogId])
 
   useEffect(() => {
-    if (!showBom && activePanel === "bom") setActivePanel(showModel ? "model" : "log")
-  }, [activePanel, showBom, showModel])
+    if (!showBom && activePanel === "bom") setActivePanel(effectiveShowModel ? "model" : "log")
+  }, [activePanel, effectiveShowModel, showBom])
 
   useEffect(() => {
-    if (!showModel && activePanel === "model") setActivePanel("log")
-  }, [activePanel, showModel])
+    if (!effectiveShowModel && activePanel === "model") setActivePanel("log")
+  }, [activePanel, effectiveShowModel])
 
   useEffect(() => {
     if (!showTools && (activePanel === "cad" || activePanel === "paraview" || activePanel === "comsol" || activePanel === "gnc-config")) setActivePanel("log")
@@ -476,36 +481,36 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       })
   }, [apiBase, showTools])
 
-  const stageTitle = activePanel === "model"
+  const stageTitle = visibleActivePanel === "model"
     ? t("workspace.stage.modelTitle")
-    : activePanel === "bom" && showBom
+    : visibleActivePanel === "bom" && showBom
       ? t("workspace.stage.bomTitle")
-      : activePanel === "log"
+      : visibleActivePanel === "log"
         ? t("workspace.stage.logTitle")
-      : activePanel === "gnc-config"
+      : visibleActivePanel === "gnc-config"
         ? "GNC Config"
         : activeTool?.title ?? t("workspace.stage.toolTitle")
-  const stageSubtitle = activePanel === "model"
+  const stageSubtitle = visibleActivePanel === "model"
     ? hasModelPreview ? t("workspace.stage.currentModel") : t("workspace.stage.waitingModel")
-    : activePanel === "bom" && showBom
+    : visibleActivePanel === "bom" && showBom
       ? bomLoading ? t("workspace.stage.loadingBom") : t("workspace.stage.components", { count: bomInfo.totalRecords })
-      : activePanel === "log"
+      : visibleActivePanel === "log"
         ? selectedLog ? selectedLog.title : t("workspace.stage.waitingLog")
-      : activePanel === "gnc-config"
+      : visibleActivePanel === "gnc-config"
         ? "Read and update 42 config files in workspaceDir/00_inputs"
         : activeTool?.subtitle ?? t("workspace.stage.remoteTool")
 
   return (
     <div className="workspace-apple">
       <WorkspaceTopbar
-        activePanel={activePanel}
+        activePanel={visibleActivePanel}
         activeSessionMatchesWorkspace={activeSessionMatchesWorkspace}
         enableGncConfig={enableGncConfig}
         onStopAndSummarize={activeSessionId ? handleStopAndSummarize : undefined}
         onReturnHome={handleReturnHome}
         onSelectPanel={setActivePanel}
         showBom={showBom}
-        showModel={showModel}
+        showModel={effectiveShowModel}
         showTools={showTools}
         sessionStatus={sessionStatus}
         stopSummaryPending={stopSummaryPending}
@@ -559,7 +564,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
         />
 
         <WorkspaceStagePanel
-          activePanel={activePanel}
+          activePanel={visibleActivePanel}
           activeContext={activeContext}
           activeTool={activeTool}
           apiBase={apiBase}
@@ -573,7 +578,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
           selectedBom={selectedBom}
           selectedLog={selectedLog}
           showBom={showBom}
-          showModel={showModel}
+          showModel={effectiveShowModel}
           showTools={showTools}
           stageSubtitle={stageSubtitle}
           stageTitle={stageTitle}

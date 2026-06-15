@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { resolveWorkspaceVersionContext, type WorkspacesResponse } from "../../../src/pages/workspace/workspaceVersion"
+import { isThermalCadWorkspace, resolveWorkspaceVersionContext, type WorkspacesResponse } from "../../../src/pages/workspace/workspaceVersion"
 
 describe("resolveWorkspaceVersionContext", () => {
   it("does not reuse an effective version path when the workspace index reports no current version", () => {
@@ -89,5 +89,17 @@ describe("resolveWorkspaceVersionContext", () => {
     expect(context.workspaceKey).toBe("ws_v9_data")
     expect(context.versionDir).toBe("/data/FreeCAD_data/workspaces/ws_v9_data/versions/v0001")
     expect(context.versionId).toBeNull()
+  })
+})
+
+describe("isThermalCadWorkspace", () => {
+  it("allows the thermal and thermal_catch workspaces", () => {
+    expect(isThermalCadWorkspace({ workspaceId: "ws_thermal" })).toBe(true)
+    expect(isThermalCadWorkspace({ versionDir: "/data/input_data/thermal_catch/versions/v0001" })).toBe(true)
+  })
+
+  it("does not allow unrelated workspaces", () => {
+    expect(isThermalCadWorkspace({ workspaceId: "ws_lbk", versionDir: "/data/workspaces/ws_lbk/versions/v0001" })).toBe(false)
+    expect(isThermalCadWorkspace({ workspaceName: "notthermal", workspaceId: "ws_notthermal" })).toBe(false)
   })
 })

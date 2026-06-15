@@ -258,6 +258,7 @@ export default function ModelViewerPage() {
   const requestedViewerMode = parseViewerMode(pageParams.get("lockMode")) ?? parseViewerMode(pageParams.get("mode"))
   const lockedViewerMode = showComplianceCheckMode ? "derating" : requestedViewerMode === "derating" ? null : requestedViewerMode
   const initialViewerMode = lockedViewerMode ?? "cad"
+  const shouldInitializeCadViewer = lockedViewerMode !== "derating"
   const viewerTheme = getViewerTheme(pageParams)
   const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
   const [statusMessage, setStatusMessage] = useState("Resolving CAD geometry...")
@@ -280,6 +281,7 @@ export default function ModelViewerPage() {
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") return
+    if (!shouldInitializeCadViewer) return
 
     const controller = new AbortController()
 
@@ -307,9 +309,15 @@ export default function ModelViewerPage() {
       })
 
     return () => controller.abort()
-  }, [sessionId, versionId, workspaceDir, workspaceId])
+  }, [sessionId, shouldInitializeCadViewer, versionId, workspaceDir, workspaceId])
 
   useEffect(() => {
+    if (!shouldInitializeCadViewer) {
+      setStatusMessage("")
+      setErrorMessage(null)
+      return
+    }
+
     const mount = mountRef.current
     const axisSvg = axisSvgRef.current
     const annotationSvg = annotationSvgRef.current
@@ -1132,7 +1140,7 @@ export default function ModelViewerPage() {
         mount.removeChild(domElement)
       }
     }
-  }, [modelVariant, versionId, workspaceDir, workspaceId, viewerMode])
+  }, [modelVariant, shouldInitializeCadViewer, versionId, workspaceDir, workspaceId, viewerMode])
 
   useEffect(() => {
     window.dispatchEvent(new Event("viewer3d:mode-change"))

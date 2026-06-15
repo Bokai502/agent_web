@@ -7,6 +7,7 @@ import { useWorkspaceAppState } from '../hooks/useWorkspaceAppState'
 import { formatProgressUpdatedAt, type WorkflowProgressVariant } from './workspace/progressUtils'
 import { useWorkspaceRuntimeData } from './workspace/useWorkspaceRuntimeData'
 import { useWorkspaceVersionState } from './workspace/useWorkspaceVersionState'
+import { isThermalCadWorkspace } from './workspace/workspaceVersion'
 import { getVisibleWorkspaceSessionState } from './workspace/workspaceSessionVisibility'
 import { AgentProgressRail } from './agent/AgentProgressRail'
 import { AgentConversationPopover } from './agent/AgentConversationPopover'
@@ -169,9 +170,12 @@ export default function AgentPage() {
     ].filter(Boolean).join("\n").toLowerCase()
     return /derating|降额/.test(marker)
   }, [activeContext.versionDir, activeContext.workspaceId, activeContext.workspaceKey, activeContext.workspaceName])
+  const canUseDefaultModelPreview = isThermalCadWorkspace(activeContext)
+  const showModelPreview = canUseDefaultModelPreview || lockViewerToComplianceCheck
   const viewerHref = useMemo(() => {
+    if (!showModelPreview) return ''
     const params = new URLSearchParams()
-    params.set('glbPath', WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
+    if (canUseDefaultModelPreview) params.set('glbPath', WORKSPACE_GEOMETRY_AFTER_GLB_PATH)
     params.set('theme', agentTheme)
     if (activeContext.workspaceKey) params.set('workspaceKey', activeContext.workspaceKey)
     if (activeContext.workspaceId) params.set('workspaceId', activeContext.workspaceId)
@@ -183,7 +187,7 @@ export default function AgentPage() {
     }
     if (workspaceRefreshNonce > 0) params.set('workspaceVersion', String(workspaceRefreshNonce))
     return `/viewer?${params.toString()}`
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, agentTheme, lockViewerToComplianceCheck, workspaceRefreshNonce])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceKey, agentTheme, canUseDefaultModelPreview, lockViewerToComplianceCheck, showModelPreview, workspaceRefreshNonce])
   const showGncConfig = progressVariant === "gnc"
   const navItems = useMemo(() => {
     if (progressVariant === 'check') {
@@ -191,7 +195,7 @@ export default function AgentPage() {
         .filter(item => item.href !== '#tools')
         .map(item => item.href === '#bom' ? { ...item, label: '配置文件', meta: 'Config' } : item)
     }
-    if (!showGncConfig) return NAV_ITEMS
+    if (!showGncConfig) return NAV_ITEMS.filter(item => showModelPreview || item.href !== '#model')
     return NAV_ITEMS
       .filter(item => item.href !== '#model')
       .map(item => (
@@ -199,7 +203,7 @@ export default function AgentPage() {
           ? { ...item, label: 'GNC 配置', meta: 'Config' }
           : item
       ))
-  }, [progressVariant, showGncConfig])
+  }, [progressVariant, showGncConfig, showModelPreview])
   const {
     handleSelectFile,
     selectedFileError,
@@ -430,7 +434,8 @@ export default function AgentPage() {
     const nextView = NAV_VIEWS.find(view => item.href === `#${view}`) ?? 'workspace'
     setActiveView(current => current === nextView ? null : nextView)
   }, [])
-  const activeNavIndex = activeView ? navItems.findIndex(item => item.href === `#${activeView}`) : -1
+  const visibleActiveView = activeView === 'model' && !showModelPreview ? 'workspace' : activeView
+  const activeNavIndex = visibleActiveView ? navItems.findIndex(item => item.href === `#${visibleActiveView}`) : -1
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
   const progressPercent = workflowProgressSummary.percentage
   const progressStatusLabel = workflowProgressSummary.statusLabel || progressUpdatedAt
@@ -524,7 +529,7 @@ export default function AgentPage() {
           activeContext={activeContext}
           activeManifestVersion={activeManifestVersion}
           activeTool={activeTool}
-          activeView={activeView}
+          activeView={visibleActiveView}
           bomInfo={bomInfo}
           bomLoading={bomLoading}
           branchManifest={branchManifest}
@@ -548,6 +553,7 @@ export default function AgentPage() {
           requestDeleteVersion={requestDeleteVersion}
           showGncConfig={showGncConfig}
           showComplianceCheckConfig={progressVariant === 'check'}
+          showModelPreview={showModelPreview}
           switchActiveWorkspace={switchActiveWorkspace}
           t={t}
           toolUrls={toolUrls}
