@@ -124,6 +124,14 @@ open_codex_web/
 
 不要把真实 API Key 写进 README、提交记录或日志。
 
+### Qwen3.6 / chatModel 接入方式
+
+当前代码没有为 `Qwen3.6` 写模型专用分支，而是把它作为默认 `chatModel` 后端的一种配置使用。`backend/src/modelBackends/modelBackends.ts` 定义了两个可选模型后端：`chatModel` 和 `openai`，默认值是 `chatModel`。普通 `/api/run`、托管 `/api/run/managed/*`、意图路由、进度总结和 general answer 都会通过 `resolveModelBackend(config, body.modelBackend)` 解析实际使用的 `apiKey`、`baseUrl`、`model`、`modelProvider`、`wireApi`、sandbox 和 approval 配置。当前 `config.json` 中 `chatModel.model` 配置为 `Qwen3.6`，因此默认 Agent 流程会使用该内网模型；前端 `/agent` 顶栏的“模型”开关可以在 `内网模型` 和 `OpenAI` 之间切换，请求体通过 `modelBackend` 传给后端。
+
+为了适配 `Qwen3.6` 这类非 OpenAI 的 Responses-compatible 网关，后端新增了内部兼容代理 `POST /internal/codex/v1/responses`。当 `chatModel.wireApi` 为 `responses` 且 provider 不是 `openai` 时，Codex SDK 的 base URL 会被改到该内部代理。代理会将 Codex 请求改写成更容易被兼容网关接受的格式：删除部分顶层字段，丢弃 `instructions`，把 `developer` role 改为 `system`，前移并合并 system message，过滤非 function 工具和 `view_image`，并在大请求或上游 `5xx` 时尝试 compact/no-tool 重试。该路径同时会记录 request shape 和错误摘要，避免日志中输出完整消息内容。
+
+`chatModel` 后端还启用了 compact skill instructions：显式启用 skill 时，首轮请求只注入 skill 名称、描述和 Source 文件路径，并要求 Agent 在真正使用前读取对应 `SKILL.md`，而不是直接把完整 skill 内容塞进上下文。这样可以降低 `Qwen3.6` 首轮请求体大小和兼容网关失败概率；切换到 `openai` 后端时仍保留完整 skill 内容注入。
+
 ---
 
 ## 安装依赖

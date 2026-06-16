@@ -20,6 +20,8 @@ describe("workspace data routes", () => {
     await fs.writeFile(path.join(versionDir(), "00_inputs", "notes.txt"), "hello workspace", "utf-8")
     await fs.writeFile(path.join(versionDir(), "00_inputs", "image.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
     await fs.writeFile(path.join(versionDir(), "00_inputs", "binary.bin"), Buffer.from([0, 1, 2, 3]))
+    await fs.writeFile(path.join(versionDir(), "00_inputs", "sample.docx"), Buffer.from([0x50, 0x4b, 0x03, 0x04]))
+    await fs.writeFile(path.join(versionDir(), "00_inputs", "sample.xlsx"), Buffer.from([0x50, 0x4b, 0x03, 0x04]))
     await writeJson(path.join(versionDir(), "component_info", "geom_component_info.json"), {
       components: [{ id: "P001" }],
       schema_version: "component_info/1.0",
@@ -78,6 +80,26 @@ describe("workspace data routes", () => {
       assert.equal(imageResponse.statusCode, 200)
       assert.equal(imageResponse.json().type, "image")
       assert.equal(Buffer.from(imageResponse.json().contentBase64, "base64").toString("hex"), "89504e47")
+
+      const docxResponse = await server.inject({
+        method: "GET",
+        url: `/api/workspace/files/content?workspaceDir=${workspaceDir}&relativePath=${encodeURIComponent("00_inputs/sample.docx")}`,
+      })
+      assert.equal(docxResponse.statusCode, 200)
+      assert.equal(docxResponse.json().type, "binary")
+      assert.equal(docxResponse.json().encoding, "base64")
+      assert.equal(docxResponse.json().mimeType, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+      assert.equal(Buffer.from(docxResponse.json().contentBase64, "base64").toString("hex"), "504b0304")
+
+      const xlsxResponse = await server.inject({
+        method: "GET",
+        url: `/api/workspace/files/content?workspaceDir=${workspaceDir}&relativePath=${encodeURIComponent("00_inputs/sample.xlsx")}`,
+      })
+      assert.equal(xlsxResponse.statusCode, 200)
+      assert.equal(xlsxResponse.json().type, "binary")
+      assert.equal(xlsxResponse.json().encoding, "base64")
+      assert.equal(xlsxResponse.json().mimeType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      assert.equal(Buffer.from(xlsxResponse.json().contentBase64, "base64").toString("hex"), "504b0304")
 
       const binaryResponse = await server.inject({
         method: "GET",

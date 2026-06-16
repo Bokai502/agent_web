@@ -1159,6 +1159,85 @@
   min-height: 100%;
 }
 
+.agent-docx-preview {
+  min-height: 100%;
+  color: #111827;
+}
+
+.agent-docx-preview .agent-docx-document {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0 auto 16px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+}
+
+.agent-docx-preview img {
+  max-width: 100%;
+}
+
+.agent-xlsx-preview {
+  display: grid;
+  gap: 16px;
+}
+
+.agent-xlsx-sheet {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 168, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(1, 7, 14, 0.58);
+}
+
+.agent-xlsx-sheet header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(0, 168, 255, 0.14);
+  padding: 10px 12px;
+}
+
+.agent-xlsx-sheet header strong {
+  min-width: 0;
+  color: #f4fbff;
+  font-size: 13px;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.agent-xlsx-sheet header small {
+  flex: 0 0 auto;
+  color: rgba(234, 247, 255, 0.58);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.agent-xlsx-table-wrap {
+  overflow: auto;
+}
+
+.agent-xlsx-table-wrap table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  color: #eaf7ff;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.agent-xlsx-table-wrap td {
+  max-width: 280px;
+  min-width: 84px;
+  border-right: 1px solid rgba(0, 168, 255, 0.12);
+  border-bottom: 1px solid rgba(0, 168, 255, 0.12);
+  padding: 7px 9px;
+  vertical-align: top;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .agent-file-preview.is-empty,
 .agent-file-preview-unavailable {
   display: grid;

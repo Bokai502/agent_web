@@ -52,6 +52,8 @@ export type WorkspaceFilePreview =
       type: 'image'
     }
   | {
+      contentBase64?: string
+      encoding?: 'base64'
       mimeType: string
       mtimeMs: number
       name: string
