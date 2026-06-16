@@ -1,11 +1,7 @@
-import fs from "node:fs/promises"
-import path from "node:path"
 import { readWorkspaceSessionHistory } from "../sessions/sessionStore.js"
 import type { SkillInstruction } from "../system/skills.js"
 import { ASK_USER_PROTOCOL } from "./askUserProtocol.js"
 import type { RunContext, RunInputItem } from "./runTypes.js"
-
-const AGENT_GUIDE_FILE = path.resolve(process.cwd(), "scripts", "AGENT_GUIDE.md")
 
 type BuildSdkInputOptions = {
   compactSkillInstructions?: boolean
@@ -53,7 +49,6 @@ function buildSkillInstructionsBlock(skillInstructions: SkillInstruction[], opti
 
 function buildPromptPrefix(
   context: RunContext,
-  agentGuide: string,
   skillInstructions: SkillInstruction[],
   options: BuildSdkInputOptions = {},
 ) {
@@ -83,21 +78,11 @@ function buildPromptPrefix(
       ? "Before running workspace-scoped commands, verify they target the workspace_dir above."
       : "No workspace is currently configured; ask before running workspace-scoped CLI commands.",
   ].join("\n")
-  const guide = agentGuide.trim()
   const skillsBlock = buildSkillInstructionsBlock(skillInstructions, options).trim()
   return [
     executionContext,
-    guide ? `Agent guide:\n${guide}` : null,
     skillsBlock || null,
   ].filter((block): block is string => block !== null).join("\n\n")
-}
-
-export async function readAgentGuide() {
-  try {
-    return await fs.readFile(AGENT_GUIDE_FILE, "utf-8")
-  } catch {
-    return ""
-  }
 }
 
 export async function shouldInjectPromptPrefixForSession(sessionId: string, workspaceDir: string | null) {
@@ -111,13 +96,12 @@ export function buildSdkInput(
   input: RunInputItem[],
   context: RunContext,
   injectPromptPrefix: boolean,
-  agentGuide: string,
   skillInstructions: SkillInstruction[],
   options: BuildSdkInputOptions = {},
 ): string | RunInputItem[] {
   if (!injectPromptPrefix) return input
 
-  const prefix = buildPromptPrefix(context, agentGuide, skillInstructions, options)
+  const prefix = buildPromptPrefix(context, skillInstructions, options)
   const firstTextIndex = input.findIndex(item => item.type === "text")
 
   if (firstTextIndex === -1) {
