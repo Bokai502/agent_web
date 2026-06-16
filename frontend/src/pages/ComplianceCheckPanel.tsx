@@ -412,9 +412,29 @@ function reliabilityRecords(block: JsonRow) {
 function normalizeReliabilityModel(value: unknown) {
   return asText(value)
     .toUpperCase()
-    .replace(/[\s_]/gu, "")
-    .replace(/[，,;；]+/gu, "/")
+    .replace(/[^A-Z0-9]/gu, "")
     .trim()
+}
+
+function reliabilityModelFragments(value: unknown) {
+  const text = asText(value).toUpperCase()
+  const fragments = new Set<string>()
+  const compact = normalizeReliabilityModel(text)
+  if (compact.length >= 5) fragments.add(compact)
+
+  const pieces = text
+    .split(/[^A-Z0-9]+/u)
+    .map(piece => piece.trim())
+    .filter(piece => piece.length >= 5)
+  pieces.forEach(piece => {
+    fragments.add(piece)
+    const suffix = piece.match(/[0-9][A-Z0-9]{4,}$/u)?.[0]
+    if (suffix) fragments.add(suffix)
+  })
+
+  const compactSuffix = compact.match(/[0-9][A-Z0-9]{4,}$/u)?.[0]
+  if (compactSuffix) fragments.add(compactSuffix)
+  return Array.from(fragments)
 }
 
 function reliabilityRecordModels(record: JsonRow) {
@@ -435,17 +455,39 @@ function reliabilityDirectRecords(row: JsonRow, key: "quality" | "radiation") {
     .filter(record => reliabilityRecordModels(record).some(recordModel => recordModel === model))
 }
 
-function reliabilityRawCount(row: JsonRow, key: "quality" | "radiation") {
-  const block = reliabilityBlock(row, key)
-  const explicit = row[`${key}_raw_count`] ?? block.count
-  const count = Math.max(0, Number(explicit) || 0)
-  return count || reliabilityRecords(block).length
+function reliabilityReferenceRecords(row: JsonRow, key: "quality" | "radiation") {
+  const model = normalizeReliabilityModel(row.model ?? row["型号规格"])
+  if (!model) return []
+  const queryFragments = reliabilityModelFragments(row.model ?? row["型号规格"])
+    .filter(fragment => fragment !== model)
+  if (queryFragments.length === 0) return []
+  return reliabilityRecords(reliabilityBlock(row, key))
+    .filter(record => {
+      const recordModels = reliabilityRecordModels(record)
+      if (recordModels.some(recordModel => recordModel === model)) return false
+      return recordModels.some(recordModel => queryFragments.some(fragment => recordModel.includes(fragment)))
+    })
+}
+
+function reliabilityMatchedFragment(row: JsonRow, key: "quality" | "radiation") {
+  const model = normalizeReliabilityModel(row.model ?? row["型号规格"])
+  const directRecords = reliabilityDirectRecords(row, key)
+  if (directRecords.length > 0) return asText(row.model ?? row["型号规格"])
+  const queryFragments = reliabilityModelFragments(row.model ?? row["型号规格"])
+    .filter(fragment => fragment !== model)
+  const referenceRecords = reliabilityReferenceRecords(row, key)
+  for (const record of referenceRecords) {
+    const recordModels = reliabilityRecordModels(record)
+    const fragment = queryFragments.find(candidate => recordModels.some(recordModel => recordModel.includes(candidate)))
+    if (fragment) return fragment
+  }
+  return ""
 }
 
 function reliabilityMatchLevel(row: JsonRow, key: "quality" | "radiation") {
   const directCount = reliabilityDirectRecords(row, key).length
   if (directCount > 0) return "直接命中"
-  return reliabilityRawCount(row, key) > 0 ? "参考命中" : "未命中"
+  return reliabilityReferenceRecords(row, key).length > 0 ? "参考命中" : "未命中"
 }
 
 function reliabilityDirectCount(row: JsonRow, key: "quality" | "radiation") {
@@ -455,7 +497,17 @@ function reliabilityDirectCount(row: JsonRow, key: "quality" | "radiation") {
 function reliabilityDirectSummary(row: JsonRow, key: "quality" | "radiation") {
   const directRecords = reliabilityDirectRecords(row, key)
   if (directRecords.length === 0) return ""
-  return directRecords.slice(0, 5).map(record => {
+  return reliabilityRecordsSummary(directRecords, key)
+}
+
+function reliabilityReferenceSummary(row: JsonRow, key: "quality" | "radiation") {
+  const referenceRecords = reliabilityReferenceRecords(row, key)
+  if (referenceRecords.length === 0) return ""
+  return reliabilityRecordsSummary(referenceRecords, key)
+}
+
+function reliabilityRecordsSummary(records: JsonRow[], key: "quality" | "radiation") {
+  return records.slice(0, 5).map(record => {
     if (key === "quality") {
       return [
         record.model,
@@ -476,9 +528,8 @@ function reliabilityDirectSummary(row: JsonRow, key: "quality" | "radiation") {
 function reliabilityDisplaySummary(row: JsonRow, key: "quality" | "radiation") {
   const directSummary = reliabilityDirectSummary(row, key)
   if (directSummary) return directSummary
-  const block = reliabilityBlock(row, key)
-  const rawSummary = asText(row[`${key}_summary`] ?? block.answer ?? block.summary)
-  if (reliabilityRawCount(row, key) > 0) return rawSummary ? `参考命中：${rawSummary}` : "参考命中，需人工确认"
+  const referenceSummary = reliabilityReferenceSummary(row, key)
+  if (referenceSummary) return `参考命中：${referenceSummary}`
   return key === "quality" ? "未检索到质量问题记录" : "未检索到辐射效应记录"
 }
 
@@ -2215,23 +2266,28 @@ function ReliabilityResultTable({
 }
 
 function reliabilityDisplayRow(row: JsonRow, kind: ReliabilityKind): JsonRow {
-  const block = reliabilityBlock(row, kind)
   const matchLevel = reliabilityMatchLevel(row, kind)
-  const directCount = reliabilityDirectCount(row, kind)
-  const rawCount = reliabilityRawCount(row, kind)
+  const matchedRecords = matchLevel === "直接命中"
+    ? reliabilityDirectRecords(row, kind)
+    : matchLevel === "参考命中"
+      ? reliabilityReferenceRecords(row, kind)
+      : []
+  const matchedModels = Array.from(new Set(
+    matchedRecords.flatMap(record => reliabilityRecordModels(record)),
+  )).join(", ")
   return {
-    count: matchLevel === "直接命中" ? directCount : rawCount,
+    count: matchedRecords.length,
     index: row.index,
     component_name: componentName(row),
     manufacturer: componentManufacturer(row),
-    match_fragment: asText(block.matched_terms) || componentModel(row),
+    match_fragment: reliabilityMatchedFragment(row, kind),
     match_level: matchLevel,
     match_reason: matchLevel === "直接命中"
       ? "型号精准匹配"
       : matchLevel === "参考命中"
-        ? asText(block.match_reason) || "型号片段相似"
+        ? "型号片段相似"
         : "未命中",
-    matched_models: asText(block.matched_models),
+    matched_models: matchedModels,
     model: componentModel(row),
     summary: matchLevel === "直接命中"
       ? reliabilityDirectSummary(row, kind)
