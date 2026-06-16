@@ -46,19 +46,19 @@ const MISSING_COLUMNS = [
 ] as const
 
 const RESULT_COLUMNS = [
-  { key: "序号", label: "序号", width: 70 },
-  { key: "元器件名称", label: "器件名称", width: 130 },
-  { key: "型号规格_规格", label: "型号规格", width: 130 },
-  { key: "降额参数", label: "降额参数", width: 118 },
-  { key: "参数值_额定", label: "额定值", width: 92 },
-  { key: "AI分类", label: "AI分类（新）", width: 180 },
-  { key: "I级降额公式", label: "I级降额公式（新）", width: 150 },
-  { key: "允许值判定组合", label: "允许值 / AI判定", width: 220 },
-  { key: "实际值判定组合", label: "实际值 / AI判定", width: 220 },
-  { key: "降额因子判定组合", label: "降额因子_规定 / AI判定", width: 230 },
-  { key: "实际降额因子判定组合", label: "实际降额因子 / AI判定", width: 230 },
-  { key: "判定结果", label: "判定结果", width: 142 },
-  { key: "综合判定详情", label: "综合判定详情", width: 260 },
+  { key: "序号", label: "序号", width: 56 },
+  { key: "元器件名称", label: "器件名称", width: 112 },
+  { key: "型号规格_规格", label: "型号规格", width: 118 },
+  { key: "降额参数", label: "降额参数", width: 96 },
+  { key: "参数值_额定", label: "额定值", width: 82 },
+  { key: "AI分类", label: "AI分类（新）", width: 150 },
+  { key: "I级降额公式", label: "I级降额公式（新）", width: 126 },
+  { key: "允许值判定组合", label: "允许值 / AI判定", width: 154 },
+  { key: "实际值判定组合", label: "实际值 / AI判定", width: 154 },
+  { key: "降额因子判定组合", label: "规定因子 / AI判定", width: 158 },
+  { key: "实际降额因子判定组合", label: "实际因子 / AI判定", width: 158 },
+  { key: "判定结果", label: "判定结果", width: 96 },
+  { key: "综合判定详情", label: "综合判定详情", width: 220 },
 ] as const
 
 const COMPLIANCE_TABS = [
@@ -291,8 +291,9 @@ function csvEscape(value: unknown) {
 }
 
 function issueText(row: JsonRow) {
-  const issues = Array.isArray(row["问题"]) ? row["问题"] : []
-  return issues.map(asText).filter(Boolean).join("；")
+  const issues = row["问题"]
+  if (Array.isArray(issues)) return issues.map(asText).filter(Boolean).join("；")
+  return asText(issues)
 }
 
 function rowIssues(row: JsonRow) {
@@ -319,6 +320,37 @@ function statusText(row: JsonRow) {
   return asText(row["综合判定"]) || asText(row["符合性"]) || "需确认"
 }
 
+function resultField(row: JsonRow, key: string) {
+  if (key === "型号规格_规格") return row["型号规格_规格"] ?? row["型号规格"]
+  if (key === "生产厂商_生产单位") return row["生产厂商_生产单位"] ?? row["生产厂商"]
+  if (key === "参数值_额定") return row["参数值_额定"] ?? row["额定值"]
+  if (key === "参数值_允许") return row["参数值_允许"] ?? row["允许值"]
+  if (key === "参数值_实际") return row["参数值_实际"] ?? row["实际值"]
+  if (key === "降额因子_规定") return row["降额因子_规定"] ?? row["标准I级降额"]
+  if (key === "降额因子_实际") return row["降额因子_实际"] ?? row["计算实际降额因子"]
+  return row[key]
+}
+
+function deratingDetailText(row: JsonRow) {
+  const explicit = asText(row["综合判定详情"]) || issueText(row)
+  if (explicit) return explicit
+
+  const status = statusText(row)
+  const actualValue = asText(resultField(row, "参数值_实际"))
+  const allowedValue = asText(resultField(row, "参数值_允许"))
+  const ratedValue = asText(resultField(row, "参数值_额定"))
+  const standardFactor = asText(resultField(row, "降额因子_规定"))
+  const actualFactor = asText(resultField(row, "降额因子_实际"))
+  const parts = [
+    actualValue && allowedValue ? `实际值 ${actualValue} 未超过允许值 ${allowedValue}` : "",
+    ratedValue && standardFactor ? `额定值 ${ratedValue}，I级降额要求 ${standardFactor}` : "",
+    actualFactor ? `实际降额因子 ${actualFactor}` : "",
+  ].filter(Boolean)
+
+  if (parts.length) return `${status}：${parts.join("；")}`
+  return status === "符合" ? "符合：未发现降额问题" : status
+}
+
 function passCount(rows: JsonRow[]) {
   return rows.filter(row => statusText(row) === "符合").length
 }
@@ -331,13 +363,13 @@ function getResultValue(row: JsonRow, key: string) {
   if (key === "序号") return row["序号"] ?? row["excel_row"]
   if (key === "AI分类") return asText(row["AI分类"]) || [row["元器件大类"], row["元器件子类"]].map(asText).filter(Boolean).join("-")
   if (key === "I级降额公式") return asText(row["I级降额公式"]) || asText(row["标准I级降额"])
-  if (key === "允许值判定组合") return asText(row["允许值判定组合"]) || [row["参数值_允许"], row["允许值判定"]].map(asText).filter(Boolean).join(" ▸ ")
-  if (key === "实际值判定组合") return asText(row["实际值判定组合"]) || [row["参数值_实际"], row["实际值判定"]].map(asText).filter(Boolean).join(" ▸ ")
-  if (key === "降额因子判定组合") return asText(row["降额因子判定组合"]) || [row["降额因子_规定"], row["降额因子判定"]].map(asText).filter(Boolean).join(" ▸ ")
-  if (key === "实际降额因子判定组合") return asText(row["实际降额因子判定组合"]) || [row["降额因子_实际"], row["实际降额因子判定"]].map(asText).filter(Boolean).join(" ▸ ")
+  if (key === "允许值判定组合") return asText(row["允许值判定组合"]) || [resultField(row, "参数值_允许"), row["允许值判定"]].map(asText).filter(Boolean).join(" ▸ ")
+  if (key === "实际值判定组合") return asText(row["实际值判定组合"]) || [resultField(row, "参数值_实际"), row["实际值判定"]].map(asText).filter(Boolean).join(" ▸ ")
+  if (key === "降额因子判定组合") return asText(row["降额因子判定组合"]) || [resultField(row, "降额因子_规定"), row["降额因子判定"]].map(asText).filter(Boolean).join(" ▸ ")
+  if (key === "实际降额因子判定组合") return asText(row["实际降额因子判定组合"]) || [resultField(row, "降额因子_实际"), row["实际降额因子判定"]].map(asText).filter(Boolean).join(" ▸ ")
   if (key === "判定结果") return statusText(row)
-  if (key === "综合判定详情") return asText(row["综合判定详情"]) || issueText(row)
-  return row[key]
+  if (key === "综合判定详情") return deratingDetailText(row)
+  return resultField(row, key)
 }
 
 function getComparisonValue(row: JsonRow, key: string) {
@@ -348,7 +380,7 @@ function getComparisonValue(row: JsonRow, key: string) {
   return {
     aiValue: asText(row[comparison.aiKey]) || combined[1] || deriveComparisonJudgement(row, key),
     tableLabel: comparison.tableLabel,
-    tableValue: asText(row[comparison.tableKey]) || combined[0] || "",
+    tableValue: asText(resultField(row, comparison.tableKey)) || combined[0] || "",
   }
 }
 
@@ -824,7 +856,7 @@ function dashboardIssueLabel(row: JsonRow) {
 }
 
 function dashboardAction(row: JsonRow) {
-  const detail = asText(row["综合判定详情"]) || issueText(row)
+  const detail = deratingDetailText(row)
   if (/实际值大于允许值|实际值.*超限|热设计/u.test(detail)) return "复核热设计"
   if (/允许值.*错误|应为/u.test(detail)) return "修正允许值"
   if (/降额因子/u.test(detail)) return "复核降额因子"
@@ -1097,7 +1129,7 @@ function buildFinalRows(rows: JsonRow[], missingRows: JsonRow[]) {
       if (key === "缺少降额项") return [label, component?.missing_standard_parameters ?? ""]
       if (key === "综合判定") return [label, statusText(row)]
       if (key === "备注") return [label, issueText(row)]
-      return [label, row[key]]
+      return [label, resultField(row, key)]
     }))
   })
 }
@@ -1879,19 +1911,20 @@ function priorityToneColor(priority: DashboardRiskRow["priority"]) {
 }
 
 function optionToneColor(key: string, value: string) {
+  const text = value.trim()
   if (key === "国产/进口") {
-    if (value === "国产") return KPI_TEAL
-    if (value === "进口") return KPI_ORANGE
+    if (text === "国产") return KPI_TEAL
+    if (text === "进口") return KPI_ORANGE
     return HUD_MUTED
   }
   if (key === "目录内或外" || key === "is_in_catalog") {
-    if (value === "目录内") return KPI_TEAL
-    if (value === "目录外") return KPI_PINK
-    if (value === "未提供目录") return KPI_ORANGE
+    if (text === "目录内") return KPI_TEAL
+    if (text === "目录外") return KPI_PINK
+    if (text === "未提供目录") return KPI_ORANGE
     return HUD_MUTED
   }
-  if (value === "符合") return KPI_TEAL
-  if (value === "不符合") return KPI_PINK
+  if (isPositiveJudgement(text)) return KPI_TEAL
+  if (isNegativeJudgement(text)) return KPI_PINK
   return HUD_TEXT
 }
 
@@ -1958,8 +1991,16 @@ function EditableTable({
               {columns.map(column => {
                 const value = asText(getValue(row, column.key))
                 const isWarning = column.key.includes("判定") || column.key === "missing_standard_parameters"
+                const valueColor = isWarning && value ? optionToneColor(column.key, value) : HUD_TEXT
                 const comparison = getComparisonValue(row, column.key)
                 const options = selectColumns[column.key]
+                const selectValue = options
+                  ? options.includes(value.trim())
+                    ? value.trim()
+                    : isPositiveJudgement(value)
+                      ? "符合"
+                      : "不符合"
+                  : ""
                 return (
                   <td key={column.key} style={{ ...bodyCellStyle, ...stickyRightStyle(column.key, stickyOffsets, false) }}>
                     {comparison ? (
@@ -1973,12 +2014,12 @@ function EditableTable({
                       />
                     ) : options ? (
                       <select
-                        value={options.includes(value) ? value : value === "符合" ? "符合" : "不符合"}
+                        value={selectValue}
                         onChange={event => onChange?.(rowIndex, column.key, event.target.value)}
                         style={{
                           ...selectCellStyle,
-                          borderColor: optionToneColor(column.key, value),
-                          color: optionToneColor(column.key, value),
+                          borderColor: optionToneColor(column.key, selectValue),
+                          color: optionToneColor(column.key, selectValue),
                         }}
                       >
                         {options.map(option => <option key={option} value={option} style={{ ...optionStyle, color: optionToneColor(column.key, option) }}>{option}</option>)}
@@ -1986,7 +2027,7 @@ function EditableTable({
                     ) : readOnly ? (
                       <div style={{
                         ...readOnlyCellStyle,
-                        color: isWarning && value && value !== "符合" ? HUD_RED : HUD_TEXT,
+                        color: valueColor,
                         fontWeight: isWarning ? 700 : 600,
                       }}>
                         {value || "-"}
@@ -1997,7 +2038,7 @@ function EditableTable({
                         onChange={event => onChange?.(rowIndex, column.key, event.target.value)}
                         style={{
                           ...cellInputStyle,
-                          color: isWarning && value && value !== "符合" ? HUD_RED : HUD_TEXT,
+                          color: valueColor,
                           fontWeight: isWarning ? 700 : 600,
                           minHeight: value.length > 28 ? 46 : 34,
                         }}
@@ -3238,6 +3279,7 @@ const readOnlyCellStyle = {
 } satisfies CSSProperties
 
 const selectCellStyle = {
+  appearance: "none",
   background: HUD_CONTROL_BG,
   border: `1px solid ${HUD_LINE}`,
   borderRadius: 6,
