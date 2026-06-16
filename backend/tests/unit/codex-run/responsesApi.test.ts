@@ -61,12 +61,8 @@ describe("Responses API helpers", () => {
     const config = createTestConfig({
       chatModel: {
         apiKey: "test-chat-key",
-        approvalPolicy: "never",
         baseUrl: "https://chat.example.test/v1/",
         model: "chat-model",
-        modelReasoningEffort: "medium",
-        sandboxMode: "read-only",
-        skipGitRepoCheck: true,
       },
     })
     const text = await createResponseText({

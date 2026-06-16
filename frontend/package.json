@@ -16,11 +16,13 @@
     "@splinetool/runtime": "^1.12.92",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
+    "docx-preview": "^0.3.7",
     "i18next": "^26.0.10",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-i18next": "^17.0.7",
     "react-markdown": "^10.1.0",
+    "read-excel-file": "^9.2.0",
     "remark-gfm": "^4.0.1",
     "shiki": "^4.1.0",
     "three": "^0.184.0"

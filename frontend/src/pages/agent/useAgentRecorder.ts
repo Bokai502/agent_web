@@ -77,11 +77,11 @@ export function useAgentRecorder({ clearAgentSpeechDisplay, runCodex, running }:
     setError('')
     clearAgentSpeechDisplay()
 
-    const response = await fetch(joinApiPath(undefined, '/whisper/transcribe'), {
+    const response = await fetch(joinApiPath(undefined, '/funasr/transcribe'), {
       method: 'POST',
       headers: {
         'Content-Type': blob.type || 'application/octet-stream',
-        'X-Whisper-Language': DEFAULT_LANGUAGE,
+        'X-FunASR-Language': DEFAULT_LANGUAGE,
       },
       body: blob,
     })

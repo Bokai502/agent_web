@@ -15,7 +15,7 @@ const context: RunContext = {
 describe("buildSdkInput", () => {
   it("injects execution context into the first text item", () => {
     const input: RunInputItem[] = [{ type: "text", text: "  user task  " }]
-    const result = buildSdkInput(input, context, true, "Guide text", [
+    const result = buildSdkInput(input, context, true, [
       {
         content: "Skill body",
         description: "Skill description",
@@ -29,14 +29,14 @@ describe("buildSdkInput", () => {
     assert.equal(first.type, "text")
     assert.match(first.text, /Execution context:/u)
     assert.match(first.text, /- session_id: session-1/u)
-    assert.match(first.text, /Agent guide:\nGuide text/u)
+    assert.doesNotMatch(first.text, /Agent guide:/u)
     assert.match(first.text, /## planner/u)
     assert.match(first.text, /user task$/u)
   })
 
   it("prepends a text prefix when the original input has no text items", () => {
     const input: RunInputItem[] = [{ type: "local_image", path: "/tmp/a.png" }]
-    const result = buildSdkInput(input, context, true, "", [])
+    const result = buildSdkInput(input, context, true, [])
 
     assert.ok(Array.isArray(result))
     assert.equal(result[0].type, "text")
@@ -47,7 +47,7 @@ describe("buildSdkInput", () => {
   it("leaves input untouched when prompt prefix injection is disabled", () => {
     const input: RunInputItem[] = [{ type: "text", text: "user task" }]
 
-    assert.equal(buildSdkInput(input, context, false, "Guide text", []), input)
+    assert.equal(buildSdkInput(input, context, false, []), input)
   })
 
   it("preserves non-first text items and handles null workspace context", () => {
@@ -65,7 +65,7 @@ describe("buildSdkInput", () => {
       workspaceId: null,
     }
 
-    const result = buildSdkInput(input, noWorkspaceContext, true, "  ", [
+    const result = buildSdkInput(input, noWorkspaceContext, true, [
       {
         content: "  Skill content  ",
         description: "",
@@ -97,7 +97,7 @@ describe("buildSdkInput", () => {
       "# FreeCAD",
       "Detailed command rule ".repeat(500),
     ].join("\n")
-    const result = buildSdkInput(input, context, true, "", [
+    const result = buildSdkInput(input, context, true, [
       {
         content: longSkillBody,
         description: "FreeCAD workflow",

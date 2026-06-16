@@ -118,6 +118,18 @@ function ConversationTimeline({ turns }: { turns: ConversationTurnView[] }) {
   const pendingScrollRestoreRef = useRef<number | null>(null)
   const [visibleTurnCount, setVisibleTurnCount] = useState(() => Math.min(INITIAL_VISIBLE_TURNS, turns.length))
   const visibleTurns = turns.slice(Math.max(0, turns.length - visibleTurnCount))
+  const latestContentKey = useMemo(() => (
+    visibleTurns.map(turn => {
+      const latestMessage = turn.messages[turn.messages.length - 1]
+      return [
+        turn.id,
+        turn.prompt.length,
+        turn.completed ? "completed" : "running",
+        latestMessage?.id ?? "",
+        latestMessage?.text.length ?? 0,
+      ].join(":")
+    }).join("|")
+  ), [visibleTurns])
 
   useEffect(() => {
     setVisibleTurnCount(count => {
@@ -129,12 +141,15 @@ function ConversationTimeline({ turns }: { turns: ConversationTurnView[] }) {
 
   useLayoutEffect(() => {
     const previousHeight = pendingScrollRestoreRef.current
-    if (previousHeight === null) return
-    pendingScrollRestoreRef.current = null
     const el = scrollRef.current
     if (!el) return
-    el.scrollTop = Math.max(0, el.scrollHeight - previousHeight)
-  }, [turns.length, visibleTurnCount])
+    if (previousHeight !== null) {
+      pendingScrollRestoreRef.current = null
+      el.scrollTop = Math.max(0, el.scrollHeight - previousHeight)
+      return
+    }
+    el.scrollTop = el.scrollHeight
+  }, [turns.length, visibleTurnCount, latestContentKey])
 
   const handleScroll = () => {
     const el = scrollRef.current

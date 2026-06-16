@@ -19,6 +19,7 @@ type RewriteStats = {
   developerRolesRewritten: number
   filteredTools: string[]
   compactedInputItems: number
+  modelOverriddenFrom: string | null
   proactiveCompact: boolean
   strippedTopLevelFields: string[]
   systemMessagesMerged: number
@@ -32,6 +33,7 @@ type RequestShape = {
   inputRoles: Record<string, number>
   inputTypes: Record<string, number>
   jsonBytes: number | null
+  model: string | null
   toolCount: number | null
   toolNames: string[]
   toolTypes: Record<string, number>
@@ -65,6 +67,7 @@ function emptyStats(): RewriteStats {
     developerRolesRewritten: 0,
     droppedInstructions: false,
     filteredTools: [],
+    modelOverriddenFrom: null,
     proactiveCompact: false,
     strippedTopLevelFields: [],
     systemMessagesMerged: 0,
@@ -103,6 +106,7 @@ export function summarizeResponsesRequestShape(body: unknown): RequestShape {
       inputRoles: {},
       inputTypes: {},
       jsonBytes: jsonByteLength(body),
+      model: null,
       toolCount: null,
       toolNames: [],
       toolTypes: {},
@@ -152,6 +156,7 @@ export function summarizeResponsesRequestShape(body: unknown): RequestShape {
     inputRoles,
     inputTypes,
     jsonBytes: jsonByteLength(body),
+    model: typeof body.model === "string" ? body.model : null,
     toolCount: tools?.length ?? null,
     toolNames: toolNames.slice(0, 25),
     toolTypes,
@@ -233,7 +238,20 @@ function mergeLeadingSystemMessages(value: unknown): { value: unknown; merged: n
   }
 }
 
-export function rewriteResponsesRequestForCompat(payload: unknown): { body: unknown; stats: RewriteStats } {
+function overrideModelForCompat(body: Record<string, unknown>, targetModel: string | null | undefined, stats: RewriteStats) {
+  const model = typeof targetModel === "string" ? targetModel.trim() : ""
+  if (!model) return
+  if (body.model === model) return
+  stats.modelOverriddenFrom = typeof body.model === "string" && body.model.trim()
+    ? body.model
+    : "<missing>"
+  body.model = model
+}
+
+export function rewriteResponsesRequestForCompat(
+  payload: unknown,
+  targetModel?: string | null,
+): { body: unknown; stats: RewriteStats } {
   if (!isRecord(payload)) {
     return {
       body: payload,
@@ -243,6 +261,7 @@ export function rewriteResponsesRequestForCompat(payload: unknown): { body: unkn
 
   const body: Record<string, unknown> = { ...payload }
   const stats = emptyStats()
+  overrideModelForCompat(body, targetModel, stats)
   stats.droppedInstructions = typeof body.instructions === "string" && body.instructions.trim() !== ""
 
   if (stats.droppedInstructions) {
@@ -318,8 +337,11 @@ function compactInputForRetry(input: unknown): { input: unknown; removed: number
   }
 }
 
-export function buildCompactResponsesRetryRequest(payload: unknown): { body: unknown; stats: RewriteStats } {
-  const rewritten = rewriteResponsesRequestForCompat(payload)
+export function buildCompactResponsesRetryRequest(
+  payload: unknown,
+  targetModel?: string | null,
+): { body: unknown; stats: RewriteStats } {
+  const rewritten = rewriteResponsesRequestForCompat(payload, targetModel)
   if (!isRecord(rewritten.body)) return rewritten
 
   const body: Record<string, unknown> = { ...rewritten.body }
@@ -344,8 +366,11 @@ export function shouldUseCompactResponsesRequest(body: unknown) {
   )
 }
 
-export function buildNoToolResponsesRetryRequest(payload: unknown): { body: unknown; stats: RewriteStats } {
-  const compactRetry = buildCompactResponsesRetryRequest(payload)
+export function buildNoToolResponsesRetryRequest(
+  payload: unknown,
+  targetModel?: string | null,
+): { body: unknown; stats: RewriteStats } {
+  const compactRetry = buildCompactResponsesRetryRequest(payload, targetModel)
   if (!isRecord(compactRetry.body)) return compactRetry
 
   const body: Record<string, unknown> = { ...compactRetry.body }
@@ -387,9 +412,10 @@ export async function responsesCompatRoutes(
   { config, logger }: { config: AppConfig; logger: Logger },
 ) {
   fastify.post<{ Body: unknown }>("/internal/codex/v1/responses", async (req, reply) => {
-    const rewritten = rewriteResponsesRequestForCompat(req.body)
+    const targetModel = config.chatModel.model
+    const rewritten = rewriteResponsesRequestForCompat(req.body, targetModel)
     const firstAttempt = shouldUseCompactResponsesRequest(rewritten.body)
-      ? buildCompactResponsesRetryRequest(req.body)
+      ? buildCompactResponsesRetryRequest(req.body, targetModel)
       : rewritten
     firstAttempt.stats.proactiveCompact = firstAttempt !== rewritten
     const upstreamUrl = `${config.chatModel.baseUrl.replace(/\/+$/u, "")}/responses`
@@ -400,7 +426,7 @@ export async function responsesCompatRoutes(
     let retryStatus: number | null = null
 
     if (attempt.response.status >= 500) {
-      const compactRetry = firstAttempt === rewritten ? buildCompactResponsesRetryRequest(req.body) : firstAttempt
+      const compactRetry = firstAttempt === rewritten ? buildCompactResponsesRetryRequest(req.body, targetModel) : firstAttempt
       const retryShape = summarizeResponsesRequestShape(compactRetry.body)
       logger.warn("codex responses compat upstream failed; retrying compact request", {
         requestShape: summarizeResponsesRequestShape(firstAttempt.body),
@@ -424,7 +450,7 @@ export async function responsesCompatRoutes(
           retryStatus: compactAttempt.response.status,
           retryStats: compactRetry.stats,
         })
-        const noToolRetry = buildNoToolResponsesRetryRequest(req.body)
+        const noToolRetry = buildNoToolResponsesRetryRequest(req.body, targetModel)
         noToolRetry.stats.proactiveCompact = firstAttempt.stats.proactiveCompact
         const noToolShape = summarizeResponsesRequestShape(noToolRetry.body)
         const noToolAttempt = await postToResponses(upstreamUrl, config.chatModel.apiKey, noToolRetry.body, signal)
@@ -450,6 +476,7 @@ export async function responsesCompatRoutes(
       droppedInstructions: forwardedStats.droppedInstructions,
       filteredTools: forwardedStats.filteredTools,
       latencyMs: attempt.latencyMs,
+      modelOverriddenFrom: forwardedStats.modelOverriddenFrom,
       proactiveCompact: forwardedStats.proactiveCompact,
       requestShape: attempt.response.status >= 400 ? summarizeResponsesRequestShape(forwardedBody) : undefined,
       responseBodyPreview: attempt.response.status >= 400 ? previewBuffer(attempt.responseBody) : undefined,

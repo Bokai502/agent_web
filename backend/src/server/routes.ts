@@ -9,7 +9,7 @@ import { manifestRoutes } from "../manifests/index.js"
 import { sessionRoutes } from "../sessions/index.js"
 import { authRoutes } from "../system/auth.routes.js"
 import { healthRoutes, remoteToolsRoutes, skillsRoutes } from "../system/index.js"
-import { whisperRoutes } from "../whisper/index.js"
+import { funasrRoutes } from "../funasr/index.js"
 import { workspaceRoutes, stageLogsRoutes } from "../workspaces/index.js"
 import { responsesCompatRoutes } from "../codex-run/responsesCompat.js"
 
@@ -31,5 +31,5 @@ export async function registerApiRoutes(
   await fastify.register(manifestRoutes, { logger })
   await fastify.register(stageLogsRoutes)
   await fastify.register(cosyVoiceRoutes, { config, logger })
-  await fastify.register(whisperRoutes, { config, logger })
+  await fastify.register(funasrRoutes, { config, logger })
 }
