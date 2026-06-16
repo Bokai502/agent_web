@@ -106,6 +106,7 @@ const COMPLIANCE_ARTIFACTS = new Set([
   "key_units_check",
   "catalog_match",
   "quality_level_check",
+  "reliability_query",
 ])
 const DERATING_REFERENCE_RELATIVE_PATH = path.join(
   "workflow_agents",
