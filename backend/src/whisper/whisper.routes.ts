@@ -6,7 +6,7 @@ import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { runAgentTurn } from "../codex-run/agentOrchestrator.js"
-import { RunRequestError } from "../codex-run/codexTurn.js"
+import { RunRequestError } from "../codex-run/runErrors.js"
 
 type CommandResult = {
   stdout: string

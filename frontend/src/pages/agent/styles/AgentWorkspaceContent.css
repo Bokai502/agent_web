@@ -166,6 +166,308 @@
   background: rgba(2, 12, 24, 0.66);
 }
 
+.agent-workspace-body .derating-config-shell {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 14px;
+  color: #eef8ff;
+  background: linear-gradient(180deg, rgba(8, 20, 32, 0.36), rgba(3, 9, 16, 0.16));
+}
+
+.agent-workspace-body .derating-config-top,
+.agent-workspace-body .derating-config-summary,
+.agent-workspace-body .derating-config-card {
+  border: 1px solid rgba(23, 231, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(3, 12, 22, 0.7);
+  box-shadow: inset 0 0 28px rgba(0, 168, 255, 0.08);
+}
+
+.agent-workspace-body .derating-config-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 70px;
+  padding: 12px 14px;
+}
+
+.agent-workspace-body .derating-config-title {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.agent-workspace-body .derating-config-title span,
+.agent-workspace-body .derating-config-card-meta,
+.agent-workspace-body .derating-config-stat span,
+.agent-workspace-body .derating-file-copy span,
+.agent-workspace-body .derating-file-row label > span,
+.agent-workspace-body .derating-select-field > span,
+.agent-workspace-body .derating-rule-row span {
+  color: rgba(190, 218, 232, 0.68);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.agent-workspace-body .derating-config-title strong {
+  color: #f7fcff;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.agent-workspace-body .derating-config-title small {
+  overflow-wrap: anywhere;
+  color: rgba(220, 238, 248, 0.6);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.agent-workspace-body .derating-config-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.agent-workspace-body .derating-config-actions button {
+  height: 34px;
+  border: 1px solid rgba(23, 231, 255, 0.24);
+  border-radius: 6px;
+  background: rgba(23, 231, 255, 0.08);
+  color: rgba(238, 248, 255, 0.9);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 0 14px;
+}
+
+.agent-workspace-body .derating-config-actions button.primary {
+  border-color: rgba(56, 248, 183, 0.28);
+  background: rgba(56, 248, 183, 0.16);
+  color: #edfff8;
+}
+
+.agent-workspace-body .derating-config-actions button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.agent-workspace-body .derating-config-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(180px, 1.1fr);
+  gap: 1px;
+  overflow: hidden;
+}
+
+.agent-workspace-body .derating-config-stat,
+.agent-workspace-body .derating-config-status {
+  display: grid;
+  align-content: center;
+  min-height: 58px;
+  min-width: 0;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 10px 12px;
+}
+
+.agent-workspace-body .derating-config-stat strong,
+.agent-workspace-body .derating-config-status {
+  overflow: hidden;
+  color: #f4fbff;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .derating-config-status {
+  border-left: 1px solid rgba(23, 231, 255, 0.12);
+  color: rgba(220, 238, 248, 0.82);
+}
+
+.agent-workspace-body .derating-config-status.is-ok {
+  color: #aef7d9;
+}
+
+.agent-workspace-body .derating-config-status.is-bad,
+.agent-workspace-body .derating-config-empty.is-bad {
+  color: #ffb3b3;
+}
+
+.agent-workspace-body .derating-config-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.35fr) minmax(280px, 0.8fr);
+  grid-auto-rows: min-content;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.agent-workspace-body .derating-config-layout > .derating-config-card:last-child {
+  grid-column: 1 / -1;
+}
+
+.agent-workspace-body .derating-config-side {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.agent-workspace-body .derating-config-card {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.agent-workspace-body .derating-config-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(23, 231, 255, 0.12);
+  padding: 13px 14px;
+}
+
+.agent-workspace-body .derating-config-card-head > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.agent-workspace-body .derating-config-card-head strong,
+.agent-workspace-body .derating-file-copy strong,
+.agent-workspace-body .derating-rule-row strong {
+  color: #f7fcff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.agent-workspace-body .derating-config-card-head span {
+  color: rgba(200, 224, 238, 0.62);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.agent-workspace-body .derating-file-grid,
+.agent-workspace-body .derating-rule-grid {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.agent-workspace-body .derating-file-row,
+.agent-workspace-body .derating-rule-row,
+.agent-workspace-body .derating-select-field {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.agent-workspace-body .derating-file-row {
+  grid-template-columns: minmax(150px, 0.78fr) minmax(190px, 1fr);
+  align-items: center;
+  border: 1px solid rgba(23, 231, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px;
+}
+
+.agent-workspace-body .derating-file-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.agent-workspace-body .derating-file-copy strong,
+.agent-workspace-body .derating-file-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .derating-file-row label,
+.agent-workspace-body .derating-select-field {
+  min-width: 0;
+}
+
+.agent-workspace-body .derating-select-field {
+  padding: 14px;
+}
+
+.agent-workspace-body .derating-file-row select,
+.agent-workspace-body .derating-select-field select,
+.agent-workspace-body .derating-rule-row select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid rgba(23, 231, 255, 0.18);
+  border-radius: 6px;
+  background: rgba(2, 8, 16, 0.86);
+  color: #eef8ff;
+  color-scheme: dark;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 760;
+  outline: none;
+  padding: 0 9px;
+}
+
+.agent-workspace-body .derating-file-row select:focus,
+.agent-workspace-body .derating-select-field select:focus,
+.agent-workspace-body .derating-rule-row select:focus {
+  border-color: rgba(56, 248, 183, 0.46);
+  box-shadow: 0 0 0 2px rgba(56, 248, 183, 0.12);
+}
+
+.agent-workspace-body .derating-rule-grid {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.agent-workspace-body .derating-rule-row {
+  grid-template-columns: minmax(110px, 0.72fr) minmax(140px, 1fr);
+  align-items: center;
+  border: 1px solid rgba(23, 231, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px;
+}
+
+.agent-workspace-body .derating-rule-row div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.agent-workspace-body .derating-rule-row strong,
+.agent-workspace-body .derating-rule-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workspace-body .derating-config-empty {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  border: 1px solid rgba(23, 231, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 12, 22, 0.68);
+  color: rgba(220, 238, 248, 0.78);
+  font-size: 13px;
+  font-weight: 850;
+}
+
 .agent-workspace-body .gnc-dashboard-stage {
   width: 100%;
   height: 100%;
@@ -1398,6 +1700,22 @@
 }
 
 @media (max-width: 1320px) {
+  .agent-workspace-body .derating-config-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .agent-workspace-body .derating-config-status {
+    border-left: 0;
+  }
+
+  .agent-workspace-body .derating-config-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-workspace-body .derating-config-layout > .derating-config-card:last-child {
+    grid-column: auto;
+  }
+
   .agent-workspace-body .gnc-summary-strip {
     grid-template-columns: repeat(2, minmax(280px, 1fr));
   }
@@ -1412,6 +1730,24 @@
 }
 
 @media (max-width: 920px) {
+  .agent-workspace-body .derating-config-shell {
+    padding: 12px;
+  }
+
+  .agent-workspace-body .derating-config-top {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .agent-workspace-body .derating-config-actions {
+    justify-content: flex-end;
+  }
+
+  .agent-workspace-body .derating-file-row,
+  .agent-workspace-body .derating-rule-row {
+    grid-template-columns: 1fr;
+  }
+
   .agent-workspace-body .gnc-dashboard-stage {
     padding: 14px;
   }
@@ -1427,6 +1763,22 @@
 }
 
 @media (max-width: 620px) {
+  .agent-workspace-body .derating-config-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-workspace-body .derating-config-card-head {
+    flex-direction: column;
+  }
+
+  .agent-workspace-body .derating-config-actions {
+    flex-direction: column;
+  }
+
+  .agent-workspace-body .derating-config-actions button {
+    width: 100%;
+  }
+
   .agent-workspace-body .gnc-summary-row {
     grid-template-columns: 1fr;
     gap: 2px;

@@ -15,6 +15,7 @@ export interface RunRequestBody {
   prompt?: string | null
   input?: unknown
   inputType?: "text" | "voice"
+  modelBackend?: "openai" | "chatModel"
   sessionId?: string | null
   threadId?: string | null
   turnId?: string | null

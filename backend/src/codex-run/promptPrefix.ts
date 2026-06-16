@@ -7,8 +7,36 @@ import type { RunContext, RunInputItem } from "./runTypes.js"
 
 const AGENT_GUIDE_FILE = path.resolve(process.cwd(), "scripts", "AGENT_GUIDE.md")
 
-function buildSkillInstructionsBlock(skillInstructions: SkillInstruction[]) {
+type BuildSdkInputOptions = {
+  compactSkillInstructions?: boolean
+}
+
+function stripFrontmatter(content: string) {
+  const lines = content.split(/\r?\n/u)
+  if (lines[0]?.trim() !== "---") return content
+  const endIndex = lines.findIndex((line, index) => index > 0 && line.trim() === "---")
+  return endIndex >= 0 ? lines.slice(endIndex + 1).join("\n") : content
+}
+
+function buildCompactSkillInstructionsBlock(skillInstructions: SkillInstruction[]) {
   if (skillInstructions.length === 0) return ""
+
+  return [
+    "Enabled skill instructions:",
+    "The user explicitly enabled these skills for this turn. Internal-model compact mode is active, so full skill files are not embedded in this first request.",
+    "Before executing commands or editing files for a skill, read its Source file with the available file tools and follow the detailed instructions there.",
+    ...skillInstructions.map(skill => [
+      `## ${skill.name}`,
+      `Description: ${skill.description || "(none)"}`,
+      `Source: ${skill.file}`,
+      "Use this skill when it matches the current step. Read the source before applying any detailed workflow, command, validation, or reporting rule.",
+    ].join("\n")),
+  ].join("\n\n")
+}
+
+function buildSkillInstructionsBlock(skillInstructions: SkillInstruction[], options: BuildSdkInputOptions = {}) {
+  if (skillInstructions.length === 0) return ""
+  if (options.compactSkillInstructions) return buildCompactSkillInstructionsBlock(skillInstructions)
 
   return [
     "Enabled skill instructions:",
@@ -18,7 +46,7 @@ function buildSkillInstructionsBlock(skillInstructions: SkillInstruction[]) {
       `Description: ${skill.description || "(none)"}`,
       `Source: ${skill.file}`,
       "",
-      skill.content.trim(),
+      stripFrontmatter(skill.content).trim(),
     ].join("\n")),
   ].join("\n\n")
 }
@@ -26,7 +54,8 @@ function buildSkillInstructionsBlock(skillInstructions: SkillInstruction[]) {
 function buildPromptPrefix(
   context: RunContext,
   agentGuide: string,
-  skillInstructions: SkillInstruction[]
+  skillInstructions: SkillInstruction[],
+  options: BuildSdkInputOptions = {},
 ) {
   const executionContext = [
     "Execution context:",
@@ -55,7 +84,7 @@ function buildPromptPrefix(
       : "No workspace is currently configured; ask before running workspace-scoped CLI commands.",
   ].join("\n")
   const guide = agentGuide.trim()
-  const skillsBlock = buildSkillInstructionsBlock(skillInstructions).trim()
+  const skillsBlock = buildSkillInstructionsBlock(skillInstructions, options).trim()
   return [
     executionContext,
     guide ? `Agent guide:\n${guide}` : null,
@@ -83,11 +112,12 @@ export function buildSdkInput(
   context: RunContext,
   injectPromptPrefix: boolean,
   agentGuide: string,
-  skillInstructions: SkillInstruction[]
+  skillInstructions: SkillInstruction[],
+  options: BuildSdkInputOptions = {},
 ): string | RunInputItem[] {
   if (!injectPromptPrefix) return input
 
-  const prefix = buildPromptPrefix(context, agentGuide, skillInstructions)
+  const prefix = buildPromptPrefix(context, agentGuide, skillInstructions, options)
   const firstTextIndex = input.findIndex(item => item.type === "text")
 
   if (firstTextIndex === -1) {

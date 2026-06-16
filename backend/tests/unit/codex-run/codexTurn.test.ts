@@ -199,7 +199,10 @@ describe("prepareCodexTurn", () => {
     assert.deepEqual(skillOnly.enabledSkills, ["explicit-skill"])
     assert.equal(skillOnly.promptTextForHistory, "[input]")
     assert.equal(Array.isArray(skillOnly.sdkInput), true)
-    assert.match(JSON.stringify(skillOnly.sdkInput), /Explicit skill instructions/u)
+    const skillOnlyInputJson = JSON.stringify(skillOnly.sdkInput)
+    assert.match(skillOnlyInputJson, /explicit-skill/u)
+    assert.match(skillOnlyInputJson, /Source: .*explicit\/SKILL\.md/u)
+    assert.doesNotMatch(skillOnlyInputJson, /Explicit skill instructions/u)
 
     const selected = await prepareCodexTurn({
       prompt: "selected prompt",
@@ -214,7 +217,22 @@ describe("prepareCodexTurn", () => {
 
     assert.deepEqual(selected.enabledSkills, [])
     assert.equal(selected.promptTextForHistory, "selected prompt")
-    assert.match(JSON.stringify(selected.sdkInput), /Auto skill instructions/u)
+    const selectedInputJson = JSON.stringify(selected.sdkInput)
+    assert.match(selectedInputJson, /auto-skill/u)
+    assert.match(selectedInputJson, /Source: .*auto\/SKILL\.md/u)
+    assert.doesNotMatch(selectedInputJson, /Auto skill instructions/u)
+
+    const openaiSkillOnly = await prepareCodexTurn({
+      enabledSkills: ["explicit-skill"],
+      modelBackend: "openai",
+      sessionId: "openai-skill-session",
+      turnId: "openai-skill-turn",
+    }, {
+      config,
+      forcedSkillScopes: ["public"],
+      logger,
+    })
+    assert.match(JSON.stringify(openaiSkillOnly.sdkInput), /Explicit skill instructions/u)
   })
 
   it("returns a 409 RunRequestError for mismatched workspace locators", async () => {

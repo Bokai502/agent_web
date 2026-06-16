@@ -12,6 +12,7 @@ import {
   getManagedCodexStatus,
   subscribeManagedCodexStatus,
   summarizeManagedCodex,
+  type ManagedModelBackend,
   type ManagedRunStatusResponse,
 } from './managedRun'
 
@@ -23,6 +24,7 @@ type SessionLike = {
 
 type ManagedAgentRunOptions = {
   activeContext: WorkspaceVersionContext
+  modelBackend: ManagedModelBackend
   refreshWorkspaceViews: () => void
   resetProgressDataRef: MutableRefObject<(() => void) | null>
   setBranchManifest: (manifest: WorkspaceManifestSummary | null) => void
@@ -49,6 +51,7 @@ function workspaceSpeechKey(context: WorkspaceVersionContext) {
 
 export function useManagedAgentRun({
   activeContext,
+  modelBackend,
   refreshWorkspaceViews,
   resetProgressDataRef,
   setBranchManifest,
@@ -162,6 +165,7 @@ export function useManagedAgentRun({
         try {
           const result = await summarizeManagedCodex({
             input: '请用一句中文简短总结当前 Codex pipeline 的实时进度，适合语音播报，不要 Markdown。',
+            modelBackend,
             sessionId,
             threadId,
             workspace: {
@@ -207,6 +211,7 @@ export function useManagedAgentRun({
       const result = await dispatchManagedCodex({
         input: transcript,
         inputType,
+        modelBackend,
         workspace: {
           workspaceDir: context.versionDir,
           workspaceId: context.workspaceId,

@@ -11,12 +11,14 @@ import { authRoutes } from "../system/auth.routes.js"
 import { healthRoutes, remoteToolsRoutes, skillsRoutes } from "../system/index.js"
 import { whisperRoutes } from "../whisper/index.js"
 import { workspaceRoutes, stageLogsRoutes } from "../workspaces/index.js"
+import { responsesCompatRoutes } from "../codex-run/responsesCompat.js"
 
 export async function registerApiRoutes(
   fastify: FastifyInstance,
   { config, logger }: { config: AppConfig; logger: Logger },
 ) {
   await fastify.register(authRoutes, { config })
+  await fastify.register(responsesCompatRoutes, { config, logger })
   await fastify.register(taskRoutes, { config, logger })
   await fastify.register(managedRunRoutes, { config, logger })
   await fastify.register(sessionRoutes, { logger })

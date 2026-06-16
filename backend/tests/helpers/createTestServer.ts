@@ -31,10 +31,11 @@ export async function createTestServer({
   fastify.addHook("onRequest", async (request) => {
     const originalUrl = request.originalUrl ?? request.raw.url ?? request.url
     const isAuthRequest = originalUrl?.startsWith("/api/auth/") === true
+    const isInternalCodexRequest = originalUrl?.startsWith("/internal/codex/") === true
     const isGncRequest = originalUrl?.startsWith("/api/gnc/") === true
     const isRegionRequest = originalUrl?.startsWith("/api/region/") === true
     const user = resolveRequestUser(request, config, configuredWorkspaceRoot)
-    if (config.auth.enabled && !user.authenticated && !isAuthRequest) {
+    if (config.auth.enabled && !user.authenticated && !isAuthRequest && !isInternalCodexRequest) {
       throw Object.assign(new Error("authentication required"), { statusCode: 401 })
     }
 

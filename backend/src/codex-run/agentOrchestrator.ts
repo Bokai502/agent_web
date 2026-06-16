@@ -4,11 +4,13 @@ import { Codex } from "@openai/codex-sdk"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { getWorkspaceManifestSnapshotByLocator } from "../manifests/store.js"
+import { resolveModelBackend, type ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserId } from "../server/requestContext.js"
 import { findWorkspaceSession, upsertWorkspaceSessionHistory } from "../sessions/sessionStore.js"
 import { readManagedPrompt, type SkillScope } from "../system/skills.js"
 import { resolveProgressFromLatestSessionRun } from "../workspaces/workspaceRegistry.js"
 import { executeCodexTurn, prepareCodexTurn, type RunCodexTurnResult } from "./codexTurn.js"
+import { buildCodexConfig, getCodexBaseUrl } from "./codexConfig.js"
 import { routeManagedRunIntent } from "./intentRouter.js"
 import type { RunRequestBody } from "./runTypes.js"
 
@@ -673,27 +675,32 @@ export function getResponseOutputText(payload: unknown) {
   const output = (payload as { output?: unknown }).output
   if (!Array.isArray(output)) return ""
   const parts: string[] = []
+  const fallbackParts: string[] = []
   for (const item of output) {
     if (!item || typeof item !== "object") continue
     const itemType = (item as { type?: unknown }).type
-    if (itemType === "reasoning") continue
     const content = (item as { content?: unknown }).content
     if (!Array.isArray(content)) continue
     for (const contentItem of content) {
       if (!contentItem || typeof contentItem !== "object") continue
       const contentType = (contentItem as { type?: unknown }).type
-      if (contentType === "reasoning_text") continue
       const text = (contentItem as { text?: unknown }).text
-      if (typeof text === "string" && text.trim()) parts.push(text.trim())
+      if (typeof text !== "string" || !text.trim()) continue
+      if (itemType === "reasoning" || contentType === "reasoning_text") {
+        fallbackParts.push(text.trim())
+      } else {
+        parts.push(text.trim())
+      }
     }
   }
-  return parts.join("\n").trim()
+  return (parts.length > 0 ? parts : fallbackParts).join("\n").trim()
 }
 
 export async function createResponseText({
   config,
   logger,
   maxOutputTokens,
+  modelBackend,
   prompt,
   purpose,
   requestId,
@@ -702,13 +709,15 @@ export async function createResponseText({
   config: AppConfig
   logger: Logger
   maxOutputTokens: number
+  modelBackend?: ResolvedModelBackend
   prompt: string
   purpose: string
   requestId?: string
   signal: AbortSignal
 }) {
-  const baseUrl = config.chatModel.baseUrl.replace(/\/+$/u, "")
-  const model = config.chatModel.model
+  const resolvedBackend = modelBackend ?? resolveModelBackend(config)
+  const baseUrl = resolvedBackend.baseUrl.replace(/\/+$/u, "")
+  const model = resolvedBackend.model
   const startedAt = process.hrtime.bigint()
   logger.info("responses api request started", {
     apiKind: "responses",
@@ -722,13 +731,13 @@ export async function createResponseText({
   const response = await fetch(`${baseUrl}/responses`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.chatModel.apiKey}`,
+      Authorization: `Bearer ${resolvedBackend.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       input: prompt.slice(0, RESPONSES_API_TEXT_MAX_CHARS),
       max_output_tokens: maxOutputTokens,
-      model,
+      ...(model ? { model } : {}),
     }),
     signal,
   })
@@ -787,6 +796,7 @@ async function answerProgressQuestion({
   latestStatus,
   logger,
   manifest,
+  modelBackend,
   progress,
   requestId,
   session,
@@ -797,6 +807,7 @@ async function answerProgressQuestion({
   latestStatus: ManagedRunStatusResponse | null
   logger: Logger
   manifest: unknown
+  modelBackend: ResolvedModelBackend
   progress: unknown
   requestId?: string
   session: unknown
@@ -835,6 +846,7 @@ async function answerProgressQuestion({
         config,
         logger,
         maxOutputTokens: Math.max(240, MANAGED_CHAT_OUTPUT_TOKENS),
+        modelBackend,
         prompt,
         purpose: "managed-progress-answer",
         requestId,
@@ -866,6 +878,7 @@ async function createCodexManagedAnswer({
   config,
   input,
   logger,
+  modelBackend,
   requestId,
   signal,
   threadId,
@@ -874,36 +887,27 @@ async function createCodexManagedAnswer({
   config: AppConfig
   input: string
   logger: Logger
+  modelBackend: ResolvedModelBackend
   requestId?: string
   signal: AbortSignal
   threadId: string | null
   workspaceDir: string | null
 }) {
   const startedAt = process.hrtime.bigint()
+  const codexConfig = buildCodexConfig(config, modelBackend)
   const codex = new Codex({
-    apiKey: config.chatModel.apiKey,
-    baseUrl: config.chatModel.baseUrl,
-    config: {
-      show_raw_agent_reasoning: true,
-      model_provider: "managed_chat",
-      model_providers: {
-        managed_chat: {
-          name: "managed_chat",
-          base_url: config.chatModel.baseUrl,
-          wire_api: "responses",
-          supports_websockets: false,
-        },
-      },
-    },
+    apiKey: modelBackend.apiKey,
+    baseUrl: getCodexBaseUrl(config, modelBackend),
+    config: codexConfig,
     env: buildManagedAnswerCodexEnv(),
   })
   const threadOptions = {
-    model: config.chatModel.model,
+    ...(modelBackend.model ? { model: modelBackend.model } : {}),
     workingDirectory: workspaceDir ?? process.cwd(),
-    approvalPolicy: config.chatModel.approvalPolicy,
-    skipGitRepoCheck: config.chatModel.skipGitRepoCheck,
-    modelReasoningEffort: config.chatModel.modelReasoningEffort,
-    sandboxMode: config.chatModel.sandboxMode,
+    approvalPolicy: modelBackend.approvalPolicy,
+    skipGitRepoCheck: modelBackend.skipGitRepoCheck,
+    modelReasoningEffort: modelBackend.modelReasoningEffort,
+    sandboxMode: modelBackend.sandboxMode,
   }
   const thread = threadId
     ? codex.resumeThread(threadId, threadOptions)
@@ -931,6 +935,8 @@ async function createCodexManagedAnswer({
     answerLength: answer.length,
     eventCount,
     latencyMs: Number(process.hrtime.bigint() - startedAt) / 1_000_000,
+    model: modelBackend.model,
+    modelBackend: modelBackend.id,
     requestId,
     threadId: resolvedThreadId,
   })
@@ -944,6 +950,7 @@ async function summarizePipelineCompletion({
   latestMessage,
   logger,
   manifestRun,
+  modelBackend,
   progress,
   requestId,
   sessionTurn,
@@ -955,6 +962,7 @@ async function summarizePipelineCompletion({
   latestMessage: string
   logger: Logger
   manifestRun: unknown
+  modelBackend: ResolvedModelBackend
   progress: unknown
   requestId?: string
   sessionTurn: unknown
@@ -988,6 +996,7 @@ async function summarizePipelineCompletion({
         config,
         logger,
         maxOutputTokens: Math.max(360, MANAGED_CHAT_OUTPUT_TOKENS),
+        modelBackend,
         prompt,
         purpose: "managed-pipeline-completion-summary",
         requestId,
@@ -1003,7 +1012,8 @@ async function summarizePipelineCompletion({
     if (cleanedSummary) {
       if (isLikelyTruncatedSummary(cleanedSummary)) {
         logger.warn("managed pipeline completion summary discarded", {
-          model: config.chatModel.model,
+          model: modelBackend.model,
+          modelBackend: modelBackend.id,
           requestId,
           managedPrompt: managedPrompt.name,
           summaryLength: cleanedSummary.length,
@@ -1012,7 +1022,8 @@ async function summarizePipelineCompletion({
         return buildCompletionFallbackSummary({ artifacts, issues, latestMessage, manifestRun, progress, status })
       }
       logger.info("managed pipeline completion summary generated", {
-        model: config.chatModel.model,
+        model: modelBackend.model,
+        modelBackend: modelBackend.id,
         requestId,
         managedPrompt: managedPrompt.name,
         summaryLength: cleanedSummary.length,
@@ -1088,10 +1099,12 @@ async function buildManagedSummary(
   {
     config,
     logger,
+    modelBackend,
     requestId,
   }: {
     config: AppConfig
     logger: Logger
+    modelBackend: ResolvedModelBackend
     requestId?: string
   },
 ) {
@@ -1122,6 +1135,7 @@ async function buildManagedSummary(
     latestMessage,
     logger,
     manifestRun,
+    modelBackend,
     progress,
     requestId,
     sessionTurn,
@@ -1152,6 +1166,7 @@ export async function cancelManagedRunAndSummarize(
   managedRunId: string,
   { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
 ) {
+  const modelBackend = resolveModelBackend(config)
   const latestStatus = await getManagedRunStatus(managedRunId)
   if (!latestStatus) return null
 
@@ -1193,6 +1208,7 @@ export async function cancelManagedRunAndSummarize(
     latestMessage,
     logger,
     manifestRun,
+    modelBackend,
     progress,
     requestId: `${requestId ?? "request"}:${managedRunId}:cancel-summary`,
     sessionTurn,
@@ -1218,6 +1234,7 @@ export async function summarizeManagedProgress(
   body: RunRequestBody,
   { config, logger, requestId }: { config: AppConfig; logger: Logger; requestId?: string },
 ) {
+  const modelBackend = resolveModelBackend(config, body.modelBackend)
   const sessionId = getOptionalString(body.sessionId)
   const workspaceDir = getOptionalWorkspaceDir(body.workspaceDir)
   const workspaceId = getOptionalString(body.workspaceId)
@@ -1249,6 +1266,7 @@ export async function summarizeManagedProgress(
     latestStatus,
     logger,
     manifest,
+    modelBackend,
     progress,
     requestId: `${requestId ?? "request"}:managed-progress-summary`,
     session: latestSession,
@@ -1301,6 +1319,7 @@ async function answerManagedProgressFromDispatch({
   latestStatus,
   logger,
   managedRunId,
+  modelBackend,
   requestId,
   routing,
 }: {
@@ -1310,6 +1329,7 @@ async function answerManagedProgressFromDispatch({
   latestStatus?: ManagedRunStatusResponse | null
   logger: Logger
   managedRunId: string
+  modelBackend: ResolvedModelBackend
   requestId?: string
   routing: ManagedRouting
 }): Promise<ManagedRunResponse> {
@@ -1344,6 +1364,7 @@ async function answerManagedProgressFromDispatch({
     latestStatus: resolvedLatestStatus,
     logger,
     manifest,
+    modelBackend,
     progress,
     requestId: `${requestId ?? "request"}:${managedRunId}:progress-answer`,
     session: latestSession,
@@ -1417,6 +1438,7 @@ async function answerGeneralQuestionFromDispatch({
   inputType,
   logger,
   managedRunId,
+  modelBackend,
   normalized,
   requestId,
   routing,
@@ -1426,6 +1448,7 @@ async function answerGeneralQuestionFromDispatch({
   inputType: "text" | "voice"
   logger: Logger
   managedRunId: string
+  modelBackend: ResolvedModelBackend
   normalized: { sessionKey: string }
   requestId?: string
   routing: ManagedRouting
@@ -1460,6 +1483,7 @@ async function answerGeneralQuestionFromDispatch({
         config,
         input: prompt,
         logger,
+        modelBackend,
         requestId: `${requestId ?? "request"}:${managedRunId}:general-answer`,
         signal: abort.signal,
         threadId,
@@ -1567,6 +1591,7 @@ export async function runAgentTurn(
   const managedRunId = makeManagedRunId()
   const normalized = await normalizeManagedRunBody(body)
   body = normalized.body
+  const modelBackend = resolveModelBackend(config, body.modelBackend)
   publishManagedRunEvent({ type: "accepted", managedRunId, inputType, requestId })
 
   const lockedStatus = await getLatestManagedStatusForWorkspace(body)
@@ -1596,6 +1621,7 @@ export async function runAgentTurn(
       latestStatus: lockedStatus,
       logger,
       managedRunId,
+      modelBackend,
       requestId,
       routing,
     })
@@ -1619,6 +1645,7 @@ export async function runAgentTurn(
       inputType,
       logger,
       managedRunId,
+      modelBackend,
       requestId,
       routing: { selectedSkills: routing.selectedSkills, skillScopes: routing.skillScopes },
     })
@@ -1631,6 +1658,7 @@ export async function runAgentTurn(
       inputType,
       logger,
       managedRunId,
+      modelBackend,
       normalized,
       requestId,
       routing: { selectedSkills: routing.selectedSkills, skillScopes: routing.skillScopes },
@@ -1694,6 +1722,7 @@ export async function runAgentTurn(
       const summary = await buildManagedSummary(result, {
         config,
         logger,
+        modelBackend: prepared.modelBackend,
         requestId: `${requestId ?? "request"}:${managedRunId}:final-summary`,
       })
       const currentStatus = await getManagedRunStatus(managedRunId)

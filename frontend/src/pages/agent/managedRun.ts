@@ -8,6 +8,8 @@ export type ManagedRunWorkspace = {
   versionId?: string | null
 }
 
+export type ManagedModelBackend = 'openai' | 'chatModel'
+
 export type ManagedRunResponse = {
   artifacts?: Array<{ exists: boolean; kind: string; path: string }>
   error?: string
@@ -81,6 +83,7 @@ type ManagedRunRequest = {
   enabledSkills?: string[]
   input: string | CodexInputItem[]
   inputType?: 'text' | 'voice'
+  modelBackend?: ManagedModelBackend
   sessionId?: string | null
   threadId?: string | null
   turnId?: string | null
@@ -99,6 +102,7 @@ async function postManagedRun<TResponse>(path: string, {
   enabledSkills = [],
   input,
   inputType,
+  modelBackend,
   sessionId,
   threadId,
   turnId,
@@ -111,6 +115,7 @@ async function postManagedRun<TResponse>(path: string, {
       ...(typeof input === 'string' ? { prompt: input } : { input }),
       enabledSkills,
       ...(inputType ? { inputType } : {}),
+      ...(modelBackend ? { modelBackend } : {}),
       ...(sessionId ? { sessionId } : {}),
       ...(threadId ? { threadId } : {}),
       ...(turnId ? { turnId } : {}),

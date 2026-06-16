@@ -43,6 +43,20 @@ describe("codex run route", () => {
 
       assert.equal(response.statusCode, 400)
       assert.deepEqual(response.json(), { error: "sessionId is required" })
+
+      const invalidBackend = await server.inject({
+        method: "POST",
+        payload: {
+          modelBackend: "local",
+          prompt: "hello",
+          sessionId: "session-1",
+          turnId: "turn-1",
+        },
+        url: "/api/run",
+      })
+
+      assert.equal(invalidBackend.statusCode, 400)
+      assert.deepEqual(invalidBackend.json(), { error: "modelBackend must be one of: openai, chatModel" })
     } finally {
       await server.close()
     }
@@ -51,7 +65,7 @@ describe("codex run route", () => {
   it("streams Codex run events over SSE and closes the response", async () => {
     const server = await createTestServer({
       config: createTestConfig({
-        openai: {
+        chatModel: {
           apiKey: "invalid-test-key",
           baseUrl: "http://127.0.0.1:9",
           model: "test-model",
