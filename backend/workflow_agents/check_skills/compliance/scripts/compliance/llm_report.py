@@ -267,7 +267,7 @@ def _step_data(template_name: str, artifacts: dict[str, Any]) -> dict[str, Any]:
 def _requirement_by_name(
     artifacts: dict[str, Any], keyword: str
 ) -> list[dict[str, Any]]:
-    rows = artifacts.get("requirements_analysis") or []
+    rows = _requirement_rows(artifacts)
     return [
         row
         for row in rows
@@ -277,7 +277,7 @@ def _requirement_by_name(
 
 
 def _basic_info_section(artifacts: dict[str, Any]) -> list[str]:
-    requirements = artifacts.get("requirements_analysis") or []
+    requirements = _requirement_rows(artifacts)
     satellite_info = artifacts.get("satellite_info") or []
     quality_requirement = _requirement_exact(
         requirements, "质量等级要求"
@@ -422,11 +422,31 @@ def _satellite_evidence(rows: list[dict[str, Any]], keyword: str) -> str:
     return ""
 
 
+def _requirement_rows(artifacts: dict[str, Any]) -> list[dict[str, Any]]:
+    value = artifacts.get("requirements_analysis") or []
+    if isinstance(value, dict):
+        if isinstance(value.get("check_items"), list):
+            value = value["check_items"]
+        elif isinstance(value.get("output"), list):
+            value = value["output"]
+        else:
+            value = []
+    if not isinstance(value, list):
+        return []
+    return [row for row in value if isinstance(row, dict)]
+
+
 def _requirement_text(row: dict[str, Any]) -> str:
     original = str(row.get("original_content") or "").strip()
     detail = str(row.get("detail") or "").strip()
     review = str(row.get("review") or "").strip()
-    parts = [part for part in [detail, original, review] if part]
+    interpretation = str(row.get("interpretation") or "").strip()
+    judgment_basis = str(row.get("judgment_basis") or "").strip()
+    parts = [
+        part
+        for part in [interpretation, detail, original, judgment_basis, review]
+        if part
+    ]
     return "\n\n".join(parts) if parts else "未提取到对应型号要求。"
 
 

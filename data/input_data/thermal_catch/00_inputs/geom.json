@@ -890,7 +890,7 @@
         57.50000020000002
       ],
       "mass": 0.05,
-      "power": 0.1,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "position": [
@@ -967,7 +967,7 @@
         57.50000020000002
       ],
       "mass": 0.05,
-      "power": 0.1,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "position": [
@@ -1429,7 +1429,7 @@
         23.01600878462247
       ],
       "mass": 0.05,
-      "power": 0.5,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "01_DIBAN_BJ.zmin_outer",
       "position": [
@@ -2276,7 +2276,7 @@
         34.04379389059784
       ],
       "mass": 0.05,
-      "power": 1.0,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "07_CB_FXZY_BJ.xmax_outer",
       "position": [
@@ -2353,7 +2353,7 @@
         34.043793884414015
       ],
       "mass": 0.05,
-      "power": 1.0,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
       "position": [
@@ -2584,7 +2584,7 @@
         50.00000019999999
       ],
       "mass": 0.05,
-      "power": 1.0,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
       "position": [
@@ -2738,7 +2738,7 @@
         160.00000020000002
       ],
       "mass": 0.05,
-      "power": 1.0,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
       "position": [
@@ -2815,7 +2815,7 @@
         50.00000019999999
       ],
       "mass": 0.05,
-      "power": 1.0,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "10_CB_FY_BJ.ymax_outer",
       "position": [
@@ -3046,7 +3046,7 @@
         13.8000002
       ],
       "mass": 0.05,
-      "power": 1.0,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
       "position": [
@@ -3123,7 +3123,7 @@
         13.8000002
       ],
       "mass": 0.05,
-      "power": 1.0,
+      "power": 0,
       "shape": "box",
       "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
       "position": [
