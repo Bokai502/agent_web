@@ -36,6 +36,7 @@ describe("Responses compatibility rewriting", () => {
       developerRolesRewritten: 1,
       droppedInstructions: true,
       filteredTools: ["web_search", "view_image"],
+      modelOverriddenFrom: null,
       proactiveCompact: false,
       strippedTopLevelFields: [],
       systemMessagesMerged: 0,
@@ -44,6 +45,19 @@ describe("Responses compatibility rewriting", () => {
     assert.equal((body as { instructions?: unknown }).instructions, undefined)
     assert.equal((body as { input: Array<{ role: string }> }).input[0].role, "system")
     assert.deepEqual((body as { tools: Array<{ name: string }> }).tools.map(tool => tool.name), ["exec_command"])
+  })
+
+  it("overrides subagent default models for internal chatModel compatibility", () => {
+    const { body, stats } = rewriteResponsesRequestForCompat({
+      input: [
+        { type: "message", role: "user", content: [{ type: "input_text", text: "run" }] },
+      ],
+      model: "gpt-5.4",
+    }, "Qwen3.6")
+
+    const rewritten = body as Record<string, unknown>
+    assert.equal(rewritten.model, "Qwen3.6")
+    assert.equal(stats.modelOverriddenFrom, "gpt-5.4")
   })
 
   it("moves rewritten system messages to the beginning of resumed input", () => {

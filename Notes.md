@@ -12,7 +12,7 @@ Open Codex Web 是一个面向工程工作区的 Codex Web 前端与 Fastify 后
 - **GNC 工作流**：支持 GNC 工作区根目录、42 配置解析/编辑、外部 GNC 页面和本地 D3 遥测看板。
 - **热仿真工作流**：保留 FreeCAD、ParaView、COMSOL 远程工具和热仿真工作区数据读取能力。
 - **文件与日志**：支持工作区文件树、文本/二进制预览、压缩下载、阶段日志、对话日志和进度文件读取。
-- **语音能力**：Whisper.cpp 语音转写、CosyVoice TTS、Agent 语音任务反馈。
+- **语音能力**：FunASR HTTP 语音转写、CosyVoice TTS、Agent 语音任务反馈。
 - **三维查看器**：`/viewer` 页面读取工作区 GLB 或模型接口，使用 Three.js/WebGPU 展示模型。
 
 ---
@@ -24,7 +24,7 @@ Open Codex Web 是一个面向工程工作区的 Codex Web 前端与 Fastify 后
 | 前端 | React 19、TypeScript、Vite、D3、Three.js、Shiki、i18next |
 | 后端 | Fastify 5、TypeScript、tsx、@openai/codex-sdk |
 | Agent | Codex SDK、Codex CLI、workflow skill contracts |
-| 语音 | whisper.cpp、CosyVoice HTTP 服务 |
+| 语音 | FunASR HTTP 转写服务、CosyVoice HTTP 服务 |
 | 工作区 | 本地文件系统、workspace manifest、session store、progress/log artifacts |
 
 ---
@@ -43,7 +43,7 @@ open_codex_web/
 │   │   ├── sessions/                # 会话存储与会话 REST API
 │   │   ├── gnc_config/              # 42 GNC 配置解析与写回
 │   │   ├── system/                  # health、skills、remote tools
-│   │   ├── whisper/                 # whisper.cpp 转写与语音转 Codex
+│   │   ├── funasr/                  # FunASR 转写代理与语音转 Codex
 │   │   └── cosyvoice/               # TTS 与任务提示音
 │   ├── workflow_agents/
 │   │   ├── gnc_skills/              # AIGNC/42 相关 Codex skills 和 plot_runtime_gnc.py
@@ -51,7 +51,6 @@ open_codex_web/
 │   │   ├── check_skills/            # 降额检查等 skills
 │   │   └── agents/                  # freecad_cli_tools、sim_cli_tools
 │   ├── cosyvoice3/                  # 本地 CosyVoice 依赖目录，可未纳入 git
-│   └── whisper_cpp/                 # whisper.cpp 依赖目录，可未纳入 git
 ├── frontend/
 │   ├── src/
 │   │   ├── main.tsx                 # 前端轻量路由分发
@@ -84,7 +83,9 @@ open_codex_web/
 
 | 字段 | 说明 |
 |------|------|
-| `chatModel` / `CHAT_MODEL_*` | 所有 Codex、routing、managed progress/general answer 使用的模型配置，可设置 `apiKey`、`baseUrl`、`model`、`modelProvider`、`wireApi`、`modelReasoningEffort`、`approvalPolicy`、`sandboxMode`、`skipGitRepoCheck` |
+| `chatModel` / `CHAT_MODEL_*` | 默认内网模型连接配置，可设置 `apiKey`、`baseUrl`、`model` |
+| `openai` / `OPENAI_*` | OpenAI 后端连接配置，可设置 `apiKey`、`baseUrl`、`model` |
+| `codex.modelProvider` / `codex.modelProviderName` / `codex.wireApi` / `codex.supportsWebsockets` | Codex SDK provider 元数据 |
 | `codex.modelReasoningEffort` | 推理强度 |
 | `codex.approvalPolicy` | Codex approval policy |
 | `codex.sandboxMode` | Codex sandbox mode |
@@ -115,20 +116,18 @@ open_codex_web/
 | `workspace.filePreviewMaxBytes` | 普通文件预览大小上限，可用 `WORKSPACE_FILE_PREVIEW_MAX_BYTES` 覆盖 |
 | `workspace.textFileMaxBytes` | 文本文件整读上限，可用 `WORKSPACE_TEXT_FILE_MAX_BYTES` 覆盖 |
 | `workspace.textChunkBytes` / `workspace.textChunkMaxBytes` | 超大文本/JSON 分块读取默认块大小和单块上限，可用 `WORKSPACE_TEXT_CHUNK_BYTES` / `WORKSPACE_TEXT_CHUNK_MAX_BYTES` 覆盖 |
-| `whisper.modelPath` / `whisper.ffmpegBin` | whisper.cpp 模型和 ffmpeg 配置 |
-| `whisper.bin` / `whisper.cudaVisibleDevices` / `whisper.defaultLanguage` | whisper.cpp 可执行文件、GPU 和默认语言 |
+| `funasr.apiUrl` | FunASR HTTP 转写服务地址 |
 | `cosyvoice.apiUrl` / `cosyvoice.promptWav` / `cosyvoice.promptText` | CosyVoice 服务与零样本提示配置 |
 | `cosyvoice.streamCacheTtlMs` / `cosyvoice.streamCacheMaxItems` | TTS 流式缓存配置 |
 | `cosyvoice.ttsMaxTextLength` | 单次 TTS 文本长度上限 |
-| `workflowAgents.contractDir` | workflow skills 根目录 |
 
 不要把真实 API Key 写进 README、提交记录或日志。
 
 ### Qwen3.6 / chatModel 接入方式
 
-当前代码没有为 `Qwen3.6` 写模型专用分支，而是把它作为默认 `chatModel` 后端的一种配置使用。`backend/src/modelBackends/modelBackends.ts` 定义了两个可选模型后端：`chatModel` 和 `openai`，默认值是 `chatModel`。普通 `/api/run`、托管 `/api/run/managed/*`、意图路由、进度总结和 general answer 都会通过 `resolveModelBackend(config, body.modelBackend)` 解析实际使用的 `apiKey`、`baseUrl`、`model`、`modelProvider`、`wireApi`、sandbox 和 approval 配置。当前 `config.json` 中 `chatModel.model` 配置为 `Qwen3.6`，因此默认 Agent 流程会使用该内网模型；前端 `/agent` 顶栏的“模型”开关可以在 `内网模型` 和 `OpenAI` 之间切换，请求体通过 `modelBackend` 传给后端。
+当前代码没有为 `Qwen3.6` 写模型专用分支，而是把它作为默认 `chatModel` 后端的一种配置使用。`backend/src/modelBackends/modelBackends.ts` 定义了两个可选模型后端：`chatModel` 和 `openai`，默认值是 `chatModel`。普通 `/api/run`、托管 `/api/run/managed/*`、意图路由、进度总结和 general answer 都会通过 `resolveModelBackend(config, body.modelBackend)` 解析实际使用的 `apiKey`、`baseUrl`、`model`；Codex provider、wire API、sandbox 和 approval 策略统一从 `codex` 配置读取。当前 `config.json` 中 `chatModel.model` 配置为 `Qwen3.6`，因此默认 Agent 流程会使用该内网模型；前端 `/agent` 顶栏的“模型”开关可以在 `内网模型` 和 `OpenAI` 之间切换，请求体通过 `modelBackend` 传给后端。
 
-为了适配 `Qwen3.6` 这类非 OpenAI 的 Responses-compatible 网关，后端新增了内部兼容代理 `POST /internal/codex/v1/responses`。当 `chatModel.wireApi` 为 `responses` 且 provider 不是 `openai` 时，Codex SDK 的 base URL 会被改到该内部代理。代理会将 Codex 请求改写成更容易被兼容网关接受的格式：删除部分顶层字段，丢弃 `instructions`，把 `developer` role 改为 `system`，前移并合并 system message，过滤非 function 工具和 `view_image`，并在大请求或上游 `5xx` 时尝试 compact/no-tool 重试。该路径同时会记录 request shape 和错误摘要，避免日志中输出完整消息内容。
+为了适配 `Qwen3.6` 这类非 OpenAI 的 Responses-compatible 网关，后端新增了内部兼容代理 `POST /internal/codex/v1/responses`。当 `codex.wireApi` 为 `responses` 且 provider 不是 `openai` 时，Codex SDK 的 base URL 会被改到该内部代理。代理会将 Codex 请求改写成更容易被兼容网关接受的格式：删除部分顶层字段，丢弃 `instructions`，把 `developer` role 改为 `system`，前移并合并 system message，过滤非 function 工具和 `view_image`，并在大请求或上游 `5xx` 时尝试 compact/no-tool 重试。该路径同时会记录 request shape 和错误摘要，避免日志中输出完整消息内容。
 
 `chatModel` 后端还启用了 compact skill instructions：显式启用 skill 时，首轮请求只注入 skill 名称、描述和 Source 文件路径，并要求 Agent 在真正使用前读取对应 `SKILL.md`，而不是直接把完整 skill 内容塞进上下文。这样可以降低 `Qwen3.6` 首轮请求体大小和兼容网关失败概率；切换到 `openai` 后端时仍保留完整 skill 内容注入。
 
@@ -151,7 +150,7 @@ npm install -g @openai/codex
 codex --version
 ```
 
-语音功能还依赖本机 whisper.cpp、模型文件、ffmpeg 和可用的 CosyVoice 服务；这些能力缺失时，不影响纯文字 Agent 和工作区页面启动。
+语音转写依赖 `funasr.apiUrl` 指向的 FunASR HTTP 服务，语音播报依赖 CosyVoice 服务；这些能力缺失时，不影响纯文字 Agent 和工作区页面启动。
 
 ---
 
@@ -411,9 +410,9 @@ curl "http://localhost:${BACKEND_PORT}/api/workspace/files/text?workspaceDir=${W
 | `GET` | `/api/skills` | 读取后端缓存的 skills |
 | `POST` | `/api/remote-tools/ensure-desktops` | 确保 CAD/ParaView/COMSOL 远程桌面启动 |
 | `GET` | `/api/image?path=...` | 安全读取本地图片 |
-| `GET` | `/api/whisper/models` | 查看 whisper.cpp 配置 |
-| `POST` | `/api/whisper/transcribe` | 上传音频并转写 |
-| `POST` | `/api/whisper/codex` | 转写文本后直接派发 Codex |
+| `GET` | `/api/funasr/models` | 查看语音转写服务配置 |
+| `POST` | `/api/funasr/transcribe` | 上传音频并转写 |
+| `POST` | `/api/funasr/codex` | 转写文本后直接派发 Codex |
 | `GET` | `/api/agent/audio/task-accepted` | 任务接受提示音 |
 | `GET` | `/api/cosyvoice/config` | 查看 CosyVoice 配置 |
 | `POST` | `/api/cosyvoice/tts` | 生成 TTS 音频文件 |
@@ -460,7 +459,7 @@ FreeCAD CAD 构建仍应使用 GUI FreeCAD 的 MCP RPC，不使用 `freecadcmd` 
 - `check_skills`：降额检查等规则类工作流。
 - `routing_skills`：意图路由、进度总结等。
 
-`config.json` 的 `workflowAgents.contractDir` 指向该目录，托管 Agent 会结合工作区上下文和 enabled skills 运行。
+后端固定扫描 `backend/workflow_agents` 下的工作流 skills，托管 Agent 会结合工作区上下文和 enabled skills 运行。
 
 ---
 
@@ -482,7 +481,7 @@ FreeCAD CAD 构建仍应使用 GUI FreeCAD 的 MCP RPC，不使用 `freecadcmd` 
 `GNC` 标签使用 `tools.gnc.url`，需要该服务本身可从浏览器所在机器访问。
 
 **语音转写不可用**  
-检查 `WHISPER_CPP_BIN`、`WHISPER_MODEL_PATH`、`WHISPER_FFMPEG_BIN` 和 CUDA/CPU 构建是否可用。纯文字 Agent 不依赖这些配置。
+检查 `FUNASR_API_URL` / `funasr.apiUrl` 指向的 FunASR HTTP 转写服务是否可用。纯文字 Agent 不依赖这些配置。
 
 **TTS 不出声**  
 检查 `COSYVOICE_API_URL`、`COSYVOICE_PROMPT_WAV` 和本地 CosyVoice 服务是否可访问。

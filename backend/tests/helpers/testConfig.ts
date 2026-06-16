@@ -18,9 +18,13 @@ export function createTestConfig(overrides: Partial<AppConfig> = {}): AppConfig 
     codex: {
       approvalPolicy: "never",
       modelReasoningEffort: "medium",
+      modelProvider: null,
+      modelProviderName: null,
       sandboxMode: "workspace-write",
       sandboxWorkspaceWriteNetworkAccess: false,
       skipGitRepoCheck: true,
+      supportsWebsockets: null,
+      wireApi: null,
     },
     cosyvoice: {
       apiUrl: null,
@@ -47,24 +51,12 @@ export function createTestConfig(overrides: Partial<AppConfig> = {}): AppConfig 
       apiKey: "test-openai-api-key",
       baseUrl: "http://127.0.0.1:9",
       model: "test-openai-model",
-      modelProvider: null,
-      modelProviderName: null,
-      supportsWebsockets: null,
-      wireApi: null,
     },
     chatModel: {
       apiKey: "test-chat-api-key",
-      approvalPolicy: "never",
       baseUrl: "http://127.0.0.1:9",
       model: "test-chat-model",
-      modelProvider: null,
-      modelProviderName: null,
-      modelReasoningEffort: "medium",
-      sandboxMode: "read-only",
-      skipGitRepoCheck: true,
       responsesCompat: null,
-      supportsWebsockets: null,
-      wireApi: null,
     },
     server: {
       corsOrigin: "http://localhost:5173",
@@ -97,12 +89,8 @@ export function createTestConfig(overrides: Partial<AppConfig> = {}): AppConfig 
         vncPort: 5904,
       },
     },
-    whisper: {
-      bin: null,
-      cudaVisibleDevices: null,
-      defaultLanguage: null,
-      ffmpegBin: null,
-      modelPath: null,
+    funasr: {
+      apiUrl: null,
     },
     workspace: {
       filePreviewMaxBytes: 1024 * 1024,
@@ -136,7 +124,7 @@ export function createTestConfig(overrides: Partial<AppConfig> = {}): AppConfig 
       gnc: { ...config.tools.gnc, ...overrides.tools?.gnc },
       paraview: { ...config.tools.paraview, ...overrides.tools?.paraview },
     },
-    whisper: { ...config.whisper, ...overrides.whisper },
+    funasr: { ...config.funasr, ...overrides.funasr },
     workspace: { ...config.workspace, ...overrides.workspace },
   }
 }

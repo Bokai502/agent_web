@@ -11,18 +11,18 @@ describe("buildCodexConfig", () => {
     })
   })
 
-  it("includes workspace-write network access and chatModel provider metadata", () => {
+  it("includes workspace-write network access and codex provider metadata", () => {
     const config = createTestConfig({
       codex: {
+        modelProvider: "example",
+        modelProviderName: "Example Provider",
         sandboxWorkspaceWriteNetworkAccess: true,
+        supportsWebsockets: false,
+        wireApi: "responses",
       },
       chatModel: {
         baseUrl: "https://api.example.test/v1",
-        modelProvider: "example",
-        modelProviderName: "Example Provider",
         responsesCompat: false,
-        supportsWebsockets: false,
-        wireApi: "responses",
       },
     })
 
@@ -45,11 +45,13 @@ describe("buildCodexConfig", () => {
 
   it("uses the local Responses compatibility endpoint by default for non-OpenAI Responses providers", () => {
     const config = createTestConfig({
+      codex: {
+        modelProvider: "example",
+        wireApi: "responses",
+      },
       chatModel: {
         baseUrl: "https://api.example.test/v1",
-        modelProvider: "example",
         responsesCompat: null,
-        wireApi: "responses",
       },
       server: {
         port: 3002,
@@ -72,7 +74,7 @@ describe("buildCodexConfig", () => {
 
   it("falls back to provider ids and omits optional provider fields", () => {
     const config = createTestConfig({
-      chatModel: {
+      codex: {
         modelProvider: "minimal-provider",
         modelProviderName: null,
         supportsWebsockets: null,
@@ -94,12 +96,14 @@ describe("buildCodexConfig", () => {
 
   it("uses the original OpenAI endpoint without overriding the built-in provider", () => {
     const config = createTestConfig({
-      openai: {
-        baseUrl: "https://api.openai.test/v1",
+      codex: {
         modelProvider: "openai",
         modelProviderName: "OpenAI",
         supportsWebsockets: true,
         wireApi: "responses",
+      },
+      openai: {
+        baseUrl: "https://api.openai.test/v1",
       },
       server: {
         port: 3002,

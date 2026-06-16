@@ -25,26 +25,18 @@ export interface AppConfig {
     apiKey: string
     baseUrl: string
     model: string | null
-    modelProvider: string | null
-    modelProviderName: string | null
-    wireApi: string | null
-    supportsWebsockets: boolean | null
   }
   chatModel: {
     apiKey: string
-    approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted"
     baseUrl: string
     model: string
-    modelProvider: string | null
-    modelProviderName: string | null
-    modelReasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh"
-    sandboxMode: "read-only" | "workspace-write" | "danger-full-access"
-    skipGitRepoCheck: boolean
-    wireApi: string | null
-    supportsWebsockets: boolean | null
     responsesCompat: boolean | null
   }
   codex: {
+    modelProvider: string | null
+    modelProviderName: string | null
+    wireApi: string | null
+    supportsWebsockets: boolean | null
     modelReasoningEffort: "minimal" | "low" | "medium" | "high" | "xhigh"
     approvalPolicy: "never" | "on-request" | "on-failure" | "untrusted"
     sandboxMode: "read-only" | "workspace-write" | "danger-full-access"
@@ -100,12 +92,8 @@ export interface AppConfig {
     rpcHost: string
     rpcPort: number
   }
-  whisper: {
-    bin: string | null
-    cudaVisibleDevices: string | null
-    defaultLanguage: string | null
-    ffmpegBin: string | null
-    modelPath: string | null
+  funasr: {
+    apiUrl: string | null
   }
   logging: {
     level: LogLevel
@@ -125,30 +113,26 @@ const CONFIG_FILE = fs.existsSync(PROJECT_CONFIG_FILE) ? PROJECT_CONFIG_FILE : L
 
 type RawOpenAiConfig = Partial<AppConfig["openai"]> & {
   base_url?: unknown
-  model_provider?: unknown
-  model_provider_name?: unknown
-  wire_api?: unknown
-  supports_websockets?: unknown
 }
 
 type RawChatModelConfig = Partial<AppConfig["chatModel"]> & {
   api_key?: unknown
   base_url?: unknown
-  approval_policy?: unknown
+  responses_compat?: unknown
+}
+
+type RawCodexConfig = Partial<AppConfig["codex"]> & {
   model_provider?: unknown
   model_provider_name?: unknown
-  model_reasoning_effort?: unknown
-  sandbox_mode?: unknown
-  skip_git_repo_check?: unknown
   wire_api?: unknown
   supports_websockets?: unknown
-  responses_compat?: unknown
 }
 
 type RawConfig = Partial<AppConfig> & {
   openai?: RawOpenAiConfig
   chatModel?: RawChatModelConfig
   chat_model?: RawChatModelConfig
+  codex?: RawCodexConfig
   [key: string]: unknown
 }
 
@@ -281,13 +265,6 @@ export function loadConfig(): AppConfig {
   const apiKey = (envKey ?? openai.apiKey ?? "").trim()
   const baseUrl = (envBase ?? openai.baseUrl ?? optionalString(openai.base_url, "openai.base_url") ?? "").trim()
   const model = optionalString(openai.model, "openai.model")
-  const modelProvider = optionalString(openai.modelProvider ?? openai.model_provider, "openai.modelProvider")
-  const modelProviderName = optionalString(openai.modelProviderName ?? openai.model_provider_name, "openai.modelProviderName")
-  const wireApi = optionalString(openai.wireApi ?? openai.wire_api, "openai.wireApi")
-  const supportsWebsockets = optionalBoolean(
-    openai.supportsWebsockets ?? openai.supports_websockets,
-    "openai.supportsWebsockets",
-  )
   if (!apiKey) die("openai.apiKey 未设置（或为空）。")
   if (apiKey === "sk-REPLACE-ME") die("openai.apiKey 仍是占位符，请填真实 key。")
   if (!baseUrl) die("openai.baseUrl 未设置（或为空）。")
@@ -315,51 +292,39 @@ export function loadConfig(): AppConfig {
     model ??
     ""
   ).trim()
-  const chatModelProvider = optionalString(
-    chatModelConfig.modelProvider ?? chatModelConfig.model_provider,
-    "chatModel.modelProvider",
-  )
-  const chatModelProviderName = optionalString(
-    chatModelConfig.modelProviderName ?? chatModelConfig.model_provider_name,
-    "chatModel.modelProviderName",
-  )
-  const chatWireApi = optionalString(
-    chatModelConfig.wireApi ?? chatModelConfig.wire_api,
-    "chatModel.wireApi",
-  )
-  const chatSupportsWebsockets = optionalBoolean(
-    chatModelConfig.supportsWebsockets ?? chatModelConfig.supports_websockets,
-    "chatModel.supportsWebsockets",
-  )
   const chatResponsesCompat = optionalBoolean(
     chatModelConfig.responsesCompat ?? chatModelConfig.responses_compat,
     "chatModel.responsesCompat",
-  )
-  const chatModelReasoningEffort = optionalEnum(
-    chatModelConfig.modelReasoningEffort ?? chatModelConfig.model_reasoning_effort,
-    "chatModel.modelReasoningEffort",
-    ["minimal", "low", "medium", "high", "xhigh"] as const,
-  )
-  const chatApprovalPolicy = optionalEnum(
-    chatModelConfig.approvalPolicy ?? chatModelConfig.approval_policy,
-    "chatModel.approvalPolicy",
-    ["never", "on-request", "on-failure", "untrusted"] as const,
-  )
-  const chatSandboxMode = optionalEnum(
-    chatModelConfig.sandboxMode ?? chatModelConfig.sandbox_mode,
-    "chatModel.sandboxMode",
-    ["read-only", "workspace-write", "danger-full-access"] as const,
-  )
-  const chatSkipGitRepoCheck = optionalBoolean(
-    chatModelConfig.skipGitRepoCheck ?? chatModelConfig.skip_git_repo_check,
-    "chatModel.skipGitRepoCheck",
   )
   if (!chatApiKey) die("chatModel.apiKey 未设置（或为空）。")
   if (!chatBaseUrl) die("chatModel.baseUrl 未设置（或为空）。")
   if (!chatModel) die("chatModel.model 未设置（或为空）。")
   try { new URL(chatBaseUrl) } catch { die(`chatModel.baseUrl 不是合法 URL: ${chatBaseUrl}`) }
 
-  const codex = cfg.codex ?? {} as Partial<AppConfig["codex"]>
+  const codex: RawCodexConfig = cfg.codex ?? {}
+  const codexModelProvider = optionalString(codex.modelProvider ?? codex.model_provider, "codex.modelProvider")
+  const codexModelProviderName = optionalString(codex.modelProviderName ?? codex.model_provider_name, "codex.modelProviderName")
+  const codexWireApi = optionalString(codex.wireApi ?? codex.wire_api, "codex.wireApi")
+  const codexSupportsWebsockets = optionalBoolean(
+    codex.supportsWebsockets ?? codex.supports_websockets,
+    "codex.supportsWebsockets",
+  )
+  const codexReasoningEffort = optionalEnum(
+    codex.modelReasoningEffort,
+    "codex.modelReasoningEffort",
+    ["minimal", "low", "medium", "high", "xhigh"] as const,
+  )
+  const codexApprovalPolicy = optionalEnum(
+    codex.approvalPolicy,
+    "codex.approvalPolicy",
+    ["never", "on-request", "on-failure", "untrusted"] as const,
+  )
+  const codexSandboxMode = optionalEnum(
+    codex.sandboxMode,
+    "codex.sandboxMode",
+    ["read-only", "workspace-write", "danger-full-access"] as const,
+  )
+  const codexSkipGitRepoCheck = optionalBoolean(codex.skipGitRepoCheck, "codex.skipGitRepoCheck")
   const auth = cfg.auth ?? {} as Partial<AppConfig["auth"]>
   const server = cfg.server ?? {} as Partial<AppConfig["server"]>
   const frontend = cfg.frontend ?? {} as Partial<AppConfig["frontend"]>
@@ -375,7 +340,7 @@ export function loadConfig(): AppConfig {
       : {})
   ) as Partial<AppConfig["workspace"]>
   const logging = cfg.logging ?? {} as Partial<AppConfig["logging"]>
-  const whisper = cfg.whisper ?? {} as Partial<AppConfig["whisper"]>
+  const funasr = cfg.funasr ?? {} as Partial<AppConfig["funasr"]>
   const cosyvoice = cfg.cosyvoice ?? {} as Partial<AppConfig["cosyvoice"]>
   const envServerPort = process.env.BACKEND_PORT ? Number(process.env.BACKEND_PORT) : null
 
@@ -403,34 +368,26 @@ export function loadConfig(): AppConfig {
       apiKey,
       baseUrl,
       model,
-      modelProvider,
-      modelProviderName,
-      wireApi,
-      supportsWebsockets,
     },
     chatModel: {
       apiKey: chatApiKey,
-      approvalPolicy: chatApprovalPolicy ?? "never",
       baseUrl: chatBaseUrl,
       model: chatModel,
-      modelProvider: chatModelProvider,
-      modelProviderName: chatModelProviderName,
-      modelReasoningEffort: chatModelReasoningEffort ?? "medium",
-      sandboxMode: chatSandboxMode ?? "read-only",
-      skipGitRepoCheck: chatSkipGitRepoCheck ?? true,
-      wireApi: chatWireApi,
-      supportsWebsockets: chatSupportsWebsockets,
       responsesCompat: chatResponsesCompat,
     },
     codex: {
-      modelReasoningEffort: codex.modelReasoningEffort ?? "medium",
-      approvalPolicy: codex.approvalPolicy ?? "never",
-      sandboxMode: codex.sandboxMode ?? "danger-full-access",
+      modelProvider: codexModelProvider,
+      modelProviderName: codexModelProviderName,
+      wireApi: codexWireApi,
+      supportsWebsockets: codexSupportsWebsockets,
+      modelReasoningEffort: codexReasoningEffort ?? "medium",
+      approvalPolicy: codexApprovalPolicy ?? "never",
+      sandboxMode: codexSandboxMode ?? "danger-full-access",
       sandboxWorkspaceWriteNetworkAccess: optionalBoolean(
         codex.sandboxWorkspaceWriteNetworkAccess,
         "codex.sandboxWorkspaceWriteNetworkAccess",
       ) ?? false,
-      skipGitRepoCheck: codex.skipGitRepoCheck ?? true,
+      skipGitRepoCheck: codexSkipGitRepoCheck ?? true,
     },
     server: {
       port: envServerPort ?? requiredPositiveInteger(server.port, "server.port"),
@@ -501,12 +458,8 @@ export function loadConfig(): AppConfig {
         ?? die("workspace.rpcHost 未设置。"),
       rpcPort: requiredPositiveInteger(workspace.rpcPort, "workspace.rpcPort"),
     },
-    whisper: {
-      bin: optionalString(process.env.WHISPER_CPP_BIN ?? whisper.bin, "whisper.bin"),
-      cudaVisibleDevices: optionalString(process.env.WHISPER_CUDA_VISIBLE_DEVICES ?? whisper.cudaVisibleDevices, "whisper.cudaVisibleDevices"),
-      defaultLanguage: optionalString(process.env.WHISPER_LANGUAGE ?? whisper.defaultLanguage, "whisper.defaultLanguage"),
-      ffmpegBin: optionalString(process.env.WHISPER_FFMPEG_BIN ?? whisper.ffmpegBin, "whisper.ffmpegBin"),
-      modelPath: optionalString(process.env.WHISPER_MODEL_PATH ?? whisper.modelPath, "whisper.modelPath"),
+    funasr: {
+      apiUrl: optionalString(process.env.FUNASR_API_URL ?? funasr.apiUrl, "funasr.apiUrl"),
     },
     cosyvoice: {
       apiUrl: optionalString(process.env.COSYVOICE_API_URL ?? cosyvoice.apiUrl, "cosyvoice.apiUrl"),

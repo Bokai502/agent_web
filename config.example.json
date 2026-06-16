@@ -1,43 +1,25 @@
 {
   "openai": {
     "apiKey": "xxx",
+    "_apiKeyComment": "填写 OpenAI 后端或兼容网关的 API Key",
     "baseUrl": "https://token.satlab.sbs/v1",
-    "model": "gpt-5.5",
-    "modelProvider": "custom",
-    "modelProviderName": "custom",
-    "wireApi": "responses",
-    "supportsWebsockets": false
+    "model": "gpt-5.5"
   },
   "chatModel": {
     "apiKey": "xxx",
+    "_apiKeyComment": "填写默认内网模型服务的 API Key",
     "baseUrl": "http://10.110.34.83:4000/v1",
-    "model": "Qwen3.6",
-    "modelProvider": "nexahub",
-    "modelProviderName": "NexaHub",
-    "wireApi": "responses",
-    "supportsWebsockets": false,
-    "modelReasoningEffort": "low",
-    "approvalPolicy": "never",
-    "sandboxMode": "workspace-write",
-    "skipGitRepoCheck": true
-  },
-  "auth": {
-    "enabled": false,
-    "headerName": "x-codex-user-id",
-    "cookieName": "codex_user_id",
-    "devUserId": "default",
-    "usersDir": "users"
-  },
-  "codex": {
-    "modelReasoningEffort": "high",
-    "approvalPolicy": "never",
-    "sandboxMode": "workspace-write",
-    "sandboxWorkspaceWriteNetworkAccess": true,
-    "skipGitRepoCheck": true
+    "model": "Qwen3.6"
   },
   "server": {
     "port": 3002,
     "host": "0.0.0.0"
+  },
+  "tmux": {
+    "backendSession": "xxx",
+    "_backendSessionComment": "填写后端 tmux 会话名，例如 ocw-main-backend",
+    "frontendSession": "xxx",
+    "_frontendSessionComment": "填写前端 tmux 会话名，例如 ocw-main-frontend"
   },
   "frontend": {
     "host": "0.0.0.0",
@@ -46,9 +28,48 @@
     "httpsPort": 5175,
     "strictPort": true
   },
-  "tmux": {
-    "backendSession": "ocw-main-backend",
-    "frontendSession": "ocw-main-frontend"
+  "workspace": {
+    "templateDir": "xxx",
+    "_templateDirComment": "填写示例输入/工作区模板目录，例如 /data/lbk/codex_web/open_codex_web/data/input_data",
+    "usersRoot": "xxx",
+    "_usersRootComment": "填写用户工作区根目录，例如 /data/lbk/codex_web/data/users",
+    "filesystemGroup": "xieteam",
+    "rpcHost": "localhost",
+    "rpcPort": 9877,
+    "componentInfoMaxStepSizeMb": 6.5,
+    "filePreviewMaxBytes": 5242880,
+    "textFileMaxBytes": 67108864,
+    "textChunkBytes": 1048576,
+    "textChunkMaxBytes": 2097152
+  },
+  "compliance": {
+    "database": {
+      "host": "10.110.10.101",
+      "port": "5432",
+      "user": "postgres",
+      "password": "xxx",
+      "_passwordComment": "填写 PostgreSQL 数据库密码",
+      "catalog": {
+        "db": "components_db",
+        "recallLimitPerComponent": 80
+      },
+      "reliability": {
+        "db": "satllm_db",
+        "schema": "staging",
+        "limitPerComponent": 5
+      }
+    }
+  },
+  "codex": {
+    "modelProvider": "nexahub",
+    "modelProviderName": "NexaHub",
+    "wireApi": "responses",
+    "supportsWebsockets": false,
+    "modelReasoningEffort": "high",
+    "approvalPolicy": "never",
+    "sandboxMode": "workspace-write",
+    "sandboxWorkspaceWriteNetworkAccess": true,
+    "skipGitRepoCheck": true
   },
   "tools": {
     "remoteDesktopLauncher": "/usr/local/bin/start-remote-cad-desktop",
@@ -76,6 +97,23 @@
       "url": "http://localhost:8765/"
     }
   },
+  "funasr": {
+    "apiUrl": "http://127.0.0.1:18080/v1/audio/transcriptions"
+  },
+  "cosyvoice": {
+    "apiUrl": "http://127.0.0.1:50000/inference_zero_shot",
+    "promptText": "You are a helpful assistant.<|endofprompt|>希望你以后能够做的比我还好呦。",
+    "streamCacheTtlMs": 600000,
+    "streamCacheMaxItems": 64,
+    "ttsMaxTextLength": 5000
+  },
+  "auth": {
+    "enabled": false,
+    "headerName": "x-codex-user-id",
+    "cookieName": "codex_user_id",
+    "devUserId": "default",
+    "usersDir": "users"
+  },
   "gnc": {
     "dashboard": {
       "telemetryMaxBytes": 8388608,
@@ -91,65 +129,9 @@
       }
     }
   },
-  "whisper": {
-    "modelPath": "/data/llm_models/Whisper/ggml-large-v3-turbo.bin",
-    "ffmpegBin": "ffmpeg",
-    "cudaVisibleDevices": "1",
-    "defaultLanguage": "zh-en"
-  },
-  "cosyvoice": {
-    "apiUrl": "http://127.0.0.1:50000/inference_zero_shot",
-    "promptText": "You are a helpful assistant.<|endofprompt|>希望你以后能够做的比我还好呦。",
-    "streamCacheTtlMs": 600000,
-    "streamCacheMaxItems": 64,
-    "ttsMaxTextLength": 5000
-  },
-  "workflowAgents": {
-    "contractDir": "xxx",
-    "plannerMode": "codex",
-    "plannerModel": "gpt-5.5",
-    "plannerReasoningEffort": "high",
-    "plannerWorkingDirectory": "xxx",
-    "plannerTimeoutMs": 120000,
-    "plannerSandboxMode": "workspace-write",
-    "plannerSkipGitRepoCheck": true
-  },
-  "compliance": {
-    "database": {
-      "catalog": {
-        "db": "components_db",
-        "user": "postgres",
-        "password": "xxx",
-        "host": "10.110.10.101",
-        "port": "5432",
-        "recallLimitPerComponent": 80
-      },
-      "reliability": {
-        "db": "satllm_db",
-        "user": "postgres",
-        "password": "xxx",
-        "host": "10.110.10.101",
-        "port": "5432",
-        "schema": "staging",
-        "limitPerComponent": 5
-      }
-    }
-  },
   "logging": {
     "level": "info",
     "file": "logs/app.log",
     "alsoStdout": true
-  },
-  "workspace": {
-    "templateDir": "xxx",
-    "usersRoot": "xxx",
-    "filesystemGroup": "xieteam",
-    "rpcHost": "localhost",
-    "rpcPort": 9877,
-    "componentInfoMaxStepSizeMb": 6.5,
-    "filePreviewMaxBytes": 5242880,
-    "textFileMaxBytes": 67108864,
-    "textChunkBytes": 1048576,
-    "textChunkMaxBytes": 2097152
   }
 }

@@ -14,7 +14,7 @@ import { isGncRequestContext } from "../server/requestContext.js"
 import { getWorkspaceSkillScopes, readScopedSkillInstructions, readSkillInstructions, type SkillInstruction, type SkillScope } from "../system/skills.js"
 import { ASK_USER_TAG_START, extractAskUserPayload } from "./askUserProtocol.js"
 import { buildCodexConfig, getCodexBaseUrl } from "./codexConfig.js"
-import { buildSdkInput, readAgentGuide, shouldInjectPromptPrefixForSession } from "./promptPrefix.js"
+import { buildSdkInput, shouldInjectPromptPrefixForSession } from "./promptPrefix.js"
 import { RunRequestError } from "./runErrors.js"
 import { getInputTextLength, normalizeRunInput, summarizeInput } from "./runInput.js"
 import { completeRunSessionTurn, ensureRunSession, persistRunSessionTurn } from "./runSessionStore.js"
@@ -282,9 +282,8 @@ export async function prepareCodexTurn(
   await ensureAigncWorkflowRoot(runContext.workspaceDir, skillScopes, logger, requestId)
 
   const injectPromptPrefix = injectSessionPrefix || skillInstructions.length > 0
-  const agentGuide = injectSessionPrefix ? await readAgentGuide() : ""
   const compactSkillInstructions = modelBackend.id === "chatModel" && skillInstructions.length > 0
-  const sdkInput = buildSdkInput(sdkInputBase, runContext, injectPromptPrefix, agentGuide, skillInstructions, {
+  const sdkInput = buildSdkInput(sdkInputBase, runContext, injectPromptPrefix, skillInstructions, {
     compactSkillInstructions,
   })
   const requestStartedAt = process.hrtime.bigint()
@@ -351,7 +350,6 @@ export async function prepareCodexTurn(
     promptChars: typeof prompt === "string" ? prompt.length : 0,
     sdkInputTextChars: getInputTextLength(Array.isArray(sdkInput) ? sdkInput : sdkInputBase),
     promptPrefixInjected: injectPromptPrefix,
-    agentGuideInjected: injectSessionPrefix && agentGuide.trim() !== "",
     compactSkillInstructions,
     skillInstructionsInjected: skillInstructions.map(skill => skill.name),
     input: summarizeInput(sdkInputBase),

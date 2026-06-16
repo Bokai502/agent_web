@@ -11,7 +11,7 @@ cd /path/to/open_codex_web
 cp config.example.json config.json
 ```
 
-然后编辑 `config.json`。不要把真实 API Key、内网地址、个人目录或模型路径提交到代码仓库。
+然后编辑 `config.json`。`config.example.json` 中值为 `xxx` 的字段必须按本机环境填写；相邻的 `_...Comment` 字段只是填写说明，复制到真实配置后可以保留，也可以删除。不要把真实 API Key、内网地址、个人目录或模型路径提交到代码仓库。
 
 端口配置以 `config.json` 为唯一来源。`server.port`、`frontend.port`、`frontend.httpsPort` 都是必填项；源码和启动脚本不会再内置默认端口。修改端口后，重启后端和前端即可生效。
 
@@ -19,7 +19,11 @@ cp config.example.json config.json
 
 | 字段 | 说明 |
 | --- | --- |
-| `chatModel` | 所有 Codex、routing、managed progress/general answer 使用的模型配置，可设置 `apiKey`、`baseUrl`、`model`、`modelProvider`、`wireApi`、`modelReasoningEffort`、`approvalPolicy`、`sandboxMode`、`skipGitRepoCheck`。环境变量 `CHAT_MODEL_API_KEY`、`CHAT_MODEL_BASE_URL`、`CHAT_MODEL_NAME` 可覆盖。 |
+| `chatModel` | 默认内网模型连接配置，可设置 `apiKey`、`baseUrl`、`model`。环境变量 `CHAT_MODEL_API_KEY`、`CHAT_MODEL_BASE_URL`、`CHAT_MODEL_NAME` 可覆盖。 |
+| `openai` | OpenAI 后端连接配置，可设置 `apiKey`、`baseUrl`、`model`。环境变量 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 可覆盖。 |
+| `_...Comment` | 仅用于 `config.example.json` 的填写提示，后端会忽略这些字段。 |
+| `codex.modelProvider` / `codex.wireApi` | Codex SDK provider 元数据，例如 `nexahub` 和 `responses`。 |
+| `codex.modelReasoningEffort` | Codex 推理强度，例如 `low`、`medium`、`high`。 |
 | `codex.approvalPolicy` | Codex approval policy，例如 `never`、`on-request`。 |
 | `codex.sandboxMode` | Codex sandbox mode，例如 `workspace-write`、`danger-full-access`。 |
 | `codex.sandboxWorkspaceWriteNetworkAccess` | 当 `sandboxMode` 为 `workspace-write` 时是否允许 Agent 命令访问网络；需要连接本机 FreeCAD RPC 或 COMSOL 私有 `mphserver` 时应设为 `true`。 |
@@ -43,7 +47,7 @@ cp config.example.json config.json
 | `tools.cad.bin` | `start_remote_gui_tools.sh` 直接启动 FreeCAD GUI 时使用的可执行文件路径；也可以用 `FREECAD_BIN` 环境变量临时覆盖。 |
 | `tools.comsol.sudo` | 调用 COMSOL launcher 时使用的提权命令，默认 `sudo`。 |
 | `gnc.dashboard.telemetryPaths` | GNC 看板读取的遥测文件相对路径。 |
-| `whisper.*` | 语音转写相关配置；不用语音功能时可以保留占位值或设为 `null`。 |
+| `funasr.*` | 语音转写相关配置；不用语音功能时可以保留占位值或设为 `null`。 |
 | `cosyvoice.*` | TTS 服务配置；不用语音播报时可以保留占位值或设为 `null`。 |
 | `logging.*` | 日志级别、日志文件和是否输出到控制台。 |
 
@@ -73,7 +77,25 @@ cd /path/to/open_codex_web
 ./start_open_codex_web.sh
 ```
 
-脚本会读取 `config.json`，关闭旧的 `ocw-backend*` 和 `ocw-frontend*` tmux 会话，释放后端端口，然后分别启动后端和前端。
+脚本会先运行 `scripts/validate_config.mjs --config config.json` 校验真实配置文件，集中提示占位值、字段类型、路径/可执行文件以及模型、FunASR、CosyVoice、数据库等外部服务连接问题。校验通过后，脚本会关闭旧的 `ocw-backend*` 和 `ocw-frontend*` tmux 会话，释放后端端口，然后分别启动后端和前端。
+
+也可以手动只做配置校验：
+
+```bash
+node scripts/validate_config.mjs --config config.json
+```
+
+如果只是本地调试，可以临时跳过外部服务连通性检查：
+
+```bash
+SKIP_CONFIG_SERVICE_CHECKS=1 ./start_open_codex_web.sh
+```
+
+完整跳过启动前校验：
+
+```bash
+SKIP_CONFIG_VALIDATE=1 ./start_open_codex_web.sh
+```
 
 启动成功后，脚本会输出类似：
 
