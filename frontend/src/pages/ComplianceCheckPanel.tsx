@@ -384,6 +384,15 @@ function getComparisonValue(row: JsonRow, key: string) {
   }
 }
 
+function displayNumber(value: string) {
+  const text = value.trim()
+  if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/iu.test(text)) return value
+  const numberValue = Number(text)
+  if (!Number.isFinite(numberValue)) return value
+  const rounded = Math.round(numberValue * 10000) / 10000
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(4).replace(/0+$/u, "").replace(/\.$/u, "")
+}
+
 function deriveComparisonJudgement(row: JsonRow, key: string) {
   if (key === "允许值判定组合") {
     if (hasIssue(row, /允许值不等于|允许值.*错误|允许值.*填写错误/u)) {
@@ -1977,7 +1986,7 @@ function EditableTable({
 
   return (
     <div style={tableWrapStyle}>
-      <table style={{ borderCollapse: "collapse", minWidth: Math.max(980, columns.reduce((total, column) => total + column.width, 76)), tableLayout: "fixed", width: "100%" }}>
+      <table style={{ borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(980, columns.reduce((total, column) => total + column.width, 76)), tableLayout: "fixed", width: "100%" }}>
         <thead>
           <tr>
             {columns.map(column => (
@@ -2018,6 +2027,7 @@ function EditableTable({
                         onChange={event => onChange?.(rowIndex, column.key, event.target.value)}
                         style={{
                           ...selectCellStyle,
+                          backgroundImage: selectArrowBackground(optionToneColor(column.key, selectValue)),
                           borderColor: optionToneColor(column.key, selectValue),
                           color: optionToneColor(column.key, selectValue),
                         }}
@@ -2040,7 +2050,7 @@ function EditableTable({
                           ...cellInputStyle,
                           color: valueColor,
                           fontWeight: isWarning ? 700 : 600,
-                          minHeight: value.length > 28 ? 46 : 34,
+                          minHeight: column.key === "综合判定详情" ? 88 : value.length > 28 ? 46 : 34,
                         }}
                       />
                     )}
@@ -2349,8 +2359,12 @@ function stickyRightStyle(key: string, offsets: Map<string, number>, header: boo
       : `-1px 0 0 ${HUD_LINE}`,
     position: "sticky",
     right,
-    zIndex: header ? 5 : 3,
+    zIndex: header ? 6 : right === 0 ? 4 : 5,
   }
+}
+
+function selectArrowBackground(color: string) {
+  return `linear-gradient(45deg, transparent 50%, ${color} 50%), linear-gradient(135deg, ${color} 50%, transparent 50%)`
 }
 
 function ComparisonCell({
@@ -2368,6 +2382,7 @@ function ComparisonCell({
   tableLabel: string
   tableValue: string
 }) {
+  const displayTableValue = displayNumber(tableValue)
   const aiTone = isPositiveJudgement(aiValue)
     ? "ok"
     : isNegativeJudgement(aiValue)
@@ -2380,7 +2395,7 @@ function ComparisonCell({
       <div style={comparisonCellStyle}>
         <div style={comparisonRowStyle}>
           <span style={comparisonLabelStyle}>{tableLabel}</span>
-          <span style={{ ...comparisonValueStyle, color: tableTone === "bad" ? HUD_RED : HUD_TEXT }}>{tableValue || "-"}</span>
+          <span style={{ ...comparisonValueStyle, color: tableTone === "bad" ? HUD_RED : HUD_TEXT }}>{displayTableValue || "-"}</span>
         </div>
         <div style={comparisonDividerStyle} />
         <div style={comparisonRowStyle}>
@@ -2396,7 +2411,7 @@ function ComparisonCell({
       <label style={comparisonEditorLabelStyle}>
         <span style={comparisonEditorTextStyle}>{tableLabel}</span>
         <textarea
-          value={tableValue}
+          value={displayTableValue}
           onChange={event => onTableChange?.(event.target.value)}
           style={{
             ...comparisonTextareaStyle,
@@ -3281,6 +3296,9 @@ const readOnlyCellStyle = {
 const selectCellStyle = {
   appearance: "none",
   background: HUD_CONTROL_BG,
+  backgroundPosition: "calc(100% - 14px) 50%, calc(100% - 8px) 50%",
+  backgroundRepeat: "no-repeat",
+  backgroundSize: "6px 6px, 6px 6px",
   border: `1px solid ${HUD_LINE}`,
   borderRadius: 6,
   boxSizing: "border-box",
@@ -3289,7 +3307,7 @@ const selectCellStyle = {
   height: 32,
   margin: 6,
   outline: "none",
-  padding: "0 8px",
+  padding: "0 24px 0 8px",
   width: "calc(100% - 12px)",
 } satisfies CSSProperties
 
