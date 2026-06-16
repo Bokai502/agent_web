@@ -106,7 +106,7 @@
         57.50000020000002
       ],
       "mass_kg": 0.05,
-      "power_W": 0.1,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P002.local_zmax",
@@ -186,7 +186,7 @@
         57.50000020000002
       ],
       "mass_kg": 0.05,
-      "power_W": 0.1,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P003.local_zmax",
@@ -663,7 +663,7 @@
         23.01600878462247
       ],
       "mass_kg": 0.05,
-      "power_W": 0.5,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P009.local_zmax",
@@ -1540,7 +1540,7 @@
         34.04379389059784
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P020.local_xmin",
@@ -1620,7 +1620,7 @@
         34.043793884414015
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P021.local_xmin",
@@ -1859,7 +1859,7 @@
         50.00000019999999
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P024.local_ymax",
@@ -2018,7 +2018,7 @@
         160.00000020000002
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P026.local_ymax",
@@ -2097,7 +2097,7 @@
         50.00000019999999
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P027.local_ymin",
@@ -2335,7 +2335,7 @@
         13.8000002
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P030.local_zmin",
@@ -2414,7 +2414,7 @@
         13.8000002
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": 0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P031.local_zmin",
