@@ -126,7 +126,7 @@ describe("loadConfig", () => {
     assert.equal(Array.isArray(config.server.corsOrigin) || typeof config.server.corsOrigin === "string", true)
   })
 
-  it("applies environment overrides for auth, model, workspace, whisper, and cosyvoice settings", async () => {
+  it("applies environment overrides for auth, model, workspace, funasr, and cosyvoice settings", async () => {
     const config = await loadConfigInChild({
       BACKEND_PORT: "4567",
       OPENAI_API_KEY: "env-openai-key",
@@ -146,11 +146,7 @@ describe("loadConfig", () => {
       COSYVOICE_TTS_CACHE_MAX_ITEMS: "3",
       COSYVOICE_TTS_CACHE_TTL_MS: "4000",
       COSYVOICE_TTS_MAX_TEXT_LENGTH: "120",
-      WHISPER_CPP_BIN: "/tmp/whisper",
-      WHISPER_CUDA_VISIBLE_DEVICES: "0",
-      WHISPER_FFMPEG_BIN: "/tmp/ffmpeg",
-      WHISPER_LANGUAGE: "zh",
-      WHISPER_MODEL_PATH: "/tmp/model.bin",
+      FUNASR_API_URL: "http://127.0.0.1:18080/v1/audio/transcriptions",
       WORKSPACE_FILE_PREVIEW_MAX_BYTES: "111",
       WORKSPACE_FILESYSTEM_GROUP: "env-group",
       WORKSPACE_TEXT_CHUNK_BYTES: "222",
@@ -174,12 +170,8 @@ describe("loadConfig", () => {
     assert.equal(config.workspace.textChunkBytes, 222)
     assert.equal(config.workspace.textChunkMaxBytes, 333)
     assert.equal(config.workspace.textFileMaxBytes, 444)
-    assert.deepEqual(config.whisper, {
-      bin: "/tmp/whisper",
-      cudaVisibleDevices: "0",
-      defaultLanguage: "zh",
-      ffmpegBin: "/tmp/ffmpeg",
-      modelPath: "/tmp/model.bin",
+    assert.deepEqual(config.funasr, {
+      apiUrl: "http://127.0.0.1:18080/v1/audio/transcriptions",
     })
     assert.equal(config.cosyvoice.apiUrl, "http://127.0.0.1:9000")
     assert.equal(config.cosyvoice.promptText, "Env voice")
@@ -195,15 +187,15 @@ describe("loadConfig", () => {
       chatModel: undefined,
       chat_model: {
         api_key: "legacy-chat-key",
-        approval_policy: "on-request",
         base_url: "http://127.0.0.1:8888",
         model: "legacy-chat-model",
-        model_reasoning_effort: "high",
-        sandbox_mode: "workspace-write",
-        skip_git_repo_check: "false",
       },
       codex: {
+        approvalPolicy: "on-request",
+        modelReasoningEffort: "high",
+        sandboxMode: "workspace-write",
         sandboxWorkspaceWriteNetworkAccess: "true",
+        skipGitRepoCheck: "false",
       },
       frontend: {
         host: "frontend.local",
@@ -228,11 +220,11 @@ describe("loadConfig", () => {
 
     assert.equal(config.chatModel.apiKey, "legacy-chat-key")
     assert.equal(config.chatModel.baseUrl, "http://127.0.0.1:8888")
-    assert.equal(config.chatModel.approvalPolicy, "on-request")
-    assert.equal(config.chatModel.modelReasoningEffort, "high")
-    assert.equal(config.chatModel.sandboxMode, "workspace-write")
-    assert.equal(config.chatModel.skipGitRepoCheck, false)
+    assert.equal(config.codex.approvalPolicy, "on-request")
+    assert.equal(config.codex.modelReasoningEffort, "high")
+    assert.equal(config.codex.sandboxMode, "workspace-write")
     assert.equal(config.codex.sandboxWorkspaceWriteNetworkAccess, true)
+    assert.equal(config.codex.skipGitRepoCheck, false)
     assert.equal(config.frontend.host, "frontend.local")
     assert.equal(config.frontend.publicHost, "public.local")
     assert.equal(config.frontend.strictPort, false)
@@ -310,17 +302,16 @@ describe("loadConfig", () => {
       [minimalConfig({ openai: { apiKey: "test-openai-key", baseUrl: "" } }), /openai\.baseUrl 未设置/u],
       [minimalConfig({ openai: { apiKey: "test-openai-key", baseUrl: "notaurl" } }), /openai\.baseUrl 不是合法 URL/u],
       [minimalConfig({ openai: { apiKey: "test-openai-key", base_url: 1 } }), /openai\.base_url 必须是字符串/u],
-      [minimalConfig({ openai: { apiKey: "test-openai-key", baseUrl: "http://127.0.0.1:9999", supportsWebsockets: "maybe" } }), /openai\.supportsWebsockets 必须是布尔值/u],
+      [minimalConfig({ codex: { supportsWebsockets: "maybe" } }), /codex\.supportsWebsockets 必须是布尔值/u],
       [minimalConfig({ frontend: { httpsPort: 5174, port: 0 } }), /frontend\.port 必须是正整数/u],
       [minimalConfig({ frontend: { httpsPort: 5174 } }), /frontend\.port 未设置/u],
       [minimalConfig({ frontend: { host: 123, httpsPort: 5174, port: 5173 } }), /frontend\.host 必须是字符串/u],
       [minimalConfig({ chatModel: { apiKey: "   ", model: "chat-model" } }), /chatModel\.apiKey 未设置/u],
       [minimalConfig({ chatModel: { baseUrl: "", model: "chat-model" } }), /chatModel\.baseUrl 未设置/u],
       [minimalConfig({ chatModel: { baseUrl: "notaurl", model: "chat-model" } }), /chatModel\.baseUrl 不是合法 URL/u],
-      [minimalConfig({ chatModel: { model: "chat-model", supportsWebsockets: "maybe" } }), /chatModel\.supportsWebsockets 必须是布尔值/u],
-      [minimalConfig({ chatModel: { approvalPolicy: "always", model: "chat-model" } }), /chatModel\.approvalPolicy 必须是以下值之一/u],
-      [minimalConfig({ chatModel: { model: "chat-model", modelReasoningEffort: 1 } }), /chatModel\.modelReasoningEffort 必须是字符串/u],
       [minimalConfig({ chatModel: { base_url: 1, model: "chat-model" } }), /chatModel\.base_url 必须是字符串/u],
+      [minimalConfig({ codex: { approvalPolicy: "always" } }), /codex\.approvalPolicy 必须是以下值之一/u],
+      [minimalConfig({ codex: { modelReasoningEffort: 1 } }), /codex\.modelReasoningEffort 必须是字符串/u],
       [minimalConfig({ server: { corsOrigin: "   ", port: 3001 } }), /server\.corsOrigin 不能为空字符串/u],
       [minimalConfig({ server: { corsOrigin: ["", 123], port: 3001 } }), /server\.corsOrigin 数组不能为空/u],
       [minimalConfig({ server: { corsOrigin: 42, port: 3001 } }), /server\.corsOrigin 必须是字符串或字符串数组/u],

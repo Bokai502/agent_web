@@ -65,14 +65,16 @@ describe("codex run route", () => {
   it("streams Codex run events over SSE and closes the response", async () => {
     const server = await createTestServer({
       config: createTestConfig({
-        chatModel: {
-          apiKey: "invalid-test-key",
-          baseUrl: "http://127.0.0.1:9",
-          model: "test-model",
+        codex: {
           modelProvider: "test_provider",
           modelProviderName: "test_provider",
           supportsWebsockets: false,
           wireApi: "responses",
+        },
+        chatModel: {
+          apiKey: "invalid-test-key",
+          baseUrl: "http://127.0.0.1:9",
+          model: "test-model",
         },
       }),
     })

@@ -84,12 +84,8 @@ describe("fallbackRouting", () => {
     const config = createTestConfig({
       chatModel: {
         apiKey: "router-chat-key",
-        approvalPolicy: "never",
         baseUrl: "https://router.example.test/v1/",
         model: "router-model",
-        modelReasoningEffort: "medium",
-        sandboxMode: "read-only",
-        skipGitRepoCheck: true,
       },
     })
     const result = await routeManagedRunIntent({

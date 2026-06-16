@@ -333,6 +333,57 @@ async function cosyVoiceTtsCheck({ endpoint, promptText, promptWav, timeoutMs })
   }
 }
 
+function makeSilentWavBuffer() {
+  const dataBytes = 3200
+  const buffer = Buffer.alloc(44 + dataBytes)
+  buffer.write("RIFF", 0, "ascii")
+  buffer.writeUInt32LE(36 + dataBytes, 4)
+  buffer.write("WAVE", 8, "ascii")
+  buffer.write("fmt ", 12, "ascii")
+  buffer.writeUInt32LE(16, 16)
+  buffer.writeUInt16LE(1, 20)
+  buffer.writeUInt16LE(1, 22)
+  buffer.writeUInt32LE(16000, 24)
+  buffer.writeUInt32LE(16000 * 2, 28)
+  buffer.writeUInt16LE(2, 32)
+  buffer.writeUInt16LE(16, 34)
+  buffer.write("data", 36, "ascii")
+  buffer.writeUInt32LE(dataBytes, 40)
+  return buffer
+}
+
+async function funAsrTranscriptionCheck({ endpoint, timeoutMs }) {
+  const wav = makeSilentWavBuffer()
+  const audioBytes = wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength)
+  const form = new FormData()
+  form.set("file", new Blob([audioBytes], { type: "audio/wav" }), "interface-check.wav")
+  form.set("language", "auto")
+  form.set("response_format", "json")
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    body: form,
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  const text = await response.text()
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} ${trimBody(text)}`)
+  }
+  let payload
+  try {
+    payload = JSON.parse(text)
+  } catch {
+    throw new Error(`invalid JSON response: ${trimBody(text)}`)
+  }
+  if (typeof payload?.text !== "string") {
+    throw new Error(`missing text field in response: ${trimBody(text)}`)
+  }
+  return {
+    message: `HTTP ${response.status}, text_length=${payload.text.length}`,
+    status: response.status,
+  }
+}
+
 async function getListeningPorts() {
   try {
     const { stdout } = await execFileAsync("ss", ["-ltnp"], { timeout: 3000, maxBuffer: 1024 * 1024 })
@@ -587,45 +638,24 @@ async function buildChecks(config, args) {
     },
   })
 
-  const whisper = config.whisper ?? {}
-  if (whisper.bin) {
+  const funasr = config.funasr ?? {}
+  if (funasr.apiUrl) {
     checks.push({
-      group: "local-executable",
-      name: "Whisper CLI executable",
-      target: whisper.bin,
+      group: "http-service",
+      name: "FunASR transcription API",
+      target: maskUrl(funasr.apiUrl),
       required: true,
-      run: async () => {
-        if (!executableExists(whisper.bin)) throw new Error("missing or not executable")
-        return { message: "executable exists" }
-      },
+      run: () => funAsrTranscriptionCheck({ endpoint: funasr.apiUrl, timeoutMs: Math.max(args.timeoutMs, 30000) }),
+    })
+  } else {
+    checks.push({
+      group: "config",
+      name: "FunASR transcription API URL",
+      target: "funasr.apiUrl",
+      required: false,
+      run: async () => ({ message: "funasr.apiUrl not configured" }),
     })
   }
-  if (whisper.modelPath) {
-    checks.push({
-      group: "local-file",
-      name: "Whisper model file",
-      target: whisper.modelPath,
-      required: true,
-      run: async () => {
-        if (!fileExists(whisper.modelPath)) throw new Error("model file missing")
-        const stat = await fs.stat(whisper.modelPath)
-        return { message: `model file exists, bytes=${stat.size}` }
-      },
-    })
-  }
-  if (args.localDeps && whisper.ffmpegBin) {
-    checks.push({
-      group: "local-executable",
-      name: "ffmpeg executable",
-      target: whisper.ffmpegBin,
-      required: true,
-      run: async () => {
-        await execFileAsync(whisper.ffmpegBin, ["-version"], { timeout: args.timeoutMs, maxBuffer: 128 * 1024 })
-        return { message: "ffmpeg -version ok" }
-      },
-    })
-  }
-
   if (args.includeWeb) {
     const serverPort = config.server?.port
     if (serverPort) {

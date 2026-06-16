@@ -11,7 +11,7 @@ cd /path/to/open_codex_web
 cp config.example.json config.json
 ```
 
-Then edit `config.json`. Do not commit real API keys, internal hosts, personal directories, or private model paths.
+Then edit `config.json`. Fields set to `xxx` in `config.example.json` must be filled for your environment. Adjacent `_...Comment` fields are only inline hints; they can stay in the real config or be removed. Do not commit real API keys, internal hosts, personal directories, or private model paths.
 
 Port settings come from `config.json` only. `server.port`, `frontend.port`, and `frontend.httpsPort` are required; the source code and startup script do not embed fallback port numbers. Restart both services after changing ports.
 
@@ -19,7 +19,11 @@ Common fields:
 
 | Field | Description |
 | --- | --- |
-| `chatModel` | Model config used by Codex, routing, managed progress, and general answers. It can set `apiKey`, `baseUrl`, `model`, `modelProvider`, `wireApi`, `modelReasoningEffort`, `approvalPolicy`, `sandboxMode`, and `skipGitRepoCheck`. Can be overridden with `CHAT_MODEL_API_KEY`, `CHAT_MODEL_BASE_URL`, and `CHAT_MODEL_NAME`. |
+| `chatModel` | Default internal model connection config. It can set `apiKey`, `baseUrl`, and `model`. Can be overridden with `CHAT_MODEL_API_KEY`, `CHAT_MODEL_BASE_URL`, and `CHAT_MODEL_NAME`. |
+| `openai` | OpenAI backend connection config. It can set `apiKey`, `baseUrl`, and `model`. Can be overridden with `OPENAI_API_KEY` and `OPENAI_BASE_URL`. |
+| `_...Comment` | Inline hints used only by `config.example.json`; the backend ignores these fields. |
+| `codex.modelProvider` / `codex.wireApi` | Codex SDK provider metadata, such as `nexahub` and `responses`. |
+| `codex.modelReasoningEffort` | Codex reasoning effort, such as `low`, `medium`, or `high`. |
 | `codex.approvalPolicy` | Codex approval policy, such as `never` or `on-request`. |
 | `codex.sandboxMode` | Codex sandbox mode, such as `workspace-write` or `danger-full-access`. |
 | `codex.sandboxWorkspaceWriteNetworkAccess` | Allows network access for Agent commands when `sandboxMode` is `workspace-write`; set to `true` when commands must connect to local FreeCAD RPC or a private COMSOL `mphserver`. |
@@ -43,7 +47,7 @@ Common fields:
 | `tools.cad.bin` | FreeCAD GUI executable used by `start_remote_gui_tools.sh`; can be temporarily overridden with `FREECAD_BIN`. |
 | `tools.comsol.sudo` | Privilege command used when calling the COMSOL launcher, defaulting to `sudo`. |
 | `gnc.dashboard.telemetryPaths` | Relative telemetry file paths used by the GNC dashboard. |
-| `whisper.*` | Speech-to-text settings. Keep placeholders or set values to `null` if speech is not needed. |
+| `funasr.*` | Speech-to-text settings. Keep placeholders or set values to `null` if speech is not needed. |
 | `cosyvoice.*` | TTS service settings. Keep placeholders or set values to `null` if speech playback is not needed. |
 | `logging.*` | Log level, log file, and console output settings. |
 
@@ -73,7 +77,25 @@ cd /path/to/open_codex_web
 ./start_open_codex_web.sh
 ```
 
-The script reads `config.json`, stops old `ocw-backend*` and `ocw-frontend*` tmux sessions, frees the backend port, then starts the backend and frontend separately.
+The script first runs `scripts/validate_config.mjs --config config.json` against the real config file. It reports placeholder values, invalid field types, missing paths/executables, and external service connectivity problems for the model APIs, FunASR, CosyVoice, database, and related services. After validation passes, it stops old `ocw-backend*` and `ocw-frontend*` tmux sessions, frees the backend port, then starts the backend and frontend separately.
+
+You can run validation manually:
+
+```bash
+node scripts/validate_config.mjs --config config.json
+```
+
+For local debugging, skip external service connectivity checks:
+
+```bash
+SKIP_CONFIG_SERVICE_CHECKS=1 ./start_open_codex_web.sh
+```
+
+To skip all startup validation:
+
+```bash
+SKIP_CONFIG_VALIDATE=1 ./start_open_codex_web.sh
+```
 
 After a successful start, it prints output similar to:
 
