@@ -63,6 +63,7 @@ type RawComponentInfo = {
       subsystem?: unknown
     }
     source_ref?: {
+      display_name?: unknown
       selected_kind?: unknown
       selected_model?: unknown
       selected_name?: unknown
@@ -146,11 +147,14 @@ function parseComponentDetails(data: RawComponentInfo) {
         : formatSize(component.size_mm),
       displayName: presentText(
         component.display_info?.name_cn,
-        component.source_ref?.selected_kind,
-        component.source_ref?.template_kind,
+        component.source_ref?.display_name,
+        component.display_info?.name,
+        component.source_ref?.selected_name,
+        component.source_ref?.template_name,
         component.display_info?.kind,
         component.component_subtype,
         component.semantic_name,
+        componentId,
       ),
       kind: presentText(
         component.source_ref?.selected_kind,
@@ -264,6 +268,7 @@ export default function ModelViewerPage() {
   const [statusMessage, setStatusMessage] = useState("Resolving CAD geometry...")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [viewerMode, setViewerMode] = useState<ViewerMode>(initialViewerMode)
+  const [componentDetailsVersion, setComponentDetailsVersion] = useState(0)
   const [temperatureRange, setTemperatureRange] = useState<{ max: number; min: number } | null>(null)
   const viewerModeRef = useRef<ViewerMode>("cad")
 
@@ -303,6 +308,7 @@ export default function ModelViewerPage() {
       .then((data) => {
         if (!data) return
         componentDetailsRef.current = parseComponentDetails(data)
+        setComponentDetailsVersion(version => version + 1)
       })
       .catch(() => {
         // Component details are an optional overlay enhancement.
@@ -775,11 +781,11 @@ export default function ModelViewerPage() {
 
       componentRoots
         .map((componentRoot) => ({
-          label: resolveComponentLabel(componentRoot),
+          componentId: resolveComponentLabel(componentRoot),
           node: componentRoot,
         }))
-        .filter((component) => component.label.length > 0)
-        .sort((left, right) => left.label.localeCompare(right.label))
+        .filter((component) => component.componentId.length > 0)
+        .sort((left, right) => left.componentId.localeCompare(right.componentId))
         .forEach((component, index) => {
           const bounds = new THREE.Box3().setFromObject(component.node)
           if (bounds.isEmpty()) return
@@ -787,10 +793,14 @@ export default function ModelViewerPage() {
           const center = bounds.getCenter(new THREE.Vector3())
           const anchorWorld = new THREE.Vector3(center.x, bounds.max.y, center.z)
           const palette = ANNOTATION_PALETTES[index % ANNOTATION_PALETTES.length]
-          const labelEl = createAnnotationLabel(component.label, palette)
+          const detail = componentDetailsRef.current[component.componentId]
+          const labelText = detail?.displayName && detail.displayName !== "-"
+            ? detail.displayName
+            : component.componentId
+          const labelEl = createAnnotationLabel(labelText, palette)
           labelEl.dataset.tint = palette.tint
           const showDetails = () => {
-            selectComponent(component.label)
+            selectComponent(component.componentId)
           }
           labelEl.addEventListener("click", showDetails)
           labelEl.addEventListener("keydown", (event) => {
@@ -824,11 +834,11 @@ export default function ModelViewerPage() {
           annotationLabels.appendChild(labelEl)
           annotationSvg.appendChild(lineEl)
           annotationSvg.appendChild(dotEl)
-          componentRootsById.set(component.label, component.node)
+          componentRootsById.set(component.componentId, component.node)
 
           annotations.push({
             anchorWorld,
-            componentId: component.label,
+            componentId: component.componentId,
             dotEl,
             height: DEFAULT_ANNOTATION_HEIGHT,
             labelEl,
@@ -1140,7 +1150,7 @@ export default function ModelViewerPage() {
         mount.removeChild(domElement)
       }
     }
-  }, [modelVariant, shouldInitializeCadViewer, versionId, workspaceDir, workspaceId, viewerMode])
+  }, [componentDetailsVersion, modelVariant, shouldInitializeCadViewer, versionId, workspaceDir, workspaceId, viewerMode])
 
   useEffect(() => {
     window.dispatchEvent(new Event("viewer3d:mode-change"))

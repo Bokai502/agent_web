@@ -51,4 +51,38 @@ describe("parseBomInfo", () => {
     expect(parsed.matchedRecords).toBe(2)
     expect(parsed.components.map(component => component.componentId)).toEqual(["P000", "P023"])
   })
+
+  it("reads CATCH display fields from real_bom source_ref", () => {
+    const parsed = parseBomInfo({
+      schema_version: "1.0",
+      bom_id: "catch-bom",
+      items: [
+        {
+          component_id: "P001",
+          semantic_name: "catch_catch_p001_星箭分离机构_WF50",
+          component_subtype: "separation_device",
+          material_id: "aluminum_6061",
+          mass_kg: 1.370495,
+          power_W: 0,
+          quantity: 1,
+          size_mm: [312.264, 312.264, 65.07],
+          source_ref: {
+            cad_path: "/tmp/CATCH-P001_WF50.step",
+            display_name: "星箭分离机构 WF50",
+            panel_mount_face_id: "01_DIBAN_BJ.zmin_outer",
+            source: "catch01_sl_decomposition",
+            template_model: "catch_catch_p001_星箭分离机构_WF50",
+          },
+        },
+      ],
+    })
+
+    expect(parsed.components[0].componentId).toBe("P001")
+    expect(parsed.components[0].nameCn).toBe("星箭分离机构 WF50")
+    expect(parsed.components[0].model).toBe("catch_catch_p001_星箭分离机构_WF50")
+    expect(parsed.components[0].kind).toBe("separation_device")
+    expect(parsed.components[0].material).toBe("aluminum_6061")
+    expect(parsed.components[0].mountFace).toBe("01_DIBAN_BJ.zmin_outer")
+    expect(parsed.components[0].cadPath).toBe("/tmp/CATCH-P001_WF50.step")
+  })
 })
