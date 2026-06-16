@@ -64,15 +64,27 @@ PYTHONPATH=<skill_dir>/scripts python -m compliance.input_config \
 
 ### Run
 
-There is no central pipeline. Follow `reference/runner.md` and run each stage
-explicitly. `derating_check` uses the local
+There is no central pipeline. Before the runner stages, generate the
+requirement standards artifact described in sibling skill
+`requirement-standards-json` when the workflow needs requirement-standard check
+items. That artifact writes
+`<workspace_dir>/check_outputs/compliance/stages/requirements_analysis.json`
+and replaces the runner `requirements_analysis` output.
+Also generate the satellite information artifact described in sibling skill
+`satellite-info-json` when the workflow needs mission/satellite information.
+That artifact writes
+`<workspace_dir>/check_outputs/compliance/stages/satellite_info.json` and
+replaces the runner `satellite_info` output.
+
+Then follow `reference/runner.md` and run each stage explicitly.
+`derating_check` uses the local
 `scripts/compliance/compliance_check` implementation when `input_config.json` contains
 `derating_table`.
 
 ```text
+requirement_standards_json
+satellite_info_json
 load_inputs
-requirements_analysis
-satellite_info
 component_classification
 manufacturer_check
 key_units_check
@@ -126,7 +138,25 @@ reliability_query
 report_generation
 ```
 
+`requirement_standards_json` is a workflow artifact step, not a stage name.
+Generate it by following
+`../requirement-standards-json/SKILL.md` before invoking runner stages that read
+`requirements_analysis.json`. Do not run runner stage `requirements_analysis`
+after this step unless you intentionally want to overwrite the artifact.
+`satellite_info_json` is also a workflow artifact step, not a stage name.
+Generate it by following `../satellite-info-json/SKILL.md` before invoking
+runner stages or reports that read `satellite_info.json`. Do not run runner
+stage `satellite_info` after this step unless overwriting it is intended.
+
 ## Output
+
+The requirement standards artifact step writes:
+
+- `<workspace_dir>/check_outputs/compliance/stages/requirements_analysis.json`
+
+The satellite information artifact step writes:
+
+- `<workspace_dir>/check_outputs/compliance/stages/satellite_info.json`
 
 The runner writes:
 

@@ -34,6 +34,33 @@ Do not use `<workspace_manifest_root>/check_outputs/compliance`; that writes
 outside the selected version and can make the frontend read stale or missing
 tables.
 
+## Requirement Standards Artifact
+
+Before runner stages, generate requirement-standard check items when the
+workflow needs them. Follow the sibling skill
+`../requirement-standards-json/SKILL.md`; it reads
+`<workspace_dir>/00_inputs/input_config.json`, uses only
+`input_files.requirement_document.relative_path`, and writes:
+
+```text
+<workspace_dir>/check_outputs/compliance/stages/requirements_analysis.json
+```
+
+This artifact is not a `compliance.runner` stage. It replaces the normal
+`requirements_analysis` stage output; do not run runner stage
+`requirements_analysis` afterward unless overwriting it is intended.
+
+Generate satellite mission information the same way when needed. Follow sibling
+skill `../satellite-info-json/SKILL.md`; it reads the same requirement document
+and writes:
+
+```text
+<workspace_dir>/check_outputs/compliance/stages/satellite_info.json
+```
+
+This artifact replaces the normal `satellite_info` stage output; do not run
+runner stage `satellite_info` afterward unless overwriting it is intended.
+
 ## Command Form
 
 Run one stage at a time:
@@ -72,9 +99,9 @@ The runner writes:
 Run these stages in order for a full review:
 
 ```text
+requirement_standards_json
+satellite_info_json
 load_inputs
-requirements_analysis
-satellite_info
 component_classification
 manufacturer_check
 key_units_check
@@ -85,6 +112,9 @@ derating_check
 reliability_query
 report_generation
 ```
+
+`requirement_standards_json` means the artifact step above; do not pass it to
+`--stage`.
 
 ## Stage Notes
 
