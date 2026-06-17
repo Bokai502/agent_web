@@ -36,7 +36,49 @@ def write_inputs(root: Path) -> tuple[Path, Path, Path, Path]:
                         }
                     ]
                 },
-            }
+            },
+            {
+                "component_id": "P002",
+                "semantic_name": "Zero Power Sensor",
+                "kind": "internal",
+                "category": "sensor",
+                "mass_kg": 0.5,
+                "power_W": 0.0,
+                "material_id": "aluminum_6061",
+                "mounting": {
+                    "mount_faces": [
+                        {
+                            "component_mount_face_id": "P002.local_xmax",
+                            "local_face": "xmax",
+                            "normal_axis": 0,
+                            "normal_sign": 1,
+                            "u_axis": 1,
+                            "v_axis": 2,
+                        }
+                    ]
+                },
+            },
+            {
+                "component_id": "P003",
+                "semantic_name": "Unknown Power Unit",
+                "kind": "internal",
+                "category": "payload",
+                "mass_kg": 0.25,
+                "power_W": None,
+                "material_id": "aluminum_6061",
+                "mounting": {
+                    "mount_faces": [
+                        {
+                            "component_mount_face_id": "P003.local_xmax",
+                            "local_face": "xmax",
+                            "normal_axis": 0,
+                            "normal_sign": 1,
+                            "u_axis": 1,
+                            "v_axis": 2,
+                        }
+                    ]
+                },
+            },
         ],
     }
     layout_topology = {
@@ -75,6 +117,28 @@ def write_inputs(root: Path) -> tuple[Path, Path, Path, Path]:
                 "alignment": {"normal_alignment": "opposite", "in_plane_rotation_deg": 0.0},
                 "geometry_id": "G001",
                 "thermal_id": "T001",
+            },
+            {
+                "component_id": "P002",
+                "semantic_name": "Zero Power Sensor",
+                "kind": "internal",
+                "cabin_id": "cabin_auto_1",
+                "component_mount_face_id": "P002.local_xmax",
+                "mount_face_id": "cabin_auto_1.xmax",
+                "alignment": {"normal_alignment": "opposite", "in_plane_rotation_deg": 0.0},
+                "geometry_id": "G002",
+                "thermal_id": "T002",
+            },
+            {
+                "component_id": "P003",
+                "semantic_name": "Unknown Power Unit",
+                "kind": "internal",
+                "cabin_id": "cabin_auto_1",
+                "component_mount_face_id": "P003.local_xmax",
+                "mount_face_id": "cabin_auto_1.xmax",
+                "alignment": {"normal_alignment": "opposite", "in_plane_rotation_deg": 0.0},
+                "geometry_id": "G003",
+                "thermal_id": "T003",
             }
         ],
     }
@@ -120,7 +184,37 @@ def write_inputs(root: Path) -> tuple[Path, Path, Path, Path]:
                 "power": 4.0,
                 "mount_face_id": "cabin_auto_1.xmax",
                 "thermal_interface": {"contact_resistance": 0.001},
-            }
+            },
+            "P002": {
+                "id": "P002",
+                "component_id": "P002",
+                "semantic_name": "Zero Power Sensor",
+                "kind": "internal",
+                "category": "sensor",
+                "shape": "box",
+                "dims": [5.0, 10.0, 15.0],
+                "position": [20.0, -5.0, -7.5],
+                "bbox": {"min": [20.0, -5.0, -7.5], "max": [25.0, 5.0, 7.5]},
+                "mass": 0.5,
+                "power": 0.0,
+                "mount_face_id": "cabin_auto_1.xmax",
+                "thermal_interface": {"contact_resistance": 0.001},
+            },
+            "P003": {
+                "id": "P003",
+                "component_id": "P003",
+                "semantic_name": "Unknown Power Unit",
+                "kind": "internal",
+                "category": "payload",
+                "shape": "box",
+                "dims": [5.0, 10.0, 15.0],
+                "position": [30.0, -5.0, -7.5],
+                "bbox": {"min": [30.0, -5.0, -7.5], "max": [35.0, 5.0, 7.5]},
+                "mass": 0.25,
+                "power": None,
+                "mount_face_id": "cabin_auto_1.xmax",
+                "thermal_interface": {"contact_resistance": 0.001},
+            },
         },
     }
     real_bom_path = input_dir / "real_bom.json"
@@ -155,17 +249,25 @@ def test_build_cad_stage_inputs_writes_expected_outputs(tmp_path: Path) -> None:
     assert (output_dir / "comsol_inputs" / "channels_input.npz").exists()
 
     simulation_input = json.loads((output_dir / "simulation_input.json").read_text())
-    assert simulation_input["step_file"] == "geometry_after.step"
+    assert simulation_input["step_file"] == "geometry_after_power_filtered.step"
     assert simulation_input["components"][0]["component_id"] == "P001"
     assert simulation_input["components"][0]["power_W"] == 4.0
+    assert [item["component_id"] for item in simulation_input["components"]] == ["P001"]
     assert simulation_input["walls"][0]["wall_id"] == "wall_mid_y"
+    assert simulation_input["walls"][0]["power_W"] == 0.0
+    assert simulation_input["skipped_components"] == [
+        {"component_id": "P002", "reason": "power_W must be > 0", "power_W": 0.0},
+        {"component_id": "P003", "reason": "power_W must be > 0", "power_W": None},
+    ]
 
     registry = json.loads((output_dir / "geometry_after_registry.json").read_text())
     assert registry["walls"][0]["wall_id"] == "wall_mid_y"
 
     cad_agent_output = json.loads((output_dir / "cad_agent_output.json").read_text())
     assert cad_agent_output["checks"]["all_placements_have_geom"] is True
-    assert cad_agent_output["counts"]["cad_components"] == 1
+    assert cad_agent_output["counts"]["cad_components"] == 3
+    assert cad_agent_output["counts"]["simulation_components"] == 1
+    assert cad_agent_output["counts"]["simulation_walls"] == 1
     assert result["normalized"]["components"]["P001"]["dims"] == [10.0, 20.0, 30.0]
     assert result["normalized"]["walls"][0]["size"] == [90.0, 4.0, 90.0]
 

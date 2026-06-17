@@ -93,8 +93,6 @@ def main() -> int:
         else {}
     )
     output_paths = _validation_output_paths(cad_dir, screenshot_paths)
-    step_path = output_paths["step"]
-    glb_path = output_paths["glb"]
     screenshot_result = None
     try:
         if not args.no_screenshot:
@@ -162,8 +160,9 @@ def _validation_output_paths(
     screenshot_paths: dict[str, Path],
 ) -> dict[str, Path]:
     paths = {
-        "step": cad_dir / "geometry_after.step",
         "glb": cad_dir / "geometry_after.glb",
+        "real_cad_glb": cad_dir / "geometry_after_real_cad.glb",
+        "power_filtered_step": cad_dir / "geometry_after_power_filtered.step",
         "simulation_input": cad_dir / "simulation_input.json",
         "cad_agent_output": cad_dir / "cad_agent_output.json",
         "geometry_after_layout_topology": cad_dir / "geometry_after.layout_topology.json",

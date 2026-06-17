@@ -24,7 +24,7 @@ TOOL_NAME = "sim-run"
 
 REQUIRED_INPUT_FILES = ("real_bom.json", "layout_topology.json", "geom.json")
 REQUIRED_CAD_FILES = (
-    "geometry_after.step",
+    "geometry_after_power_filtered.step",
     "geometry_after.geom.json",
     "geometry_after.layout_topology.json",
     "geometry_after_registry.json",
@@ -441,7 +441,7 @@ def prepare_contract_workspace(
     seed: int,
 ) -> None:
     ctx.paths["run_root"].mkdir(parents=True, exist_ok=True)
-    ensure_components(paths["input_dir"], ctx.paths["run_root"] / "components.json")
+    ensure_components(paths["input_dir"], paths["cad_dir"], ctx.paths["run_root"] / "components.json")
     ensure_sample_yaml(paths["cad_dir"], paths["input_dir"], ctx.paths["run_root"] / "sample.yaml", sample_id, seed)
 
     layout_result = {
@@ -462,7 +462,7 @@ def prepare_contract_workspace(
         "relayout_success": None,
         "relayout_n_unplaced": None,
         "cad_rebuilt": False,
-        "step_copied_from_source": str(paths["cad_dir"] / "geometry_after.step"),
+        "step_copied_from_source": str(paths["cad_dir"] / "geometry_after_power_filtered.step"),
         "warnings": ["geometry_validate satisfied from existing 01_cad"],
         "errors": [],
     }
@@ -486,10 +486,77 @@ def bind_source_paths(ctx: BomExternalToolsPipelineContext, paths: dict[str, Pat
     ctx.paths["logs"] = paths["workspace_dir"] / "logs"
 
 
-def ensure_components(input_dir: Path, components_path: Path) -> None:
-    bom = read_json(input_dir / "real_bom.json")
-    components = normalize_bom_to_components(bom, source_file="real_bom.json")
+def ensure_components(input_dir: Path, cad_dir: Path, components_path: Path) -> None:
+    simulation_input_path = cad_dir / "simulation_input.json"
+    if simulation_input_path.exists():
+        simulation_input = read_json(simulation_input_path)
+        components = components_from_simulation_input(simulation_input)
+    else:
+        bom = read_json(input_dir / "real_bom.json")
+        components = normalize_bom_to_components(bom, source_file="real_bom.json")
     write_json(components_path, components)
+
+
+def components_from_simulation_input(simulation_input: dict[str, Any]) -> dict[str, Any]:
+    components = []
+    for item in simulation_input.get("components", []):
+        if not isinstance(item, dict):
+            continue
+        power = item.get("power_W")
+        if not isinstance(power, (int, float)) or isinstance(power, bool) or power <= 0:
+            continue
+        component_id = str(item.get("component_id") or "")
+        bbox = item.get("bbox") if isinstance(item.get("bbox"), dict) else {}
+        bbox_min = bbox.get("min") if isinstance(bbox.get("min"), list) else [0.0, 0.0, 0.0]
+        bbox_max = bbox.get("max") if isinstance(bbox.get("max"), list) else [1.0, 1.0, 1.0]
+        size_mm = [
+            max(float(bbox_max[index]) - float(bbox_min[index]), 1e-6)
+            for index in range(3)
+        ]
+        mount_face = item.get("component_mount_face")
+        if not isinstance(mount_face, dict):
+            mount_face = {}
+        component_mount_face_id = str(
+            item.get("component_mount_face_id") or f"{component_id}.local_zmin"
+        )
+        local_face = str(mount_face.get("local_face") or component_mount_face_id.split(".")[-1].replace("local_", "") or "zmin")
+        normal_axis = int(mount_face.get("normal_axis", {"x": 0, "y": 1, "z": 2}.get(local_face[:1], 2)))
+        normal_sign = int(mount_face.get("normal_sign", -1 if local_face.endswith("min") else 1))
+        other_axes = [axis for axis in (0, 1, 2) if axis != normal_axis]
+        components.append(
+            {
+                "component_id": component_id,
+                "semantic_name": str(item.get("semantic_name") or component_id),
+                "kind": item.get("kind") if item.get("kind") in {"internal", "external", "radiator"} else "internal",
+                "category": str(item.get("category") or "thermal"),
+                "size_mm": size_mm,
+                "mass_kg": float(item.get("mass_kg") or 0.0),
+                "power_W": float(power),
+                "material_id": str(item.get("material_id") or "aluminum_6061"),
+                "mounting": {
+                    "default_component_mount_face_id": component_mount_face_id,
+                    "mount_faces": [
+                        {
+                            "component_mount_face_id": component_mount_face_id,
+                            "local_face": local_face,
+                            "normal_axis": normal_axis,
+                            "normal_sign": normal_sign,
+                            "u_axis": int(mount_face.get("u_axis", other_axes[0])),
+                            "v_axis": int(mount_face.get("v_axis", other_axes[1])),
+                        }
+                    ],
+                },
+            }
+        )
+    return {
+        "schema_version": "1.0",
+        "source": {
+            "type": "simulation_input",
+            "simulation_input_id": simulation_input.get("simulation_input_id"),
+            "step_file": simulation_input.get("step_file"),
+        },
+        "components": components,
+    }
 
 
 def ensure_sample_yaml(geometry_dir: Path, input_dir: Path, sample_yaml: Path, sample_id: str, seed: int) -> None:
@@ -526,9 +593,35 @@ def sample_document(sample_id: str, seed: int, simulation_input: dict[str, Any],
         "outer_shell": outer_shell,
         "components": components,
         "install_faces": geom.get("install_faces", {}),
-        "cabin_walls": geom.get("cabin_walls", []),
+        "cabin_walls": cabin_walls_from_simulation_input(simulation_input),
         "cabins": cabins_with_inner_bbox(geom.get("cabins", []), outer_shell),
     }
+
+
+def cabin_walls_from_simulation_input(simulation_input: dict[str, Any]) -> list[dict[str, Any]]:
+    walls: list[dict[str, Any]] = []
+    for wall in simulation_input.get("walls", []):
+        if not isinstance(wall, dict):
+            continue
+        wall_id = str(wall.get("wall_id") or wall.get("component_id") or "")
+        if not wall_id:
+            continue
+        walls.append(
+            {
+                "id": wall_id,
+                "wall_id": wall_id,
+                "name": wall.get("name"),
+                "panel_id": wall.get("panel_id"),
+                "bbox": wall.get("bbox"),
+                "between": wall.get("separates") or [],
+                "adjacent_cabins": wall.get("adjacent_cabins") or {},
+                "install_face_ids": wall.get("install_face_ids") or [],
+                "modeling": "conductive_boundary",
+                "entity_model": "boundary",
+                "power_W": 0.0,
+            }
+        )
+    return walls
 
 
 def cabins_with_inner_bbox(cabins: Any, outer_shell: dict[str, Any]) -> list[dict[str, Any]]:

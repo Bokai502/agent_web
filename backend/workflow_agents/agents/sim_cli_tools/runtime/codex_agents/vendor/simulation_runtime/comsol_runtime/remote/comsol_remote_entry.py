@@ -1400,6 +1400,13 @@ class RemoteComsolExecutor:
                     },
                     'validation': sel_check,
                 }
+                status['checks']['wall_modeling'] = {
+                    'mode': 'conductive_boundary',
+                    'wall_count': len(meta_v2.get('cabin_walls') or []),
+                    'boundary_mode_count': wall_sel_result.get('boundary_mode_count', 0),
+                    'boundary_mode_tags': wall_sel_result.get('boundary_mode_tags', []),
+                    'note': 'Walls are represented as conductive-boundary metadata and are not meshed as solid domains.',
+                }
             else:
                 # ---- v1 原路径 ----
                 shell_box, components = load_layout_meta(geom_json, sample_yaml)

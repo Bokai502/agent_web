@@ -14,8 +14,9 @@ from freecad_cli_tools.layout_dataset_io import load_json_file
 
 
 REQUIRED_CAD_FILES = (
-    "geometry_after.step",
     "geometry_after.glb",
+    "geometry_after_real_cad.glb",
+    "geometry_after_power_filtered.step",
     "simulation_input.json",
     "cad_agent_output.json",
     "comsol_inputs/coord.txt",
@@ -161,6 +162,11 @@ def _check_contracts(
         for item in real_bom.get("items", [])
         if isinstance(item, dict)
     }
+    bom_by_id = {
+        item.get("component_id"): item
+        for item in real_bom.get("items", [])
+        if isinstance(item, dict)
+    }
     registry_geometry_ids = {
         item.get("geometry_id") for item in registry.get("entities", []) if isinstance(item, dict)
     }
@@ -180,18 +186,29 @@ def _check_contracts(
             missing_bom.append(component_id)
         if placement.get("geometry_id") not in registry_geometry_ids:
             missing_registry.append(placement.get("geometry_id"))
-    missing_sim = sorted({item.get("component_id") for item in placements} - simulation_component_ids)
+    expected_simulation_component_ids = {
+        placement.get("component_id")
+        for placement in placements
+        if _is_positive_power_component(
+            placement.get("component_id"),
+            bom_by_id=bom_by_id,
+            geom_by_component=geom_by_component,
+        )
+    }
+    missing_sim = sorted(expected_simulation_component_ids - simulation_component_ids)
+    unexpected_sim = sorted(simulation_component_ids - expected_simulation_component_ids)
 
     for code, values in (
         ("missing_geom_component", missing_geom),
         ("missing_bom_component", missing_bom),
         ("missing_registry_geometry", missing_registry),
         ("missing_simulation_component", missing_sim),
+        ("unexpected_simulation_component", unexpected_sim),
     ):
         for value in values:
             failures.append({"check": "contracts", "code": code, "id": value})
 
-    step_file_ok = simulation_input.get("step_file") == "geometry_after.step"
+    step_file_ok = simulation_input.get("step_file") == "geometry_after_power_filtered.step"
     if not step_file_ok:
         failures.append(
             {
@@ -200,15 +217,38 @@ def _check_contracts(
                 "value": simulation_input.get("step_file"),
             }
         )
-    ok = not (missing_geom or missing_bom or missing_registry or missing_sim) and step_file_ok
+    ok = (
+        not (missing_geom or missing_bom or missing_registry or missing_sim or unexpected_sim)
+        and step_file_ok
+    )
     return {
         "ok": ok,
         "missing_geom_components": missing_geom,
         "missing_bom_components": missing_bom,
         "missing_registry_geometry_ids": missing_registry,
+        "expected_simulation_components": sorted(expected_simulation_component_ids),
         "missing_simulation_components": missing_sim,
+        "unexpected_simulation_components": unexpected_sim,
         "simulation_step_file_ok": step_file_ok,
     }
+
+
+def _is_positive_power_component(
+    component_id: Any,
+    *,
+    bom_by_id: dict[Any, dict[str, Any]],
+    geom_by_component: dict[str, dict[str, Any]],
+) -> bool:
+    bom_item = bom_by_id.get(component_id) or {}
+    geom_component = geom_by_component.get(str(component_id)) or {}
+    value = bom_item.get("power_W", geom_component.get("power"))
+    if value is None or isinstance(value, bool):
+        return False
+    try:
+        power = float(value)
+    except (TypeError, ValueError):
+        return False
+    return power > 0.0 and power != float("inf") and power != float("-inf") and power == power
 
 
 def _check_bboxes(

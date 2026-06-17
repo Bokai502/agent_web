@@ -1,13 +1,12 @@
 {
   "schema_version": "1.0",
-  "bom_id": "catch01_sl_bom",
+  "bom_id": "refined_device_thermal_db_format_no_structure_panels_template_replace_bom",
   "source": {
-    "type": "catch_step_decomposition",
-    "source_design_id": "catch01_sl",
-    "template_csv": "/data/lbk/codex_web/catch_task/component_db_lite/refined_device_thermal_db_format_no_structure_panels.csv",
-    "id_policy": "component_id is CATCH-P###; semantic_name matches CSV 器件ID",
-    "note": "Generated from CATCH STEP single-unit decomposition and updated to use panel-level global placements from catch01_sl_panel_visual_checks/catch_panels.json.",
-    "component_db_lite": "/data/lbk/codex_web/catch_task/component_db_lite"
+    "type": "template_replace",
+    "source_design_id": "refined_device_thermal_db_format_no_structure_panels",
+    "template_csv": "/data/wqn/cad2comsol2paraview/data/module_db/airbus-space-debris-removal-competition-entry-1.snapshot.7/png_guided_parts/semantic_group_steps/refined_coordinate_steps/template_variants/refined_device_thermal_db_format_no_structure_panels.csv",
+    "candidate_db": "/data/wqn/cad2comsol2paraview/data/module_db/热仿真数据库.xlsx",
+    "id_policy": "component_id is the fixed template slot id; semantic_name is the selected device lookup id"
   },
   "units": {
     "length": "mm",
@@ -17,177 +16,149 @@
   "items": [
     {
       "component_id": "P001",
-      "semantic_name": "catch_catch_p001_星箭分离机构_WF50",
-      "kind": "external",
-      "category": "mechanism",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
       "size_mm": [
-        312.26415553228827,
-        312.26415553228827,
-        65.06978745012555
+        79.19009,
+        70.123,
+        167.298846
       ],
-      "mass_kg": 1.370495,
-      "power_W": 0.0,
-      "material_id": "aluminum_6061",
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
       "mounting": {
-        "default_component_mount_face_id": "P001.local_zmax",
+        "default_component_mount_face_id": "P001.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "P001.local_zmax",
-            "local_face": "zmax",
+            "component_mount_face_id": "P001.local_zmin",
+            "local_face": "zmin",
             "normal_axis": 2,
-            "normal_sign": 1,
+            "normal_sign": -1,
             "u_axis": 0,
             "v_axis": 1
           }
         ]
       },
-      "component_subtype": "separation_device",
+      "component_subtype": "thruster",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "星箭分离机构 WF50",
-        "source_step_files": [
-          "CATCH01_SL-002_WF50.stp",
-          "CATCH01_SL-003_WF50_P1.stp"
+        "template_component_id": "P001",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          79.19009,
+          70.123,
+          167.298846
         ],
-        "original_bbox": {
-          "min": [
-            -146.13207776614414,
-            -156.13207776614334,
-            -225.03489372506277
-          ],
-          "max": [
-            166.13207776614414,
-            156.13207776614493,
-            -159.96510627493723
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P001_WF50.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P001_WF50.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P001_WF50.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          604.445031,
+          75.0,
+          88.53807
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P001",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          79.19009,
+          70.123,
+          167.298846
+        ],
+        "cad_path": "refined_coordinate_steps/base_plate/002_thruster__base_plate_4_motors_v9_1__inst001.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
       },
       "quantity": 1,
-      "material_hint": "aluminum_6061",
+      "material_hint": "stainless_steel",
       "color": [
-        237,
-        46,
-        41,
+        220,
+        140,
+        60,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
-      "mount_side": "outer"
+      ]
     },
     {
       "component_id": "P002",
-      "semantic_name": "catch_catch_p002_行程开关_1",
-      "kind": "external",
-      "category": "mechanism",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
       "size_mm": [
-        35.0000002,
-        17.000000200001523,
-        57.50000020000002
+        79.19009,
+        70.123,
+        167.298846
       ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
       "mounting": {
-        "default_component_mount_face_id": "P002.local_zmax",
+        "default_component_mount_face_id": "P002.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "P002.local_zmax",
-            "local_face": "zmax",
+            "component_mount_face_id": "P002.local_zmin",
+            "local_face": "zmin",
             "normal_axis": 2,
-            "normal_sign": 1,
+            "normal_sign": -1,
             "u_axis": 0,
             "v_axis": 1
           }
         ]
       },
-      "component_subtype": "limit_switch",
+      "component_subtype": "thruster",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "行程开关 1",
-        "source_step_files": [
-          "CATCH01_SL-004_2KX-1.stp",
-          "CATCH01_SL-010_DP_XCKG_02.stp"
+        "template_component_id": "P002",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          79.19009,
+          70.123,
+          167.298846
         ],
-        "original_bbox": {
-          "min": [
-            -55.5000001,
-            141.4999999,
-            -202.30000010000003
-          ],
-          "max": [
-            -20.4999999,
-            158.50000010000153,
-            -144.79999990000002
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P002_1.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P002_1.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P002_1.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          604.445031,
+          1125.0,
+          88.53807
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P002",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          79.19009,
+          70.123,
+          167.298846
+        ],
+        "cad_path": "refined_coordinate_steps/base_plate/003_thruster__base_plate_4_motors_v9_1__inst002.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
       },
       "quantity": 1,
-      "material_hint": "aluminum_6061",
+      "material_hint": "stainless_steel",
       "color": [
-        31,
-        120,
-        209,
+        220,
+        140,
+        60,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
-      "mount_side": "outer"
+      ]
     },
     {
       "component_id": "P003",
-      "semantic_name": "catch_catch_p003_行程开关_2",
-      "kind": "external",
-      "category": "mechanism",
+      "semantic_name": "battery_pack_1_ymax_side",
+      "kind": "internal",
+      "category": "power",
       "size_mm": [
-        35.000000199999995,
-        17.000000199999988,
-        57.50000020000002
+        152.0,
+        305.0,
+        686.0
       ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
+      "mass_kg": 3.498326,
+      "power_W": 5.0,
+      "material_id": "battery_cells_aluminum_case",
       "mounting": {
         "default_component_mount_face_id": "P003.local_zmax",
         "mount_faces": [
@@ -201,151 +172,124 @@
           }
         ]
       },
-      "component_subtype": "limit_switch",
+      "component_subtype": "battery",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "行程开关 2",
-        "source_step_files": [
-          "CATCH01_SL-006_2KX-1_02.stp",
-          "CATCH01_SL-009_DP_XCKG.stp"
+        "template_component_id": "P003",
+        "template_kind": "蓄电池",
+        "template_model": "battery_pack_1_ymax_side",
+        "template_name": "Battery pack 1 (ymax_side)",
+        "template_size_mm": [
+          152.0,
+          305.0,
+          686.0
         ],
-        "original_bbox": {
-          "min": [
-            40.4999999,
-            -158.5000001,
-            -202.30000010000003
-          ],
-          "max": [
-            75.5000001,
-            -141.4999999,
-            -144.79999990000002
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P003_2.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P003_2.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P003_2.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          325.5,
+          963.0,
+          518.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P003",
+        "selected_model": "battery_pack_1_ymax_side",
+        "selected_name": "Battery pack 1 (ymax_side)",
+        "selected_kind": "蓄电池",
+        "selected_size_mm": [
+          152.0,
+          305.0,
+          686.0
+        ],
+        "cad_path": "refined_coordinate_steps/battery_modules/018_battery_pack__inst001.step",
+        "cad_rotated_path": "refined_coordinate_steps/battery_modules/018_battery_pack__inst001.step",
+        "cad_major_path": "refined_coordinate_steps/battery_modules/018_battery_pack__inst001.step"
       },
       "quantity": 1,
-      "material_hint": "aluminum_6061",
+      "material_hint": "battery_cells_aluminum_case",
       "color": [
-        46,
-        161,
-        84,
+        100,
+        255,
+        150,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
-      "mount_side": "outer"
+      ]
     },
     {
       "component_id": "P004",
-      "semantic_name": "catch_catch_p004_反作用轮候选_DIBAN-1",
+      "semantic_name": "battery_pack_2_ymin_side",
       "kind": "internal",
-      "category": "adcs",
+      "category": "power",
       "size_mm": [
-        88.5215796821391,
-        87.24315916427821,
-        68.00000019999999
+        152.0,
+        305.0,
+        686.0
       ],
-      "mass_kg": 0.113434,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
+      "mass_kg": 3.498326,
+      "power_W": 5.0,
+      "material_id": "battery_cells_aluminum_case",
       "mounting": {
-        "default_component_mount_face_id": "P004.local_zmin",
+        "default_component_mount_face_id": "P004.local_zmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "P004.local_zmin",
-            "local_face": "zmin",
+            "component_mount_face_id": "P004.local_zmax",
+            "local_face": "zmax",
             "normal_axis": 2,
-            "normal_sign": -1,
+            "normal_sign": 1,
             "u_axis": 0,
             "v_axis": 1
           }
         ]
       },
-      "component_subtype": "reaction_wheel",
+      "component_subtype": "battery",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "反作用轮候选 DIBAN-1",
-        "source_step_files": [
-          "CATCH01_SL-011_DLL_S_D.stp"
+        "template_component_id": "P004",
+        "template_kind": "蓄电池",
+        "template_model": "battery_pack_2_ymin_side",
+        "template_name": "Battery pack 2 (ymin_side)",
+        "template_size_mm": [
+          152.0,
+          305.0,
+          686.0
         ],
-        "original_bbox": {
-          "min": [
-            -58.6215795821391,
-            155.87842041786087,
-            -150.0000001
-          ],
-          "max": [
-            29.9000001,
-            243.12157958213908,
-            -81.9999999
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmax_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          874.5,
+          237.0,
+          518.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P004",
+        "selected_model": "battery_pack_2_ymin_side",
+        "selected_name": "Battery pack 2 (ymin_side)",
+        "selected_kind": "蓄电池",
+        "selected_size_mm": [
+          152.0,
+          305.0,
+          686.0
+        ],
+        "cad_path": "refined_coordinate_steps/battery_modules/019_battery_pack__inst002.step",
+        "cad_rotated_path": "refined_coordinate_steps/battery_modules/019_battery_pack__inst002.step",
+        "cad_major_path": "refined_coordinate_steps/battery_modules/019_battery_pack__inst002.step"
       },
       "quantity": 1,
-      "material_hint": "aluminum_6061",
+      "material_hint": "battery_cells_aluminum_case",
       "color": [
-        235,
-        148,
-        33,
+        100,
+        255,
+        150,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
-      "mount_side": "inner"
+      ]
     },
     {
       "component_id": "P005",
-      "semantic_name": "catch_catch_p005_反作用轮候选_DIBAN-2_含斜装支架",
-      "kind": "internal",
-      "category": "adcs",
+      "semantic_name": "360_degree_camera_v4_1_complete_assembly",
+      "kind": "external",
+      "category": "payload",
       "size_mm": [
-        125.58762152815734,
-        126.62320544616409,
-        115.56154586781989
+        170.004451,
+        170.004451,
+        185.68396
       ],
-      "mass_kg": 0.396942,
-      "power_W": 2.0,
+      "mass_kg": 0.321993,
+      "power_W": 3.0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P005.local_zmin",
@@ -360,72 +304,58 @@
           }
         ]
       },
-      "component_subtype": "reaction_wheel",
+      "component_subtype": "camera",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "反作用轮候选 DIBAN-2（含斜装支架）",
-        "source_step_files": [
-          "CATCH01_SL-012_DLL_S_D_02.stp",
-          "CATCH01_SL-007_ZJ_DLL_XIE.stp"
+        "template_component_id": "P005",
+        "template_kind": "相机",
+        "template_model": "360_degree_camera_v4_1_complete_assembly",
+        "template_name": "360 Degree Camera v4:1 complete assembly",
+        "template_size_mm": [
+          170.004451,
+          170.004451,
+          185.68396
         ],
-        "original_bbox": {
-          "min": [
-            36.5357495844484,
-            150.50016571628674,
-            -152.51600780508258
-          ],
-          "max": [
-            162.12337111260575,
-            277.12337116245084,
-            -36.95446193726269
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P005_DIBAN-2.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P005_DIBAN-2.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P005_DIBAN-2.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmax_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          150.0,
+          150.0,
+          977.839757
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P005",
+        "selected_model": "360_degree_camera_v4_1_complete_assembly",
+        "selected_name": "360 Degree Camera v4:1 complete assembly",
+        "selected_kind": "相机",
+        "selected_size_mm": [
+          170.004451,
+          170.004451,
+          185.68396
+        ],
+        "cad_path": "refined_coordinate_steps/cameras/022_camera_assembly__360_degree_camera_v4_1__inst001.step",
+        "cad_rotated_path": "refined_coordinate_steps/cameras_preflip_y180/022_camera_assembly__360_degree_camera_v4_1__inst001__preflip_y180.step",
+        "cad_major_path": "refined_coordinate_steps/cameras_preflip_y180/022_camera_assembly__360_degree_camera_v4_1__inst001__preflip_y180.step"
       },
       "quantity": 1,
       "material_hint": "aluminum_6061",
       "color": [
+        220,
         140,
-        64,
-        194,
+        60,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
-      "mount_side": "inner"
+      ]
     },
     {
       "component_id": "P006",
-      "semantic_name": "catch_catch_p006_综合电子_星务电子箱候选_含安装板",
-      "kind": "internal",
-      "category": "avionics",
+      "semantic_name": "360_degree_camera_v4_4_complete_assembly",
+      "kind": "external",
+      "category": "payload",
       "size_mm": [
-        234.060645902853,
-        144.26064590285293,
-        198.03032305147647
+        170.004451,
+        170.004451,
+        185.68396
       ],
-      "mass_kg": 1.444314,
-      "power_W": 12.0,
+      "mass_kg": 0.321993,
+      "power_W": 3.0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P006.local_zmin",
@@ -440,230 +370,190 @@
           }
         ]
       },
-      "component_subtype": "electronics_box",
+      "component_subtype": "camera",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "综合电子/星务电子箱候选（含安装板）",
-        "source_step_files": [
-          "CATCH01_SL-013_ZHDZ.stp",
-          "CATCH01_SL-023_ZJDP_RK_ZHDZ_TAIGAO.stp"
+        "template_component_id": "P006",
+        "template_kind": "相机",
+        "template_model": "360_degree_camera_v4_4_complete_assembly",
+        "template_name": "360 Degree Camera v4:4 complete assembly",
+        "template_size_mm": [
+          170.004451,
+          170.004451,
+          185.68396
         ],
-        "original_bbox": {
-          "min": [
-            -78.03032295142648,
-            -267.03032295142646,
-            -150.0000001
-          ],
-          "max": [
-            156.0303229514265,
-            -122.76967704857353,
-            48.030322951476485
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmax_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          150.0,
+          1050.0,
+          977.839757
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P006",
+        "selected_model": "360_degree_camera_v4_4_complete_assembly",
+        "selected_name": "360 Degree Camera v4:4 complete assembly",
+        "selected_kind": "相机",
+        "selected_size_mm": [
+          170.004451,
+          170.004451,
+          185.68396
+        ],
+        "cad_path": "refined_coordinate_steps/cameras/023_camera_assembly__360_degree_camera_v4_4__inst002.step",
+        "cad_rotated_path": "refined_coordinate_steps/cameras_preflip_y180/023_camera_assembly__360_degree_camera_v4_4__inst002__preflip_y180.step",
+        "cad_major_path": "refined_coordinate_steps/cameras_preflip_y180/023_camera_assembly__360_degree_camera_v4_4__inst002__preflip_y180.step"
       },
       "quantity": 1,
       "material_hint": "aluminum_6061",
       "color": [
-        31,
-        171,
-        184,
+        220,
+        140,
+        60,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
-      "mount_side": "inner"
+      ]
     },
     {
       "component_id": "P007",
-      "semantic_name": "catch_catch_p007_短报文_GNSS_专有电子盒候选",
+      "semantic_name": "360_degree_camera_v4_3_complete_assembly",
       "kind": "external",
-      "category": "communication",
+      "category": "payload",
       "size_mm": [
-        114.00000020004498,
-        94.00000020004,
-        50.00000020000002
+        170.004451,
+        170.004451,
+        185.68396
       ],
-      "mass_kg": 0.115733,
+      "mass_kg": 0.321993,
       "power_W": 3.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "P007.local_zmax",
+        "default_component_mount_face_id": "P007.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "P007.local_zmax",
-            "local_face": "zmax",
+            "component_mount_face_id": "P007.local_zmin",
+            "local_face": "zmin",
             "normal_axis": 2,
-            "normal_sign": 1,
+            "normal_sign": -1,
             "u_axis": 0,
             "v_axis": 1
           }
         ]
       },
-      "component_subtype": "communication_box",
+      "component_subtype": "camera",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "短报文/GNSS/专有电子盒候选",
-        "source_step_files": [
-          "CATCH01_SL-014_TIANGE.stp"
+        "template_component_id": "P007",
+        "template_kind": "相机",
+        "template_model": "360_degree_camera_v4_3_complete_assembly",
+        "template_name": "360 Degree Camera v4:3 complete assembly",
+        "template_size_mm": [
+          170.004451,
+          170.004451,
+          185.68396
         ],
-        "original_bbox": {
-          "min": [
-            -159.00000010003998,
-            165.99999989996002,
-            -210.00000010004
-          ],
-          "max": [
-            -44.999999899995004,
-            260.0000001,
-            -159.99999990004
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P007_GNSS.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P007_GNSS.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P007_GNSS.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          1050.0,
+          1050.0,
+          977.839757
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P007",
+        "selected_model": "360_degree_camera_v4_3_complete_assembly",
+        "selected_name": "360 Degree Camera v4:3 complete assembly",
+        "selected_kind": "相机",
+        "selected_size_mm": [
+          170.004451,
+          170.004451,
+          185.68396
+        ],
+        "cad_path": "refined_coordinate_steps/cameras/024_camera_assembly__360_degree_camera_v4_3__inst003.step",
+        "cad_rotated_path": "refined_coordinate_steps/cameras_preflip_y180/024_camera_assembly__360_degree_camera_v4_3__inst003__preflip_y180.step",
+        "cad_major_path": "refined_coordinate_steps/cameras_preflip_y180/024_camera_assembly__360_degree_camera_v4_3__inst003__preflip_y180.step"
       },
       "quantity": 1,
       "material_hint": "aluminum_6061",
       "color": [
-        219,
-        76,
-        143,
+        220,
+        140,
+        60,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
-      "mount_side": "outer"
+      ]
     },
     {
       "component_id": "P008",
-      "semantic_name": "catch_catch_p008_电池组或电源类盒体候选",
+      "semantic_name": "360_degree_camera_v4_2_complete_assembly",
       "kind": "external",
-      "category": "power",
+      "category": "payload",
       "size_mm": [
-        215.16178436548984,
-        100.00068333698982,
-        51.00068333698982
+        170.004451,
+        170.004451,
+        185.68396
       ],
-      "mass_kg": 0.237027,
-      "power_W": 5.0,
-      "material_id": "battery_cells_aluminum_case",
+      "mass_kg": 0.321993,
+      "power_W": 3.0,
+      "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "P008.local_zmax",
+        "default_component_mount_face_id": "P008.local_zmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "P008.local_zmax",
-            "local_face": "zmax",
+            "component_mount_face_id": "P008.local_zmin",
+            "local_face": "zmin",
             "normal_axis": 2,
-            "normal_sign": 1,
+            "normal_sign": -1,
             "u_axis": 0,
             "v_axis": 1
           }
         ]
       },
-      "component_subtype": "battery",
+      "component_subtype": "camera",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "电池组或电源类盒体候选",
-        "source_step_files": [
-          "CATCH01_SL-015_1ULENGTUI.stp"
+        "template_component_id": "P008",
+        "template_kind": "相机",
+        "template_model": "360_degree_camera_v4_2_complete_assembly",
+        "template_name": "360 Degree Camera v4:2 complete assembly",
+        "template_size_mm": [
+          170.004451,
+          170.004451,
+          185.68396
         ],
-        "original_bbox": {
-          "min": [
-            -157.30034166849492,
-            -260.0003416684949,
-            -211.0003416684949
-          ],
-          "max": [
-            57.861442696994914,
-            -159.9996583315051,
-            -159.9996583315051
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P008_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P008_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P008_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          1050.0,
+          150.0,
+          977.839757
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P008",
+        "selected_model": "360_degree_camera_v4_2_complete_assembly",
+        "selected_name": "360 Degree Camera v4:2 complete assembly",
+        "selected_kind": "相机",
+        "selected_size_mm": [
+          170.004451,
+          170.004451,
+          185.68396
+        ],
+        "cad_path": "refined_coordinate_steps/cameras/025_camera_assembly__360_degree_camera_v4_2__inst004.step",
+        "cad_rotated_path": "refined_coordinate_steps/cameras_preflip_y180/025_camera_assembly__360_degree_camera_v4_2__inst004__preflip_y180.step",
+        "cad_major_path": "refined_coordinate_steps/cameras_preflip_y180/025_camera_assembly__360_degree_camera_v4_2__inst004__preflip_y180.step"
       },
       "quantity": 1,
-      "material_hint": "battery_cells_aluminum_case",
+      "material_hint": "aluminum_6061",
       "color": [
-        128,
-        128,
-        31,
+        220,
+        140,
+        60,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
-      "mount_side": "outer"
+      ]
     },
     {
       "component_id": "P009",
-      "semantic_name": "catch_catch_p009_磁强计",
-      "kind": "external",
-      "category": "adcs",
+      "semantic_name": "allocated_space_for_computer_systems",
+      "kind": "internal",
+      "category": "avionics",
       "size_mm": [
-        78.41600878460369,
-        64.91636170796716,
-        23.01600878462247
+        260.0,
+        220.0,
+        240.0
       ],
-      "mass_kg": 0.05,
-      "power_W": 0,
+      "mass_kg": 1.7,
+      "power_W": 15.0,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P009.local_zmax",
@@ -678,1665 +568,1379 @@
           }
         ]
       },
-      "component_subtype": "magnetometer",
+      "component_subtype": "obc",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "磁强计",
-        "source_step_files": [
-          "CATCH01_SL-016_CQJ.stp"
+        "template_component_id": "P009",
+        "template_kind": "计算机系统",
+        "template_model": "allocated_space_for_computer_systems",
+        "template_name": "Allocated space for computer systems",
+        "template_size_mm": [
+          260.0,
+          220.0,
+          240.0
         ],
-        "original_bbox": {
-          "min": [
-            -4.008004392301849,
-            -88.9083573156653,
-            -183.00800439232063
-          ],
-          "max": [
-            74.40800439230185,
-            -23.99199560769815,
-            -159.99199560769816
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P009_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P009_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P009_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
+        "template_center_mm": [
+          300.0,
+          120.0,
+          125.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P009",
+        "selected_model": "allocated_space_for_computer_systems",
+        "selected_name": "Allocated space for computer systems",
+        "selected_kind": "计算机系统",
+        "selected_size_mm": [
+          260.0,
+          220.0,
+          240.0
+        ],
+        "cad_path": "refined_coordinate_steps/computer_systems/090_computer_system_volume__allocated_space_for_computer_systems_1__inst001.step",
+        "cad_rotated_path": "refined_coordinate_steps/computer_systems_simplified_boxes/090_computer_system_simplified_box_260x220x240.step",
+        "cad_major_path": "refined_coordinate_steps/computer_systems_simplified_boxes/090_computer_system_simplified_box_260x220x240.step"
       },
       "quantity": 1,
       "material_hint": "aluminum_6061",
       "color": [
-        92,
-        92,
-        92,
+        255,
+        200,
+        100,
         255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
-      "mount_side": "outer"
+      ]
     },
     {
       "component_id": "P010",
-      "semantic_name": "catch_catch_p010_载荷防污染_防尘机构",
-      "kind": "external",
-      "category": "payload",
-      "size_mm": [
-        12.525011812096068,
-        203.82501181175087,
-        247.17501181187342
-      ],
-      "mass_kg": 0.136299,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P010.local_xmax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P010.local_xmax",
-            "local_face": "xmax",
-            "normal_axis": 0,
-            "normal_sign": 1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "payload_device",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "02_JIZHUNBAN_BJ",
-        "display_name": "载荷防污染/防尘机构",
-        "source_step_files": [
-          "CATCH01_SL-033_FWRG_SL.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -180.01250590592102,
-            -100.01250590584856,
-            -104.16250590593674
-          ],
-          "max": [
-            -167.48749409382495,
-            103.8125059059023,
-            143.01250590593668
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P010_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P010_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P010_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -173.04011831591671,
-            -127.54011831591673,
-            -160.04011831591671
-          ],
-          "max": [
-            -159.95988168408329,
-            127.54011831591673,
-            160.04011831591674
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        31,
-        120,
-        209,
-        255
-      ],
-      "panel_id": "02_JIZHUNBAN_BJ",
-      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P011",
-      "semantic_name": "catch_catch_p011_星敏感器_A",
-      "kind": "external",
-      "category": "adcs",
-      "size_mm": [
-        150.180061972809,
-        94.01215437933232,
-        95.90123153993079
-      ],
-      "mass_kg": 0.292465,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P011.local_xmax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P011.local_xmax",
-            "local_face": "xmax",
-            "normal_axis": 0,
-            "normal_sign": 1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "star_tracker",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "02_JIZHUNBAN_BJ",
-        "display_name": "星敏感器 A",
-        "source_step_files": [
-          "CATCH01_SL-031_XM_A.stp",
-          "CATCH01_SL-029_ZJ_XM_A.stp",
-          "CATCH01_SL-035_DP_RK_JXYA_XM_A.stp",
-          "CATCH01_SL-036_ZGZ_XM_A.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -320.180061872809,
-            18.49392281033385,
-            -207.4896453450941
-          ],
-          "max": [
-            -169.9999999,
-            112.50607718966617,
-            -111.5884138051633
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P011_A.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P011_A.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P011_A.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -173.04011831591671,
-            -127.54011831591673,
-            -160.04011831591671
-          ],
-          "max": [
-            -159.95988168408329,
-            127.54011831591673,
-            160.04011831591674
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        46,
-        161,
-        84,
-        255
-      ],
-      "panel_id": "02_JIZHUNBAN_BJ",
-      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P012",
-      "semantic_name": "catch_catch_p012_星敏感器_B",
-      "kind": "external",
-      "category": "adcs",
-      "size_mm": [
-        202.10243689047894,
-        86.00561459445402,
-        78.24706684772272
-      ],
-      "mass_kg": 0.293779,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P012.local_xmax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P012.local_xmax",
-            "local_face": "xmax",
-            "normal_axis": 0,
-            "normal_sign": 1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "star_tracker",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "02_JIZHUNBAN_BJ",
-        "display_name": "星敏感器 B",
-        "source_step_files": [
-          "CATCH01_SL-032_B.stp",
-          "CATCH01_SL-030_ZJ_XM_B.stp",
-          "CATCH01_SL-034_DP_RK_JXYA_XM_B.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -321.0936353324423,
-            -112.50280729722701,
-            -178.3331984140599
-          ],
-          "max": [
-            -118.99119844196338,
-            -26.497192702772985,
-            -100.08613156633717
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P012_B.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P012_B.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P012_B.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -173.04011831591671,
-            -127.54011831591673,
-            -160.04011831591671
-          ],
-          "max": [
-            -159.95988168408329,
-            127.54011831591673,
-            160.04011831591674
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        235,
-        148,
-        33,
-        255
-      ],
-      "panel_id": "02_JIZHUNBAN_BJ",
-      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P013",
-      "semantic_name": "catch_catch_p013_测控数传一体机_A_Z0001",
-      "kind": "external",
-      "category": "communication",
-      "size_mm": [
-        102.75534659313556,
-        50.82906177758068,
-        90.02906177746044
-      ],
-      "mass_kg": 0.101567,
-      "power_W": 8.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P013.local_ymax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P013.local_ymax",
-            "local_face": "ymax",
-            "normal_axis": 1,
-            "normal_sign": 1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "ttc_box",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "03_GB_ZY_BJ",
-        "display_name": "测控数传一体机 A / Z0001",
-        "source_step_files": [
-          "CATCH01_SL-045_Z.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -54.495815704639945,
-            -173.4145308889651,
-            42.99046911126984
-          ],
-          "max": [
-            48.25953088849561,
-            -122.58546911138441,
-            133.0195308887303
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "03_GB_ZY_BJ.ymin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -160.07871521991498,
-            -123.301462255115,
-            -160.07871521991558
-          ],
-          "max": [
-            160.07871521991498,
-            -112.421284780085,
-            160.07871521991498
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "03_GB_ZY_BJ",
-      "mount_face_id": "03_GB_ZY_BJ.ymin_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P014",
-      "semantic_name": "catch_catch_p014_电推进_微推力器候选_含安装板",
-      "kind": "external",
-      "category": "propulsion",
-      "size_mm": [
-        140.0043992415549,
-        144.0012928851061,
-        89.00439924155492
-      ],
-      "mass_kg": 0.387591,
-      "power_W": 3.0,
-      "material_id": "stainless_steel",
-      "mounting": {
-        "default_component_mount_face_id": "P014.local_ymin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P014.local_ymin",
-            "local_face": "ymin",
-            "normal_axis": 1,
-            "normal_sign": -1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "thruster",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "04_GB_FY_BJ",
-        "display_name": "电推进/微推力器候选（含安装板）",
-        "source_step_files": [
-          "CATCH01_SL-047_TLQ.stp",
-          "CATCH01_EXTRA-001_TLQ_mount_plate.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -6.001292785105907,
-            122.4999999,
-            -44.00129278510591
-          ],
-          "max": [
-            134.003106456449,
-            266.5012927851061,
-            45.003106456449004
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P014_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P014_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P014_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "04_GB_FY_BJ.ymax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -160.0150128041904,
-            112.48498719580958,
-            -160.015012804191
-          ],
-          "max": [
-            160.0150128041904,
-            122.84005702039042,
-            160.0150128041904
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "stainless_steel",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "04_GB_FY_BJ",
-      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P015",
-      "semantic_name": "catch_catch_p015_光纤陀螺_YH50_含热控垫片",
-      "kind": "external",
-      "category": "adcs",
-      "size_mm": [
-        50.52196131227228,
-        89.22196131227241,
-        50.02196131227225
-      ],
-      "mass_kg": 0.05,
-      "power_W": 1.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P015.local_ymin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P015.local_ymin",
-            "local_face": "ymin",
-            "normal_axis": 1,
-            "normal_sign": -1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "gyro",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "04_GB_FY_BJ",
-        "display_name": "光纤陀螺 YH50（含热控垫片）",
-        "source_step_files": [
-          "CATCH01_SL-048_YH50.stp",
-          "CATCH01_SL-051_YH50_02.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -138.51098065613616,
-            122.4890193438637,
-            -101.21098065613613
-          ],
-          "max": [
-            -87.98901934386387,
-            211.71098065613612,
-            -51.189019343863876
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P015_YH50.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P015_YH50.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P015_YH50.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "04_GB_FY_BJ.ymax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -160.0150128041904,
-            112.48498719580958,
-            -160.015012804191
-          ],
-          "max": [
-            160.0150128041904,
-            122.84005702039042,
-            160.0150128041904
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        31,
-        120,
-        209,
-        255
-      ],
-      "panel_id": "04_GB_FY_BJ",
-      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P016",
-      "semantic_name": "catch_catch_p016_MEMS_陀螺_100_含热控垫片",
-      "kind": "external",
-      "category": "adcs",
-      "size_mm": [
-        73.60000019999998,
-        21.500000199999988,
-        44.8000002
-      ],
-      "mass_kg": 0.05,
-      "power_W": 1.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P016.local_ymin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P016.local_ymin",
-            "local_face": "ymin",
-            "normal_axis": 1,
-            "normal_sign": -1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "gyro",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "04_GB_FY_BJ",
-        "display_name": "MEMS 陀螺 100（含热控垫片）",
-        "source_step_files": [
-          "CATCH01_SL-049_MEMS_100.stp",
-          "CATCH01_SL-050_MEMS.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -80.60000009999999,
-            122.4999999,
-            -140.0000001
-          ],
-          "max": [
-            -6.9999999,
-            144.0000001,
-            -95.1999999
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P016_MEMS_100.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P016_MEMS_100.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P016_MEMS_100.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "04_GB_FY_BJ.ymax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -160.0150128041904,
-            112.48498719580958,
-            -160.015012804191
-          ],
-          "max": [
-            160.0150128041904,
-            122.84005702039042,
-            160.0150128041904
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        46,
-        161,
-        84,
-        255
-      ],
-      "panel_id": "04_GB_FY_BJ",
-      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P017",
-      "semantic_name": "catch_catch_p017_载荷伸展_展开机构",
-      "kind": "external",
-      "category": "mechanism",
-      "size_mm": [
-        127.58918487212415,
-        450.68893708962423,
-        270.08925910990376
-      ],
-      "mass_kg": 3.354686,
-      "power_W": 5.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P017.local_xmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P017.local_xmin",
-            "local_face": "xmin",
-            "normal_axis": 0,
-            "normal_sign": -1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "deployment_mechanism",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "05_CB_FX_BJ",
-        "display_name": "载荷伸展/展开机构",
-        "source_step_files": [
-          "CATCH01_SL-053_ZHSZJG_SL.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            169.955565682958,
-            -225.34449035732715,
-            -130.04504038234606
-          ],
-          "max": [
-            297.54475055508215,
-            225.34444673229711,
-            140.0442187275577
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P017_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P017_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P017_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "05_CB_FX_BJ.xmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999651222205,
-            -127.5000348777795,
-            -160.0000348777795
-          ],
-          "max": [
-            170.00003487778454,
-            127.5000348777795,
-            160.0000348777795
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "05_CB_FX_BJ",
-      "mount_face_id": "05_CB_FX_BJ.xmax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P018",
-      "semantic_name": "catch_catch_p018_探测器机箱候选",
-      "kind": "external",
-      "category": "payload",
-      "size_mm": [
-        87.35406394617917,
-        209.05433278009735,
-        192.3543153422063
-      ],
-      "mass_kg": 0.758749,
-      "power_W": 6.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P018.local_xmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P018.local_xmin",
-            "local_face": "xmin",
-            "normal_axis": 0,
-            "normal_sign": -1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "detector_box",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "05_CB_FX_BJ",
-        "display_name": "探测器机箱候选",
-        "source_step_files": [
-          "CATCH01_SL-054_TCQ_JX.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            238.77325614005224,
-            -104.52716639008126,
-            -72.52720700774674
-          ],
-          "max": [
-            326.1273200862314,
-            104.52716639001609,
-            119.82710833445957
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "05_CB_FX_BJ.xmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999651222205,
-            -127.5000348777795,
-            -160.0000348777795
-          ],
-          "max": [
-            170.00003487778454,
-            127.5000348777795,
-            160.0000348777795
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        31,
-        120,
-        209,
-        255
-      ],
-      "panel_id": "05_CB_FX_BJ",
-      "mount_face_id": "05_CB_FX_BJ.xmax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P019",
-      "semantic_name": "catch_catch_p019_星敏_小光学组件候选",
-      "kind": "external",
-      "category": "adcs",
-      "size_mm": [
-        159.48414601795304,
-        73.53407685250272,
-        93.53407685250662
-      ],
-      "mass_kg": 0.236935,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P019.local_xmax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P019.local_xmax",
-            "local_face": "xmax",
-            "normal_axis": 0,
-            "normal_sign": 1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "star_tracker",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "06_CB_ZXFY_BJ",
-        "display_name": "星敏/小光学组件候选",
-        "source_step_files": [
-          "CATCH01_SL-058_XM_XZ.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -304.9671075917465,
-            165.2329615738014,
-            -128.51703842630562
-          ],
-          "max": [
-            -145.4829615737935,
-            238.7670384263041,
-            -34.982961573799
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P019_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P019_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P019_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "06_CB_ZXFY_BJ.xmin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -171.00535935520864,
-            127.49464064479136,
-            -160.00535935520864
-          ],
-          "max": [
-            -159.99464064479136,
-            275.0053593552086,
-            160.00535935520867
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "06_CB_ZXFY_BJ",
-      "mount_face_id": "06_CB_ZXFY_BJ.xmin_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P020",
-      "semantic_name": "catch_catch_p020_测控_数传_短报文天线候选_FXZY",
-      "kind": "external",
-      "category": "communication",
-      "size_mm": [
-        25.279806034499302,
-        73.78140179316097,
-        34.04379389059784
-      ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P020.local_xmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P020.local_xmin",
-            "local_face": "xmin",
-            "normal_axis": 0,
-            "normal_sign": -1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "antenna",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "07_CB_FXZY_BJ",
-        "display_name": "测控/数传/短报文天线候选 FXZY",
-        "source_step_files": [
-          "CATCH01_SL-060_ZJ_CKSCTX_02.stp",
-          "CATCH01_EXTRA-002_CKSCTX_FXZY_adjacent_1.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            169.990495152138,
-            -311.771896945299,
-            -140.02189694529892
-          ],
-          "max": [
-            195.2703011866373,
-            -237.990495152138,
-            -105.97810305470108
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P020_FXZY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P020_FXZY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P020_FXZY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "07_CB_FXZY_BJ.xmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999999,
-            -275.0000001,
-            -160.0000001
-          ],
-          "max": [
-            170.00000010001202,
-            -127.4999999,
-            160.0000001
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "07_CB_FXZY_BJ",
-      "mount_face_id": "07_CB_FXZY_BJ.xmax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P021",
-      "semantic_name": "catch_catch_p021_测控_数传_短报文天线候选_FXFY",
-      "kind": "external",
-      "category": "communication",
-      "size_mm": [
-        25.27980603140739,
-        78.78140179006903,
-        34.043793884414015
-      ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P021.local_xmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P021.local_xmin",
-            "local_face": "xmin",
-            "normal_axis": 0,
-            "normal_sign": -1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "antenna",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "08_CB_FXFY_BJ",
-        "display_name": "测控/数传/短报文天线候选 FXFY",
-        "source_step_files": [
-          "CATCH01_SL-064_ZJ_CKSCTX_02_02.stp",
-          "CATCH01_EXTRA-004_CKSCTX_FXFY_adjacent_1.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            169.990495152138,
-            237.990495152138,
-            -140.021896942207
-          ],
-          "max": [
-            195.2703011835454,
-            316.77189694220704,
-            -105.97810305779299
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P021_FXFY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P021_FXFY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P021_FXFY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999999,
-            127.4999999,
-            -160.0000001
-          ],
-          "max": [
-            170.0000001,
-            275.0000001,
-            160.00000010000002
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "08_CB_FXFY_BJ",
-      "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P022",
-      "semantic_name": "catch_catch_p022_反作用轮候选_FXFY",
+      "semantic_name": "allocated_space_for_computer_systems",
       "kind": "internal",
-      "category": "adcs",
+      "category": "avionics",
       "size_mm": [
-        68.00000019999999,
-        88.52157968213913,
-        87.24315916427821
+        260.0,
+        220.0,
+        240.0
       ],
-      "mass_kg": 0.113434,
-      "power_W": 2.0,
+      "mass_kg": 1.7,
+      "power_W": 15.0,
       "material_id": "aluminum_6061",
       "mounting": {
-        "default_component_mount_face_id": "P022.local_xmax",
+        "default_component_mount_face_id": "P010.local_zmax",
         "mount_faces": [
           {
-            "component_mount_face_id": "P022.local_xmax",
-            "local_face": "xmax",
-            "normal_axis": 0,
-            "normal_sign": 1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "reaction_wheel",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "08_CB_FXFY_BJ",
-        "display_name": "反作用轮候选 FXFY",
-        "source_step_files": [
-          "CATCH01_SL-065_DLL_S_A.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            91.9999999,
-            171.8499999,
-            44.37842041786089
-          ],
-          "max": [
-            160.0000001,
-            260.37157958213913,
-            131.6215795821391
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999999,
-            127.4999999,
-            -160.0000001
-          ],
-          "max": [
-            170.0000001,
-            275.0000001,
-            160.00000010000002
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        31,
-        120,
-        209,
-        255
-      ],
-      "panel_id": "08_CB_FXFY_BJ",
-      "mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
-      "mount_side": "inner"
-    },
-    {
-      "component_id": "P023",
-      "semantic_name": "catch_catch_p023_小型相机_光学设备候选",
-      "kind": "external",
-      "category": "payload",
-      "size_mm": [
-        106.42812160015939,
-        106.42812160015853,
-        101.96011022032167
-      ],
-      "mass_kg": 0.249458,
-      "power_W": 3.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P023.local_xmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P023.local_xmin",
-            "local_face": "xmin",
-            "normal_axis": 0,
-            "normal_sign": -1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "camera",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "08_CB_FXFY_BJ",
-        "display_name": "小型相机/光学设备候选",
-        "source_step_files": [
-          "CATCH01_SL-067_XJ.stp",
-          "CATCH01_SL-066_ZJ_XJ.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            169.99572448421185,
-            162.3261539156287,
-            42.04416529546885
-          ],
-          "max": [
-            276.42384608437123,
-            268.75427551578724,
-            144.0042755157905
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999999,
-            127.4999999,
-            -160.0000001
-          ],
-          "max": [
-            170.0000001,
-            275.0000001,
-            160.00000010000002
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        46,
-        161,
-        84,
-        255
-      ],
-      "panel_id": "08_CB_FXFY_BJ",
-      "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P024",
-      "semantic_name": "catch_catch_p024_测控_数传_短报文天线候选_ZY",
-      "kind": "external",
-      "category": "communication",
-      "size_mm": [
-        50.00000019999999,
-        68.77189704220706,
-        50.00000019999999
-      ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P024.local_ymax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P024.local_ymax",
-            "local_face": "ymax",
-            "normal_axis": 1,
-            "normal_sign": 1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "antenna",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "09_CB_ZY_BJ",
-        "display_name": "测控/数传/短报文天线候选 ZY",
-        "source_step_files": [
-          "CATCH01_SL-069_ZJ_CKSCTX_01.stp",
-          "CATCH01_EXTRA-005_CKSCTX_ZY_adjacent_1.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -160.0000001,
-            -356.77189694220704,
-            79.9999999
-          ],
-          "max": [
-            -109.9999999,
-            -287.9999999,
-            130.0000001
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P024_ZY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P024_ZY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P024_ZY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "09_CB_ZY_BJ.ymin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.0001284632565,
-            -283.000128463272,
-            -170.0001284632565
-          ],
-          "max": [
-            170.0001284632565,
-            -274.999871536742,
-            160.0001284632565
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "09_CB_ZY_BJ",
-      "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P025",
-      "semantic_name": "catch_catch_p025_测控数传一体机_B_Z0001",
-      "kind": "internal",
-      "category": "communication",
-      "size_mm": [
-        102.75534659313556,
-        50.82906177758068,
-        90.02906177746041
-      ],
-      "mass_kg": 0.101567,
-      "power_W": 8.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P025.local_ymin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P025.local_ymin",
-            "local_face": "ymin",
-            "normal_axis": 1,
-            "normal_sign": -1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "ttc_box",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "09_CB_ZY_BJ",
-        "display_name": "测控数传一体机 B / Z0001",
-        "source_step_files": [
-          "CATCH01_SL-070_Z_02.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -60.885752207299944,
-            -274.91453088861556,
-            23.985469111269843
-          ],
-          "max": [
-            41.86959438583561,
-            -224.08546911103488,
-            114.01453088873026
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "09_CB_ZY_BJ.ymax_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.0001284632565,
-            -283.000128463272,
-            -170.0001284632565
-          ],
-          "max": [
-            170.0001284632565,
-            -274.999871536742,
-            160.0001284632565
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        235,
-        148,
-        33,
-        255
-      ],
-      "panel_id": "09_CB_ZY_BJ",
-      "mount_face_id": "09_CB_ZY_BJ.ymax_inner",
-      "mount_side": "inner"
-    },
-    {
-      "component_id": "P026",
-      "semantic_name": "catch_catch_p026_磁力矩器_磁棒_ZY",
-      "kind": "external",
-      "category": "adcs",
-      "size_mm": [
-        26.000000199999988,
-        13.800000200000056,
-        160.00000020000002
-      ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P026.local_ymax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P026.local_ymax",
-            "local_face": "ymax",
-            "normal_axis": 1,
-            "normal_sign": 1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "magnetorquer",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "09_CB_ZY_BJ",
-        "display_name": "磁力矩器/磁棒 ZY",
-        "source_step_files": [
-          "CATCH01_SL-071_CB_20231008.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            128.9999999,
-            -296.80000010000003,
-            -125.0000001
-          ],
-          "max": [
-            155.0000001,
-            -282.9999999,
-            35.000000100000015
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P026_ZY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P026_ZY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P026_ZY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "09_CB_ZY_BJ.ymin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.0001284632565,
-            -283.000128463272,
-            -170.0001284632565
-          ],
-          "max": [
-            170.0001284632565,
-            -274.999871536742,
-            160.0001284632565
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        140,
-        64,
-        194,
-        255
-      ],
-      "panel_id": "09_CB_ZY_BJ",
-      "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P027",
-      "semantic_name": "catch_catch_p027_测控_数传_短报文天线候选_FY",
-      "kind": "external",
-      "category": "communication",
-      "size_mm": [
-        50.00000019999999,
-        68.771897045299,
-        50.00000019999999
-      ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P027.local_ymin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P027.local_ymin",
-            "local_face": "ymin",
-            "normal_axis": 1,
-            "normal_sign": -1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "antenna",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "10_CB_FY_BJ",
-        "display_name": "测控/数传/短报文天线候选 FY",
-        "source_step_files": [
-          "CATCH01_SL-074_ZJ_CKSCTX_01_02.stp",
-          "CATCH01_EXTRA-008_CKSCTX_FY_adjacent_1.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -160.0000001,
-            287.9999999,
-            79.9999999
-          ],
-          "max": [
-            -109.9999999,
-            356.771896945299,
-            130.0000001
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P027_FY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P027_FY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P027_FY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "10_CB_FY_BJ.ymax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -170.00012846325467,
-            274.99987153674533,
-            -170.00012846325467
-          ],
-          "max": [
-            170.0001284632547,
-            283.0001284632548,
-            160.00012846325467
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "10_CB_FY_BJ",
-      "mount_face_id": "10_CB_FY_BJ.ymax_outer",
-      "mount_side": "outer"
-    },
-    {
-      "component_id": "P028",
-      "semantic_name": "catch_catch_p028_反作用轮候选_FY",
-      "kind": "internal",
-      "category": "adcs",
-      "size_mm": [
-        88.5215796821391,
-        68.00000020000002,
-        87.24315916427821
-      ],
-      "mass_kg": 0.113434,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P028.local_ymax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P028.local_ymax",
-            "local_face": "ymax",
-            "normal_axis": 1,
-            "normal_sign": 1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "reaction_wheel",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "10_CB_FY_BJ",
-        "display_name": "反作用轮候选 FY",
-        "source_step_files": [
-          "CATCH01_SL-075_DLL_S_D_03.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -151.6215795821391,
-            206.9999999,
-            -143.6215795821391
-          ],
-          "max": [
-            -63.0999999,
-            275.0000001,
-            -56.37842041786089
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "10_CB_FY_BJ.ymin_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -170.00012846325467,
-            274.99987153674533,
-            -170.00012846325467
-          ],
-          "max": [
-            170.0001284632547,
-            283.0001284632548,
-            160.00012846325467
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        235,
-        148,
-        33,
-        255
-      ],
-      "panel_id": "10_CB_FY_BJ",
-      "mount_face_id": "10_CB_FY_BJ.ymin_inner",
-      "mount_side": "inner"
-    },
-    {
-      "component_id": "P029",
-      "semantic_name": "catch_catch_p029_太阳电池阵_帆板",
-      "kind": "external",
-      "category": "power",
-      "size_mm": [
-        474.1731552760368,
-        712.1669456963295,
-        91.66690683190492
-      ],
-      "mass_kg": 6.686288,
-      "power_W": 0.0,
-      "material_id": "battery_cells_aluminum_case",
-      "mounting": {
-        "default_component_mount_face_id": "P029.local_zmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P029.local_zmin",
-            "local_face": "zmin",
+            "component_mount_face_id": "P010.local_zmax",
+            "local_face": "zmax",
             "normal_axis": 2,
-            "normal_sign": -1,
+            "normal_sign": 1,
             "u_axis": 0,
             "v_axis": 1
           }
         ]
       },
-      "component_subtype": "solar_array",
+      "component_subtype": "obc",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "11_DINGBAN_BJ",
-        "display_name": "太阳电池阵/帆板",
-        "source_step_files": [
-          "CATCH01_SL-078_FANBAN_SL.stp"
+        "template_component_id": "P010",
+        "template_kind": "计算机系统",
+        "template_model": "allocated_space_for_computer_systems",
+        "template_name": "Allocated space for computer systems",
+        "template_size_mm": [
+          260.0,
+          220.0,
+          240.0
         ],
-        "original_bbox": {
-          "min": [
-            -240.5849200384116,
-            -340.0844742206879,
-            160.41654658385082
-          ],
-          "max": [
-            233.5882352376252,
-            372.0824714756416,
-            252.08345341575574
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P029_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P029_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P029_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "11_DINGBAN_BJ.zmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -170.03195095176432,
-            -283.0319509517643,
-            159.96804904823563
-          ],
-          "max": [
-            170.03195095176432,
-            283.0319509517643,
-            169.78089174726432
-          ]
-        }
+        "template_center_mm": [
+          900.0,
+          1080.0,
+          125.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P010",
+        "selected_model": "allocated_space_for_computer_systems",
+        "selected_name": "Allocated space for computer systems",
+        "selected_kind": "计算机系统",
+        "selected_size_mm": [
+          260.0,
+          220.0,
+          240.0
+        ],
+        "cad_path": "refined_coordinate_steps/computer_systems/091_computer_system_volume__allocated_space_for_computer_systems_2__inst002.step",
+        "cad_rotated_path": "refined_coordinate_steps/computer_systems_simplified_boxes/091_computer_system_simplified_box_260x220x240.step",
+        "cad_major_path": "refined_coordinate_steps/computer_systems_simplified_boxes/091_computer_system_simplified_box_260x220x240.step"
       },
       "quantity": 1,
-      "material_hint": "battery_cells_aluminum_case",
+      "material_hint": "aluminum_6061",
       "color": [
-        237,
-        46,
-        41,
+        255,
+        200,
+        100,
         255
+      ]
+    },
+    {
+      "component_id": "P011",
+      "semantic_name": "cubesat_payload_box_1_ymin_side",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        252.000003,
+        222.0,
+        262.000003
       ],
-      "panel_id": "11_DINGBAN_BJ",
-      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
-      "mount_side": "outer"
+      "mass_kg": 0.293147,
+      "power_W": 0.0,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P011.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P011.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P011",
+        "template_kind": "载荷/机构",
+        "template_model": "cubesat_payload_box_1_ymin_side",
+        "template_name": "Cubesat payload box 1 (ymin_side)",
+        "template_size_mm": [
+          252.000003,
+          222.0,
+          262.000003
+        ],
+        "template_center_mm": [
+          600.0,
+          110.999998,
+          452.5
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P011",
+        "selected_model": "cubesat_payload_box_1_ymin_side",
+        "selected_name": "Cubesat payload box 1 (ymin_side)",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          252.000003,
+          222.0,
+          262.000003
+        ],
+        "cad_path": "refined_coordinate_steps/cubesat_payloads/092_cubesat_payload_box__inst001.step",
+        "cad_rotated_path": "refined_coordinate_steps/cubesat_payloads/092_cubesat_payload_box__inst001.step",
+        "cad_major_path": "refined_coordinate_steps/cubesat_payloads/092_cubesat_payload_box__inst001.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P012",
+      "semantic_name": "cubesat_payload_box_2_ymax_side",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        252.000003,
+        222.0,
+        262.000003
+      ],
+      "mass_kg": 0.293147,
+      "power_W": 0.0,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P012.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P012.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P012",
+        "template_kind": "载荷/机构",
+        "template_model": "cubesat_payload_box_2_ymax_side",
+        "template_name": "Cubesat payload box 2 (ymax_side)",
+        "template_size_mm": [
+          252.000003,
+          222.0,
+          262.000003
+        ],
+        "template_center_mm": [
+          600.0,
+          1089.000002,
+          452.5
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P012",
+        "selected_model": "cubesat_payload_box_2_ymax_side",
+        "selected_name": "Cubesat payload box 2 (ymax_side)",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          252.000003,
+          222.0,
+          262.000003
+        ],
+        "cad_path": "refined_coordinate_steps/cubesat_payloads/093_cubesat_payload_box__inst002.step",
+        "cad_rotated_path": "refined_coordinate_steps/cubesat_payloads/093_cubesat_payload_box__inst002.step",
+        "cad_major_path": "refined_coordinate_steps/cubesat_payloads/093_cubesat_payload_box__inst002.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P013",
+      "semantic_name": "drive_train_frame_1",
+      "kind": "internal",
+      "category": "mechanism",
+      "size_mm": [
+        118.004614,
+        180.004614,
+        804.004614
+      ],
+      "mass_kg": 1.366253,
+      "power_W": 0.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P013.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P013.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "drive_train",
+      "source_ref": {
+        "template_component_id": "P013",
+        "template_kind": "传动机构",
+        "template_model": "drive_train_frame_1",
+        "template_name": "Drive train frame 1",
+        "template_size_mm": [
+          118.004614,
+          180.004614,
+          804.004614
+        ],
+        "template_center_mm": [
+          600.5,
+          329.633093,
+          407.035458
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P013",
+        "selected_model": "drive_train_frame_1",
+        "selected_name": "Drive train frame 1",
+        "selected_kind": "传动机构",
+        "selected_size_mm": [
+          118.004614,
+          180.004614,
+          804.004614
+        ],
+        "cad_path": "refined_coordinate_steps/drive_train/123_drive_train_frame__inst001.step",
+        "cad_rotated_path": "refined_coordinate_steps/drive_train/123_drive_train_frame__inst001.step",
+        "cad_major_path": "refined_coordinate_steps/drive_train/123_drive_train_frame__inst001.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        180,
+        130,
+        220,
+        255
+      ]
+    },
+    {
+      "component_id": "P014",
+      "semantic_name": "drive_train_frame_2",
+      "kind": "internal",
+      "category": "mechanism",
+      "size_mm": [
+        180.004614,
+        118.004614,
+        804.004614
+      ],
+      "mass_kg": 1.366253,
+      "power_W": 0.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P014.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P014.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "drive_train",
+      "source_ref": {
+        "template_component_id": "P014",
+        "template_kind": "传动机构",
+        "template_model": "drive_train_frame_2",
+        "template_name": "Drive train frame 2",
+        "template_size_mm": [
+          180.004614,
+          118.004614,
+          804.004614
+        ],
+        "template_center_mm": [
+          870.366907,
+          600.5,
+          407.035458
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P014",
+        "selected_model": "drive_train_frame_2",
+        "selected_name": "Drive train frame 2",
+        "selected_kind": "传动机构",
+        "selected_size_mm": [
+          180.004614,
+          118.004614,
+          804.004614
+        ],
+        "cad_path": "refined_coordinate_steps/drive_train/124_drive_train_frame__inst002.step",
+        "cad_rotated_path": "refined_coordinate_steps/drive_train/124_drive_train_frame__inst002.step",
+        "cad_major_path": "refined_coordinate_steps/drive_train/124_drive_train_frame__inst002.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        180,
+        130,
+        220,
+        255
+      ]
+    },
+    {
+      "component_id": "P015",
+      "semantic_name": "drive_train_frame_3",
+      "kind": "internal",
+      "category": "mechanism",
+      "size_mm": [
+        118.004614,
+        180.004614,
+        804.004614
+      ],
+      "mass_kg": 1.366253,
+      "power_W": 0.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P015.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P015.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "drive_train",
+      "source_ref": {
+        "template_component_id": "P015",
+        "template_kind": "传动机构",
+        "template_model": "drive_train_frame_3",
+        "template_name": "Drive train frame 3",
+        "template_size_mm": [
+          118.004614,
+          180.004614,
+          804.004614
+        ],
+        "template_center_mm": [
+          599.5,
+          870.366907,
+          407.035458
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P015",
+        "selected_model": "drive_train_frame_3",
+        "selected_name": "Drive train frame 3",
+        "selected_kind": "传动机构",
+        "selected_size_mm": [
+          118.004614,
+          180.004614,
+          804.004614
+        ],
+        "cad_path": "refined_coordinate_steps/drive_train/125_drive_train_frame__inst003.step",
+        "cad_rotated_path": "refined_coordinate_steps/drive_train/125_drive_train_frame__inst003.step",
+        "cad_major_path": "refined_coordinate_steps/drive_train/125_drive_train_frame__inst003.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        180,
+        130,
+        220,
+        255
+      ]
+    },
+    {
+      "component_id": "P016",
+      "semantic_name": "drive_train_frame_4",
+      "kind": "internal",
+      "category": "mechanism",
+      "size_mm": [
+        180.004614,
+        118.004614,
+        804.004614
+      ],
+      "mass_kg": 1.366253,
+      "power_W": 0.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P016.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P016.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "drive_train",
+      "source_ref": {
+        "template_component_id": "P016",
+        "template_kind": "传动机构",
+        "template_model": "drive_train_frame_4",
+        "template_name": "Drive train frame 4",
+        "template_size_mm": [
+          180.004614,
+          118.004614,
+          804.004614
+        ],
+        "template_center_mm": [
+          329.633093,
+          599.5,
+          407.035458
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P016",
+        "selected_model": "drive_train_frame_4",
+        "selected_name": "Drive train frame 4",
+        "selected_kind": "传动机构",
+        "selected_size_mm": [
+          180.004614,
+          118.004614,
+          804.004614
+        ],
+        "cad_path": "refined_coordinate_steps/drive_train/126_drive_train_frame__inst004.step",
+        "cad_rotated_path": "refined_coordinate_steps/drive_train/126_drive_train_frame__inst004.step",
+        "cad_major_path": "refined_coordinate_steps/drive_train/126_drive_train_frame__inst004.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        180,
+        130,
+        220,
+        255
+      ]
+    },
+    {
+      "component_id": "P017",
+      "semantic_name": "drive_train_mounted_device_4",
+      "kind": "internal",
+      "category": "mechanism",
+      "size_mm": [
+        180.000073,
+        587.825913,
+        201.726332
+      ],
+      "mass_kg": 1.707552,
+      "power_W": 4.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P017.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P017.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "drive_train",
+      "source_ref": {
+        "template_component_id": "P017",
+        "template_kind": "传动机构",
+        "template_model": "drive_train_mounted_device_4",
+        "template_name": "Drive train mounted device 4",
+        "template_size_mm": [
+          180.000073,
+          587.825913,
+          201.726332
+        ],
+        "template_center_mm": [
+          329.633093,
+          855.618652,
+          105.898588
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P017",
+        "selected_model": "drive_train_mounted_device_4",
+        "selected_name": "Drive train mounted device 4",
+        "selected_kind": "传动机构",
+        "selected_size_mm": [
+          180.000073,
+          587.825913,
+          201.726332
+        ],
+        "cad_path": "refined_coordinate_steps/drive_train/130_drive_train_mounted_device__inst004.step",
+        "cad_rotated_path": "refined_coordinate_steps/drive_train/130_drive_train_mounted_device__inst004.step",
+        "cad_major_path": "refined_coordinate_steps/drive_train/130_drive_train_mounted_device__inst004.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        180,
+        130,
+        220,
+        255
+      ]
+    },
+    {
+      "component_id": "P018",
+      "semantic_name": "fuel_tank_cold_gas_v3",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        200.0,
+        200.0,
+        800.0
+      ],
+      "mass_kg": 1.6,
+      "power_W": 0.0,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P018.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P018.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "fuel_tank",
+      "source_ref": {
+        "template_component_id": "P018",
+        "template_kind": "燃料储存罐",
+        "template_model": "fuel_tank_cold_gas_v3",
+        "template_name": "Fuel Tank (Cold Gas) v3",
+        "template_size_mm": [
+          200.0,
+          200.0,
+          800.0
+        ],
+        "template_center_mm": [
+          125.0,
+          975.0,
+          450.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P018",
+        "selected_model": "fuel_tank_cold_gas_v3",
+        "selected_name": "Fuel Tank (Cold Gas) v3",
+        "selected_kind": "燃料储存罐",
+        "selected_size_mm": [
+          200.0,
+          200.0,
+          800.0
+        ],
+        "cad_path": "refined_coordinate_steps/fuel_tanks/172_fuel_tank__fuel_tank_cold_gas_v3_1__inst001.step",
+        "cad_rotated_path": "refined_coordinate_steps/fuel_tanks/172_fuel_tank__fuel_tank_cold_gas_v3_1__inst001.step",
+        "cad_major_path": "refined_coordinate_steps/fuel_tanks/172_fuel_tank__fuel_tank_cold_gas_v3_1__inst001.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        180,
+        180,
+        180,
+        255
+      ]
+    },
+    {
+      "component_id": "P019",
+      "semantic_name": "fuel_tank_cold_gas_v3",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        200.0,
+        200.0,
+        800.0
+      ],
+      "mass_kg": 1.6,
+      "power_W": 0.0,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P019.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P019.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "fuel_tank",
+      "source_ref": {
+        "template_component_id": "P019",
+        "template_kind": "燃料储存罐",
+        "template_model": "fuel_tank_cold_gas_v3",
+        "template_name": "Fuel Tank (Cold Gas) v3",
+        "template_size_mm": [
+          200.0,
+          200.0,
+          800.0
+        ],
+        "template_center_mm": [
+          1075.0,
+          225.0,
+          450.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P019",
+        "selected_model": "fuel_tank_cold_gas_v3",
+        "selected_name": "Fuel Tank (Cold Gas) v3",
+        "selected_kind": "燃料储存罐",
+        "selected_size_mm": [
+          200.0,
+          200.0,
+          800.0
+        ],
+        "cad_path": "refined_coordinate_steps/fuel_tanks/173_fuel_tank__fuel_tank_cold_gas_v3_2__inst002.step",
+        "cad_rotated_path": "refined_coordinate_steps/fuel_tanks/173_fuel_tank__fuel_tank_cold_gas_v3_2__inst002.step",
+        "cad_major_path": "refined_coordinate_steps/fuel_tanks/173_fuel_tank__fuel_tank_cold_gas_v3_2__inst002.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        180,
+        180,
+        180,
+        255
+      ]
+    },
+    {
+      "component_id": "P020",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P020.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P020.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P020",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          194.856251,
+          699.856251,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P020",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/174_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst001.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/174_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst001.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/174_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst001.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P021",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P021.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P021.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P021",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          194.856251,
+          799.856251,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P021",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/175_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst002.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/175_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst002.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/175_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst002.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P022",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P022.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P022.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P022",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          194.856251,
+          599.856251,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P022",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/176_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst003.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/176_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst003.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/176_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst003.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P023",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P023.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P023.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P023",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          194.856251,
+          499.856251,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P023",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/177_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst004.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/177_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst004.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/177_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst004.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P024",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P024.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P024.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P024",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          194.856251,
+          399.856251,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P024",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/178_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst005.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/178_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst005.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/178_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst005.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P025",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P025.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P025.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P025",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          1005.143749,
+          500.143749,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P025",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/179_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst006.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/179_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst006.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/179_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst006.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P026",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P026.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P026.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P026",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          1005.143749,
+          400.143749,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P026",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/180_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst007.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/180_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst007.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/180_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst007.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P027",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P027.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P027.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P027",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          1005.143749,
+          600.143749,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P027",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/181_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst008.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/181_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst008.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/181_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst008.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P028",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P028.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P028.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P028",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          1005.143749,
+          700.143749,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P028",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/182_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst009.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/182_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst009.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/182_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst009.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
+    },
+    {
+      "component_id": "P029",
+      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
+      "kind": "internal",
+      "category": "payload",
+      "size_mm": [
+        70.0,
+        70.0,
+        350.0
+      ],
+      "mass_kg": 0.0343,
+      "power_W": 0.5,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P029.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P029.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "payload_mechanism",
+      "source_ref": {
+        "template_component_id": "P029",
+        "template_kind": "载荷/机构",
+        "template_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "template_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "template_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "template_center_mm": [
+          1005.143749,
+          800.143749,
+          735.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P029",
+        "selected_model": "alba_orbital_pocketqube_launch_mechanism_v3",
+        "selected_name": "Alba Orbital PocketQube Launch Mechanism v3",
+        "selected_kind": "载荷/机构",
+        "selected_size_mm": [
+          70.0,
+          70.0,
+          350.0
+        ],
+        "cad_path": "refined_coordinate_steps/pocketqube_launchers/183_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst010.step",
+        "cad_rotated_path": "refined_coordinate_steps/pocketqube_launchers/183_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst010.step",
+        "cad_major_path": "refined_coordinate_steps/pocketqube_launchers/183_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst010.step"
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        100,
+        150,
+        255,
+        255
+      ]
     },
     {
       "component_id": "P030",
-      "semantic_name": "catch_catch_p030_磁力矩器_磁棒_顶板_1",
-      "kind": "external",
+      "semantic_name": "reaction_wheel_v7",
+      "kind": "internal",
       "category": "adcs",
       "size_mm": [
-        26.000000199999995,
-        160.00000020000004,
-        13.8000002
+        150.0,
+        150.0,
+        60.0
       ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
+      "mass_kg": 0.027,
+      "power_W": 8.0,
+      "material_id": "stainless_steel",
       "mounting": {
         "default_component_mount_face_id": "P030.local_zmin",
         "mount_faces": [
@@ -2350,77 +1954,196 @@
           }
         ]
       },
-      "component_subtype": "magnetorquer",
+      "component_subtype": "reaction_wheel",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "11_DINGBAN_BJ",
-        "display_name": "磁力矩器/磁棒 顶板 1",
-        "source_step_files": [
-          "CATCH01_SL-079_CB_20231008_02.stp"
+        "template_component_id": "P030",
+        "template_kind": "反作用轮",
+        "template_model": "reaction_wheel_v7",
+        "template_name": "Reaction wheel v7",
+        "template_size_mm": [
+          150.0,
+          150.0,
+          60.0
         ],
-        "original_bbox": {
-          "min": [
-            -88.0000001,
-            -273.7500001,
-            167.9999999
-          ],
-          "max": [
-            -61.9999999,
-            -113.74999989999999,
-            181.8000001
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P030_1.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P030_1.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P030_1.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "11_DINGBAN_BJ.zmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -170.03195095176432,
-            -283.0319509517643,
-            159.96804904823563
-          ],
-          "max": [
-            170.03195095176432,
-            283.0319509517643,
-            169.78089174726432
-          ]
-        }
+        "template_center_mm": [
+          90.439988,
+          97.050924,
+          35.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P030",
+        "selected_model": "reaction_wheel_v7",
+        "selected_name": "Reaction wheel v7",
+        "selected_kind": "反作用轮",
+        "selected_size_mm": [
+          150.0,
+          150.0,
+          60.0
+        ],
+        "cad_path": "refined_coordinate_steps/reaction_wheels/184_reaction_wheel__reaction_wheel_v7_1__inst001.step",
+        "cad_rotated_path": "refined_coordinate_steps/reaction_wheels/184_reaction_wheel__reaction_wheel_v7_1__inst001.step",
+        "cad_major_path": "refined_coordinate_steps/reaction_wheels/184_reaction_wheel__reaction_wheel_v7_1__inst001.step"
       },
       "quantity": 1,
-      "material_hint": "aluminum_6061",
+      "material_hint": "stainless_steel",
       "color": [
-        31,
-        120,
-        209,
+        200,
+        200,
+        200,
         255
-      ],
-      "panel_id": "11_DINGBAN_BJ",
-      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
-      "mount_side": "outer"
+      ]
     },
     {
       "component_id": "P031",
-      "semantic_name": "catch_catch_p031_磁力矩器_磁棒_顶板_2",
-      "kind": "external",
+      "semantic_name": "reaction_wheel_v7",
+      "kind": "internal",
       "category": "adcs",
       "size_mm": [
-        160.00000020000002,
-        26.000000200000017,
-        13.8000002
+        60.0,
+        150.0,
+        150.0
       ],
-      "mass_kg": 0.05,
-      "power_W": 0,
-      "material_id": "aluminum_6061",
+      "mass_kg": 0.027,
+      "power_W": 8.0,
+      "material_id": "stainless_steel",
       "mounting": {
-        "default_component_mount_face_id": "P031.local_zmin",
+        "default_component_mount_face_id": "P031.local_xmin",
         "mount_faces": [
           {
-            "component_mount_face_id": "P031.local_zmin",
+            "component_mount_face_id": "P031.local_xmin",
+            "local_face": "xmin",
+            "normal_axis": 0,
+            "normal_sign": -1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "reaction_wheel",
+      "source_ref": {
+        "template_component_id": "P031",
+        "template_kind": "反作用轮",
+        "template_model": "reaction_wheel_v7",
+        "template_name": "Reaction wheel v7",
+        "template_size_mm": [
+          60.0,
+          150.0,
+          150.0
+        ],
+        "template_center_mm": [
+          35.0,
+          147.050924,
+          636.051966
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P031",
+        "selected_model": "reaction_wheel_v7",
+        "selected_name": "Reaction wheel v7",
+        "selected_kind": "反作用轮",
+        "selected_size_mm": [
+          60.0,
+          150.0,
+          150.0
+        ],
+        "cad_path": "refined_coordinate_steps/reaction_wheels/185_reaction_wheel__reaction_wheel_v7_2__inst002.step",
+        "cad_rotated_path": "refined_coordinate_steps/reaction_wheels/185_reaction_wheel__reaction_wheel_v7_2__inst002.step",
+        "cad_major_path": "refined_coordinate_steps/reaction_wheels/185_reaction_wheel__reaction_wheel_v7_2__inst002.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        200,
+        200,
+        200,
+        255
+      ]
+    },
+    {
+      "component_id": "P032",
+      "semantic_name": "reaction_wheel_v7",
+      "kind": "internal",
+      "category": "adcs",
+      "size_mm": [
+        150.0,
+        60.0,
+        150.0
+      ],
+      "mass_kg": 0.027,
+      "power_W": 8.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P032.local_ymin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P032.local_ymin",
+            "local_face": "ymin",
+            "normal_axis": 1,
+            "normal_sign": -1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "reaction_wheel",
+      "source_ref": {
+        "template_component_id": "P032",
+        "template_kind": "反作用轮",
+        "template_model": "reaction_wheel_v7",
+        "template_name": "Reaction wheel v7",
+        "template_size_mm": [
+          150.0,
+          60.0,
+          150.0
+        ],
+        "template_center_mm": [
+          286.051966,
+          35.0,
+          711.051966
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P032",
+        "selected_model": "reaction_wheel_v7",
+        "selected_name": "Reaction wheel v7",
+        "selected_kind": "反作用轮",
+        "selected_size_mm": [
+          150.0,
+          60.0,
+          150.0
+        ],
+        "cad_path": "refined_coordinate_steps/reaction_wheels/186_reaction_wheel__reaction_wheel_v7_3__inst003.step",
+        "cad_rotated_path": "refined_coordinate_steps/reaction_wheels/186_reaction_wheel__reaction_wheel_v7_3__inst003.step",
+        "cad_major_path": "refined_coordinate_steps/reaction_wheels/186_reaction_wheel__reaction_wheel_v7_3__inst003.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        200,
+        200,
+        200,
+        255
+      ]
+    },
+    {
+      "component_id": "P033",
+      "semantic_name": "reaction_wheel_v7",
+      "kind": "internal",
+      "category": "adcs",
+      "size_mm": [
+        150.0,
+        150.0,
+        60.0
+      ],
+      "mass_kg": 0.027,
+      "power_W": 8.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P033.local_zmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P033.local_zmin",
             "local_face": "zmin",
             "normal_axis": 2,
             "normal_sign": -1,
@@ -2429,58 +2152,1101 @@
           }
         ]
       },
-      "component_subtype": "magnetorquer",
+      "component_subtype": "reaction_wheel",
       "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "11_DINGBAN_BJ",
-        "display_name": "磁力矩器/磁棒 顶板 2",
-        "source_step_files": [
-          "CATCH01_SL-080_CB_20231008_03.stp"
+        "template_component_id": "P033",
+        "template_kind": "反作用轮",
+        "template_model": "reaction_wheel_v7",
+        "template_name": "Reaction wheel v7",
+        "template_size_mm": [
+          150.0,
+          150.0,
+          60.0
         ],
-        "original_bbox": {
-          "min": [
-            -1.0000001000000143,
-            241.9999999,
-            167.9999999
-          ],
-          "max": [
-            159.0000001,
-            268.0000001,
-            181.8000001
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P031_2.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P031_2.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P031_2.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "11_DINGBAN_BJ.zmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -170.03195095176432,
-            -283.0319509517643,
-            159.96804904823563
-          ],
-          "max": [
-            170.03195095176432,
-            283.0319509517643,
-            169.78089174726432
-          ]
-        }
+        "template_center_mm": [
+          1109.560012,
+          1102.949076,
+          35.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P033",
+        "selected_model": "reaction_wheel_v7",
+        "selected_name": "Reaction wheel v7",
+        "selected_kind": "反作用轮",
+        "selected_size_mm": [
+          150.0,
+          150.0,
+          60.0
+        ],
+        "cad_path": "refined_coordinate_steps/reaction_wheels/187_reaction_wheel__reaction_wheel_v7_6__inst004.step",
+        "cad_rotated_path": "refined_coordinate_steps/reaction_wheels/187_reaction_wheel__reaction_wheel_v7_6__inst004.step",
+        "cad_major_path": "refined_coordinate_steps/reaction_wheels/187_reaction_wheel__reaction_wheel_v7_6__inst004.step"
       },
       "quantity": 1,
-      "material_hint": "aluminum_6061",
+      "material_hint": "stainless_steel",
       "color": [
-        46,
-        161,
-        84,
+        200,
+        200,
+        200,
         255
+      ]
+    },
+    {
+      "component_id": "P034",
+      "semantic_name": "reaction_wheel_v7",
+      "kind": "internal",
+      "category": "adcs",
+      "size_mm": [
+        60.0,
+        150.0,
+        150.0
       ],
-      "panel_id": "11_DINGBAN_BJ",
-      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
-      "mount_side": "outer"
+      "mass_kg": 0.027,
+      "power_W": 8.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P034.local_xmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P034.local_xmax",
+            "local_face": "xmax",
+            "normal_axis": 0,
+            "normal_sign": 1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "reaction_wheel",
+      "source_ref": {
+        "template_component_id": "P034",
+        "template_kind": "反作用轮",
+        "template_model": "reaction_wheel_v7",
+        "template_name": "Reaction wheel v7",
+        "template_size_mm": [
+          60.0,
+          150.0,
+          150.0
+        ],
+        "template_center_mm": [
+          1165.0,
+          1052.949076,
+          636.051966
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P034",
+        "selected_model": "reaction_wheel_v7",
+        "selected_name": "Reaction wheel v7",
+        "selected_kind": "反作用轮",
+        "selected_size_mm": [
+          60.0,
+          150.0,
+          150.0
+        ],
+        "cad_path": "refined_coordinate_steps/reaction_wheels/188_reaction_wheel__reaction_wheel_v7_4__inst005.step",
+        "cad_rotated_path": "refined_coordinate_steps/reaction_wheels/188_reaction_wheel__reaction_wheel_v7_4__inst005.step",
+        "cad_major_path": "refined_coordinate_steps/reaction_wheels/188_reaction_wheel__reaction_wheel_v7_4__inst005.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        200,
+        200,
+        200,
+        255
+      ]
+    },
+    {
+      "component_id": "P035",
+      "semantic_name": "reaction_wheel_v7",
+      "kind": "internal",
+      "category": "adcs",
+      "size_mm": [
+        150.0,
+        60.0,
+        150.0
+      ],
+      "mass_kg": 0.027,
+      "power_W": 8.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P035.local_ymax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P035.local_ymax",
+            "local_face": "ymax",
+            "normal_axis": 1,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "reaction_wheel",
+      "source_ref": {
+        "template_component_id": "P035",
+        "template_kind": "反作用轮",
+        "template_model": "reaction_wheel_v7",
+        "template_name": "Reaction wheel v7",
+        "template_size_mm": [
+          150.0,
+          60.0,
+          150.0
+        ],
+        "template_center_mm": [
+          913.948034,
+          1165.0,
+          711.051966
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P035",
+        "selected_model": "reaction_wheel_v7",
+        "selected_name": "Reaction wheel v7",
+        "selected_kind": "反作用轮",
+        "selected_size_mm": [
+          150.0,
+          60.0,
+          150.0
+        ],
+        "cad_path": "refined_coordinate_steps/reaction_wheels/189_reaction_wheel__reaction_wheel_v7_5__inst006.step",
+        "cad_rotated_path": "refined_coordinate_steps/reaction_wheels/189_reaction_wheel__reaction_wheel_v7_5__inst006.step",
+        "cad_major_path": "refined_coordinate_steps/reaction_wheels/189_reaction_wheel__reaction_wheel_v7_5__inst006.step"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        200,
+        200,
+        200,
+        255
+      ]
+    },
+    {
+      "component_id": "P036",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        79.19009,
+        70.123,
+        167.298846
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P036.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P036.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P036",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          79.19009,
+          70.123,
+          167.298846
+        ],
+        "template_center_mm": [
+          604.445031,
+          75.0,
+          826.46193
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P036",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          79.19009,
+          70.123,
+          167.298846
+        ],
+        "cad_path": "refined_coordinate_steps/top_plate/004_thruster__top_plate_v10_1__inst003.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P037",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        79.19009,
+        70.123,
+        167.298846
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P037.local_zmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P037.local_zmax",
+            "local_face": "zmax",
+            "normal_axis": 2,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P037",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          79.19009,
+          70.123,
+          167.298846
+        ],
+        "template_center_mm": [
+          604.445031,
+          1125.0,
+          826.46193
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P037",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          79.19009,
+          70.123,
+          167.298846
+        ],
+        "cad_path": "refined_coordinate_steps/top_plate/005_thruster__top_plate_v10_1__inst004.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P038",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        167.298846,
+        79.19009,
+        70.123
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P038.local_xmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P038.local_xmin",
+            "local_face": "xmin",
+            "normal_axis": 0,
+            "normal_sign": -1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P038",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "template_center_mm": [
+          83.53807,
+          79.445031,
+          155.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P038",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/006_thruster__satellite_wall_for_solar_panel_v11_1__inst005.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P039",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        167.298846,
+        79.19009,
+        70.123
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P039.local_xmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P039.local_xmin",
+            "local_face": "xmin",
+            "normal_axis": 0,
+            "normal_sign": -1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P039",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "template_center_mm": [
+          83.53807,
+          79.445031,
+          755.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P039",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/007_thruster__satellite_wall_for_solar_panel_v11_1__inst006.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P040",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        167.298846,
+        79.19009,
+        70.123
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P040.local_xmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P040.local_xmin",
+            "local_face": "xmin",
+            "normal_axis": 0,
+            "normal_sign": -1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P040",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "template_center_mm": [
+          83.53807,
+          1120.554969,
+          155.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P040",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/008_thruster__satellite_wall_for_solar_panel_v11_1__inst007.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P041",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        167.298846,
+        79.19009,
+        70.123
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P041.local_xmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P041.local_xmin",
+            "local_face": "xmin",
+            "normal_axis": 0,
+            "normal_sign": -1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P041",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "template_center_mm": [
+          83.53807,
+          1120.554969,
+          755.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P041",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/009_thruster__satellite_wall_for_solar_panel_v11_1__inst008.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P042",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        70.123,
+        167.298846,
+        79.19009
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P042.local_ymax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P042.local_ymax",
+            "local_face": "ymax",
+            "normal_axis": 1,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P042",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          70.123,
+          167.298846,
+          79.19009
+        ],
+        "template_center_mm": [
+          600.0,
+          1116.46193,
+          259.445031
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P042",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          70.123,
+          167.298846,
+          79.19009
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/010_thruster__normal_satellite_wall_v14_1__inst009.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P043",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        70.123,
+        167.298846,
+        79.19009
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P043.local_ymax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P043.local_ymax",
+            "local_face": "ymax",
+            "normal_axis": 1,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P043",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          70.123,
+          167.298846,
+          79.19009
+        ],
+        "template_center_mm": [
+          600.0,
+          1116.46193,
+          659.445031
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P043",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          70.123,
+          167.298846,
+          79.19009
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/011_thruster__normal_satellite_wall_v14_1__inst010.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P044",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        70.123,
+        167.298846,
+        79.19009
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P044.local_ymin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P044.local_ymin",
+            "local_face": "ymin",
+            "normal_axis": 1,
+            "normal_sign": -1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P044",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          70.123,
+          167.298846,
+          79.19009
+        ],
+        "template_center_mm": [
+          600.0,
+          83.53807,
+          259.445031
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P044",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          70.123,
+          167.298846,
+          79.19009
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/012_thruster__normal_satellite_wall_v14_2__inst011.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P045",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        70.123,
+        167.298846,
+        79.19009
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P045.local_ymin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P045.local_ymin",
+            "local_face": "ymin",
+            "normal_axis": 1,
+            "normal_sign": -1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P045",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          70.123,
+          167.298846,
+          79.19009
+        ],
+        "template_center_mm": [
+          600.0,
+          83.53807,
+          659.445031
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P045",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          70.123,
+          167.298846,
+          79.19009
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/013_thruster__normal_satellite_wall_v14_2__inst012.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P046",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        167.298846,
+        79.19009,
+        70.123
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P046.local_xmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P046.local_xmax",
+            "local_face": "xmax",
+            "normal_axis": 0,
+            "normal_sign": 1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P046",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "template_center_mm": [
+          1116.46193,
+          1120.554969,
+          155.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P046",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/014_thruster__satellite_wall_for_solar_panel_v11_2__inst013.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P047",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        167.298846,
+        79.19009,
+        70.123
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P047.local_xmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P047.local_xmax",
+            "local_face": "xmax",
+            "normal_axis": 0,
+            "normal_sign": 1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P047",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "template_center_mm": [
+          1116.46193,
+          1120.554969,
+          755.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P047",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/015_thruster__satellite_wall_for_solar_panel_v11_2__inst014.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P048",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        167.298846,
+        79.19009,
+        70.123
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P048.local_xmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P048.local_xmax",
+            "local_face": "xmax",
+            "normal_axis": 0,
+            "normal_sign": 1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P048",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "template_center_mm": [
+          1116.46193,
+          79.445031,
+          155.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P048",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/016_thruster__satellite_wall_for_solar_panel_v11_2__inst015.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
+    },
+    {
+      "component_id": "P049",
+      "semantic_name": "dawnaerospace_b20_thruster_v2",
+      "kind": "internal",
+      "category": "propulsion",
+      "size_mm": [
+        167.298846,
+        79.19009,
+        70.123
+      ],
+      "mass_kg": 0.01858,
+      "power_W": 12.0,
+      "material_id": "stainless_steel",
+      "mounting": {
+        "default_component_mount_face_id": "P049.local_xmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P049.local_xmax",
+            "local_face": "xmax",
+            "normal_axis": 0,
+            "normal_sign": 1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ]
+      },
+      "component_subtype": "thruster",
+      "source_ref": {
+        "template_component_id": "P049",
+        "template_kind": "推进器",
+        "template_model": "dawnaerospace_b20_thruster_v2",
+        "template_name": "DawnAerospace_B20_Thruster v2",
+        "template_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "template_center_mm": [
+          1116.46193,
+          79.445031,
+          755.0
+        ],
+        "replacement_action": "keep_template",
+        "replacement_reason": "replacement disabled by --no-replace",
+        "selected_component_id": "P049",
+        "selected_model": "dawnaerospace_b20_thruster_v2",
+        "selected_name": "DawnAerospace_B20_Thruster v2",
+        "selected_kind": "推进器",
+        "selected_size_mm": [
+          167.298846,
+          79.19009,
+          70.123
+        ],
+        "cad_path": "refined_coordinate_steps/walls_body/017_thruster__satellite_wall_for_solar_panel_v11_2__inst016.step",
+        "cad_rotated_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
+        "cad_major_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP"
+      },
+      "quantity": 1,
+      "material_hint": "stainless_steel",
+      "color": [
+        220,
+        140,
+        60,
+        255
+      ]
     }
   ]
 }

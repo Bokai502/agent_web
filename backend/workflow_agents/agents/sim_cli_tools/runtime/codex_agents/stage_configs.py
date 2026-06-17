@@ -62,7 +62,7 @@ def simulation_stage_config(
     geometry_step_path: Path,
 ) -> dict[str, Any]:
     simulation_input_path = paths["layout"] / "simulation_input.json"
-    if geometry_step_path.name == "geometry_after.step":
+    if geometry_step_path.name in {"geometry_after.step", "geometry_after_power_filtered.step"}:
         simulation_input_path = geometry_step_path.parent / "simulation_input.json"
 
     stage_config: dict[str, Any] = {
