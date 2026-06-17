@@ -1,0 +1,60 @@
+{
+  "defaultActiveId": "check",
+  "nodes": [
+    {
+      "id": "inputs",
+      "title": "开始输入文件",
+      "tone": "teal",
+      "type": "files",
+      "output": "INPUT",
+      "summary": "从输入目录加载配置、测试表、降额数据、标准目录与需求文档。",
+      "items": [
+        "input_config.json",
+        "元器件清单",
+        "需求文档"
+      ]
+    },
+    {
+      "id": "prepare",
+      "title": "需求解析",
+      "tone": "teal",
+      "type": "tasks",
+      "output": "AI",
+      "summary": "需求、任务信息智能解析。",
+      "items": ["需求分析"]
+    },
+    {
+      "id": "check",
+      "title": "检查",
+      "tone": "slate",
+      "type": "checks",
+      "output": "AI",
+      "summary": "围绕器件、厂商、目录、飞行经历、质量等级、降额与可靠性执行一致性检查。",
+      "items": [
+        "元器件分类", 
+        "关键器件检查",
+        "厂商匹配",
+        "厂商目录检查",
+        "飞行经历检查",
+        "目录匹配检查",
+        "质量等级检查",
+        "降额检查",
+        "可靠性查询"
+      ]
+    },
+    {
+      "id": "outputs",
+      "title": "最终输出文件",
+      "tone": "indigo",
+      "type": "files",
+      "output": "OUTPUT",
+      "summary": "整合检查结果并生成合规报告与结构化输出。",
+      "items": ["总结报告", "表格"]
+    }
+  ],
+  "connections": [
+    { "from": "inputs", "to": "prepare" },
+    { "from": "prepare", "to": "check" },
+    { "from": "check", "to": "outputs" }
+  ]
+}

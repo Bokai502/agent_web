@@ -8,6 +8,7 @@ import {
   type WorkflowProgressSummary,
   type WorkspaceProgressResponse,
 } from "./workspace/progressUtils"
+import { ExecutionFlow } from "../components/execution-flow/ExecutionFlow"
 
 type JsonRow = Record<string, unknown>
 
@@ -1190,6 +1191,10 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
             selectedFilter={dashboardFilter}
             setActiveTab={setActiveTab}
             summary={dashboardSummary}
+            theme={props.theme === "light" ? "light" : "dark"}
+            versionId={props.versionId}
+            workspaceDir={props.workspaceDir}
+            workspaceId={props.workspaceId}
           />
           ) : activeTab === "compliance-check" ? (
         <>
@@ -1277,6 +1282,10 @@ function ComplianceCheckReportDashboard({
   selectedFilter,
   setActiveTab,
   summary,
+  theme,
+  versionId,
+  workspaceDir,
+  workspaceId,
 }: {
   onConfirm: () => void
   onDownload: () => void
@@ -1285,6 +1294,10 @@ function ComplianceCheckReportDashboard({
   selectedFilter: string
   setActiveTab: (tab: ActiveTabKey) => void
   summary: ReturnType<typeof buildDashboardSummary>
+  theme: "dark" | "light"
+  versionId: string
+  workspaceDir: string
+  workspaceId: string
 }) {
   const [priorityFilter, setPriorityFilter] = useState("全部")
   const [statusFilter, setStatusFilter] = useState("全部")
@@ -1357,6 +1370,23 @@ function ComplianceCheckReportDashboard({
           label="AI目录匹配"
           palette="blue"
           value={`${summary.moduleInsights.catalog.matchedCount}个`}
+        />
+      </div>
+
+      <div style={dashboardFlowPanelStyle}>
+        <div style={dashboardPanelHeaderStyle}>
+          <strong>执行流程</strong>
+        </div>
+        <ExecutionFlow
+          className="execution-flow-embedded"
+          height={360}
+          interactive
+          showControls={false}
+          showThemeSwitch={false}
+          theme={theme}
+          versionId={versionId}
+          workspaceDir={workspaceDir}
+          workspaceId={workspaceId}
         />
       </div>
 
@@ -2358,6 +2388,16 @@ const dashboardAnalyticsGridStyle = {
   display: "grid",
   gap: 12,
   gridTemplateColumns: "minmax(360px, 1.3fr) repeat(2, minmax(240px, 0.85fr))",
+} satisfies CSSProperties
+
+const dashboardFlowPanelStyle = {
+  background: HUD_PANEL_SOFT,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 8,
+  boxShadow: HUD_SECTION_SHADOW,
+  minWidth: 0,
+  overflow: "hidden",
+  padding: 12,
 } satisfies CSSProperties
 
 const dashboardStatusGridStyle = {

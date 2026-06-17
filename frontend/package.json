@@ -15,6 +15,7 @@
     "@splinetool/react-spline": "^4.1.0",
     "@splinetool/runtime": "^1.12.92",
     "@types/d3": "^7.4.3",
+    "@xyflow/react": "^12.11.0",
     "d3": "^7.9.0",
     "docx-preview": "^0.3.7",
     "i18next": "^26.0.10",
