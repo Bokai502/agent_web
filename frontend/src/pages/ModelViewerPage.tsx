@@ -82,6 +82,7 @@ type ViewerComponentMessage = {
 }
 
 type ViewerMode = "cad" | "realCad" | "temperature" | "derating"
+const TEMPERATURE_SURFACE_MAX_BYTES = 64 * 1024 * 1024
 
 type TemperatureSurface = {
   attributes?: {
@@ -406,7 +407,7 @@ export default function ModelViewerPage() {
     const buildTemperatureSurfaceUrl = () => {
       if (!workspaceDir) throw new Error("Temperature outline requires a workspaceDir.")
       const queryParams = new URLSearchParams()
-      queryParams.set("maxBytes", String(16 * 1024 * 1024))
+      queryParams.set("maxBytes", String(TEMPERATURE_SURFACE_MAX_BYTES))
       queryParams.set("relativePath", "02_sim/postprocess/temperature_surface_threejs.json")
       if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
       const query = queryParams.toString()

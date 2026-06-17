@@ -81,17 +81,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-fit-view", action="store_true", help="Skip GUI fit/view adjustment.")
     parser.add_argument(
         "--export-backend",
-        choices=("static", "hybrid-link"),
-        default="static",
+        choices=("hybrid-link",),
+        default="hybrid-link",
         help=(
-            "CAD export backend. 'static' exports the direct assembly; 'hybrid-link' first "
-            "builds the direct assembly, then re-exports repeated STEP assets using App::Link."
+            "CAD export backend. Only 'hybrid-link' is supported: the command first "
+            "builds the direct assembly in FreeCAD, then exports through the hybrid "
+            "App::Link component-node low-complexity exporter."
         ),
     )
     parser.add_argument(
         "--include-envelope",
         action="store_true",
-        help="Keep Envelope_part in the hybrid-link export. Static export always follows the base assembly script.",
+        default=True,
+        help="Keep Envelope_part in the hybrid-link export. Enabled by default.",
     )
     add_connection_args(parser)
     add_registry_args(parser)
@@ -259,24 +261,25 @@ def main() -> None:
             stage_input_data(normalized_data, staged_input_path)
             stage_output_dir(staged_output_path)
             logger.info("staged component-info input: %s output=%s", staged_input_path, staged_output_path)
-        code = render_rpc_script(
-            "assembly_from_component_info.py",
-            {
-                "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
-                "__WALL_HELPERS__": WALL_HELPERS,
-                "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
-                "__DOC_NAME__": json.dumps(args.doc_name),
-                "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_output_path)),
-                "__EXPORT_GLB__": "True",
-                "__FIT_VIEW__": "False" if args.no_fit_view else "True",
-                "__VIEW_NAME__": json.dumps(args.view),
-            },
-        )
+            code = render_rpc_script(
+                "assembly_from_component_info.py",
+                {
+                    "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
+                    "__WALL_HELPERS__": WALL_HELPERS,
+                    "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
+                    "__DOC_NAME__": json.dumps(args.doc_name),
+                    "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_output_path)),
+                    "__EXPORT_STEP__": "False",
+                    "__EXPORT_GLB__": "False",
+                    "__FIT_VIEW__": "False" if args.no_fit_view else "True",
+                    "__VIEW_NAME__": json.dumps(args.view),
+                },
+            )
         with pipeline_step("component_info_freecad_export"):
-            logger.info("executing FreeCAD component-info export: host=%s port=%s", args.host, args.port)
+            logger.info("building FreeCAD component-info document without static export: host=%s port=%s", args.host, args.port)
             payload = execute_script_payload(args.host, args.port, code)
-            logger.info("FreeCAD component-info export returned: success=%s error=%s", payload.get("success"), payload.get("error"))
-        if payload.get("success") and args.export_backend == "hybrid-link":
+            logger.info("FreeCAD component-info document build returned: success=%s error=%s", payload.get("success"), payload.get("error"))
+        if payload.get("success"):
             hybrid_code = render_rpc_script(
                 "export_component_info_hybrid_link.py",
                 {
@@ -289,7 +292,7 @@ def main() -> None:
             )
             with pipeline_step("component_info_hybrid_link_export"):
                 logger.info(
-                    "executing hybrid App::Link component-info export: host=%s port=%s include_envelope=%s",
+                    "executing required hybrid App::Link component-node low-complexity export: host=%s port=%s include_envelope=%s",
                     args.host,
                     args.port,
                     args.include_envelope,
@@ -301,7 +304,7 @@ def main() -> None:
                     hybrid_payload.get("error"),
                 )
             if hybrid_payload.get("success"):
-                payload = {**payload, "static_export": payload, **hybrid_payload}
+                payload = {**payload, "document_build": payload, **hybrid_payload}
             else:
                 payload = hybrid_payload
         if payload.get("success"):
