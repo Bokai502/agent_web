@@ -16,6 +16,672 @@
   },
   "items": [
     {
+      "component_id": "P013",
+      "semantic_name": "catch_catch_p013_测控数传一体机_A_Z0001",
+      "kind": "internal",
+      "category": "communication",
+      "size_mm": [
+        102.75534659313556,
+        50.82906177758068,
+        90.02906177746044
+      ],
+      "mass_kg": 0.101567,
+      "power_W": 8,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P013.local_ymin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P013.local_ymin",
+            "local_face": "ymin",
+            "normal_axis": 1,
+            "normal_sign": -1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ],
+        "contact_resistance": 0.001
+      },
+      "component_subtype": "ttc_box",
+      "source_ref": {
+        "source": "catch01_sl_decomposition",
+        "panel_id": "09_CB_ZY_BJ",
+        "display_name": "测控数传一体机 A / Z0001",
+        "source_step_files": [
+          "CATCH01_SL-045_Z.stp"
+        ],
+        "original_bbox": {
+          "min": [
+            50.0,
+            -274.999871536742,
+            49.98546911126984
+          ],
+          "max": [
+            152.75534659313556,
+            -224.1708097591613,
+            140.0145308887303
+          ]
+        },
+        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
+        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
+        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
+        "review_status": "formal",
+        "panel_mount_face_id": "09_CB_ZY_BJ.ymax_inner",
+        "panel_mount_side": "inner",
+        "panel_normal_axis": 1,
+        "panel_normal_sign": -1,
+        "panel_bbox": {
+          "min": [
+            -170.0001284632565,
+            -283.000128463272,
+            -170.0001284632565
+          ],
+          "max": [
+            170.0001284632565,
+            -274.999871536742,
+            160.0001284632565
+          ]
+        }
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "panel_id": "09_CB_ZY_BJ",
+      "mount_face_id": "09_CB_ZY_BJ.ymax_inner",
+      "mount_side": "inner",
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      }
+    },
+    {
+      "component_id": "P025",
+      "semantic_name": "catch_catch_p025_测控数传一体机_B_Z0001",
+      "kind": "internal",
+      "category": "communication",
+      "size_mm": [
+        102.75534659313556,
+        50.82906177758068,
+        90.02906177746041
+      ],
+      "mass_kg": 0.101567,
+      "power_W": 8,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P025.local_ymin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P025.local_ymin",
+            "local_face": "ymin",
+            "normal_axis": 1,
+            "normal_sign": -1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ],
+        "contact_resistance": 0.001
+      },
+      "component_subtype": "ttc_box",
+      "source_ref": {
+        "source": "catch01_sl_decomposition",
+        "panel_id": "09_CB_ZY_BJ",
+        "display_name": "测控数传一体机 B / Z0001",
+        "source_step_files": [
+          "CATCH01_SL-070_Z_02.stp"
+        ],
+        "original_bbox": {
+          "min": [
+            -60.885752207299944,
+            -274.91453088861556,
+            49.98546911126984
+          ],
+          "max": [
+            41.86959438583561,
+            -224.08546911103485,
+            140.01453088873026
+          ]
+        },
+        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
+        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
+        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
+        "review_status": "formal",
+        "panel_mount_face_id": "09_CB_ZY_BJ.ymax_inner",
+        "panel_mount_side": "inner",
+        "panel_normal_axis": 1,
+        "panel_normal_sign": -1,
+        "panel_bbox": {
+          "min": [
+            -170.0001284632565,
+            -283.000128463272,
+            -170.0001284632565
+          ],
+          "max": [
+            170.0001284632565,
+            -274.999871536742,
+            160.0001284632565
+          ]
+        }
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "panel_id": "09_CB_ZY_BJ",
+      "mount_face_id": "09_CB_ZY_BJ.ymax_inner",
+      "mount_side": "inner",
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      }
+    },
+    {
+      "component_id": "P028",
+      "semantic_name": "catch_catch_p028_反作用轮候选_FY",
+      "kind": "internal",
+      "category": "adcs",
+      "size_mm": [
+        88.5215796821391,
+        68.00000020000002,
+        87.24315916427821
+      ],
+      "mass_kg": 0.113434,
+      "power_W": 3,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P028.local_ymax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P028.local_ymax",
+            "local_face": "ymax",
+            "normal_axis": 1,
+            "normal_sign": 1,
+            "u_axis": 0,
+            "v_axis": 2
+          }
+        ],
+        "contact_resistance": 0.001
+      },
+      "component_subtype": "reaction_wheel",
+      "source_ref": {
+        "source": "catch01_sl_decomposition",
+        "panel_id": "10_CB_FY_BJ",
+        "display_name": "反作用轮候选 FY",
+        "source_step_files": [
+          "CATCH01_SL-075_DLL_S_D_03.stp"
+        ],
+        "original_bbox": {
+          "min": [
+            -133.6215795821391,
+            212.9999999,
+            -78.6215795821391
+          ],
+          "max": [
+            -45.0999999,
+            281.0000001,
+            8.621579582139105
+          ]
+        },
+        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
+        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
+        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
+        "review_status": "formal",
+        "panel_mount_face_id": "10_CB_FY_BJ.ymin_inner",
+        "panel_mount_side": "inner",
+        "panel_normal_axis": 1,
+        "panel_normal_sign": 1,
+        "panel_bbox": {
+          "min": [
+            -170.00012846325467,
+            274.99987153674533,
+            -170.00012846325467
+          ],
+          "max": [
+            170.0001284632547,
+            283.0001284632548,
+            160.00012846325467
+          ]
+        }
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "panel_id": "10_CB_FY_BJ",
+      "mount_face_id": "10_CB_FY_BJ.ymin_inner",
+      "mount_side": "inner",
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      }
+    },
+    {
+      "component_id": "P004",
+      "semantic_name": "catch_catch_p004_反作用轮候选_DIBAN-1",
+      "kind": "internal",
+      "category": "adcs",
+      "size_mm": [
+        88.5215796821391,
+        87.24315916427821,
+        68.00000019999999
+      ],
+      "mass_kg": 0.113434,
+      "power_W": 3,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P004.local_zmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P004.local_zmin",
+            "local_face": "zmin",
+            "normal_axis": 2,
+            "normal_sign": -1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ],
+        "contact_resistance": 0.001
+      },
+      "component_subtype": "reaction_wheel",
+      "source_ref": {
+        "source": "catch01_sl_decomposition",
+        "panel_id": "01_DIBAN_BJ",
+        "display_name": "反作用轮候选 DIBAN-1",
+        "source_step_files": [
+          "CATCH01_SL-011_DLL_S_D.stp"
+        ],
+        "original_bbox": {
+          "min": [
+            -58.6215795821391,
+            155.87842041786087,
+            -150.0000001
+          ],
+          "max": [
+            29.9000001,
+            243.12157958213908,
+            -81.9999999
+          ]
+        },
+        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
+        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
+        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
+        "review_status": "formal",
+        "panel_mount_face_id": "01_DIBAN_BJ.zmax_inner",
+        "panel_mount_side": "inner",
+        "panel_normal_axis": 2,
+        "panel_normal_sign": -1,
+        "panel_bbox": {
+          "min": [
+            -170.05674682268324,
+            -275.05674682268324,
+            -160.05674682269327
+          ],
+          "max": [
+            170.05674682268437,
+            275.05674682268324,
+            -149.94325317731676
+          ]
+        }
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
+      "mount_side": "inner",
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      }
+    },
+    {
+      "component_id": "P006",
+      "semantic_name": "catch_catch_p006_综合电子_星务电子箱候选_含安装板",
+      "kind": "internal",
+      "category": "avionics",
+      "size_mm": [
+        234.060645902853,
+        144.26064590285293,
+        198.03032305147647
+      ],
+      "mass_kg": 1.444314,
+      "power_W": 12,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P006.local_zmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P006.local_zmin",
+            "local_face": "zmin",
+            "normal_axis": 2,
+            "normal_sign": -1,
+            "u_axis": 0,
+            "v_axis": 1
+          }
+        ],
+        "contact_resistance": 0.001
+      },
+      "component_subtype": "electronics_box",
+      "source_ref": {
+        "source": "catch01_sl_decomposition",
+        "panel_id": "01_DIBAN_BJ",
+        "display_name": "综合电子/星务电子箱候选（含安装板）",
+        "source_step_files": [
+          "CATCH01_SL-013_ZHDZ.stp",
+          "CATCH01_SL-023_ZJDP_RK_ZHDZ_TAIGAO.stp"
+        ],
+        "original_bbox": {
+          "min": [
+            -78.03032295142648,
+            -267.03032295142646,
+            -150.0000001
+          ],
+          "max": [
+            156.0303229514265,
+            -122.76967704857353,
+            48.030322951476485
+          ]
+        },
+        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
+        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
+        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
+        "review_status": "formal",
+        "panel_mount_face_id": "01_DIBAN_BJ.zmax_inner",
+        "panel_mount_side": "inner",
+        "panel_normal_axis": 2,
+        "panel_normal_sign": -1,
+        "panel_bbox": {
+          "min": [
+            -170.05674682268324,
+            -275.05674682268324,
+            -160.05674682269327
+          ],
+          "max": [
+            170.05674682268437,
+            275.05674682268324,
+            -149.94325317731676
+          ]
+        }
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        31,
+        171,
+        184,
+        255
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
+      "mount_side": "inner",
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      }
+    },
+    {
+      "component_id": "P018",
+      "semantic_name": "catch_catch_p018_探测器机箱候选",
+      "kind": "external",
+      "category": "payload",
+      "size_mm": [
+        87.35406394617917,
+        209.05433278009735,
+        192.3543153422063
+      ],
+      "mass_kg": 0.758749,
+      "power_W": 6,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P018.local_xmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P018.local_xmin",
+            "local_face": "xmin",
+            "normal_axis": 0,
+            "normal_sign": -1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ],
+        "contact_resistance": 0.001
+      },
+      "component_subtype": "detector_box",
+      "source_ref": {
+        "source": "catch01_sl_decomposition",
+        "panel_id": "05_CB_FX_BJ",
+        "display_name": "探测器机箱候选",
+        "source_step_files": [
+          "CATCH01_SL-054_TCQ_JX.stp"
+        ],
+        "original_bbox": {
+          "min": [
+            170.00003487778451,
+            -104.52716639008126,
+            -72.52720700774674
+          ],
+          "max": [
+            257.3540988239637,
+            104.52716639001609,
+            119.82710833445957
+          ]
+        },
+        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
+        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
+        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
+        "review_status": "formal",
+        "panel_mount_face_id": "05_CB_FX_BJ.xmax_outer",
+        "panel_mount_side": "outer",
+        "panel_normal_axis": 0,
+        "panel_normal_sign": 1,
+        "panel_bbox": {
+          "min": [
+            159.9999651222205,
+            -127.5000348777795,
+            -160.0000348777795
+          ],
+          "max": [
+            170.00003487778454,
+            127.5000348777795,
+            160.0000348777795
+          ]
+        }
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "panel_id": "05_CB_FX_BJ",
+      "mount_face_id": "05_CB_FX_BJ.xmax_outer",
+      "mount_side": "outer",
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      }
+    },
+    {
+      "component_id": "P022",
+      "semantic_name": "catch_catch_p022_反作用轮候选_FXFY",
+      "kind": "internal",
+      "category": "adcs",
+      "size_mm": [
+        68.00000019999999,
+        88.52157968213913,
+        87.24315916427821
+      ],
+      "mass_kg": 0.113434,
+      "power_W": 3,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P022.local_xmax",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P022.local_xmax",
+            "local_face": "xmax",
+            "normal_axis": 0,
+            "normal_sign": 1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ],
+        "contact_resistance": 0.001
+      },
+      "component_subtype": "reaction_wheel",
+      "source_ref": {
+        "source": "catch01_sl_decomposition",
+        "panel_id": "08_CB_FXFY_BJ",
+        "display_name": "反作用轮候选 FXFY",
+        "source_step_files": [
+          "CATCH01_SL-065_DLL_S_A.stp"
+        ],
+        "original_bbox": {
+          "min": [
+            91.9999999,
+            171.8499999,
+            44.37842041786089
+          ],
+          "max": [
+            160.0000001,
+            260.37157958213913,
+            131.6215795821391
+          ]
+        },
+        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
+        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
+        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
+        "review_status": "formal",
+        "panel_mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
+        "panel_mount_side": "inner",
+        "panel_normal_axis": 0,
+        "panel_normal_sign": 1,
+        "panel_bbox": {
+          "min": [
+            159.9999999,
+            127.4999999,
+            -160.0000001
+          ],
+          "max": [
+            170.0000001,
+            275.0000001,
+            160.00000010000002
+          ]
+        }
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "panel_id": "08_CB_FXFY_BJ",
+      "mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
+      "mount_side": "inner",
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      }
+    },
+    {
+      "component_id": "P023",
+      "semantic_name": "catch_catch_p023_小型相机_光学设备候选",
+      "kind": "external",
+      "category": "payload",
+      "size_mm": [
+        106.42812160015939,
+        106.42812160015853,
+        101.96011022032167
+      ],
+      "mass_kg": 0.249458,
+      "power_W": 3,
+      "material_id": "aluminum_6061",
+      "mounting": {
+        "default_component_mount_face_id": "P023.local_xmin",
+        "mount_faces": [
+          {
+            "component_mount_face_id": "P023.local_xmin",
+            "local_face": "xmin",
+            "normal_axis": 0,
+            "normal_sign": -1,
+            "u_axis": 1,
+            "v_axis": 2
+          }
+        ],
+        "contact_resistance": 0.001
+      },
+      "component_subtype": "camera",
+      "source_ref": {
+        "source": "catch01_sl_decomposition",
+        "panel_id": "08_CB_FXFY_BJ",
+        "display_name": "小型相机/光学设备候选",
+        "source_step_files": [
+          "CATCH01_SL-067_XJ.stp",
+          "CATCH01_SL-066_ZJ_XJ.stp"
+        ],
+        "original_bbox": {
+          "min": [
+            169.99572448421185,
+            162.3261539156287,
+            42.04416529546885
+          ],
+          "max": [
+            276.42384608437123,
+            268.75427551578724,
+            144.0042755157905
+          ]
+        },
+        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
+        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
+        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
+        "review_status": "formal",
+        "panel_mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
+        "panel_mount_side": "outer",
+        "panel_normal_axis": 0,
+        "panel_normal_sign": 1,
+        "panel_bbox": {
+          "min": [
+            159.9999999,
+            127.4999999,
+            -160.0000001
+          ],
+          "max": [
+            170.0000001,
+            275.0000001,
+            160.00000010000002
+          ]
+        }
+      },
+      "quantity": 1,
+      "material_hint": "aluminum_6061",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "panel_id": "08_CB_FXFY_BJ",
+      "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
+      "mount_side": "outer",
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      }
+    },
+    {
       "component_id": "P001",
       "semantic_name": "catch_catch_p001_星箭分离机构_WF50",
       "kind": "external",
@@ -26,7 +692,7 @@
         65.06978745012555
       ],
       "mass_kg": 1.370495,
-      "power_W": 0.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P001.local_zmax",
@@ -106,7 +772,7 @@
         57.50000020000002
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P002.local_zmax",
@@ -186,7 +852,7 @@
         57.50000020000002
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P003.local_zmax",
@@ -256,85 +922,6 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "P004",
-      "semantic_name": "catch_catch_p004_反作用轮候选_DIBAN-1",
-      "kind": "internal",
-      "category": "adcs",
-      "size_mm": [
-        88.5215796821391,
-        87.24315916427821,
-        68.00000019999999
-      ],
-      "mass_kg": 0.113434,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P004.local_zmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P004.local_zmin",
-            "local_face": "zmin",
-            "normal_axis": 2,
-            "normal_sign": -1,
-            "u_axis": 0,
-            "v_axis": 1
-          }
-        ]
-      },
-      "component_subtype": "reaction_wheel",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "反作用轮候选 DIBAN-1",
-        "source_step_files": [
-          "CATCH01_SL-011_DLL_S_D.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -58.6215795821391,
-            155.87842041786087,
-            -150.0000001
-          ],
-          "max": [
-            29.9000001,
-            243.12157958213908,
-            -81.9999999
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P004_DIBAN-1.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmax_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        235,
-        148,
-        33,
-        255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
-      "mount_side": "inner"
-    },
-    {
       "component_id": "P005",
       "semantic_name": "catch_catch_p005_反作用轮候选_DIBAN-2_含斜装支架",
       "kind": "internal",
@@ -345,7 +932,7 @@
         115.56154586781989
       ],
       "mass_kg": 0.396942,
-      "power_W": 2.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P005.local_zmin",
@@ -415,86 +1002,6 @@
       "mount_side": "inner"
     },
     {
-      "component_id": "P006",
-      "semantic_name": "catch_catch_p006_综合电子_星务电子箱候选_含安装板",
-      "kind": "internal",
-      "category": "avionics",
-      "size_mm": [
-        234.060645902853,
-        144.26064590285293,
-        198.03032305147647
-      ],
-      "mass_kg": 1.444314,
-      "power_W": 12.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P006.local_zmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P006.local_zmin",
-            "local_face": "zmin",
-            "normal_axis": 2,
-            "normal_sign": -1,
-            "u_axis": 0,
-            "v_axis": 1
-          }
-        ]
-      },
-      "component_subtype": "electronics_box",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "01_DIBAN_BJ",
-        "display_name": "综合电子/星务电子箱候选（含安装板）",
-        "source_step_files": [
-          "CATCH01_SL-013_ZHDZ.stp",
-          "CATCH01_SL-023_ZJDP_RK_ZHDZ_TAIGAO.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -78.03032295142648,
-            -267.03032295142646,
-            -150.0000001
-          ],
-          "max": [
-            156.0303229514265,
-            -122.76967704857353,
-            48.030322951476485
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P006_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "01_DIBAN_BJ.zmax_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 2,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.05674682268324,
-            -275.05674682268324,
-            -160.05674682269327
-          ],
-          "max": [
-            170.05674682268437,
-            275.05674682268324,
-            -149.94325317731676
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        31,
-        171,
-        184,
-        255
-      ],
-      "panel_id": "01_DIBAN_BJ",
-      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
-      "mount_side": "inner"
-    },
-    {
       "component_id": "P007",
       "semantic_name": "catch_catch_p007_短报文_GNSS_专有电子盒候选",
       "kind": "external",
@@ -505,7 +1012,7 @@
         50.00000020000002
       ],
       "mass_kg": 0.115733,
-      "power_W": 3.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P007.local_zmax",
@@ -584,7 +1091,7 @@
         51.00068333698982
       ],
       "mass_kg": 0.237027,
-      "power_W": 5.0,
+      "power_W": null,
       "material_id": "battery_cells_aluminum_case",
       "mounting": {
         "default_component_mount_face_id": "P008.local_zmax",
@@ -663,7 +1170,7 @@
         23.01600878462247
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P009.local_zmax",
@@ -742,7 +1249,7 @@
         247.17501181187342
       ],
       "mass_kg": 0.136299,
-      "power_W": 2.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P010.local_xmax",
@@ -821,7 +1328,7 @@
         95.90123153993079
       ],
       "mass_kg": 0.292465,
-      "power_W": 2.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P011.local_xmax",
@@ -903,7 +1410,7 @@
         78.24706684772272
       ],
       "mass_kg": 0.293779,
-      "power_W": 2.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P012.local_xmax",
@@ -974,85 +1481,6 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "P013",
-      "semantic_name": "catch_catch_p013_测控数传一体机_A_Z0001",
-      "kind": "external",
-      "category": "communication",
-      "size_mm": [
-        102.75534659313556,
-        50.82906177758068,
-        90.02906177746044
-      ],
-      "mass_kg": 0.101567,
-      "power_W": 8.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P013.local_ymax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P013.local_ymax",
-            "local_face": "ymax",
-            "normal_axis": 1,
-            "normal_sign": 1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "ttc_box",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "03_GB_ZY_BJ",
-        "display_name": "测控数传一体机 A / Z0001",
-        "source_step_files": [
-          "CATCH01_SL-045_Z.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -54.495815704639945,
-            -173.4145308889651,
-            42.99046911126984
-          ],
-          "max": [
-            48.25953088849561,
-            -122.58546911138441,
-            133.0195308887303
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P013_A_Z0001.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "03_GB_ZY_BJ.ymin_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -160.07871521991498,
-            -123.301462255115,
-            -160.07871521991558
-          ],
-          "max": [
-            160.07871521991498,
-            -112.421284780085,
-            160.07871521991498
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        237,
-        46,
-        41,
-        255
-      ],
-      "panel_id": "03_GB_ZY_BJ",
-      "mount_face_id": "03_GB_ZY_BJ.ymin_outer",
-      "mount_side": "outer"
-    },
-    {
       "component_id": "P014",
       "semantic_name": "catch_catch_p014_电推进_微推力器候选_含安装板",
       "kind": "external",
@@ -1063,7 +1491,7 @@
         89.00439924155492
       ],
       "mass_kg": 0.387591,
-      "power_W": 3.0,
+      "power_W": null,
       "material_id": "stainless_steel",
       "mounting": {
         "default_component_mount_face_id": "P014.local_ymin",
@@ -1143,7 +1571,7 @@
         50.02196131227225
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P015.local_ymin",
@@ -1223,7 +1651,7 @@
         44.8000002
       ],
       "mass_kg": 0.05,
-      "power_W": 1.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P016.local_ymin",
@@ -1303,7 +1731,7 @@
         270.08925910990376
       ],
       "mass_kg": 3.354686,
-      "power_W": 5.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P017.local_xmin",
@@ -1372,85 +1800,6 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "P018",
-      "semantic_name": "catch_catch_p018_探测器机箱候选",
-      "kind": "external",
-      "category": "payload",
-      "size_mm": [
-        87.35406394617917,
-        209.05433278009735,
-        192.3543153422063
-      ],
-      "mass_kg": 0.758749,
-      "power_W": 6.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P018.local_xmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P018.local_xmin",
-            "local_face": "xmin",
-            "normal_axis": 0,
-            "normal_sign": -1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "detector_box",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "05_CB_FX_BJ",
-        "display_name": "探测器机箱候选",
-        "source_step_files": [
-          "CATCH01_SL-054_TCQ_JX.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            238.77325614005224,
-            -104.52716639008126,
-            -72.52720700774674
-          ],
-          "max": [
-            326.1273200862314,
-            104.52716639001609,
-            119.82710833445957
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P018_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "05_CB_FX_BJ.xmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999651222205,
-            -127.5000348777795,
-            -160.0000348777795
-          ],
-          "max": [
-            170.00003487778454,
-            127.5000348777795,
-            160.0000348777795
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        31,
-        120,
-        209,
-        255
-      ],
-      "panel_id": "05_CB_FX_BJ",
-      "mount_face_id": "05_CB_FX_BJ.xmax_outer",
-      "mount_side": "outer"
-    },
-    {
       "component_id": "P019",
       "semantic_name": "catch_catch_p019_星敏_小光学组件候选",
       "kind": "external",
@@ -1461,7 +1810,7 @@
         93.53407685250662
       ],
       "mass_kg": 0.236935,
-      "power_W": 2.0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P019.local_xmax",
@@ -1540,7 +1889,7 @@
         34.04379389059784
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P020.local_xmin",
@@ -1620,7 +1969,7 @@
         34.043793884414015
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P021.local_xmin",
@@ -1690,165 +2039,6 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "P022",
-      "semantic_name": "catch_catch_p022_反作用轮候选_FXFY",
-      "kind": "internal",
-      "category": "adcs",
-      "size_mm": [
-        68.00000019999999,
-        88.52157968213913,
-        87.24315916427821
-      ],
-      "mass_kg": 0.113434,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P022.local_xmax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P022.local_xmax",
-            "local_face": "xmax",
-            "normal_axis": 0,
-            "normal_sign": 1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "reaction_wheel",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "08_CB_FXFY_BJ",
-        "display_name": "反作用轮候选 FXFY",
-        "source_step_files": [
-          "CATCH01_SL-065_DLL_S_A.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            91.9999999,
-            171.8499999,
-            44.37842041786089
-          ],
-          "max": [
-            160.0000001,
-            260.37157958213913,
-            131.6215795821391
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P022_FXFY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999999,
-            127.4999999,
-            -160.0000001
-          ],
-          "max": [
-            170.0000001,
-            275.0000001,
-            160.00000010000002
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        31,
-        120,
-        209,
-        255
-      ],
-      "panel_id": "08_CB_FXFY_BJ",
-      "mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
-      "mount_side": "inner"
-    },
-    {
-      "component_id": "P023",
-      "semantic_name": "catch_catch_p023_小型相机_光学设备候选",
-      "kind": "external",
-      "category": "payload",
-      "size_mm": [
-        106.42812160015939,
-        106.42812160015853,
-        101.96011022032167
-      ],
-      "mass_kg": 0.249458,
-      "power_W": 3.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P023.local_xmin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P023.local_xmin",
-            "local_face": "xmin",
-            "normal_axis": 0,
-            "normal_sign": -1,
-            "u_axis": 1,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "camera",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "08_CB_FXFY_BJ",
-        "display_name": "小型相机/光学设备候选",
-        "source_step_files": [
-          "CATCH01_SL-067_XJ.stp",
-          "CATCH01_SL-066_ZJ_XJ.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            169.99572448421185,
-            162.3261539156287,
-            42.04416529546885
-          ],
-          "max": [
-            276.42384608437123,
-            268.75427551578724,
-            144.0042755157905
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P023_unnamed.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
-        "panel_mount_side": "outer",
-        "panel_normal_axis": 0,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            159.9999999,
-            127.4999999,
-            -160.0000001
-          ],
-          "max": [
-            170.0000001,
-            275.0000001,
-            160.00000010000002
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        46,
-        161,
-        84,
-        255
-      ],
-      "panel_id": "08_CB_FXFY_BJ",
-      "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
-      "mount_side": "outer"
-    },
-    {
       "component_id": "P024",
       "semantic_name": "catch_catch_p024_测控_数传_短报文天线候选_ZY",
       "kind": "external",
@@ -1859,7 +2049,7 @@
         50.00000019999999
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P024.local_ymax",
@@ -1929,85 +2119,6 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "P025",
-      "semantic_name": "catch_catch_p025_测控数传一体机_B_Z0001",
-      "kind": "internal",
-      "category": "communication",
-      "size_mm": [
-        102.75534659313556,
-        50.82906177758068,
-        90.02906177746041
-      ],
-      "mass_kg": 0.101567,
-      "power_W": 8.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P025.local_ymin",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P025.local_ymin",
-            "local_face": "ymin",
-            "normal_axis": 1,
-            "normal_sign": -1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "ttc_box",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "09_CB_ZY_BJ",
-        "display_name": "测控数传一体机 B / Z0001",
-        "source_step_files": [
-          "CATCH01_SL-070_Z_02.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -60.885752207299944,
-            -274.91453088861556,
-            23.985469111269843
-          ],
-          "max": [
-            41.86959438583561,
-            -224.08546911103488,
-            114.01453088873026
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P025_B_Z0001.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "09_CB_ZY_BJ.ymax_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": -1,
-        "panel_bbox": {
-          "min": [
-            -170.0001284632565,
-            -283.000128463272,
-            -170.0001284632565
-          ],
-          "max": [
-            170.0001284632565,
-            -274.999871536742,
-            160.0001284632565
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        235,
-        148,
-        33,
-        255
-      ],
-      "panel_id": "09_CB_ZY_BJ",
-      "mount_face_id": "09_CB_ZY_BJ.ymax_inner",
-      "mount_side": "inner"
-    },
-    {
       "component_id": "P026",
       "semantic_name": "catch_catch_p026_磁力矩器_磁棒_ZY",
       "kind": "external",
@@ -2018,7 +2129,7 @@
         160.00000020000002
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P026.local_ymax",
@@ -2097,7 +2208,7 @@
         50.00000019999999
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P027.local_ymin",
@@ -2167,85 +2278,6 @@
       "mount_side": "outer"
     },
     {
-      "component_id": "P028",
-      "semantic_name": "catch_catch_p028_反作用轮候选_FY",
-      "kind": "internal",
-      "category": "adcs",
-      "size_mm": [
-        88.5215796821391,
-        68.00000020000002,
-        87.24315916427821
-      ],
-      "mass_kg": 0.113434,
-      "power_W": 2.0,
-      "material_id": "aluminum_6061",
-      "mounting": {
-        "default_component_mount_face_id": "P028.local_ymax",
-        "mount_faces": [
-          {
-            "component_mount_face_id": "P028.local_ymax",
-            "local_face": "ymax",
-            "normal_axis": 1,
-            "normal_sign": 1,
-            "u_axis": 0,
-            "v_axis": 2
-          }
-        ]
-      },
-      "component_subtype": "reaction_wheel",
-      "source_ref": {
-        "source": "catch01_sl_decomposition",
-        "panel_id": "10_CB_FY_BJ",
-        "display_name": "反作用轮候选 FY",
-        "source_step_files": [
-          "CATCH01_SL-075_DLL_S_D_03.stp"
-        ],
-        "original_bbox": {
-          "min": [
-            -151.6215795821391,
-            206.9999999,
-            -143.6215795821391
-          ],
-          "max": [
-            -63.0999999,
-            275.0000001,
-            -56.37842041786089
-          ]
-        },
-        "cad_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
-        "cad_rotated_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
-        "cad_major_path": "/data/lbk/codex_web/catch_task/component_db_lite/cad/CATCH-P028_FY.step",
-        "review_status": "formal",
-        "panel_mount_face_id": "10_CB_FY_BJ.ymin_inner",
-        "panel_mount_side": "inner",
-        "panel_normal_axis": 1,
-        "panel_normal_sign": 1,
-        "panel_bbox": {
-          "min": [
-            -170.00012846325467,
-            274.99987153674533,
-            -170.00012846325467
-          ],
-          "max": [
-            170.0001284632547,
-            283.0001284632548,
-            160.00012846325467
-          ]
-        }
-      },
-      "quantity": 1,
-      "material_hint": "aluminum_6061",
-      "color": [
-        235,
-        148,
-        33,
-        255
-      ],
-      "panel_id": "10_CB_FY_BJ",
-      "mount_face_id": "10_CB_FY_BJ.ymin_inner",
-      "mount_side": "inner"
-    },
-    {
       "component_id": "P029",
       "semantic_name": "catch_catch_p029_太阳电池阵_帆板",
       "kind": "external",
@@ -2256,7 +2288,7 @@
         91.66690683190492
       ],
       "mass_kg": 6.686288,
-      "power_W": 0.0,
+      "power_W": null,
       "material_id": "battery_cells_aluminum_case",
       "mounting": {
         "default_component_mount_face_id": "P029.local_zmin",
@@ -2335,7 +2367,7 @@
         13.8000002
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P030.local_zmin",
@@ -2414,7 +2446,7 @@
         13.8000002
       ],
       "mass_kg": 0.05,
-      "power_W": 0,
+      "power_W": null,
       "material_id": "aluminum_6061",
       "mounting": {
         "default_component_mount_face_id": "P031.local_zmin",

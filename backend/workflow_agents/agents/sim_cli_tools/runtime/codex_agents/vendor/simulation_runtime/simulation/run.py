@@ -370,7 +370,11 @@ def _resolve_after_state_dir(layout_dir: Path, geometry_step_path: Path, config:
         after_state_dir = Path(configured).resolve()
     else:
         geometry_step_path = geometry_step_path.resolve()
-        after_state_dir = geometry_step_path.parent if geometry_step_path.name == "geometry_after.step" else layout_dir
+        after_state_dir = (
+            geometry_step_path.parent
+            if geometry_step_path.name in {"geometry_after.step", "geometry_after_power_filtered.step"}
+            else layout_dir
+        )
     if after_state_dir == layout_dir:
         return layout_dir
     required = [

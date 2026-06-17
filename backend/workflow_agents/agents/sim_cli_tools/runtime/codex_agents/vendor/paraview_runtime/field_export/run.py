@@ -7,7 +7,7 @@ from typing import Any, Mapping
 from core.io import read_json, write_json
 from core.stages import StageResult
 from formats.validators import validate_simulation_outputs
-from .threejs_export import export_temperature_field_threejs
+from .threejs_export import export_temperature_field_threejs, export_temperature_surface_threejs
 
 
 def run_stage(
@@ -44,6 +44,7 @@ def run_stage(
         output_dir.mkdir(parents=True, exist_ok=True)
         field_stats = _field_stats(field_samples)
         threejs_temperature_field_path: Path | None = None
+        threejs_temperature_surface_path: Path | None = None
         try:
             threejs_temperature_field_path = export_temperature_field_threejs(
                 native_vtu,
@@ -53,6 +54,14 @@ def run_stage(
             )
         except Exception as exc:
             result.warnings.append(f"failed to export temperature_field_threejs.json: {exc}")
+        try:
+            threejs_temperature_surface_path = export_temperature_surface_threejs(
+                native_vtu,
+                output_dir / "temperature_surface_threejs.json",
+                preferred_array=str(config.get("temperature_array", "")) or None,
+            )
+        except Exception as exc:
+            result.warnings.append(f"failed to export temperature_surface_threejs.json: {exc}")
         manifest = {
             "schema_version": "1.0",
             "field_export_id": "field_export_mock_contract",
@@ -71,6 +80,11 @@ def run_stage(
                     if threejs_temperature_field_path is not None
                     else None
                 ),
+                "temperature_surface_threejs": (
+                    "temperature_surface_threejs.json"
+                    if threejs_temperature_surface_path is not None
+                    else None
+                ),
             },
             "summary": field_stats,
         }
@@ -86,6 +100,8 @@ def run_stage(
         )
         if threejs_temperature_field_path is not None:
             result.outputs["temperature_field_threejs"] = threejs_temperature_field_path
+        if threejs_temperature_surface_path is not None:
+            result.outputs["temperature_surface_threejs"] = threejs_temperature_surface_path
         return result.finish("completed")
     except Exception as exc:
         result.errors.append({"type": exc.__class__.__name__, "message": str(exc)})

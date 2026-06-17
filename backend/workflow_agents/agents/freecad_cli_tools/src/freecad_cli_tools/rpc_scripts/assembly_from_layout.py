@@ -11,6 +11,7 @@ import Part
 INPUT_PATH = __INPUT_PATH__
 DOC_NAME = __DOC_NAME__
 SAVE_PATH = __SAVE_PATH__
+EXPORT_STEP = __EXPORT_STEP__
 EXPORT_GLB = __EXPORT_GLB__
 FIT_VIEW = __FIT_VIEW__
 VIEW_NAME = __VIEW_NAME__
@@ -136,23 +137,30 @@ def export_step_and_glb(objects, step_path):
     step_path = str(Path(step_path))
     glb_path = str(Path(step_path).with_suffix(".glb"))
 
-    Import.export(objects, step_path)
-    glb_objects = collect_glb_export_objects(objects)
-
-    export_options = None
-    if hasattr(ImportGui, "exportOptions"):
-        try:
-            export_options = ImportGui.exportOptions("glTF")
-        except Exception:
-            export_options = None
-
-    if export_options is None:
-        ImportGui.export(glb_objects, glb_path)
+    if EXPORT_STEP:
+        Import.export(objects, step_path)
     else:
-        try:
-            ImportGui.export(glb_objects, glb_path, export_options)
-        except TypeError:
+        step_path = None
+
+    if EXPORT_GLB:
+        glb_objects = collect_glb_export_objects(objects)
+
+        export_options = None
+        if hasattr(ImportGui, "exportOptions"):
+            try:
+                export_options = ImportGui.exportOptions("glTF")
+            except Exception:
+                export_options = None
+
+        if export_options is None:
             ImportGui.export(glb_objects, glb_path)
+        else:
+            try:
+                ImportGui.export(glb_objects, glb_path, export_options)
+            except TypeError:
+                ImportGui.export(glb_objects, glb_path)
+    else:
+        glb_path = None
 
     return step_path, glb_path
 
@@ -217,11 +225,7 @@ try:
         created.append(component_id)
     
     doc.recompute()
-    if EXPORT_GLB:
-        save_path, glb_path = export_step_and_glb([assembly], SAVE_PATH)
-    else:
-        save_path = export_step([assembly], SAVE_PATH)
-        glb_path = None
+    save_path, glb_path = export_step_and_glb([assembly], SAVE_PATH)
 
     view_updated = False
     if FIT_VIEW:

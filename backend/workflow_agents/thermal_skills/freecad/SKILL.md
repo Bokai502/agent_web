@@ -1,6 +1,6 @@
 ---
 name: freecad
-description: "FreeCAD CLI/RPC workflow for the current 00_inputs -> 01_cad CAD stage. Use when Codex needs to create, assemble, or reassemble a satellite/full CAD model with cad build + cad validate, including both placeholder geometry_after.* outputs and supplemental real-CAD geometry_after_real_cad.* outputs, modify an existing CAD model with layout safe-move + cad validate, inspect runtime/workspace config, validate CAD outputs with geometry checks and screenshots, or debug FreeCAD workflow arguments and progress logs."
+description: "FreeCAD CLI/RPC workflow for the current 00_inputs -> 01_cad CAD stage. Use when Codex needs to create, assemble, or reassemble a satellite/full CAD model with cad build + cad validate, including placeholder geometry_after.glb, supplemental real-CAD geometry_after_real_cad.glb, and power-filtered geometry_after_power_filtered.step simulation input, modify an existing CAD model with layout safe-move + cad validate, inspect runtime/workspace config, validate CAD outputs with geometry checks and screenshots, or debug FreeCAD workflow arguments and progress logs."
 ---
 
 # FreeCAD
@@ -55,7 +55,7 @@ Route requests this way:
   `component_info_assembly.step`, real STEP/STP asset import behavior,
   `real_bom.source.template_csv`, or optional `geom_component_info.json`. Do not
   treat it as the standard create-CAD workflow because it does not produce the
-  standard `geometry_after.step/.glb` CAD-stage outputs.
+  minimal create-CAD artifact set.
 - If the user asks only about workspace/config/CLI argument behavior, stay in
   this file unless a workflow guide is needed.
 
@@ -66,16 +66,16 @@ Route requests this way:
 - The standard create workflow is always `python -m freecad_cli_tools.cli.main cad build` followed by
   `python -m freecad_cli_tools.cli.main cad validate`. For satellite/full-model
   assembly, pass `--real-cad-backend hybrid-link` explicitly. `cad build` keeps
-  `geometry_after.step/.glb` as the placeholder thermal-simulation model and
-  also writes supplemental real-CAD outputs `geometry_after_real_cad.step/.glb`
-  plus `geometry_after_real_cad.hybrid_summary.json`.
+  `geometry_after.glb` as the full placeholder CAD display model, writes
+  supplemental real-CAD display output `geometry_after_real_cad.glb`, and writes
+  the power-filtered thermal-simulation input `geometry_after_power_filtered.step`.
 - The standard modify workflow is always `python -m freecad_cli_tools.cli.main layout safe-move`
   followed by `python -m freecad_cli_tools.cli.main cad validate`.
 - The component-info CAD-asset build defaults to `./00_inputs/real_bom.json`, `./00_inputs/layout_topology.json`, and `./00_inputs/geom.json`. It resolves STEP/STP paths from `real_bom.source.template_csv`; explicit `--geom-component-info` is optional and overrides synthesized component info. It is an auxiliary/debug workflow, not the default create workflow.
 - `python -m freecad_cli_tools.cli.main layout safe-move` defaults to writing after-state outputs under `./01_cad` under the resolved workspace root. `python -m freecad_cli_tools.cli.main assembly create-from-component-info` defaults to writing `component_info_assembly.step/.glb` under `./01_cad`.
 - Never infer dataset input paths from the repository root, the skill backup directory, or the process `cwd` once a workspace root has been resolved. Expand defaults to absolute paths before reasoning about missing files or running commands.
 - If default input files are not present under the resolved workspace, do not search broadly for similarly named files. Ask for or require a corrected `--workspace-dir`, `workspace.usersRoot` user workspace path, `workspace.templateDir` template/input root, `--layout-topology`, and `--geom` path.
-- Placeholder and safe-move CAD artifacts must be named `geometry_after.step` and `geometry_after.glb`; these remain the thermal simulation inputs. Supplemental real-CAD artifacts from `cad build --real-cad-backend hybrid-link` must be named `geometry_after_real_cad.step`, `geometry_after_real_cad.glb`, and `geometry_after_real_cad.hybrid_summary.json`. Component-info CAD-asset builds must be named `component_info_assembly.step` and `component_info_assembly.glb`. If a CLI accepts an output path, use it only to choose the directory or parent path unless the guide says otherwise.
+- Create-CAD artifacts are intentionally minimal for speed: full placeholder display `geometry_after.glb`, supplemental real-CAD display `geometry_after_real_cad.glb`, and thermal simulation STEP `geometry_after_power_filtered.step`. Do not export full placeholder STEP, real-CAD STEP, real-CAD hybrid summary, or power-filtered GLB unless the user explicitly asks for a debug artifact. Safe-move CAD display artifacts remain `geometry_after.step` and `geometry_after.glb`. Component-info CAD-asset builds must be named `component_info_assembly.step` and `component_info_assembly.glb`. If a CLI accepts an output path, use it only to choose the directory or parent path unless the guide says otherwise.
 - `python -m freecad_cli_tools.cli.main layout safe-move` writes non-destructive dataset outputs such as `geometry_after.layout_topology.json` and `geometry_after.geom.json`. Do not overwrite the source dataset unless the workflow explicitly says to.
 - Preserve the component-local contact face when changing the installation face. Derive runtime orientation from `placement.mount_face_id`, `placement.component_mount_face_id`, and `placement.alignment.in_plane_rotation_deg` instead of storing `placement.rotation_matrix`.
 - Prefer first-class commands:
@@ -94,20 +94,22 @@ Route requests this way:
 - Pass the same explicit `--workspace-dir <workspace_dir>` to progress updates as to the workflow command during normal Open Codex Web runs.
 - For `create_cad`, this loop may already be at 50 after `config-editor`, so do not reset it to 0. Before the long CAD/RPC build operation, write `--status running --completed false --percentage 60`; after `cad build` succeeds, keep `--completed false` and advance to 85; after `cad validate` finishes, write `--completed true --percentage 100`. Use `--status failed` only if hard validation failures make `validation.success == false`; geometry quality warnings such as overlaps/contact/occupancy should still complete the CAD step.
 - For `modify_cad`, before the long CAD/RPC safe-move operation, write `--status running --completed false --percentage 0`; after `layout safe-move` succeeds, keep `--completed false` and advance to 60; after `cad validate` finishes, write `--completed true --percentage 100`. Use `--status failed` only if hard validation failures make `validation.success == false`; geometry quality warnings such as overlaps/contact/occupancy should still complete the CAD step.
-- Check and report progress fields from `<resolved workspace>/logs/progress_percentages.json`: `workflow`, `stage`, `status`, `overall_percent`, `modeling_percent`, `export_file_percent`, `validation_percent`, and `error`. STEP and GLB exports each contribute 50% to `export_file_percent`.
+- Check and report progress fields from `<resolved workspace>/logs/progress_percentages.json`: `workflow`, `stage`, `status`, `overall_percent`, `modeling_percent`, `export_file_percent`, `validation_percent`, and `error`. For create-CAD, export completion is based on the minimal artifact set: placeholder GLB, real-CAD GLB, and power-filtered STEP.
 - Progress `workflow` must match the two primary workflows: `create_cad` for `cad build -> cad validate`, and `modify_cad` for `layout safe-move -> cad validate`. A standalone validation run may use `cad_validation`.
 - When that progress file already contains the BOM pipeline schema (`schema_version: "1.0"` with `steps`), FreeCAD must not replace the file with its standalone payload. Merge FreeCAD progress into the `geometry-edit` step: set `steps[].percent` for `geometry-edit` to the average of the three FreeCAD progress fields, keep it in the range `0-100`, attach the detailed values under `freecad_progress`, recompute `overall_percent`, and preserve top-level `output_files` for frontend display.
 - When the progress file does not contain the BOM pipeline schema, the CLI may keep writing the standalone FreeCAD progress payload for direct FreeCAD use.
+- CAD build `simulation_input.json` must include only placed components with `power_W > 0` and non-null. Components with `power_W == 0`, `power_W: null`, missing, non-numeric, or non-finite power remain in the full CAD display model but must be excluded from `simulation_input.json` and `geometry_after_power_filtered.step`. Walls must be included in the simulation metadata with `power_W: 0`.
 
 ## Workflow Notes
 
 - Create workflow: `python -m freecad_cli_tools.cli.main cad build` reads `00_inputs/real_bom.json`,
   `00_inputs/layout_topology.json`, and `00_inputs/geom.json`; writes
-  `01_cad/geometry_after.step`, `geometry_after.glb`,
+  `01_cad/geometry_after.glb`, `geometry_after_power_filtered.step`,
   `simulation_input.json`, and `cad_agent_output.json`; with
   `--real-cad-backend hybrid-link` it also writes
-  `geometry_after_real_cad.step`, `geometry_after_real_cad.glb`, and
-  `geometry_after_real_cad.hybrid_summary.json`; then
+  `geometry_after_real_cad.glb`. The frontend display should continue to use
+  `geometry_after.glb` and `geometry_after_real_cad.glb`; the
+  `geometry_after_power_filtered.step` file is the `02_sim` geometry input. Then
   `python -m freecad_cli_tools.cli.main cad validate` validates the result and writes validation plus
   six-face screenshot metadata into `01_cad/cad_agent_output.json`.
 - Modify workflow: `python -m freecad_cli_tools.cli.main layout safe-move` solves in normalized

@@ -83,21 +83,40 @@ type ViewerComponentMessage = {
 
 type ViewerMode = "cad" | "realCad" | "temperature" | "derating"
 
-type TemperatureField = {
+type TemperatureSurface = {
   attributes?: {
     color_rgb?: unknown
+    index?: unknown
     position?: unknown
     temperature_K?: unknown
-  }
-  bounds?: {
-    max?: unknown
-    min?: unknown
   }
   point_count?: unknown
   temperature_range_K?: {
     max?: unknown
     min?: unknown
   }
+  source?: {
+    coordinate_system?: unknown
+  }
+  triangle_count?: unknown
+}
+
+function parseTemperatureSurfacePayload(payload: unknown): TemperatureSurface | null {
+  if (!payload || typeof payload !== "object") return null
+  const wrapped = payload as { content?: unknown }
+  if (typeof wrapped.content === "string") return JSON.parse(wrapped.content) as TemperatureSurface
+  return payload as TemperatureSurface
+}
+
+function mapVtuPositionsToGlbCoordinates(positions: number[]) {
+  const mapped: number[] = []
+  for (let index = 0; index < positions.length; index += 3) {
+    const x = positions[index]
+    const y = positions[index + 1]
+    const z = positions[index + 2]
+    mapped.push(x, z, -y)
+  }
+  return mapped
 }
 
 function asText(value: unknown) {
@@ -185,17 +204,6 @@ function buildComponentColorMap(detailsById: Record<string, ComponentDetail>): C
       .filter((detail): detail is ComponentDetail & { color: THREE.Color } => detail.color instanceof THREE.Color)
       .map(detail => [detail.componentId.toUpperCase(), detail.color]),
   )
-}
-
-function mapBodyXyzToViewerPositions(positions: number[]) {
-  const mapped: number[] = []
-  for (let index = 0; index < positions.length; index += 3) {
-    const x = positions[index]
-    const y = positions[index + 1]
-    const z = positions[index + 2]
-    mapped.push(x, z, -y)
-  }
-  return mapped
 }
 
 function parseViewerMode(value: string | null): ViewerMode | null {
@@ -336,10 +344,9 @@ export default function ModelViewerPage() {
     let controls: OrbitControls | null = null
     let domElement: HTMLCanvasElement | null = null
     let modelRoot: THREE.Object3D | null = null
-    let temperatureRoot: THREE.Points | null = null
+    let temperatureRoot: THREE.Object3D | null = null
     let temperatureFieldLoaded = false
     let temperatureFieldLoading = false
-    let loadingMesh: THREE.Mesh | null = null
     let currentModelVersion: string | null = null
     let modelRefreshInFlight = false
     let lookupInterval: ReturnType<typeof setInterval> | null = null
@@ -396,13 +403,14 @@ export default function ModelViewerPage() {
       annotationSvg.replaceChildren()
     }
 
-    const buildTemperatureFieldUrl = () => {
+    const buildTemperatureSurfaceUrl = () => {
+      if (!workspaceDir) throw new Error("Temperature outline requires a workspaceDir.")
       const queryParams = new URLSearchParams()
-      if (workspaceId) queryParams.set("workspaceId", workspaceId)
-      if (versionId) queryParams.set("versionId", versionId)
+      queryParams.set("maxBytes", String(16 * 1024 * 1024))
+      queryParams.set("relativePath", "02_sim/postprocess/temperature_surface_threejs.json")
       if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
       const query = queryParams.toString()
-      return `/api/workspace/temperature-field${query ? `?${query}` : ""}`
+      return `/api/workspace/files/text${query ? `?${query}` : ""}`
     }
 
     const parseNumericArray = (value: unknown) => (
@@ -411,52 +419,74 @@ export default function ModelViewerPage() {
         : []
     )
 
-    const loadTemperatureField = async (scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
+    const parseIndexArray = (value: unknown) => (
+      Array.isArray(value)
+        ? value.filter((item): item is number => Number.isInteger(item) && item >= 0)
+        : []
+    )
+
+    const normalizeTemperatureRoot = (root: THREE.Object3D) => {
+      root.position.set(0, 0, 0)
+      root.scale.set(1, 1, 1)
+      root.updateMatrixWorld(true)
+      const box = new THREE.Box3().setFromObject(root)
+      const size = box.getSize(new THREE.Vector3())
+      const center = box.getCenter(new THREE.Vector3())
+      const maxDim = Math.max(size.x, size.y, size.z)
+      const scale = maxDim > 0 ? 3.5 / maxDim : 1
+      root.scale.setScalar(scale)
+      root.position.sub(center.multiplyScalar(scale))
+      const groundedBox = new THREE.Box3().setFromObject(root)
+      root.position.y -= groundedBox.min.y
+    }
+
+    const loadTemperatureSurface = async (scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
       if (temperatureFieldLoaded || temperatureFieldLoading) return
       temperatureFieldLoading = true
-      setStatusMessage("Loading temperature field...")
+      setStatusMessage("Loading temperature outline...")
       try {
-        const response = await fetch(buildTemperatureFieldUrl(), {
+        const response = await fetch(buildTemperatureSurfaceUrl(), {
           cache: "no-store",
           signal: modelRequest.signal,
         })
-        if (!response.ok) throw new Error("Temperature field result is unavailable.")
-        const data = await response.json() as TemperatureField
-        const positions = parseNumericArray(data.attributes?.position)
+        if (!response.ok) throw new Error("Temperature outline result is unavailable.")
+        const data = parseTemperatureSurfacePayload(await response.json())
+        if (!data) throw new Error("Temperature outline data is empty.")
+        const rawPositions = parseNumericArray(data.attributes?.position)
         const colors = parseNumericArray(data.attributes?.color_rgb)
+        const indices = parseIndexArray(data.attributes?.index)
         const temperatures = parseNumericArray(data.attributes?.temperature_K)
-        if (positions.length < 3 || positions.length % 3 !== 0) {
-          throw new Error("Temperature field has no renderable points.")
+        if (rawPositions.length < 3 || rawPositions.length % 3 !== 0) {
+          throw new Error("Temperature outline has no renderable vertices.")
         }
-        if (colors.length !== positions.length) {
-          throw new Error("Temperature field color data is incomplete.")
+        if (colors.length !== rawPositions.length) {
+          throw new Error("Temperature outline color data is incomplete.")
         }
-        const viewerPositions = mapBodyXyzToViewerPositions(positions)
+        if (indices.length < 3 || indices.length % 3 !== 0) {
+          throw new Error("Temperature outline index data is incomplete.")
+        }
+        const positions = data.source?.coordinate_system === "glb"
+          ? rawPositions
+          : mapVtuPositionsToGlbCoordinates(rawPositions)
 
         const geometry = new THREE.BufferGeometry()
-        geometry.setAttribute("position", new THREE.Float32BufferAttribute(viewerPositions, 3))
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
         geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3))
-        geometry.computeBoundingBox()
+        geometry.setIndex(indices)
+        geometry.computeVertexNormals()
 
-        const material = new THREE.PointsMaterial({
-          size: 0.018,
-          sizeAttenuation: true,
+        const material = new THREE.MeshBasicMaterial({
+          side: THREE.DoubleSide,
           vertexColors: true,
+          wireframe: true,
         })
-        const points = new THREE.Points(geometry, material)
-        points.visible = viewerModeRef.current === "temperature"
+        const surface = new THREE.Mesh(geometry, material)
+        const root = new THREE.Group()
+        root.add(surface)
+        normalizeTemperatureRoot(root)
+        root.visible = viewerModeRef.current === "temperature"
 
-        const box = geometry.boundingBox ?? new THREE.Box3().setFromBufferAttribute(geometry.getAttribute("position") as THREE.BufferAttribute)
-        const size = box.getSize(new THREE.Vector3())
-        const center = box.getCenter(new THREE.Vector3())
-        const maxDim = Math.max(size.x, size.y, size.z)
-        const scale = maxDim > 0 ? 3.5 / maxDim : 1
-        points.scale.setScalar(scale)
-        points.position.sub(center.multiplyScalar(scale))
-        const groundedBox = new THREE.Box3().setFromObject(points)
-        points.position.y -= groundedBox.min.y
-
-        temperatureRoot = points
+        temperatureRoot = root
         temperatureFieldLoaded = true
         const tempMin = typeof data.temperature_range_K?.min === "number"
           ? data.temperature_range_K.min
@@ -465,10 +495,10 @@ export default function ModelViewerPage() {
           ? data.temperature_range_K.max
           : temperatures.length ? Math.max(...temperatures) : 0
         setTemperatureRange({ max: tempMax, min: tempMin })
-        scene.add(points)
+        scene.add(root)
 
         const sphere = new THREE.Sphere()
-        new THREE.Box3().setFromObject(points).getBoundingSphere(sphere)
+        new THREE.Box3().setFromObject(root).getBoundingSphere(sphere)
         const radius = Math.max(sphere.radius, 0.2)
         if (viewerModeRef.current === "temperature") {
           camera.position.set(
@@ -484,7 +514,7 @@ export default function ModelViewerPage() {
         requestRender()
       } catch (error) {
         if (disposed || modelRequest.signal.aborted) return
-        setErrorMessage(error instanceof Error ? error.message : "Temperature field load failed.")
+        setErrorMessage(error instanceof Error ? error.message : "Temperature outline load failed.")
         if (viewerModeRef.current === "temperature") setStatusMessage("")
       } finally {
         temperatureFieldLoading = false
@@ -887,14 +917,19 @@ export default function ModelViewerPage() {
       mount.appendChild(nextRenderer.domElement)
 
       const scene = new THREE.Scene()
-      scene.background = new THREE.Color(0x111318)
+      scene.background = new THREE.Color(viewerTheme === "light" ? 0xf6f8fb : 0x111318)
 
       const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 1000)
       camera.position.set(3, 2, 5)
 
-      const grid = new THREE.GridHelper(30, 30, 0xd8dde6, 0x2d323a)
+      const grid = new THREE.GridHelper(
+        30,
+        30,
+        viewerTheme === "light" ? 0x9aa7b6 : 0xd8dde6,
+        viewerTheme === "light" ? 0xd6dde6 : 0x2d323a,
+      )
       grid.material.transparent = true
-      grid.material.opacity = 0.22
+      grid.material.opacity = viewerTheme === "light" ? 0.38 : 0.22
       scene.add(grid)
 
       controls = new OrbitControls(camera, nextRenderer.domElement)
@@ -905,13 +940,6 @@ export default function ModelViewerPage() {
       controls.addEventListener("change", markAnnotationsDirty)
       controls.addEventListener("start", requestRender)
       controls.addEventListener("end", requestRender)
-
-      loadingMesh = new THREE.Mesh(
-        new THREE.TorusGeometry(0.4, 0.05, 8, 48),
-        new THREE.MeshBasicMaterial({ color: 0x4fc3f7 }),
-      )
-      scene.add(loadingMesh)
-      disposableResources.push(loadingMesh.geometry, loadingMesh.material as THREE.Material)
 
       const loader = new GLTFLoader()
 
@@ -928,11 +956,6 @@ export default function ModelViewerPage() {
         const gltf = await loadGltf(loader, resolvedModel.modelUrl)
 
         if (disposed) return
-
-        if (loadingMesh) {
-          scene.remove(loadingMesh)
-          loadingMesh = null
-        }
 
         if (modelRoot) {
           clearModelHighlight()
@@ -965,7 +988,7 @@ export default function ModelViewerPage() {
         addLightweightMeshEdges(model, componentColors)
         setSceneMode(viewerModeRef.current)
         if (viewerModeRef.current === "temperature") {
-          void loadTemperatureField(scene, camera)
+          void loadTemperatureSurface(scene, camera)
         }
 
         const sphere = new THREE.Sphere()
@@ -1034,11 +1057,6 @@ export default function ModelViewerPage() {
       nextRenderer.setAnimationLoop(() => {
         if (disposed) return
 
-        if (loadingMesh) {
-          loadingMesh.rotation.z += 0.04
-          renderRequested = true
-        }
-
         if (controls?.update()) {
           renderRequested = true
         }
@@ -1080,7 +1098,7 @@ export default function ModelViewerPage() {
       const handleModeChange = () => {
         setSceneMode(viewerModeRef.current)
         if (viewerModeRef.current === "temperature") {
-          void loadTemperatureField(scene, camera)
+          void loadTemperatureSurface(scene, camera)
         }
         if (viewerModeRef.current === "cad" || viewerModeRef.current === "realCad") {
           refreshLatestModel("initial")
@@ -1150,14 +1168,17 @@ export default function ModelViewerPage() {
         mount.removeChild(domElement)
       }
     }
-  }, [componentDetailsVersion, modelVariant, shouldInitializeCadViewer, versionId, workspaceDir, workspaceId, viewerMode])
+  }, [componentDetailsVersion, modelVariant, shouldInitializeCadViewer, versionId, viewerMode, viewerTheme, workspaceDir, workspaceId])
 
   useEffect(() => {
     window.dispatchEvent(new Event("viewer3d:mode-change"))
   }, [viewerMode])
 
-  const isComplianceCheckMode = showComplianceCheckMode && viewerMode === "derating"
-  const isLightComplianceCheckMode = isComplianceCheckMode && viewerTheme === "light"
+  const isLightViewerTheme = viewerTheme === "light"
+  const panelBackground = isLightViewerTheme ? "rgba(255, 255, 255, 0.84)" : "rgba(6, 12, 27, 0.74)"
+  const panelBorder = isLightViewerTheme ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(122, 148, 212, 0.28)"
+  const panelShadow = isLightViewerTheme ? "0 8px 24px rgba(18, 34, 51, 0.08)" : undefined
+  const monoMutedColor = isLightViewerTheme ? "rgba(64, 82, 105, 0.78)" : "rgba(218, 231, 255, 0.82)"
   const viewerModeOptions = lockedViewerMode
     ? ([
         [
@@ -1180,7 +1201,7 @@ export default function ModelViewerPage() {
       style={{
         width: "100vw",
         height: "100vh",
-        background: isLightComplianceCheckMode ? "#f6f8fb" : "#111318",
+        background: isLightViewerTheme ? "#f6f8fb" : "#111318",
         position: "relative",
         overflow: "hidden",
       }}
@@ -1195,7 +1216,7 @@ export default function ModelViewerPage() {
             right: 0,
             top: 0,
             zIndex: 4,
-            background: isLightComplianceCheckMode ? "#f6f8fb" : "#06111d",
+            background: isLightViewerTheme ? "#f6f8fb" : "#06111d",
           }}
         >
           <ComplianceCheckPanel
@@ -1217,9 +1238,9 @@ export default function ModelViewerPage() {
             gap: 6,
             padding: 4,
             borderRadius: 8,
-            background: isLightComplianceCheckMode ? "rgba(255, 255, 255, 0.84)" : "rgba(6, 12, 27, 0.74)",
-            border: isLightComplianceCheckMode ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(122, 148, 212, 0.28)",
-            boxShadow: isLightComplianceCheckMode ? "0 8px 24px rgba(18, 34, 51, 0.08)" : undefined,
+            background: panelBackground,
+            border: panelBorder,
+            boxShadow: panelShadow,
             backdropFilter: "blur(12px)",
             pointerEvents: "auto",
           }}
@@ -1234,12 +1255,12 @@ export default function ModelViewerPage() {
               style={{
                 minWidth: 92,
                 height: 32,
-                border: isLightComplianceCheckMode ? "1px solid rgba(0, 102, 204, 0.24)" : "1px solid rgba(143, 172, 230, 0.28)",
+                border: isLightViewerTheme ? "1px solid rgba(0, 102, 204, 0.24)" : "1px solid rgba(143, 172, 230, 0.28)",
                 borderRadius: 6,
-                background: isLightComplianceCheckMode
+                background: isLightViewerTheme
                   ? active ? "#e8f2ff" : "#ffffff"
                   : active ? "rgba(65, 167, 255, 0.24)" : "rgba(11, 21, 45, 0.68)",
-                color: isLightComplianceCheckMode
+                color: isLightViewerTheme
                   ? active ? "#003f88" : "#344054"
                   : active ? "#f4f9ff" : "rgba(211, 226, 255, 0.78)",
                 cursor: "pointer",
@@ -1266,10 +1287,11 @@ export default function ModelViewerPage() {
             width: 220,
             padding: "12px",
             borderRadius: 8,
-            background: "rgba(6, 12, 27, 0.74)",
-            border: "1px solid rgba(122, 148, 212, 0.28)",
+            background: panelBackground,
+            border: panelBorder,
+            boxShadow: panelShadow,
             backdropFilter: "blur(12px)",
-            color: "#d9e6ff",
+            color: isLightViewerTheme ? "#26394d" : "#d9e6ff",
             pointerEvents: "none",
           }}
         >
@@ -1287,7 +1309,7 @@ export default function ModelViewerPage() {
               justifyContent: "space-between",
               fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
               fontSize: 11,
-              color: "rgba(218, 231, 255, 0.82)",
+              color: monoMutedColor,
             }}
           >
             <span>{temperatureRange.min.toFixed(2)} K</span>
@@ -1367,11 +1389,11 @@ export default function ModelViewerPage() {
             gap: 12,
             padding: "16px",
             borderRadius: 8,
-            background: "rgba(6, 12, 27, 0.84)",
-            border: "1px solid rgba(122, 148, 212, 0.34)",
-            boxShadow: "0 18px 42px rgba(0, 0, 0, 0.34)",
+            background: isLightViewerTheme ? "rgba(255, 255, 255, 0.9)" : "rgba(6, 12, 27, 0.84)",
+            border: isLightViewerTheme ? "1px solid rgba(35, 82, 124, 0.18)" : "1px solid rgba(122, 148, 212, 0.34)",
+            boxShadow: isLightViewerTheme ? "0 18px 42px rgba(18, 34, 51, 0.12)" : "0 18px 42px rgba(0, 0, 0, 0.34)",
             backdropFilter: "blur(12px)",
-            color: "#d9e6ff",
+            color: isLightViewerTheme ? "#26394d" : "#d9e6ff",
             pointerEvents: "auto",
           }}
         >
@@ -1386,7 +1408,7 @@ export default function ModelViewerPage() {
             <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
               <span
                 style={{
-                  color: "#93b7ff",
+                  color: isLightViewerTheme ? "#1763a6" : "#93b7ff",
                   fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
                   fontSize: 11,
                   fontWeight: 700,
@@ -1398,7 +1420,7 @@ export default function ModelViewerPage() {
               </span>
               <span
                 style={{
-                  color: "#f3f7ff",
+	                  color: isLightViewerTheme ? "#172433" : "#f3f7ff",
                   fontFamily: "\"Space Grotesk\", system-ui, sans-serif",
                   fontSize: 18,
                   fontWeight: 700,
@@ -1417,10 +1439,10 @@ export default function ModelViewerPage() {
                 width: 28,
                 height: 28,
                 flex: "0 0 auto",
-                border: "1px solid rgba(143, 172, 230, 0.32)",
-                borderRadius: 6,
-                background: "rgba(11, 21, 45, 0.72)",
-                color: "rgba(218, 231, 255, 0.86)",
+	                border: isLightViewerTheme ? "1px solid rgba(35, 82, 124, 0.18)" : "1px solid rgba(143, 172, 230, 0.32)",
+	                borderRadius: 6,
+	                background: isLightViewerTheme ? "rgba(243, 247, 251, 0.92)" : "rgba(11, 21, 45, 0.72)",
+	                color: isLightViewerTheme ? "rgba(38, 57, 77, 0.86)" : "rgba(218, 231, 255, 0.86)",
                 cursor: "pointer",
                 fontSize: 18,
                 lineHeight: "24px",
@@ -1448,7 +1470,7 @@ export default function ModelViewerPage() {
               >
                 <span
                   style={{
-                    color: "rgba(145, 172, 226, 0.68)",
+	                    color: isLightViewerTheme ? "rgba(64, 82, 105, 0.68)" : "rgba(145, 172, 226, 0.68)",
                     fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
                     fontSize: 11,
                     letterSpacing: "0.1em",
@@ -1459,7 +1481,7 @@ export default function ModelViewerPage() {
                 </span>
                 <span
                   style={{
-                    color: "#d9e6ff",
+	                    color: isLightViewerTheme ? "#26394d" : "#d9e6ff",
                     fontFamily: "\"IBM Plex Sans\", system-ui, sans-serif",
                     fontSize: 13,
                     lineHeight: 1.45,
@@ -1485,10 +1507,11 @@ export default function ModelViewerPage() {
             maxWidth: 520,
             padding: "12px 14px",
             borderRadius: 12,
-            background: "rgba(6, 12, 27, 0.66)",
-            border: "1px solid rgba(92, 126, 188, 0.24)",
-            backdropFilter: "blur(10px)",
-            color: "#c9dbff",
+	            background: isLightViewerTheme ? "rgba(255, 255, 255, 0.82)" : "rgba(6, 12, 27, 0.66)",
+	            border: isLightViewerTheme ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(92, 126, 188, 0.24)",
+	            boxShadow: panelShadow,
+	            backdropFilter: "blur(10px)",
+	            color: isLightViewerTheme ? "#26394d" : "#c9dbff",
             pointerEvents: "none",
           }}
         >
@@ -1499,7 +1522,7 @@ export default function ModelViewerPage() {
                 fontSize: 12,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: "rgba(152, 183, 235, 0.74)",
+	                color: isLightViewerTheme ? "rgba(64, 82, 105, 0.72)" : "rgba(152, 183, 235, 0.74)",
               }}
             >
               {statusMessage}
@@ -1511,7 +1534,7 @@ export default function ModelViewerPage() {
                 fontFamily: "\"IBM Plex Sans\", system-ui, sans-serif",
                 fontSize: 13,
                 lineHeight: 1.45,
-                color: "#ffb4b4",
+	                color: isLightViewerTheme ? "#b42318" : "#ffb4b4",
               }}
             >
               {errorMessage}

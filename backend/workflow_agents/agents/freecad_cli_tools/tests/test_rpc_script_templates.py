@@ -41,6 +41,7 @@ SCRIPT_REPLACEMENTS: dict[str, dict[str, str]] = {
         "__INPUT_PATH__": _DUMMY_PATH,
         "__DOC_NAME__": _DUMMY_STR,
         "__SAVE_PATH__": _DUMMY_PATH,
+        "__EXPORT_STEP__": "True",
         "__EXPORT_GLB__": "True",
         "__FIT_VIEW__": "True",
         "__VIEW_NAME__": _DUMMY_STR,
@@ -52,6 +53,7 @@ SCRIPT_REPLACEMENTS: dict[str, dict[str, str]] = {
         "__INPUT_PATH__": _DUMMY_PATH,
         "__DOC_NAME__": _DUMMY_STR,
         "__SAVE_PATH__": _DUMMY_PATH,
+        "__EXPORT_STEP__": "True",
         "__EXPORT_GLB__": "True",
         "__FIT_VIEW__": "True",
         "__VIEW_NAME__": _DUMMY_STR,
@@ -154,6 +156,7 @@ def test_exporting_scripts_also_emit_glb(script_name: str) -> None:
     assert "def export_step_and_glb(objects, step_path):" in rendered
     assert 'glb_path = str(Path(step_path).with_suffix(".glb"))' in rendered
     assert "Import.export(objects, step_path)" in rendered
+    assert "if EXPORT_STEP:" in rendered
     assert '"glb_path": ' in rendered
 
 

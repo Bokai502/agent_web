@@ -201,11 +201,20 @@ class SelectionUpdaterV2:
         created_count = 0
         failed_tags: List[str] = []
         success_tags: List[str] = []
+        boundary_mode_tags: List[str] = []
 
         for wall in cabin_walls:
             wid = wall["id"]
             tag = f"sel_w_{_safe_tag(wid)}"
             label = f"wall:{wid}"
+
+            if str(wall.get("modeling") or wall.get("entity_model") or "").lower() in {
+                "conductive_boundary",
+                "boundary",
+            }:
+                boundary_mode_tags.append(tag)
+                print(f"    - {tag}: conductive boundary metadata; no wall volume selection")
+                continue
 
             bbox = wall["bbox"]
             bmin = [float(v) for v in bbox["min"]]
@@ -235,6 +244,8 @@ class SelectionUpdaterV2:
             "failed": len(failed_tags),
             "tags": success_tags,
             "failed_tags": failed_tags,
+            "boundary_mode_tags": boundary_mode_tags,
+            "boundary_mode_count": len(boundary_mode_tags),
         }
 
     # -------- cabin 体积 Selection (entitydim=3) --------

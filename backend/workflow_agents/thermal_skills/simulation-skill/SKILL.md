@@ -24,13 +24,16 @@ The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes 
   - `<workspace>/00_inputs/real_bom.json`
   - `<workspace>/00_inputs/layout_topology.json`
   - `<workspace>/00_inputs/geom.json`
-  - `<workspace>/01_cad/geometry_after.step`
+  - `<workspace>/01_cad/geometry_after_power_filtered.step`
   - `<workspace>/01_cad/geometry_after.geom.json`
   - `<workspace>/01_cad/geometry_after.layout_topology.json`
   - `<workspace>/01_cad/geometry_after_registry.json`
   - `<workspace>/01_cad/simulation_input.json`
   - `<workspace>/01_cad/comsol_inputs/coord.txt`
   - `<workspace>/01_cad/comsol_inputs/channels_input.npz`
+- The `02_sim` geometry input is `01_cad/geometry_after_power_filtered.step`
+  when present. `01_cad/geometry_after.glb` and
+  `01_cad/geometry_after_real_cad.glb` remain display/review artifacts.
 - Real COMSOL runs always start a private mphserver. Reusing an existing mphserver is not supported by this tool.
 - Use `comsol_local` for real thermal simulation.
 - For normal simulation runs, always pass `--async-open-tools` so COMSOL and
@@ -84,9 +87,15 @@ After a run, inspect:
 - `<workspace>/02_sim/simulation/component_face_temperature.json`
 - `<workspace>/02_sim/simulation/interface_temperature_diagnostics.json`
 - `<workspace>/02_sim/postprocess/temperature_field_threejs.json`
+- `<workspace>/02_sim/postprocess/temperature_surface_threejs.json`
 - `<workspace>/02_sim/postprocess/render_summary.json`
 - `<workspace>/02_sim/case_build/component_index.json`
 - `<workspace>/02_sim/analysis/metrics_summary.json`
+
+`temperature_surface_threejs.json` is the standard 3D Thermal preview input. The
+`field_export` stage derives it from `<workspace>/02_sim/simulation/native.vtu`
+as indexed triangle `THREE.BufferGeometry` data with per-vertex temperature
+colors.
 
 For real COMSOL progress during simulation, inspect the progress source of truth:
 

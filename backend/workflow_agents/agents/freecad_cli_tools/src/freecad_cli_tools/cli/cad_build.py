@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
+import shutil
 from pathlib import Path
 
 from freecad_cli_tools import add_connection_args
@@ -18,7 +20,6 @@ from freecad_cli_tools.artifact_registry import (
 from freecad_cli_tools.cad_inputs import build_cad_stage_inputs
 from freecad_cli_tools.cli_support import execute_script_payload, exit_on_failure, normalize_runtime_path
 from freecad_cli_tools.cli.build_component_info_assembly import (
-    collect_runtime_exports,
     stage_input_data,
     stage_output_dir,
     stage_runtime_paths,
@@ -66,10 +67,11 @@ def parse_args() -> argparse.Namespace:
         choices=("hybrid-link", "static", "none"),
         default="hybrid-link",
         help=(
-            "Supplemental real-CAD assembly backend. The standard geometry_after.step/.glb "
-            "placeholder assembly is always kept for downstream thermal simulation. "
-            "'hybrid-link' additionally writes geometry_after_real_cad.step/.glb using App::Link "
-            "for repeated STEP assets. 'static' writes the direct real-CAD assembly. "
+            "Supplemental real-CAD assembly backend. The standard geometry_after.glb "
+            "placeholder assembly is kept for frontend display, and "
+            "geometry_after_power_filtered.step is kept for downstream thermal simulation. "
+            "'hybrid-link' uses the hybrid App::Link component-node low-complexity GLB exporter. "
+            "'static' is accepted as a deprecated alias for the same low-complexity exporter. "
             "'none' disables the supplemental real-CAD export."
         ),
     )
@@ -152,14 +154,25 @@ def main() -> None:
 
     output_dir = resolve_workspace_path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    step_path = output_dir / "geometry_after.step"
+    placeholder_step_path = output_dir / "geometry_after.step"
     glb_path = output_dir / "geometry_after.glb"
+    filtered_step_path = output_dir / "geometry_after_power_filtered.step"
+    real_cad_step_path = output_dir / "geometry_after_real_cad.step"
+    real_cad_glb_path = output_dir / "geometry_after_real_cad.glb"
+    for obsolete_path in (
+        placeholder_step_path,
+        output_dir / "geometry_after_power_filtered.glb",
+        real_cad_step_path,
+        output_dir / "geometry_after_real_cad.hybrid_summary.json",
+    ):
+        if obsolete_path.exists():
+            obsolete_path.unlink()
 
     output_paths = {
-        "step": step_path,
         "glb": glb_path,
-        "real_cad_step": output_dir / "geometry_after_real_cad.step",
-        "real_cad_glb": output_dir / "geometry_after_real_cad.glb",
+        "power_filtered_step": filtered_step_path,
+        "real_cad_step": real_cad_step_path,
+        "real_cad_glb": real_cad_glb_path,
         "real_cad_summary": output_dir / "geometry_after_real_cad.hybrid_summary.json",
         "geometry_after_layout_topology": output_dir / "geometry_after.layout_topology.json",
         "geometry_after_geom": output_dir / "geometry_after.geom.json",
@@ -191,7 +204,7 @@ def main() -> None:
                 layout_topology_path=layout_topology_path,
                 geom_path=geom_path,
                 output_dir=output_dir,
-                step_filename=step_path.name,
+                step_filename=output_paths["power_filtered_step"].name,
                 grid_shape=tuple(int(value) for value in args.grid_shape),
             )
         normalized_input_path = output_dir / "normalized_layout_dataset.json"
@@ -200,6 +213,33 @@ def main() -> None:
             encoding="utf-8",
         )
         logger.info("wrote normalized layout dataset: %s", normalized_input_path)
+        filtered_normalized_input_path = output_dir / "normalized_layout_dataset.power_filtered.json"
+        filtered_normalized = copy.deepcopy(prepared["normalized"])
+        simulation_component_ids = {
+            str(item.get("component_id"))
+            for item in prepared["simulation_input"].get("components", [])
+            if isinstance(item, dict) and item.get("component_id")
+        }
+        filtered_components = {
+            component_id: component
+            for component_id, component in filtered_normalized.get("components", {}).items()
+            if component_id in simulation_component_ids
+        }
+        filtered_normalized["components"] = filtered_components
+        # Thermal simulation consumes wall metadata from simulation_input.json.
+        # Do not export explicit wall solids into the COMSOL STEP: thin partition
+        # solids that are coplanar with shell faces are prone to invalid meshes.
+        filtered_normalized["walls"] = []
+        filtered_normalized_input_path.write_text(
+            json.dumps(filtered_normalized, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        logger.info(
+            "wrote power-filtered normalized layout dataset: %s components=%d walls=%d",
+            filtered_normalized_input_path,
+            len(filtered_components),
+            len(filtered_normalized.get("walls", []) or []),
+        )
         code = render_rpc_script(
             "assembly_from_layout.py",
             {
@@ -208,26 +248,60 @@ def main() -> None:
                 "__COMPONENT_SHAPE_HELPERS__": COMPONENT_SHAPE_HELPERS,
                 "__INPUT_PATH__": json.dumps(normalize_runtime_path(normalized_input_path)),
                 "__DOC_NAME__": json.dumps(args.doc_name),
-                "__SAVE_PATH__": json.dumps(normalize_runtime_path(step_path)),
+                "__SAVE_PATH__": json.dumps(normalize_runtime_path(placeholder_step_path)),
+                "__EXPORT_STEP__": "False",
                 "__EXPORT_GLB__": "True",
                 "__FIT_VIEW__": "False" if args.no_fit_view else "True",
                 "__VIEW_NAME__": json.dumps(args.view),
             },
         )
         with pipeline_step("cad_freecad_export"):
-            logger.info("executing FreeCAD assembly export: host=%s port=%s step=%s", args.host, args.port, step_path)
+            logger.info("executing FreeCAD placeholder GLB export: host=%s port=%s glb=%s", args.host, args.port, glb_path)
             payload = execute_script_payload(args.host, args.port, code)
             logger.info("FreeCAD export returned: success=%s error=%s", payload.get("success"), payload.get("error"))
         if payload.get("success"):
             payload["requested_doc_name"] = args.doc_name
             payload["explicit_doc_name"] = requested_doc_name
-            payload["save_path"] = str(step_path)
+            payload["save_path"] = None
             payload["glb_path"] = str(glb_path) if glb_path.exists() else None
-            payload["placeholder_save_path"] = str(step_path)
+            payload["placeholder_save_path"] = None
             payload["placeholder_glb_path"] = str(glb_path) if glb_path.exists() else None
 
+        filtered_payload = None
+        if payload.get("success"):
+            filtered_doc_name = f"{args.doc_name}_PowerFiltered"
+            filtered_code = render_rpc_script(
+                "assembly_from_layout.py",
+                {
+                    "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
+                    "__WALL_HELPERS__": WALL_HELPERS,
+                    "__COMPONENT_SHAPE_HELPERS__": COMPONENT_SHAPE_HELPERS,
+                    "__INPUT_PATH__": json.dumps(normalize_runtime_path(filtered_normalized_input_path)),
+                    "__DOC_NAME__": json.dumps(filtered_doc_name),
+                    "__SAVE_PATH__": json.dumps(normalize_runtime_path(filtered_step_path)),
+                    "__EXPORT_STEP__": "True",
+                    "__EXPORT_GLB__": "False",
+                    "__FIT_VIEW__": "False" if args.no_fit_view else "True",
+                    "__VIEW_NAME__": json.dumps(args.view),
+                },
+            )
+            with pipeline_step("cad_power_filtered_export"):
+                logger.info(
+                    "executing power-filtered CAD export: host=%s port=%s step=%s",
+                    args.host,
+                    args.port,
+                    filtered_step_path,
+                )
+                filtered_payload = execute_script_payload(args.host, args.port, filtered_code)
+                logger.info(
+                    "Power-filtered CAD export returned: success=%s error=%s",
+                    filtered_payload.get("success"),
+                    filtered_payload.get("error"),
+                )
+            if filtered_payload.get("success"):
+                filtered_payload["save_path"] = str(filtered_step_path)
+
         real_cad_payload = None
-        real_cad_step_path = output_paths["real_cad_step"]
         if payload.get("success") and args.real_cad_backend != "none":
             real_cad_doc_name = f"{args.doc_name}_RealCAD"
             staged_input_path, staged_output_path = stage_runtime_paths(
@@ -237,9 +311,9 @@ def main() -> None:
             )
             with pipeline_step("cad_real_cad_prepare"):
                 logger.info(
-                    "normalizing supplemental real-CAD inputs: backend=%s output=%s",
+                    "normalizing supplemental real-CAD inputs: backend=%s glb=%s",
                     args.real_cad_backend,
-                    real_cad_step_path,
+                    real_cad_glb_path,
                 )
                 real_cad_normalized = load_and_normalize_component_info_assembly(
                     layout_topology_path=layout_topology_path,
@@ -252,77 +326,47 @@ def main() -> None:
                 stage_output_dir(staged_output_path)
 
             real_cad_code = render_rpc_script(
-                "assembly_from_component_info.py",
+                "export_component_info_hybrid_link.py",
                 {
-                    "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
-                    "__WALL_HELPERS__": WALL_HELPERS,
                     "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
                     "__DOC_NAME__": json.dumps(real_cad_doc_name),
                     "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_output_path)),
                     "__EXPORT_GLB__": "True",
-                    "__FIT_VIEW__": "False" if args.no_fit_view else "True",
-                    "__VIEW_NAME__": json.dumps(args.view),
+                    "__INCLUDE_ENVELOPE__": "True",
                 },
             )
-            with pipeline_step("cad_real_cad_static_export"):
+            with pipeline_step("cad_real_cad_hybrid_export"):
                 logger.info(
-                    "executing supplemental real-CAD static export: host=%s port=%s step=%s",
+                    "executing supplemental real-CAD hybrid App::Link low-complexity export: host=%s port=%s step=%s glb=%s",
                     args.host,
                     args.port,
                     real_cad_step_path,
+                    real_cad_glb_path,
                 )
                 real_cad_payload = execute_script_payload(args.host, args.port, real_cad_code)
                 logger.info(
-                    "Supplemental real-CAD static export returned: success=%s error=%s",
+                    "Supplemental real-CAD hybrid export returned: success=%s error=%s",
                     real_cad_payload.get("success"),
                     real_cad_payload.get("error"),
                 )
 
-            if real_cad_payload.get("success") and args.real_cad_backend == "hybrid-link":
-                hybrid_code = render_rpc_script(
-                    "export_component_info_hybrid_link.py",
-                    {
-                        "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
-                        "__DOC_NAME__": json.dumps(real_cad_doc_name),
-                        "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_output_path)),
-                        "__EXPORT_GLB__": "True",
-                        "__INCLUDE_ENVELOPE__": "True",
-                    },
-                )
-                with pipeline_step("cad_real_cad_hybrid_export"):
-                    logger.info(
-                        "executing supplemental real-CAD hybrid App::Link export: host=%s port=%s step=%s",
-                        args.host,
-                        args.port,
-                        real_cad_step_path,
-                    )
-                    hybrid_payload = execute_script_payload(args.host, args.port, hybrid_code)
-                    logger.info(
-                        "Supplemental real-CAD hybrid export returned: success=%s error=%s",
-                        hybrid_payload.get("success"),
-                        hybrid_payload.get("error"),
-                    )
-                if hybrid_payload.get("success"):
-                    real_cad_payload = {
-                        **real_cad_payload,
-                        "static_export": real_cad_payload,
-                        **hybrid_payload,
-                    }
-                else:
-                    real_cad_payload = hybrid_payload
-
             if real_cad_payload.get("success"):
-                collect_runtime_exports(staged_output_path, real_cad_step_path)
-                real_cad_payload["save_path"] = str(real_cad_step_path)
-                real_cad_payload["glb_path"] = (
-                    str(real_cad_step_path.with_suffix(".glb"))
-                    if real_cad_step_path.with_suffix(".glb").exists()
-                    else None
-                )
+                if staged_output_path.exists():
+                    real_cad_step_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(staged_output_path, real_cad_step_path)
+                staged_glb_path = staged_output_path.with_suffix(".glb")
+                if staged_glb_path.exists():
+                    real_cad_glb_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(staged_glb_path, real_cad_glb_path)
+                staged_summary_path = staged_output_path.with_suffix(".hybrid_summary.json")
+                real_cad_summary_path = output_dir / "geometry_after_real_cad.hybrid_summary.json"
+                if staged_summary_path.exists():
+                    real_cad_summary_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(staged_summary_path, real_cad_summary_path)
+                real_cad_payload["save_path"] = str(real_cad_step_path) if real_cad_step_path.exists() else None
+                real_cad_payload["glb_path"] = str(real_cad_glb_path) if real_cad_glb_path.exists() else None
                 real_cad_payload["summary_path"] = (
-                    str(real_cad_step_path.with_suffix(".hybrid_summary.json"))
-                    if real_cad_step_path.with_suffix(".hybrid_summary.json").exists()
-                    else None
+                    str(real_cad_summary_path) if real_cad_summary_path.exists() else None
                 )
             else:
                 logger.warning(
@@ -330,17 +374,24 @@ def main() -> None:
                     real_cad_payload.get("error") if isinstance(real_cad_payload, dict) else real_cad_payload,
                 )
 
-        step_exists = step_path.exists()
         glb_exists = glb_path.exists()
-        if payload.get("success") and step_exists and glb_exists:
+        filtered_step_exists = filtered_step_path.exists()
+        real_cad_glb_exists = real_cad_glb_path.exists()
+        if payload.get("success") and glb_exists and filtered_step_exists and real_cad_glb_exists:
             registry_status = "success"
             registry_error = None
-        elif payload.get("success") and step_exists:
+        elif payload.get("success"):
             registry_status = "partial_success"
             registry_error = build_error_payload(
-                "GLB_EXPORT_INCOMPLETE",
-                "STEP export succeeded but the expected GLB artifact was not found.",
-                details=payload,
+                "CAD_EXPORT_INCOMPLETE",
+                "CAD build succeeded but one or more expected artifacts were not found.",
+                details={
+                    "placeholder": payload,
+                    "power_filtered": filtered_payload,
+                    "glb_exists": glb_exists,
+                    "power_filtered_step_exists": filtered_step_exists,
+                    "real_cad_glb_exists": real_cad_glb_exists,
+                },
             )
         else:
             registry_status = "failed"
@@ -349,7 +400,7 @@ def main() -> None:
                 str(payload.get("error") or "FreeCAD CAD build failed."),
                 details=payload,
             )
-        logger.info("CAD build artifact status: status=%s step_exists=%s glb_exists=%s", registry_status, step_exists, glb_exists)
+        logger.info("CAD build artifact status: status=%s glb_exists=%s filtered_step_exists=%s real_cad_glb_exists=%s", registry_status, glb_exists, filtered_step_exists, real_cad_glb_exists)
 
         payload.update(
             {
@@ -359,6 +410,10 @@ def main() -> None:
                 "cad_agent_output_path": str(output_paths["cad_agent_output"]),
                 "comsol_coord_path": str(output_paths["comsol_coord"]),
                 "comsol_channels_input_path": str(output_paths["comsol_channels_input"]),
+                "power_filtered_output_path": (
+                    str(filtered_step_path) if filtered_step_path.exists() else None
+                ),
+                "power_filtered_output": filtered_payload,
                 "geometry_after_registry_path": str(output_dir / "geometry_after_registry.json"),
                 "geometry_after_geom_path": str(output_dir / "geometry_after.geom.json"),
                 "geometry_after_layout_topology_path": str(
@@ -367,14 +422,10 @@ def main() -> None:
                 "cad_agent_output": prepared["cad_agent_output"],
                 "real_cad_backend": args.real_cad_backend,
                 "real_cad_output_path": str(real_cad_step_path) if real_cad_step_path.exists() else None,
-                "real_cad_glb_path": (
-                    str(real_cad_step_path.with_suffix(".glb"))
-                    if real_cad_step_path.with_suffix(".glb").exists()
-                    else None
-                ),
+                "real_cad_glb_path": str(real_cad_glb_path) if real_cad_glb_path.exists() else None,
                 "real_cad_summary_path": (
-                    str(real_cad_step_path.with_suffix(".hybrid_summary.json"))
-                    if real_cad_step_path.with_suffix(".hybrid_summary.json").exists()
+                    str(output_dir / "geometry_after_real_cad.hybrid_summary.json")
+                    if (output_dir / "geometry_after_real_cad.hybrid_summary.json").exists()
                     else None
                 ),
                 "real_cad_output": real_cad_payload,
@@ -391,8 +442,8 @@ def main() -> None:
                 artifact_entry("real_bom", real_bom_path),
                 artifact_entry("layout_topology", layout_topology_path),
                 artifact_entry("geom", geom_path),
-                artifact_entry("step", step_path),
                 artifact_entry("glb", glb_path),
+                artifact_entry("power_filtered_step", output_paths["power_filtered_step"]),
                 artifact_entry("simulation_input", output_paths["simulation_input"]),
                 artifact_entry("cad_agent_output", output_paths["cad_agent_output"]),
                 artifact_entry("real_cad_step", output_paths["real_cad_step"]),

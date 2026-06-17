@@ -7,10 +7,15 @@ from codex_agents.local_io import write_json
 
 
 def select_geometry_step(layout_dir: Path, geometry_edit_dir: Path) -> Path:
+    after_step = geometry_edit_dir / "geometry_after_power_filtered.step"
+    if _has_complete_after_state(geometry_edit_dir, after_step):
+        return after_step
+
     after_step = geometry_edit_dir / "geometry_after.step"
     if not _has_complete_after_state(geometry_edit_dir, after_step):
         raise RuntimeError(
-            "simulation requires complete 01_cad after-state artifacts, including geometry_after.step"
+            "simulation requires complete 01_cad after-state artifacts, including "
+            "geometry_after_power_filtered.step or geometry_after.step"
         )
     return after_step
 

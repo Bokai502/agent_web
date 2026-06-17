@@ -19,7 +19,7 @@ def build_cad_stage_inputs(
     layout_topology_path: str | Path,
     geom_path: str | Path,
     output_dir: str | Path,
-    step_filename: str = "geometry_after.step",
+    step_filename: str = "geometry_after_power_filtered.step",
     grid_shape: tuple[int, int, int] = (32, 32, 32),
 ) -> dict[str, Any]:
     """Write non-FreeCAD CAD-stage artifacts and return build metadata."""
@@ -71,7 +71,10 @@ def build_cad_stage_inputs(
     bom_by_component = {
         item.get("component_id"): item for item in bom_items if isinstance(item, dict)
     }
-    placed_component_ids = [item["component_id"] for item in simulation_input["components"]]
+    placed_component_ids = [
+        str(placement.get("component_id")) for placement in layout_topology.get("placements") or []
+    ]
+    simulation_component_ids = [item["component_id"] for item in simulation_input["components"]]
     cad_agent_output = {
         "schema_version": "1.0",
         "status": "prepared",
@@ -95,6 +98,8 @@ def build_cad_stage_inputs(
             "placements": len(layout_topology.get("placements") or []),
             "geom_components": len(geom.get("components") or {}),
             "cad_components": len(placed_component_ids),
+            "simulation_components": len(simulation_component_ids),
+            "simulation_walls": len(simulation_input.get("walls", [])),
             "unplaced_bom_items": len(
                 [
                     item
@@ -113,6 +118,7 @@ def build_cad_stage_inputs(
         },
         "warnings": [
             "comsol_inputs/coord.txt and comsol_inputs/channels_input.npz are generated from axis-aligned geom bounding boxes.",
+            "simulation_input.json contains only components with power_W > 0 plus walls with power_W = 0.",
         ],
     }
     _write_json(cad_agent_output_path, cad_agent_output)
@@ -224,16 +230,24 @@ def build_simulation_input(
         entity.get("geometry_id"): entity for entity in geometry_registry.get("entities", [])
     }
     sim_components = []
+    skipped_components = []
     for placement in layout_topology.get("placements") or []:
         component_id = str(placement.get("component_id"))
         bom_item = bom_by_id.get(component_id, {})
         geom_component = geom_by_component.get(component_id, {})
         geometry = geometry_by_id.get(placement.get("geometry_id"), {})
         mount_face = _mount_face_by_id(bom_item, placement.get("component_mount_face_id"))
-        power = _float_value(
-            bom_item.get("power_W", geom_component.get("power", 0.0)),
-            default=0.0,
-        )
+        raw_power = bom_item.get("power_W", geom_component.get("power"))
+        power = _positive_power_or_none(raw_power)
+        if power is None:
+            skipped_components.append(
+                {
+                    "component_id": component_id,
+                    "reason": "power_W must be > 0",
+                    "power_W": raw_power,
+                }
+            )
+            continue
         sim_components.append(
             {
                 "component_id": component_id,
@@ -248,7 +262,7 @@ def build_simulation_input(
                 "component_mount_face": mount_face,
                 "mount_face_id": placement.get("mount_face_id"),
                 "alignment": placement.get("alignment") or {},
-                "is_heat_source": power > 0.0,
+                "is_heat_source": True,
                 "power_W": power,
                 "mass_kg": _float_value(
                     bom_item.get("mass_kg", geom_component.get("mass", 0.0)),
@@ -299,9 +313,12 @@ def build_simulation_input(
         "walls": [
             {
                 "wall_id": wall.get("wall_id"),
+                "component_id": wall.get("wall_id"),
                 "name": wall.get("name"),
                 "panel_id": wall.get("panel_id"),
                 "bbox": wall.get("bbox"),
+                "is_heat_source": False,
+                "power_W": 0.0,
                 "separates": wall.get("separates"),
                 "adjacent_cabins": wall.get("adjacent_cabins"),
                 "install_face_ids": wall.get("install_face_ids", []),
@@ -309,6 +326,7 @@ def build_simulation_input(
             }
             for wall in geometry_registry.get("walls", [])
         ],
+        "skipped_components": skipped_components,
         "cabins": [
             {
                 "cabin_id": cabin.get("id"),
@@ -532,6 +550,18 @@ def _float_value(value: Any, *, default: float) -> float:
     if math.isnan(parsed) or math.isinf(parsed):
         return default
     return parsed
+
+
+def _positive_power_or_none(value: Any) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        power = float(value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(power) or math.isinf(power) or power <= 0.0:
+        return None
+    return power
 
 
 def _grid_index(
