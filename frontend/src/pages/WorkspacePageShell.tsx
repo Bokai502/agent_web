@@ -574,6 +574,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
           hasModelPreview={hasModelPreview}
           logEntries={logEntries}
           onOpenExternalWindow={openExternalWindow}
+          onRefreshWorkspaceViews={refreshWorkspaceViews}
           onSelectBom={setSelectedBomId}
           selectedBom={selectedBom}
           selectedLog={selectedLog}

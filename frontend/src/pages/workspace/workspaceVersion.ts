@@ -96,6 +96,20 @@ export function isThermalCadWorkspace(context: WorkspaceIdentity) {
   return segments.some(segment => segment === "thermal" || segment === "thermal_catch")
 }
 
+export function usesCatchSupportingTable(context: WorkspaceIdentity) {
+  const segments = [
+    context.workspaceName,
+    context.workspaceId,
+    context.workspaceKey,
+    context.workspaceRoot,
+    context.manifestRoot,
+    context.sourceWorkspaceDir,
+    context.versionDir,
+  ].flatMap(getWorkspaceIdentitySegments)
+
+  return segments.some(segment => segment === "thermal" || segment === "thermal_catch")
+}
+
 export function resolveWorkspaceVersionContext({
   branchManifest,
   fallbackWorkspaceName,

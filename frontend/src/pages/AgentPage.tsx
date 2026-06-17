@@ -535,6 +535,7 @@ export default function AgentPage() {
           activeManifestVersion={activeManifestVersion}
           activeTool={activeTool}
           activeView={visibleActiveView}
+          apiBase={undefined}
           bomInfo={bomInfo}
           bomLoading={bomLoading}
           branchManifest={branchManifest}
@@ -556,6 +557,7 @@ export default function AgentPage() {
           setVersionListOpen={() => setVersionListOpen(open => !open)}
           setWorkspaceListOpen={() => setWorkspaceListOpen(open => !open)}
           requestDeleteVersion={requestDeleteVersion}
+          refreshWorkspaceViews={refreshWorkspaceViews}
           showGncConfig={showGncConfig}
           showComplianceCheckConfig={progressVariant === 'check'}
           showModelPreview={showModelPreview}

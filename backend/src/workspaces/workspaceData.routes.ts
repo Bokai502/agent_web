@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify"
 import fs from "fs/promises"
 import path from "path"
 import { spawn } from "child_process"
+import { fileURLToPath } from "url"
 import type { AppConfig } from "../config.js"
 import { isPathInside } from "../shared/index.js"
 import { resolveProgressFromLatestSessionRun } from "./workspaceRegistry.js"
@@ -13,6 +14,7 @@ import {
   resolveQueryWorkspaceDir,
   WorkspaceQueryError,
 } from "./workspaceQuery.js"
+import { resolveWorkspaceTemplateRoot } from "./workspacePaths.js"
 
 type WorkspaceQuery = {
   versionId?: string
@@ -91,6 +93,9 @@ type WorkspaceProgressData = {
 const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "geom_component_info.json")
 const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
+const CATCH_SUPPORTING_TABLE_RELATIVE_PATH = path.join("00_inputs", "CATCH整星配套表.xlsx")
+const LEGACY_CATCH_SUPPORTING_TABLE_TEMPLATE_RELATIVE_PATH = path.join("catch_task", "CATCH整星配套表.xlsx")
+const CATCH_SUPPORTING_TABLE_SCRIPT_RELATIVE_PATH = path.join("data", "input_data", "catch_task", "scripts", "catch_supporting_table_io.py")
 const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
 const AIGNC_PROGRESS_RELATIVE_PATH = path.join("AIGNC_Workflow", "loop_progress.json")
 const WORKSPACE_PROGRESS_RELATIVE_PATHS = [
@@ -156,7 +161,12 @@ type ThermalDbIndex = {
   sourcePath: string
 }
 
+type CatchSupportingTableBody = {
+  rows?: unknown
+}
+
 let thermalDbIndexPromise: Promise<ThermalDbIndex | null> | null = null
+const WORKSPACE_DATA_ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url))
 
 async function readWorkspaceProgress(progressPath: string): Promise<WorkspaceProgressData | null> {
   const raw = await fs.readFile(progressPath, "utf-8").catch(() => null)
@@ -514,6 +524,103 @@ function temperatureColor(temperature: number, tempMin: number, tempMax: number)
 
 function isRecord(value: unknown): value is JsonRecord {
   return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
+function resolveRepoRoot() {
+  return path.resolve(WORKSPACE_DATA_ROUTES_DIR, "..", "..", "..")
+}
+
+function resolveCatchSupportingTableScript() {
+  return path.join(resolveRepoRoot(), CATCH_SUPPORTING_TABLE_SCRIPT_RELATIVE_PATH)
+}
+
+function normalizeCatchSupportingRows(value: unknown) {
+  if (!Array.isArray(value)) {
+    throw new WorkspaceQueryError("rows array is required", 400)
+  }
+  return value.map(row => {
+    if (!isRecord(row)) throw new WorkspaceQueryError("each row must be an object", 400)
+    return row
+  })
+}
+
+async function firstExistingFile(paths: string[]) {
+  for (const filePath of paths) {
+    const stat = await fs.stat(filePath).catch(() => null)
+    if (stat?.isFile()) return filePath
+  }
+  return null
+}
+
+async function runPythonJson(scriptPath: string, args: string[]) {
+  return new Promise<JsonRecord>((resolve, reject) => {
+    let settled = false
+    const child = spawn("python", [scriptPath, ...args], {
+      cwd: resolveRepoRoot(),
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+    const timeout = setTimeout(() => {
+      if (settled) return
+      settled = true
+      child.kill("SIGKILL")
+      reject(new WorkspaceQueryError("python helper timed out while refreshing CATCH 00_inputs", 504))
+    }, 30_000)
+    let stdout = ""
+    let stderr = ""
+    child.stdout.on("data", chunk => { stdout += String(chunk) })
+    child.stderr.on("data", chunk => { stderr += String(chunk) })
+    child.on("error", err => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      reject(err)
+    })
+    child.on("close", code => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      if (code !== 0) {
+        reject(new WorkspaceQueryError(stderr.trim() || `python exited with code ${code}`, 500))
+        return
+      }
+      try {
+        const parsed = JSON.parse(stdout) as unknown
+        if (!isRecord(parsed)) throw new Error("python output is not an object")
+        resolve(parsed)
+      } catch (err) {
+        reject(err)
+      }
+    })
+  })
+}
+
+async function ensureCatchSupportingTable(workspaceDir: string, config: AppConfig) {
+  const tablePath = path.join(workspaceDir, CATCH_SUPPORTING_TABLE_RELATIVE_PATH)
+  const existing = await fs.stat(tablePath).catch(() => null)
+  if (existing?.isFile()) return tablePath
+
+  const templateRoot = resolveWorkspaceTemplateRoot(config)
+  const workspaceRoot = path.basename(path.dirname(workspaceDir)) === "versions"
+    ? path.dirname(path.dirname(workspaceDir))
+    : workspaceDir
+  const workspaceTemplateName = path.basename(workspaceRoot).replace(/^ws_/u, "")
+  const candidateTemplates = [
+    path.join(templateRoot, workspaceTemplateName, CATCH_SUPPORTING_TABLE_RELATIVE_PATH),
+    path.join(templateRoot, "thermal_catch", CATCH_SUPPORTING_TABLE_RELATIVE_PATH),
+    path.join(templateRoot, "thermal", CATCH_SUPPORTING_TABLE_RELATIVE_PATH),
+    path.join(templateRoot, LEGACY_CATCH_SUPPORTING_TABLE_TEMPLATE_RELATIVE_PATH),
+    path.join(resolveRepoRoot(), "data", "input_data", workspaceTemplateName, CATCH_SUPPORTING_TABLE_RELATIVE_PATH),
+    path.join(resolveRepoRoot(), "data", "input_data", "thermal_catch", CATCH_SUPPORTING_TABLE_RELATIVE_PATH),
+    path.join(resolveRepoRoot(), "data", "input_data", "thermal", CATCH_SUPPORTING_TABLE_RELATIVE_PATH),
+    path.join(resolveRepoRoot(), "data", "input_data", LEGACY_CATCH_SUPPORTING_TABLE_TEMPLATE_RELATIVE_PATH),
+  ]
+  const sourcePath = await firstExistingFile(candidateTemplates)
+  if (!sourcePath) {
+    throw new WorkspaceQueryError("CATCH supporting table template not found under input_data/*/00_inputs", 500)
+  }
+  await fs.mkdir(path.dirname(tablePath), { recursive: true })
+  await fs.copyFile(sourcePath, tablePath)
+  return tablePath
 }
 
 function normalizeComplianceCheckCompletenessPayload(value: unknown) {
@@ -1436,6 +1543,49 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
       })
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to resolve BOM data")
+    }
+  })
+
+  fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/catch-supporting-table", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      const tablePath = await ensureCatchSupportingTable(workspaceDir, config)
+      const scriptPath = resolveCatchSupportingTableScript()
+      const payload = await runPythonJson(scriptPath, ["read", tablePath])
+      const stat = await fs.stat(tablePath)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send({
+        ...payload,
+        source_path: tablePath,
+        source_version: [tablePath, stat.mtimeMs, stat.size].join(":"),
+      })
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to read CATCH supporting table")
+    }
+  })
+
+  fastify.put<{ Body: CatchSupportingTableBody; Querystring: WorkspaceQuery }>("/api/workspace/catch-supporting-table", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      const rows = normalizeCatchSupportingRows(req.body?.rows)
+      const tablePath = await ensureCatchSupportingTable(workspaceDir, config)
+      const scriptPath = resolveCatchSupportingTableScript()
+      const payload = await runPythonJson(scriptPath, [
+        "write-refresh",
+        tablePath,
+        path.join(workspaceDir, "00_inputs"),
+        "--rows-json",
+        JSON.stringify(rows),
+      ])
+      const stat = await fs.stat(tablePath)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send({
+        ...payload,
+        source_path: tablePath,
+        source_version: [tablePath, stat.mtimeMs, stat.size].join(":"),
+      })
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to save CATCH supporting table")
     }
   })
 

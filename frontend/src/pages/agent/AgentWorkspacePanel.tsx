@@ -3,8 +3,10 @@ import type { TFunction } from 'i18next'
 import { GncConfigEditor } from '../../../gnc_config/GncConfigEditor'
 import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
+import { CatchSupportingTableEditor } from '../workspace/CatchSupportingTableEditor'
 import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
 import { GncDashboardPanel } from '../workspace/GncDashboardPanel'
+import { usesCatchSupportingTable } from '../workspace/workspaceVersion'
 import { ComplianceCheckInputConfigEditor } from './ComplianceCheckInputConfigEditor'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
@@ -23,6 +25,7 @@ type AgentWorkspacePanelProps = {
   activeManifestVersion: CurrentWorkspaceCardProps['activeManifestVersion']
   activeTool: AgentToolView
   activeView: AgentWorkspaceView | null
+  apiBase?: string
   bomInfo: BomStagePanelProps['bomInfo']
   bomLoading: boolean
   branchManifest: CurrentWorkspaceCardProps['branchManifest']
@@ -44,6 +47,7 @@ type AgentWorkspacePanelProps = {
   setVersionListOpen: CurrentWorkspaceCardProps['onToggleVersionList']
   setWorkspaceListOpen: CurrentWorkspaceCardProps['onToggleWorkspaceList']
   requestDeleteVersion: CurrentWorkspaceCardProps['onRequestDeleteVersion']
+  refreshWorkspaceViews?: () => void
   showComplianceCheckConfig: boolean
   showGncConfig: boolean
   showModelPreview: boolean
@@ -77,6 +81,7 @@ export function AgentWorkspacePanel({
   activeManifestVersion,
   activeTool,
   activeView,
+  apiBase,
   bomInfo,
   bomLoading,
   branchManifest,
@@ -98,6 +103,7 @@ export function AgentWorkspacePanel({
   setVersionListOpen,
   setWorkspaceListOpen,
   requestDeleteVersion,
+  refreshWorkspaceViews,
   showComplianceCheckConfig,
   showGncConfig,
   showModelPreview,
@@ -215,6 +221,12 @@ export function AgentWorkspacePanel({
           <ComplianceCheckInputConfigEditor activeContext={activeContext} />
         ) : activeView === 'bom' && showGncConfig ? (
           <GncConfigEditor activeContext={activeContext} />
+        ) : activeView === 'bom' && usesCatchSupportingTable(activeContext) ? (
+          <CatchSupportingTableEditor
+            activeContext={activeContext}
+            apiBase={apiBase}
+            onSaved={refreshWorkspaceViews}
+          />
         ) : activeView === 'bom' ? (
           <BomStagePanel
             bomInfo={bomInfo}
