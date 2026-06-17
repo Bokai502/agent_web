@@ -52,8 +52,8 @@ python -m freecad_cli_tools.cli.main cad build \
 ```
 
 Use `--real-cad-backend none` only when the user explicitly asks to skip the
-supplemental real-CAD export. Use `--real-cad-backend static` only to debug the
-direct real-CAD assembly without App::Link replacement.
+supplemental real-CAD export. Real-CAD generation must otherwise use
+`--real-cad-backend hybrid-link`.
 
 Use explicit `--real-bom`, `--layout-topology`, `--geom`, `--input-dir`, or
 `--output-dir` only when intentionally overriding individual files or

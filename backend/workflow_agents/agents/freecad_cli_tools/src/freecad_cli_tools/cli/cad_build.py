@@ -64,14 +64,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-fit-view", action="store_true", help="Skip GUI fit/view adjustment.")
     parser.add_argument(
         "--real-cad-backend",
-        choices=("hybrid-link", "static", "none"),
+        choices=("hybrid-link", "none"),
         default="hybrid-link",
         help=(
             "Supplemental real-CAD assembly backend. The standard geometry_after.glb "
             "placeholder assembly is kept for frontend display, and "
             "geometry_after_power_filtered.step is kept for downstream thermal simulation. "
             "'hybrid-link' uses the hybrid App::Link component-node low-complexity GLB exporter. "
-            "'static' is accepted as a deprecated alias for the same low-complexity exporter. "
             "'none' disables the supplemental real-CAD export."
         ),
     )
@@ -325,6 +324,35 @@ def main() -> None:
                 stage_input_data(real_cad_normalized, staged_input_path)
                 stage_output_dir(staged_output_path)
 
+            real_cad_doc_code = render_rpc_script(
+                "assembly_from_component_info.py",
+                {
+                    "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
+                    "__WALL_HELPERS__": WALL_HELPERS,
+                    "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
+                    "__DOC_NAME__": json.dumps(real_cad_doc_name),
+                    "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_output_path)),
+                    "__EXPORT_STEP__": "False",
+                    "__EXPORT_GLB__": "False",
+                    "__FIT_VIEW__": "False" if args.no_fit_view else "True",
+                    "__VIEW_NAME__": json.dumps(args.view),
+                },
+            )
+            with pipeline_step("cad_real_cad_document_build"):
+                logger.info(
+                    "building supplemental real-CAD document before hybrid export: host=%s port=%s",
+                    args.host,
+                    args.port,
+                )
+                real_cad_doc_payload = execute_script_payload(args.host, args.port, real_cad_doc_code)
+                logger.info(
+                    "Supplemental real-CAD document build returned: success=%s error=%s",
+                    real_cad_doc_payload.get("success"),
+                    real_cad_doc_payload.get("error"),
+                )
+            if not real_cad_doc_payload.get("success"):
+                raise RuntimeError(real_cad_doc_payload.get("error") or "Supplemental real-CAD document build failed.")
+
             real_cad_code = render_rpc_script(
                 "export_component_info_hybrid_link.py",
                 {
@@ -337,13 +365,15 @@ def main() -> None:
             )
             with pipeline_step("cad_real_cad_hybrid_export"):
                 logger.info(
-                    "executing supplemental real-CAD hybrid App::Link low-complexity export: host=%s port=%s step=%s glb=%s",
+                    "executing supplemental real-CAD hybrid App::Link component-node low-complexity export: host=%s port=%s step=%s glb=%s",
                     args.host,
                     args.port,
                     real_cad_step_path,
                     real_cad_glb_path,
                 )
                 real_cad_payload = execute_script_payload(args.host, args.port, real_cad_code)
+                if isinstance(real_cad_payload, dict):
+                    real_cad_payload["document_build"] = real_cad_doc_payload
                 logger.info(
                     "Supplemental real-CAD hybrid export returned: success=%s error=%s",
                     real_cad_payload.get("success"),

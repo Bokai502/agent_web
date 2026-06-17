@@ -138,7 +138,7 @@ let workspaceFileLimits = {
   filePreviewMaxBytes: 1024 * 1024,
   textChunkBytes: 512 * 1024,
   textChunkMaxBytes: 1024 * 1024,
-  textFileMaxBytes: 8 * 1024 * 1024,
+  textFileMaxBytes: 64 * 1024 * 1024,
 }
 
 type TemperaturePoint = {

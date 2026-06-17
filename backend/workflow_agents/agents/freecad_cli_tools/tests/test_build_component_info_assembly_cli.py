@@ -57,10 +57,10 @@ def test_main_stages_runtime_files_and_rewrites_export_paths(
     def fake_render(script_name: str, replacements: dict) -> str:
         captured["script_name"] = script_name
         captured["replacements"] = replacements
-        return "rendered-code"
+        return script_name
 
     def fake_execute_script_payload(host: str, port: int, code: str) -> dict:
-        assert code == "rendered-code"
+        assert code in {"assembly_from_component_info.py", "export_component_info_hybrid_link.py"}
         staged_output = Path(json.loads(captured["replacements"]["__SAVE_PATH__"]))
         staged_output.parent.mkdir(parents=True, exist_ok=True)
         staged_output.write_text("step-data", encoding="utf-8")
@@ -122,7 +122,7 @@ def test_main_stages_runtime_files_and_rewrites_export_paths(
 
     build_component_info_assembly.main()
 
-    assert captured["script_name"] == "assembly_from_component_info.py"
+    assert captured["script_name"] == "export_component_info_hybrid_link.py"
     staged_input = Path(json.loads(captured["replacements"]["__INPUT_PATH__"]))
     normalized = json.loads(staged_input.read_text(encoding="utf-8"))
     assert normalized["components"]["P001"]["placement"]["mount_face_id"] == "outer.zmin_outer"
@@ -141,7 +141,7 @@ def test_main_allows_output_at_staged_export_path(monkeypatch, tmp_path: Path, c
 
     def fake_render(script_name: str, replacements: dict) -> str:
         captured["replacements"] = replacements
-        return "rendered-code"
+        return script_name
 
     def fake_execute_script_payload(host: str, port: int, code: str) -> dict:
         staged_output = Path(json.loads(captured["replacements"]["__SAVE_PATH__"]))
@@ -213,7 +213,7 @@ def test_main_uses_runtime_default_step_size_limit(monkeypatch, tmp_path: Path, 
     def fake_render(script_name: str, replacements: dict) -> str:
         captured["script_name"] = script_name
         captured["replacements"] = replacements
-        return "rendered-code"
+        return script_name
 
     def fake_execute_script_payload(host: str, port: int, code: str) -> dict:
         staged_output = Path(json.loads(captured["replacements"]["__SAVE_PATH__"]))
@@ -280,7 +280,7 @@ def test_main_accepts_explicit_workspace_without_environment(
 
     def fake_render(script_name: str, replacements: dict) -> str:
         captured["replacements"] = replacements
-        return "rendered-code"
+        return script_name
 
     def fake_execute_script_payload(host: str, port: int, code: str) -> dict:
         staged_output = Path(json.loads(captured["replacements"]["__SAVE_PATH__"]))
@@ -342,7 +342,7 @@ def test_main_allows_explicit_input_paths_when_workspace_defaults_are_missing(
 
     def fake_render(script_name: str, replacements: dict) -> str:
         captured["replacements"] = replacements
-        return "rendered-code"
+        return script_name
 
     def fake_execute_script_payload(host: str, port: int, code: str) -> dict:
         staged_output = Path(json.loads(captured["replacements"]["__SAVE_PATH__"]))

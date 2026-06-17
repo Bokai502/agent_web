@@ -450,7 +450,7 @@ export function loadConfig(): AppConfig {
       textFileMaxBytes: positiveInteger(
         process.env.WORKSPACE_TEXT_FILE_MAX_BYTES ?? workspace.textFileMaxBytes,
         "workspace.textFileMaxBytes",
-        8 * 1024 * 1024,
+        64 * 1024 * 1024,
       ),
       templateDir: optionalString(workspace.templateDir, "workspace.templateDir"),
       usersRoot: optionalString(workspace.usersRoot, "workspace.usersRoot"),
