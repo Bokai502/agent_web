@@ -4,1055 +4,1030 @@
     "length": "mm"
   },
   "meta": {
-    "backend": "template_replace",
-    "coordinate_system": "template_global_xyz_mm",
-    "origin_normalization": {
-      "applied": true,
-      "offset_subtracted": [
-        600.0,
-        600.0,
-        535.0552865000001
+    "backend": "catch_step_decomposition",
+    "coordinate_system": "catch01_sl_global_xyz_mm",
+    "note": "Flow geometry uses CATCH panel global positions. Panel-level install faces are named <panel_id>.<face>_<inner|outer> so freecad_cli_tools can still parse the standard face suffix while preserving per-panel plane data.",
+    "geometry_source": "catch01_sl_panel_visual_checks + catch_task/00_inputs/catch_box.json",
+    "body_box": {
+      "bbox": {
+        "min": [
+          -173.04011831591671,
+          -283.000128463272,
+          -160.05674682269327
+        ],
+        "max": [
+          170.05674682268437,
+          283.0319509517643,
+          169.78089174726432
+        ]
+      },
+      "size_mm": [
+        343.09686513860106,
+        566.0320794150364,
+        329.83763856995756
       ],
-      "reference": "geom.outer_shell.outer_bbox.center",
-      "note": "World geometry coordinates were translated so the envelope center is at [0, 0, 0]."
-    },
-    "shell_body_bbox_adjustment": {
-      "applied": true,
-      "reason": "Treat top cameras as external components mounted on the box top, not part of the envelope body height.",
-      "top_external_component_bottom_z": 349.94249049999996,
-      "outer_bbox_max_z": 349.94249049999996,
-      "inner_bbox_max_z": 347.94249049999996,
-      "camera_component_ids": [
-        "P005",
-        "P006",
-        "P007",
-        "P008"
-      ]
-    },
-    "body_recenter_workaround": {
-      "applied": true,
-      "offset_subtracted": [
-        0.0,
-        0.0,
-        -95.34198000000004
+      "center_mm": [
+        -1.4916857466161701,
+        0.015911244246154865,
+        4.862072462285525
       ],
-      "reason": "Recenter box-body outer_bbox at the origin for CAD build code that centers envelope by size."
+      "description": "Union of structural panel bboxes; external appendages are not included."
+    },
+    "whole_box": {
+      "bbox": {
+        "min": [
+          -321.0936353324423,
+          -356.9429391854993,
+          -235.19293918549926
+        ],
+        "max": [
+          326.29322729879925,
+          372.19195724511127,
+          252.19293918522538
+        ]
+      },
+      "size_mm": [
+        647.3868626312416,
+        729.1348964306105,
+        487.38587837072464
+      ],
+      "center_mm": [
+        2.599795983178467,
+        7.624509029805978,
+        8.499999999863064
+      ],
+      "description": "Whole source decomposition bbox including external appendages."
+    },
+    "validation": {
+      "bbox_overlap_policy": "warn",
+      "mount_contact_policy": "warn",
+      "mount_footprint_policy": "warn",
+      "face_occupancy_policy": "warn",
+      "reason": "CATCH panel inputs preserve original STEP-decomposition axis-aligned bboxes. Several components are multi-body assemblies or panel-context groups, so AABB overlap, exact single-plane contact, and summed panel footprint occupancy are advisory checks; component target bboxes remain authoritative for CAD placement."
     }
   },
   "outer_shell": {
-    "id": "template_outer_shell",
+    "id": "catch_outer_shell",
     "outer_bbox": {
       "min": [
-        -605.111353,
-        -605.111353,
-        -445.2844705
+        -173.04011831591671,
+        -283.000128463272,
+        -160.05674682269327
       ],
       "max": [
-        605.111353,
-        605.111353,
-        472.28669349999996
+        170.05674682268437,
+        283.0319509517643,
+        169.78089174726432
       ]
     },
     "inner_bbox": {
       "min": [
-        -603.111353,
-        -603.111353,
-        -443.2844705
+        -159.99464064479136,
+        -274.999871536742,
+        -149.94325317731676
       ],
       "max": [
-        603.111353,
-        603.111353,
-        470.28669349999996
+        159.9999651222205,
+        274.99987153674533,
+        159.96804904823563
       ]
     },
-    "thickness": 2.0
+    "thickness": 10
   },
   "cabins": [
     {
-      "id": "template_cabin",
-      "parent": "template_outer_shell",
-      "role": "fixed_template_volume"
+      "id": "catch_cabin_yneg",
+      "parent": "catch_outer_shell",
+      "role": "catch_bus_volume_segment",
+      "axis": 1,
+      "range_mm": [
+        -283.0319509517643,
+        -123.301462255115
+      ],
+      "bbox": {
+        "min": [
+          -173.04011831591671,
+          -283.0319509517643,
+          -160.05674682269327
+        ],
+        "max": [
+          170.05674682268437,
+          -123.301462255115,
+          169.78089174726432
+        ]
+      }
+    },
+    {
+      "id": "catch_cabin_mid",
+      "parent": "catch_outer_shell",
+      "role": "catch_bus_volume_segment",
+      "axis": 1,
+      "range_mm": [
+        -112.421284780085,
+        112.48498719580958
+      ],
+      "bbox": {
+        "min": [
+          -173.04011831591671,
+          -112.421284780085,
+          -160.05674682269327
+        ],
+        "max": [
+          170.05674682268437,
+          112.48498719580958,
+          169.78089174726432
+        ]
+      }
+    },
+    {
+      "id": "catch_cabin_ypos",
+      "parent": "catch_outer_shell",
+      "role": "catch_bus_volume_segment",
+      "axis": 1,
+      "range_mm": [
+        122.84005702039042,
+        283.0319509517643
+      ],
+      "bbox": {
+        "min": [
+          -173.04011831591671,
+          122.84005702039042,
+          -160.05674682269327
+        ],
+        "max": [
+          170.05674682268437,
+          283.0319509517643,
+          169.78089174726432
+        ]
+      }
     }
   ],
   "install_faces": {
-    "template_outer_shell.xmin": {
-      "id": "template_outer_shell.xmin",
-      "owner_id": "template_outer_shell",
+    "01_DIBAN_BJ.zmin_outer": {
+      "id": "01_DIBAN_BJ.zmin_outer",
+      "owner_id": "01_DIBAN_BJ",
       "side": "outer",
-      "face_role": "template_mount",
-      "plane_axis": 0,
-      "plane_value": -600.111353,
-      "normal_sign": -1,
-      "belongs_to": "outer_shell",
-      "cabin_face_tag": "xmin",
-      "center_xyz": [
-        -600.111353,
-        0.0,
-        13.501111499999979
-      ],
-      "extents_xyz": [
-        0.0,
-        1210.222706,
-        917.571164
-      ],
-      "bbox_2d": [
-        -605.111353,
-        605.111353,
-        -445.2844705,
-        472.28669349999996
-      ]
-    },
-    "template_outer_shell.xmax": {
-      "id": "template_outer_shell.xmax",
-      "owner_id": "template_outer_shell",
-      "side": "outer",
-      "face_role": "template_mount",
-      "plane_axis": 0,
-      "plane_value": 600.111353,
-      "normal_sign": 1,
-      "belongs_to": "outer_shell",
-      "cabin_face_tag": "xmax",
-      "center_xyz": [
-        600.111353,
-        0.0,
-        13.501111499999979
-      ],
-      "extents_xyz": [
-        0.0,
-        1210.222706,
-        917.571164
-      ],
-      "bbox_2d": [
-        -605.111353,
-        605.111353,
-        -445.2844705,
-        472.28669349999996
-      ]
-    },
-    "template_outer_shell.ymin": {
-      "id": "template_outer_shell.ymin",
-      "owner_id": "template_outer_shell",
-      "side": "outer",
-      "face_role": "template_mount",
-      "plane_axis": 1,
-      "plane_value": -600.111353,
-      "normal_sign": -1,
-      "belongs_to": "outer_shell",
-      "cabin_face_tag": "ymin",
-      "center_xyz": [
-        0.0,
-        -600.111353,
-        13.501111499999979
-      ],
-      "extents_xyz": [
-        1210.222706,
-        0.0,
-        917.571164
-      ],
-      "bbox_2d": [
-        -605.111353,
-        605.111353,
-        -445.2844705,
-        472.28669349999996
-      ]
-    },
-    "template_outer_shell.ymax": {
-      "id": "template_outer_shell.ymax",
-      "owner_id": "template_outer_shell",
-      "side": "outer",
-      "face_role": "template_mount",
-      "plane_axis": 1,
-      "plane_value": 600.111353,
-      "normal_sign": 1,
-      "belongs_to": "outer_shell",
-      "cabin_face_tag": "ymax",
-      "center_xyz": [
-        0.0,
-        600.111353,
-        13.501111499999979
-      ],
-      "extents_xyz": [
-        1210.222706,
-        0.0,
-        917.571164
-      ],
-      "bbox_2d": [
-        -605.111353,
-        605.111353,
-        -445.2844705,
-        472.28669349999996
-      ]
-    },
-    "template_outer_shell.zmin": {
-      "id": "template_outer_shell.zmin",
-      "owner_id": "template_outer_shell",
-      "side": "outer",
-      "face_role": "template_mount",
+      "face_role": "catch_panel_mount",
       "plane_axis": 2,
-      "plane_value": -440.2844705,
+      "plane_value": -160.05674682269327,
       "normal_sign": -1,
-      "belongs_to": "outer_shell",
+      "belongs_to": "01_DIBAN_BJ",
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
       "cabin_face_tag": "zmin",
       "center_xyz": [
-        0.0,
-        0.0,
-        -440.2844705
+        5.684341886080801e-13,
+        0,
+        -160.05674682269327
       ],
       "extents_xyz": [
-        1210.222706,
-        1210.222706,
-        0.0
+        340.1134936453676,
+        550.1134936453665,
+        0
       ],
       "bbox_2d": [
-        -605.111353,
-        605.111353,
-        -605.111353,
-        605.111353
-      ]
-    },
-    "template_outer_shell.zmax": {
-      "id": "template_outer_shell.zmax",
-      "owner_id": "template_outer_shell",
-      "side": "outer",
-      "face_role": "template_mount",
-      "plane_axis": 2,
-      "plane_value": 472.28669349999996,
-      "normal_sign": 1,
-      "belongs_to": "outer_shell",
-      "cabin_face_tag": "zmax",
-      "center_xyz": [
-        0.0,
-        0.0,
-        472.28669349999996
+        -170.05674682268324,
+        170.05674682268437,
+        -275.05674682268324,
+        275.05674682268324
       ],
-      "extents_xyz": [
-        1210.222706,
-        1210.222706,
-        0.0
-      ],
-      "bbox_2d": [
-        -605.111353,
-        605.111353,
-        -605.111353,
-        605.111353
-      ]
+      "panel_owner_id": "01_DIBAN_BJ"
     },
-    "template_outer_shell.zmax_inner": {
-      "id": "template_outer_shell.zmax_inner",
-      "owner_id": "template_outer_shell",
+    "01_DIBAN_BJ.zmax_inner": {
+      "id": "01_DIBAN_BJ.zmax_inner",
+      "owner_id": "01_DIBAN_BJ",
       "side": "inner",
-      "face_role": "template_mount",
+      "face_role": "catch_panel_mount",
       "plane_axis": 2,
-      "plane_value": 470.28669349999996,
+      "plane_value": -149.94325317731676,
       "normal_sign": 1,
-      "belongs_to": "outer_shell",
-      "cabin_face_tag": "zmax_inner",
-      "center_xyz": [
-        0.0,
-        0.0,
-        470.28669349999996
-      ],
-      "extents_xyz": [
-        1206.222706,
-        1206.222706,
-        0.0
-      ],
-      "bbox_2d": [
-        -603.111353,
-        603.111353,
-        -603.111353,
-        603.111353
-      ]
-    },
-    "template_outer_shell.zmax_outer": {
-      "id": "template_outer_shell.zmax_outer",
-      "owner_id": "template_outer_shell",
-      "side": "outer",
-      "face_role": "template_mount",
-      "plane_axis": 2,
-      "plane_value": 472.28669349999996,
-      "normal_sign": 1,
-      "belongs_to": "outer_shell",
+      "belongs_to": "panel",
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
       "cabin_face_tag": "zmax",
       "center_xyz": [
-        0.0,
-        0.0,
-        472.28669349999996
+        5.684341886080801e-13,
+        0,
+        -149.94325317731676
       ],
       "extents_xyz": [
-        1210.222706,
-        1210.222706,
-        0.0
+        340.1134936453676,
+        550.1134936453665,
+        0
       ],
       "bbox_2d": [
-        -605.111353,
-        605.111353,
-        -605.111353,
-        605.111353
+        -170.05674682268324,
+        170.05674682268437,
+        -275.05674682268324,
+        275.05674682268324
+      ]
+    },
+    "02_JIZHUNBAN_BJ.xmin_outer": {
+      "id": "02_JIZHUNBAN_BJ.xmin_outer",
+      "owner_id": "02_JIZHUNBAN_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": -173.04011831591671,
+      "normal_sign": -1,
+      "belongs_to": "02_JIZHUNBAN_BJ",
+      "panel_id": "02_JIZHUNBAN_BJ",
+      "panel_name": "JIZHUNBAN_BJ",
+      "cabin_face_tag": "xmin",
+      "center_xyz": [
+        -173.04011831591671,
+        0,
+        1.4210854715202004e-14
+      ],
+      "extents_xyz": [
+        0,
+        255.08023663183346,
+        320.0802366318335
+      ],
+      "bbox_2d": [
+        -127.54011831591673,
+        127.54011831591673,
+        -160.04011831591671,
+        160.04011831591674
+      ],
+      "panel_owner_id": "02_JIZHUNBAN_BJ"
+    },
+    "02_JIZHUNBAN_BJ.xmax_inner": {
+      "id": "02_JIZHUNBAN_BJ.xmax_inner",
+      "owner_id": "02_JIZHUNBAN_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": -159.95988168408329,
+      "normal_sign": 1,
+      "belongs_to": "panel",
+      "panel_id": "02_JIZHUNBAN_BJ",
+      "panel_name": "JIZHUNBAN_BJ",
+      "cabin_face_tag": "xmax",
+      "center_xyz": [
+        -159.95988168408329,
+        0,
+        1.4210854715202004e-14
+      ],
+      "extents_xyz": [
+        0,
+        255.08023663183346,
+        320.0802366318335
+      ],
+      "bbox_2d": [
+        -127.54011831591673,
+        127.54011831591673,
+        -160.04011831591671,
+        160.04011831591674
+      ]
+    },
+    "03_GB_ZY_BJ.ymin_outer": {
+      "id": "03_GB_ZY_BJ.ymin_outer",
+      "owner_id": "03_GB_ZY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": -123.301462255115,
+      "normal_sign": -1,
+      "belongs_to": "03_GB_ZY_BJ",
+      "panel_id": "03_GB_ZY_BJ",
+      "panel_name": "GB_ZY_BJ",
+      "cabin_face_tag": "ymin",
+      "center_xyz": [
+        0,
+        -123.301462255115,
+        -2.984279490192421e-13
+      ],
+      "extents_xyz": [
+        320.15743043982997,
+        0,
+        320.1574304398306
+      ],
+      "bbox_2d": [
+        -160.07871521991498,
+        160.07871521991498,
+        -160.07871521991558,
+        160.07871521991498
+      ],
+      "panel_owner_id": "03_GB_ZY_BJ"
+    },
+    "03_GB_ZY_BJ.ymax_inner": {
+      "id": "03_GB_ZY_BJ.ymax_inner",
+      "owner_id": "03_GB_ZY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": -112.421284780085,
+      "normal_sign": 1,
+      "belongs_to": "03_GB_ZY_BJ",
+      "panel_id": "03_GB_ZY_BJ",
+      "panel_name": "GB_ZY_BJ",
+      "cabin_face_tag": "ymax",
+      "center_xyz": [
+        0,
+        -112.421284780085,
+        -2.984279490192421e-13
+      ],
+      "extents_xyz": [
+        320.15743043982997,
+        0,
+        320.1574304398306
+      ],
+      "bbox_2d": [
+        -160.07871521991498,
+        160.07871521991498,
+        -160.07871521991558,
+        160.07871521991498
+      ]
+    },
+    "04_GB_FY_BJ.ymax_outer": {
+      "id": "04_GB_FY_BJ.ymax_outer",
+      "owner_id": "04_GB_FY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": 122.84005702039042,
+      "normal_sign": 1,
+      "belongs_to": "04_GB_FY_BJ",
+      "panel_id": "04_GB_FY_BJ",
+      "panel_name": "GB_FY_BJ",
+      "cabin_face_tag": "ymax",
+      "center_xyz": [
+        0,
+        122.84005702039042,
+        -2.984279490192421e-13
+      ],
+      "extents_xyz": [
+        320.0300256083808,
+        0,
+        320.0300256083814
+      ],
+      "bbox_2d": [
+        -160.0150128041904,
+        160.0150128041904,
+        -160.015012804191,
+        160.0150128041904
+      ],
+      "panel_owner_id": "04_GB_FY_BJ"
+    },
+    "04_GB_FY_BJ.ymin_inner": {
+      "id": "04_GB_FY_BJ.ymin_inner",
+      "owner_id": "04_GB_FY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": 112.48498719580958,
+      "normal_sign": -1,
+      "belongs_to": "04_GB_FY_BJ",
+      "panel_id": "04_GB_FY_BJ",
+      "panel_name": "GB_FY_BJ",
+      "cabin_face_tag": "ymin",
+      "center_xyz": [
+        0,
+        112.48498719580958,
+        -2.984279490192421e-13
+      ],
+      "extents_xyz": [
+        320.0300256083808,
+        0,
+        320.0300256083814
+      ],
+      "bbox_2d": [
+        -160.0150128041904,
+        160.0150128041904,
+        -160.015012804191,
+        160.0150128041904
+      ]
+    },
+    "05_CB_FX_BJ.xmax_outer": {
+      "id": "05_CB_FX_BJ.xmax_outer",
+      "owner_id": "05_CB_FX_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 170.00003487778454,
+      "normal_sign": 1,
+      "belongs_to": "05_CB_FX_BJ",
+      "panel_id": "05_CB_FX_BJ",
+      "panel_name": "CB_FX_BJ",
+      "cabin_face_tag": "xmax",
+      "center_xyz": [
+        170.00003487778454,
+        0,
+        0
+      ],
+      "extents_xyz": [
+        0,
+        255.000069755559,
+        320.000069755559
+      ],
+      "bbox_2d": [
+        -127.5000348777795,
+        127.5000348777795,
+        -160.0000348777795,
+        160.0000348777795
+      ],
+      "panel_owner_id": "05_CB_FX_BJ"
+    },
+    "05_CB_FX_BJ.xmin_inner": {
+      "id": "05_CB_FX_BJ.xmin_inner",
+      "owner_id": "05_CB_FX_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 159.9999651222205,
+      "normal_sign": -1,
+      "belongs_to": "panel",
+      "panel_id": "05_CB_FX_BJ",
+      "panel_name": "CB_FX_BJ",
+      "cabin_face_tag": "xmin",
+      "center_xyz": [
+        159.9999651222205,
+        0,
+        0
+      ],
+      "extents_xyz": [
+        0,
+        255.000069755559,
+        320.000069755559
+      ],
+      "bbox_2d": [
+        -127.5000348777795,
+        127.5000348777795,
+        -160.0000348777795,
+        160.0000348777795
+      ]
+    },
+    "06_CB_ZXFY_BJ.xmin_outer": {
+      "id": "06_CB_ZXFY_BJ.xmin_outer",
+      "owner_id": "06_CB_ZXFY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": -171.00535935520864,
+      "normal_sign": -1,
+      "belongs_to": "06_CB_ZXFY_BJ",
+      "panel_id": "06_CB_ZXFY_BJ",
+      "panel_name": "CB_ZXFY_BJ",
+      "cabin_face_tag": "xmin",
+      "center_xyz": [
+        -171.00535935520864,
+        201.25,
+        1.4210854715202004e-14
+      ],
+      "extents_xyz": [
+        0,
+        147.51071871041725,
+        320.01071871041734
+      ],
+      "bbox_2d": [
+        127.49464064479136,
+        275.0053593552086,
+        -160.00535935520864,
+        160.00535935520867
+      ],
+      "panel_owner_id": "06_CB_ZXFY_BJ"
+    },
+    "06_CB_ZXFY_BJ.xmax_inner": {
+      "id": "06_CB_ZXFY_BJ.xmax_inner",
+      "owner_id": "06_CB_ZXFY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": -159.99464064479136,
+      "normal_sign": 1,
+      "belongs_to": "panel",
+      "panel_id": "06_CB_ZXFY_BJ",
+      "panel_name": "CB_ZXFY_BJ",
+      "cabin_face_tag": "xmax",
+      "center_xyz": [
+        -159.99464064479136,
+        201.25,
+        1.4210854715202004e-14
+      ],
+      "extents_xyz": [
+        0,
+        147.51071871041725,
+        320.01071871041734
+      ],
+      "bbox_2d": [
+        127.49464064479136,
+        275.0053593552086,
+        -160.00535935520864,
+        160.00535935520867
+      ]
+    },
+    "07_CB_FXZY_BJ.xmax_outer": {
+      "id": "07_CB_FXZY_BJ.xmax_outer",
+      "owner_id": "07_CB_FXZY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 170.05674682268437,
+      "normal_sign": 1,
+      "belongs_to": "07_CB_FXZY_BJ",
+      "panel_id": "07_CB_FXZY_BJ",
+      "panel_name": "CB_FXZY_BJ",
+      "cabin_face_tag": "xmax",
+      "center_xyz": [
+        170.05674682268437,
+        -201.25,
+        0
+      ],
+      "extents_xyz": [
+        0,
+        147.50000020000002,
+        320.0000002
+      ],
+      "bbox_2d": [
+        -275.0000001,
+        -127.4999999,
+        -160.0000001,
+        160.0000001
+      ],
+      "panel_owner_id": "07_CB_FXZY_BJ"
+    },
+    "07_CB_FXZY_BJ.xmin_inner": {
+      "id": "07_CB_FXZY_BJ.xmin_inner",
+      "owner_id": "07_CB_FXZY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 159.9999999,
+      "normal_sign": -1,
+      "belongs_to": "panel",
+      "panel_id": "07_CB_FXZY_BJ",
+      "panel_name": "CB_FXZY_BJ",
+      "cabin_face_tag": "xmin",
+      "center_xyz": [
+        159.9999999,
+        -201.25,
+        0
+      ],
+      "extents_xyz": [
+        0,
+        147.50000020000002,
+        320.0000002
+      ],
+      "bbox_2d": [
+        -275.0000001,
+        -127.4999999,
+        -160.0000001,
+        160.0000001
+      ]
+    },
+    "08_CB_FXFY_BJ.xmax_outer": {
+      "id": "08_CB_FXFY_BJ.xmax_outer",
+      "owner_id": "08_CB_FXFY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 170.0000001,
+      "normal_sign": 1,
+      "belongs_to": "08_CB_FXFY_BJ",
+      "panel_id": "08_CB_FXFY_BJ",
+      "panel_name": "CB_FXFY_BJ",
+      "cabin_face_tag": "xmax",
+      "center_xyz": [
+        170.0000001,
+        201.25,
+        1.4210854715202004e-14
+      ],
+      "extents_xyz": [
+        0,
+        147.50000020000002,
+        320.00000020000004
+      ],
+      "bbox_2d": [
+        127.4999999,
+        275.0000001,
+        -160.0000001,
+        160.00000010000002
+      ],
+      "panel_owner_id": "08_CB_FXFY_BJ"
+    },
+    "08_CB_FXFY_BJ.xmin_inner": {
+      "id": "08_CB_FXFY_BJ.xmin_inner",
+      "owner_id": "08_CB_FXFY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 0,
+      "plane_value": 159.9999999,
+      "normal_sign": -1,
+      "belongs_to": "panel",
+      "panel_id": "08_CB_FXFY_BJ",
+      "panel_name": "CB_FXFY_BJ",
+      "cabin_face_tag": "xmin",
+      "center_xyz": [
+        159.9999999,
+        201.25,
+        1.4210854715202004e-14
+      ],
+      "extents_xyz": [
+        0,
+        147.50000020000002,
+        320.00000020000004
+      ],
+      "bbox_2d": [
+        127.4999999,
+        275.0000001,
+        -160.0000001,
+        160.00000010000002
+      ]
+    },
+    "09_CB_ZY_BJ.ymin_outer": {
+      "id": "09_CB_ZY_BJ.ymin_outer",
+      "owner_id": "09_CB_ZY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": -283.000128463272,
+      "normal_sign": -1,
+      "belongs_to": "09_CB_ZY_BJ",
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "cabin_face_tag": "ymin",
+      "center_xyz": [
+        0,
+        -283.000128463272,
+        -5
+      ],
+      "extents_xyz": [
+        340.000256926513,
+        0,
+        330.000256926513
+      ],
+      "bbox_2d": [
+        -170.0001284632565,
+        170.0001284632565,
+        -170.0001284632565,
+        160.0001284632565
+      ],
+      "panel_owner_id": "09_CB_ZY_BJ"
+    },
+    "09_CB_ZY_BJ.ymax_inner": {
+      "id": "09_CB_ZY_BJ.ymax_inner",
+      "owner_id": "09_CB_ZY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": -274.999871536742,
+      "normal_sign": 1,
+      "belongs_to": "panel",
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "cabin_face_tag": "ymax",
+      "center_xyz": [
+        0,
+        -274.999871536742,
+        -5
+      ],
+      "extents_xyz": [
+        340.000256926513,
+        0,
+        330.000256926513
+      ],
+      "bbox_2d": [
+        -170.0001284632565,
+        170.0001284632565,
+        -170.0001284632565,
+        160.0001284632565
+      ]
+    },
+    "10_CB_FY_BJ.ymax_outer": {
+      "id": "10_CB_FY_BJ.ymax_outer",
+      "owner_id": "10_CB_FY_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": 283.0319509517643,
+      "normal_sign": 1,
+      "belongs_to": "10_CB_FY_BJ",
+      "panel_id": "10_CB_FY_BJ",
+      "panel_name": "CB_FY_BJ",
+      "cabin_face_tag": "ymax",
+      "center_xyz": [
+        1.4210854715202004e-14,
+        283.0319509517643,
+        -5
+      ],
+      "extents_xyz": [
+        340.00025692650934,
+        0,
+        330.00025692650934
+      ],
+      "bbox_2d": [
+        -170.00012846325467,
+        170.0001284632547,
+        -170.00012846325467,
+        160.00012846325467
+      ],
+      "panel_owner_id": "10_CB_FY_BJ"
+    },
+    "10_CB_FY_BJ.ymin_inner": {
+      "id": "10_CB_FY_BJ.ymin_inner",
+      "owner_id": "10_CB_FY_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 1,
+      "plane_value": 274.99987153674533,
+      "normal_sign": -1,
+      "belongs_to": "panel",
+      "panel_id": "10_CB_FY_BJ",
+      "panel_name": "CB_FY_BJ",
+      "cabin_face_tag": "ymin",
+      "center_xyz": [
+        1.4210854715202004e-14,
+        274.99987153674533,
+        -5
+      ],
+      "extents_xyz": [
+        340.00025692650934,
+        0,
+        330.00025692650934
+      ],
+      "bbox_2d": [
+        -170.00012846325467,
+        170.0001284632547,
+        -170.00012846325467,
+        160.00012846325467
+      ]
+    },
+    "11_DINGBAN_BJ.zmax_outer": {
+      "id": "11_DINGBAN_BJ.zmax_outer",
+      "owner_id": "11_DINGBAN_BJ",
+      "side": "outer",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 2,
+      "plane_value": 169.78089174726432,
+      "normal_sign": 1,
+      "belongs_to": "11_DINGBAN_BJ",
+      "panel_id": "11_DINGBAN_BJ",
+      "panel_name": "DINGBAN_BJ",
+      "cabin_face_tag": "zmax",
+      "center_xyz": [
+        0,
+        0,
+        169.78089174726432
+      ],
+      "extents_xyz": [
+        340.06390190352863,
+        566.0639019035286,
+        0
+      ],
+      "bbox_2d": [
+        -170.03195095176432,
+        170.03195095176432,
+        -283.0319509517643,
+        283.0319509517643
+      ],
+      "panel_owner_id": "11_DINGBAN_BJ"
+    },
+    "11_DINGBAN_BJ.zmin_inner": {
+      "id": "11_DINGBAN_BJ.zmin_inner",
+      "owner_id": "11_DINGBAN_BJ",
+      "side": "inner",
+      "face_role": "catch_panel_mount",
+      "plane_axis": 2,
+      "plane_value": 159.96804904823563,
+      "normal_sign": -1,
+      "belongs_to": "panel",
+      "panel_id": "11_DINGBAN_BJ",
+      "panel_name": "DINGBAN_BJ",
+      "cabin_face_tag": "zmin",
+      "center_xyz": [
+        0,
+        0,
+        159.96804904823563
+      ],
+      "extents_xyz": [
+        340.06390190352863,
+        566.0639019035286,
+        0
+      ],
+      "bbox_2d": [
+        -170.03195095176432,
+        170.03195095176432,
+        -283.0319509517643,
+        283.0319509517643
+      ]
+    },
+    "catch_outer_shell.xmin_outer": {
+      "id": "catch_outer_shell.xmin_outer",
+      "owner_id": "catch_outer_shell",
+      "side": "outer",
+      "face_role": "outer_shell_radiation",
+      "plane_axis": 0,
+      "plane_value": -173.04011831591671,
+      "normal_sign": -1,
+      "belongs_to": "catch_outer_shell",
+      "panel_id": "catch_outer_shell",
+      "panel_name": "catch_outer_shell",
+      "cabin_face_tag": "xmin",
+      "center_xyz": [
+        -173.04011831591671,
+        0.015911244246154865,
+        4.862072462285525
+      ],
+      "extents_xyz": [
+        0,
+        566.0320794150364,
+        329.83763856995756
+      ],
+      "bbox_2d": [
+        -283.000128463272,
+        283.0319509517643,
+        -160.05674682269327,
+        169.78089174726432
+      ]
+    },
+    "catch_outer_shell.xmax_outer": {
+      "id": "catch_outer_shell.xmax_outer",
+      "owner_id": "catch_outer_shell",
+      "side": "outer",
+      "face_role": "outer_shell_radiation",
+      "plane_axis": 0,
+      "plane_value": 170.05674682268437,
+      "normal_sign": 1,
+      "belongs_to": "catch_outer_shell",
+      "panel_id": "catch_outer_shell",
+      "panel_name": "catch_outer_shell",
+      "cabin_face_tag": "xmax",
+      "center_xyz": [
+        170.05674682268437,
+        0.015911244246154865,
+        4.862072462285525
+      ],
+      "extents_xyz": [
+        0,
+        566.0320794150364,
+        329.83763856995756
+      ],
+      "bbox_2d": [
+        -283.000128463272,
+        283.0319509517643,
+        -160.05674682269327,
+        169.78089174726432
+      ]
+    },
+    "catch_outer_shell.ymin_outer": {
+      "id": "catch_outer_shell.ymin_outer",
+      "owner_id": "catch_outer_shell",
+      "side": "outer",
+      "face_role": "outer_shell_radiation",
+      "plane_axis": 1,
+      "plane_value": -283.000128463272,
+      "normal_sign": -1,
+      "belongs_to": "catch_outer_shell",
+      "panel_id": "catch_outer_shell",
+      "panel_name": "catch_outer_shell",
+      "cabin_face_tag": "ymin",
+      "center_xyz": [
+        -1.4916857466161701,
+        -283.000128463272,
+        4.862072462285525
+      ],
+      "extents_xyz": [
+        343.09686513860106,
+        0,
+        329.83763856995756
+      ],
+      "bbox_2d": [
+        -173.04011831591671,
+        170.05674682268437,
+        -160.05674682269327,
+        169.78089174726432
+      ]
+    },
+    "catch_outer_shell.ymax_outer": {
+      "id": "catch_outer_shell.ymax_outer",
+      "owner_id": "catch_outer_shell",
+      "side": "outer",
+      "face_role": "outer_shell_radiation",
+      "plane_axis": 1,
+      "plane_value": 283.0319509517643,
+      "normal_sign": 1,
+      "belongs_to": "catch_outer_shell",
+      "panel_id": "catch_outer_shell",
+      "panel_name": "catch_outer_shell",
+      "cabin_face_tag": "ymax",
+      "center_xyz": [
+        -1.4916857466161701,
+        283.0319509517643,
+        4.862072462285525
+      ],
+      "extents_xyz": [
+        343.09686513860106,
+        0,
+        329.83763856995756
+      ],
+      "bbox_2d": [
+        -173.04011831591671,
+        170.05674682268437,
+        -160.05674682269327,
+        169.78089174726432
+      ]
+    },
+    "catch_outer_shell.zmin_outer": {
+      "id": "catch_outer_shell.zmin_outer",
+      "owner_id": "catch_outer_shell",
+      "side": "outer",
+      "face_role": "outer_shell_radiation",
+      "plane_axis": 2,
+      "plane_value": -160.05674682269327,
+      "normal_sign": -1,
+      "belongs_to": "catch_outer_shell",
+      "panel_id": "catch_outer_shell",
+      "panel_name": "catch_outer_shell",
+      "cabin_face_tag": "zmin",
+      "center_xyz": [
+        -1.4916857466161701,
+        0.015911244246154865,
+        -160.05674682269327
+      ],
+      "extents_xyz": [
+        343.09686513860106,
+        566.0320794150364,
+        0
+      ],
+      "bbox_2d": [
+        -173.04011831591671,
+        170.05674682268437,
+        -283.000128463272,
+        283.0319509517643
+      ]
+    },
+    "catch_outer_shell.zmax_outer": {
+      "id": "catch_outer_shell.zmax_outer",
+      "owner_id": "catch_outer_shell",
+      "side": "outer",
+      "face_role": "outer_shell_radiation",
+      "plane_axis": 2,
+      "plane_value": 169.78089174726432,
+      "normal_sign": 1,
+      "belongs_to": "catch_outer_shell",
+      "panel_id": "catch_outer_shell",
+      "panel_name": "catch_outer_shell",
+      "cabin_face_tag": "zmax",
+      "center_xyz": [
+        -1.4916857466161701,
+        0.015911244246154865,
+        169.78089174726432
+      ],
+      "extents_xyz": [
+        343.09686513860106,
+        566.0320794150364,
+        0
+      ],
+      "bbox_2d": [
+        -173.04011831591671,
+        170.05674682268437,
+        -283.000128463272,
+        283.0319509517643
       ]
     }
   },
   "components": {
-    "G001_P001": {
-      "id": "G001_P001",
+    "CATCH-G013_P013": {
+      "id": "CATCH-G013_P013",
       "kind": "internal",
-      "category": "propulsion",
+      "category": "communication",
       "dims": [
-        79.19009,
-        70.123,
-        167.298846
+        102.75534659313556,
+        50.82906177758068,
+        90.02906177746044
       ],
-      "mass": 0.01858,
-      "power": 12.0,
+      "mass": 0.101567,
+      "power": 8,
       "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
+      "mount_face_id": "09_CB_ZY_BJ.ymax_inner",
       "position": [
-        -35.150014000000056,
-        -560.0615,
-        -440.2844705
+        50.0,
+        -274.999871536742,
+        49.98546911126984
       ],
       "bbox": {
         "min": [
-          -35.150014000000056,
-          -560.0615,
-          -440.2844705
+          50.0,
+          -274.999871536742,
+          49.98546911126984
         ],
         "max": [
-          44.040076,
-          -489.9385,
-          -272.9856245
-        ]
-      },
-      "component_id": "P001",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        4.445030999999972,
-        -525.0,
-        -440.2844705
-      ],
-      "install_pos": [
-        -38.150014000000056,
-        -563.0615,
-        -440.2844705
-      ]
-    },
-    "G002_P002": {
-      "id": "G002_P002",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        79.19009,
-        70.123,
-        167.298846
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        -35.150014000000056,
-        489.9385,
-        -440.2844705
-      ],
-      "bbox": {
-        "min": [
-          -35.150014000000056,
-          489.9385,
-          -440.2844705
-        ],
-        "max": [
-          44.040076,
-          560.0615,
-          -272.9856245
-        ]
-      },
-      "component_id": "P002",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        4.445030999999972,
-        525.0,
-        -440.2844705
-      ],
-      "install_pos": [
-        -38.150014000000056,
-        486.9385,
-        -440.2844705
-      ]
-    },
-    "G003_P003": {
-      "id": "G003_P003",
-      "kind": "internal",
-      "category": "power",
-      "dims": [
-        152.0,
-        305.0,
-        686.0
-      ],
-      "mass": 3.498326,
-      "power": 5.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymax",
-      "position": [
-        436.888647,
-        -85.88864699999999,
-        -203.284471
-      ],
-      "bbox": {
-        "min": [
-          436.888647,
-          -85.88864699999999,
-          -203.284471
-        ],
-        "max": [
-          588.888647,
-          600.111353,
-          101.715529
-        ]
-      },
-      "component_id": "P003",
-      "semantic_name": "battery_pack_1_ymax_side",
-      "component_subtype": "battery",
-      "color": [
-        100,
-        255,
-        150,
-        255
-      ],
-      "mount_point": [
-        512.888647,
-        600.111353,
-        -50.784470999999996
-      ],
-      "leaf_node_id": "leaf.template_outer_shell",
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "install_pos": [
-        433.888647,
-        -85.88864699999999,
-        -206.284471
-      ]
-    },
-    "G004_P004": {
-      "id": "G004_P004",
-      "kind": "internal",
-      "category": "power",
-      "dims": [
-        152.0,
-        305.0,
-        686.0
-      ],
-      "mass": 3.498326,
-      "power": 5.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymin",
-      "position": [
-        198.5,
-        -600.111353,
-        -264.71330650000004
-      ],
-      "bbox": {
-        "min": [
-          198.5,
-          -600.111353,
-          -264.71330650000004
-        ],
-        "max": [
-          350.5,
-          -295.111353,
-          421.28669349999996
-        ]
-      },
-      "component_id": "P004",
-      "semantic_name": "battery_pack_2_ymin_side",
-      "component_subtype": "battery",
-      "color": [
-        100,
-        255,
-        150,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        274.5,
-        -600.111353,
-        78.28669349999996
-      ],
-      "install_pos": [
-        195.5,
-        -600.111353,
-        -267.71330650000004
-      ]
-    },
-    "G005_P005": {
-      "id": "G005_P005",
-      "kind": "external",
-      "category": "payload",
-      "dims": [
-        170.004451,
-        170.004451,
-        185.68396
-      ],
-      "mass": 0.321993,
-      "power": 3.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_outer",
-      "position": [
-        -535.002225,
-        -535.002225,
-        472.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          -535.002225,
-          -535.002225,
-          472.28669349999996
-        ],
-        "max": [
-          -364.997774,
-          -364.997774,
-          657.9706535
-        ]
-      },
-      "component_id": "P005",
-      "semantic_name": "360_degree_camera_v4_1_complete_assembly",
-      "component_subtype": "camera",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        -449.99999949999994,
-        -449.99999949999994,
-        472.28669349999996
-      ],
-      "install_pos": [
-        -538.002225,
-        -538.002225,
-        472.28669349999996
-      ]
-    },
-    "G006_P006": {
-      "id": "G006_P006",
-      "kind": "external",
-      "category": "payload",
-      "dims": [
-        170.004451,
-        170.004451,
-        185.68396
-      ],
-      "mass": 0.321993,
-      "power": 3.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_outer",
-      "position": [
-        -535.002225,
-        364.99777400000005,
-        472.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          -535.002225,
-          364.99777400000005,
-          472.28669349999996
-        ],
-        "max": [
-          -364.997774,
-          535.002225,
-          657.9706535
-        ]
-      },
-      "component_id": "P006",
-      "semantic_name": "360_degree_camera_v4_4_complete_assembly",
-      "component_subtype": "camera",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        -449.99999949999994,
-        449.9999995,
-        472.28669349999996
-      ],
-      "install_pos": [
-        -538.002225,
-        361.99777400000005,
-        472.28669349999996
-      ]
-    },
-    "G007_P007": {
-      "id": "G007_P007",
-      "kind": "external",
-      "category": "payload",
-      "dims": [
-        170.004451,
-        170.004451,
-        185.68396
-      ],
-      "mass": 0.321993,
-      "power": 3.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_outer",
-      "position": [
-        364.99777400000005,
-        364.99777400000005,
-        472.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          364.99777400000005,
-          364.99777400000005,
-          472.28669349999996
-        ],
-        "max": [
-          535.002225,
-          535.002225,
-          657.9706535
-        ]
-      },
-      "component_id": "P007",
-      "semantic_name": "360_degree_camera_v4_3_complete_assembly",
-      "component_subtype": "camera",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        449.9999995,
-        449.9999995,
-        472.28669349999996
-      ],
-      "install_pos": [
-        361.99777400000005,
-        361.99777400000005,
-        472.28669349999996
-      ]
-    },
-    "G008_P008": {
-      "id": "G008_P008",
-      "kind": "external",
-      "category": "payload",
-      "dims": [
-        170.004451,
-        170.004451,
-        185.68396
-      ],
-      "mass": 0.321993,
-      "power": 3.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_outer",
-      "position": [
-        364.99777400000005,
-        -535.002225,
-        472.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          364.99777400000005,
-          -535.002225,
-          472.28669349999996
-        ],
-        "max": [
-          535.002225,
-          -364.997774,
-          657.9706535
-        ]
-      },
-      "component_id": "P008",
-      "semantic_name": "360_degree_camera_v4_2_complete_assembly",
-      "component_subtype": "camera",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        449.9999995,
-        -449.99999949999994,
-        472.28669349999996
-      ],
-      "install_pos": [
-        361.99777400000005,
-        -538.002225,
-        472.28669349999996
-      ]
-    },
-    "G009_P009": {
-      "id": "G009_P009",
-      "kind": "internal",
-      "category": "avionics",
-      "dims": [
-        260.0,
-        220.0,
-        240.0
-      ],
-      "mass": 1.7,
-      "power": 15.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        -430.0,
-        -590.0,
-        -440.2844705
-      ],
-      "bbox": {
-        "min": [
-          -430.0,
-          -590.0,
-          -440.2844705
-        ],
-        "max": [
-          -170.0,
-          -370.0,
-          -200.2844705
-        ]
-      },
-      "component_id": "P009",
-      "semantic_name": "allocated_space_for_computer_systems",
-      "component_subtype": "obc",
-      "color": [
-        255,
-        200,
-        100,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -300.0,
-        -480.0,
-        -200.2844705
-      ],
-      "install_pos": [
-        -433.0,
-        -593.0,
-        -440.2844705
-      ]
-    },
-    "G010_P010": {
-      "id": "G010_P010",
-      "kind": "internal",
-      "category": "avionics",
-      "dims": [
-        260.0,
-        220.0,
-        240.0
-      ],
-      "mass": 1.7,
-      "power": 15.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        170.0,
-        370.0,
-        -440.2844705
-      ],
-      "bbox": {
-        "min": [
-          170.0,
-          370.0,
-          -440.2844705
-        ],
-        "max": [
-          430.0,
-          590.0,
-          -200.2844705
-        ]
-      },
-      "component_id": "P010",
-      "semantic_name": "allocated_space_for_computer_systems",
-      "component_subtype": "obc",
-      "color": [
-        255,
-        200,
-        100,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        300.0,
-        480.0,
-        -200.2844705
-      ],
-      "install_pos": [
-        167.0,
-        367.0,
-        -440.2844705
-      ]
-    },
-    "G011_P011": {
-      "id": "G011_P011",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        252.000003,
-        222.0,
-        262.000003
-      ],
-      "mass": 0.293147,
-      "power": 0.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymin",
-      "position": [
-        -126.000001,
-        -600.111353,
-        -118.21330750000004
-      ],
-      "bbox": {
-        "min": [
-          -126.000001,
-          -600.111353,
-          -118.21330750000004
-        ],
-        "max": [
-          126.000002,
-          -378.111353,
-          143.78669549999995
-        ]
-      },
-      "component_id": "P011",
-      "semantic_name": "cubesat_payload_box_1_ymin_side",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        4.999999987376214e-07,
-        -600.111353,
-        12.786693999999954
-      ],
-      "install_pos": [
-        -129.000001,
-        -600.111353,
-        -121.21330750000004
-      ]
-    },
-    "G012_P012": {
-      "id": "G012_P012",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        252.000003,
-        222.0,
-        262.000003
-      ],
-      "mass": 0.293147,
-      "power": 0.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymax",
-      "position": [
-        -126.000001,
-        378.111353,
-        -118.21330750000004
-      ],
-      "bbox": {
-        "min": [
-          -126.000001,
-          378.111353,
-          -118.21330750000004
-        ],
-        "max": [
-          126.000002,
-          600.111353,
-          143.78669549999995
-        ]
-      },
-      "component_id": "P012",
-      "semantic_name": "cubesat_payload_box_2_ymax_side",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        4.999999987376214e-07,
-        600.111353,
-        12.786693999999954
-      ],
-      "install_pos": [
-        -129.000001,
-        378.111353,
-        -121.21330750000004
-      ]
-    },
-    "G014_P013": {
-      "id": "G014_P013",
-      "kind": "internal",
-      "category": "mechanism",
-      "dims": [
-        118.004614,
-        180.004614,
-        804.004614
-      ],
-      "mass": 1.366253,
-      "power": 0.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        -58.50230699999997,
-        -360.369214,
-        -440.2844705
-      ],
-      "bbox": {
-        "min": [
-          -58.50230699999997,
-          -360.369214,
-          -440.2844705
-        ],
-        "max": [
-          59.50230699999997,
-          -180.3646,
-          363.72014350000006
+          152.75534659313556,
+          -224.1708097591613,
+          140.0145308887303
         ]
       },
       "component_id": "P013",
-      "semantic_name": "drive_train_frame_1",
-      "component_subtype": "drive_train",
+      "semantic_name": "catch_catch_p013_测控数传一体机_A_Z0001",
+      "component_subtype": "ttc_box",
       "color": [
-        180,
-        130,
-        220,
+        237,
+        46,
+        41,
         255
       ],
-      "clearance_mm": 3.0,
+      "clearance_mm": 1,
       "thermal_surface": {
         "absorptivity": 0.3,
         "emissivity": 0.8
@@ -1061,718 +1036,76 @@
         "contact_resistance": 0.001
       },
       "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
+      "leaf_node_id": "leaf.09_CB_ZY_BJ",
       "mount_point": [
-        0.5,
-        -270.36690699999997,
-        363.72014350000006
+        101.37767329656778,
+        -249.58534064795163,
+        95.00000000000006
       ],
       "install_pos": [
-        -61.50230699999997,
-        -363.369214,
-        -440.2844705
-      ]
-    },
-    "G015_P014": {
-      "id": "G015_P014",
-      "kind": "internal",
-      "category": "mechanism",
-      "dims": [
-        180.004614,
-        118.004614,
-        804.004614
+        50.0,
+        -274.999871536742,
+        49.98546911126984
       ],
-      "mass": 1.366253,
-      "power": 0.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        180.3646,
-        -58.50230699999997,
-        -440.2844705
-      ],
-      "bbox": {
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "mount_side": "inner",
+      "source_bbox": {
         "min": [
-          180.3646,
-          -58.50230699999997,
-          -440.2844705
+          50.0,
+          -274.999871536742,
+          49.98546911126984
         ],
         "max": [
-          360.36921400000006,
-          59.50230699999997,
-          363.72014350000006
+          152.75534659313556,
+          -224.1708097591613,
+          140.0145308887303
         ]
       },
-      "component_id": "P014",
-      "semantic_name": "drive_train_frame_2",
-      "component_subtype": "drive_train",
-      "color": [
-        180,
-        130,
-        220,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        270.366907,
-        0.5,
-        363.72014350000006
-      ],
-      "install_pos": [
-        177.3646,
-        -61.50230699999997,
-        -440.2844705
-      ]
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P013.local_ymin",
+      "power_W": 8
     },
-    "G016_P015": {
-      "id": "G016_P015",
+    "CATCH-G025_P025": {
+      "id": "CATCH-G025_P025",
       "kind": "internal",
-      "category": "mechanism",
+      "category": "communication",
       "dims": [
-        118.004614,
-        180.004614,
-        804.004614
+        102.75534659313556,
+        50.82906177758068,
+        90.02906177746041
       ],
-      "mass": 1.366253,
-      "power": 0.0,
+      "mass": 0.101567,
+      "power": 8,
       "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
+      "mount_face_id": "09_CB_ZY_BJ.ymax_inner",
       "position": [
-        -59.50230699999997,
-        180.3646,
-        -440.2844705
+        -60.885752207299944,
+        -274.999871536742,
+        49.98546911126984
       ],
       "bbox": {
         "min": [
-          -59.50230699999997,
-          180.3646,
-          -440.2844705
+          -60.885752207299944,
+          -274.999871536742,
+          49.98546911126984
         ],
         "max": [
-          58.50230699999997,
-          360.36921400000006,
-          363.72014350000006
-        ]
-      },
-      "component_id": "P015",
-      "semantic_name": "drive_train_frame_3",
-      "component_subtype": "drive_train",
-      "color": [
-        180,
-        130,
-        220,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -0.5,
-        270.366907,
-        363.72014350000006
-      ],
-      "install_pos": [
-        -62.50230699999997,
-        177.3646,
-        -440.2844705
-      ]
-    },
-    "G017_P016": {
-      "id": "G017_P016",
-      "kind": "internal",
-      "category": "mechanism",
-      "dims": [
-        180.004614,
-        118.004614,
-        804.004614
-      ],
-      "mass": 1.366253,
-      "power": 0.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        -360.369214,
-        -59.50230699999997,
-        -440.2844705
-      ],
-      "bbox": {
-        "min": [
-          -360.369214,
-          -59.50230699999997,
-          -440.2844705
-        ],
-        "max": [
-          -180.3646,
-          58.50230699999997,
-          363.72014350000006
-        ]
-      },
-      "component_id": "P016",
-      "semantic_name": "drive_train_frame_4",
-      "component_subtype": "drive_train",
-      "color": [
-        180,
-        130,
-        220,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -270.36690699999997,
-        -0.5,
-        363.72014350000006
-      ],
-      "install_pos": [
-        -363.369214,
-        -62.50230699999997,
-        -440.2844705
-      ]
-    },
-    "G021_P017": {
-      "id": "G021_P017",
-      "kind": "internal",
-      "category": "mechanism",
-      "dims": [
-        180.000073,
-        587.825913,
-        201.726332
-      ],
-      "mass": 1.707552,
-      "power": 4.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        -553.111353,
-        -323.111353,
-        -440.2844705
-      ],
-      "bbox": {
-        "min": [
-          -553.111353,
-          -323.111353,
-          -440.2844705
-        ],
-        "max": [
-          -373.11128,
-          264.71456,
-          -238.55813849999998
-        ]
-      },
-      "component_id": "P017",
-      "semantic_name": "drive_train_mounted_device_4",
-      "component_subtype": "drive_train",
-      "color": [
-        180,
-        130,
-        220,
-        255
-      ],
-      "mount_point": [
-        -463.11131649999993,
-        -29.1983965,
-        -440.2844705
-      ],
-      "leaf_node_id": "leaf.template_outer_shell",
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "install_pos": [
-        -556.111353,
-        -326.111353,
-        -440.2844705
-      ]
-    },
-    "G022_P018": {
-      "id": "G022_P018",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        200.0,
-        200.0,
-        800.0
-      ],
-      "mass": 1.6,
-      "power": 0.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        -575.0,
-        275.0,
-        -440.2844705
-      ],
-      "bbox": {
-        "min": [
-          -575.0,
-          275.0,
-          -440.2844705
-        ],
-        "max": [
-          -375.0,
-          475.0,
-          359.7155295
-        ]
-      },
-      "component_id": "P018",
-      "semantic_name": "fuel_tank_cold_gas_v3",
-      "component_subtype": "fuel_tank",
-      "color": [
-        180,
-        180,
-        180,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -475.0,
-        375.0,
-        359.7155295
-      ],
-      "install_pos": [
-        -578.0,
-        272.0,
-        -440.2844705
-      ]
-    },
-    "G023_P019": {
-      "id": "G023_P019",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        200.0,
-        200.0,
-        800.0
-      ],
-      "mass": 1.6,
-      "power": 0.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        375.0,
-        -475.0,
-        -440.2844705
-      ],
-      "bbox": {
-        "min": [
-          375.0,
-          -475.0,
-          -440.2844705
-        ],
-        "max": [
-          575.0,
-          -275.0,
-          359.7155295
-        ]
-      },
-      "component_id": "P019",
-      "semantic_name": "fuel_tank_cold_gas_v3",
-      "component_subtype": "fuel_tank",
-      "color": [
-        180,
-        180,
-        180,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        475.0,
-        -375.0,
-        359.7155295
-      ],
-      "install_pos": [
-        372.0,
-        -478.0,
-        -440.2844705
-      ]
-    },
-    "G024_P020": {
-      "id": "G024_P020",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
-      ],
-      "mass": 0.0343,
-      "power": 0.5,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        -440.143749,
-        64.85625100000004,
-        120.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          -440.143749,
-          64.85625100000004,
-          120.28669349999996
-        ],
-        "max": [
-          -370.143749,
-          134.85625100000004,
-          470.28669349999996
-        ]
-      },
-      "component_id": "P020",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -405.143749,
-        99.85625100000004,
-        470.28669349999996
-      ],
-      "install_pos": [
-        -443.143749,
-        61.85625100000004,
-        120.28669349999996
-      ]
-    },
-    "G025_P021": {
-      "id": "G025_P021",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
-      ],
-      "mass": 0.0343,
-      "power": 0.5,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        -440.143749,
-        164.85625100000004,
-        120.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          -440.143749,
-          164.85625100000004,
-          120.28669349999996
-        ],
-        "max": [
-          -370.143749,
-          234.85625100000004,
-          470.28669349999996
-        ]
-      },
-      "component_id": "P021",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -405.143749,
-        199.85625100000004,
-        470.28669349999996
-      ],
-      "install_pos": [
-        -443.143749,
-        161.85625100000004,
-        120.28669349999996
-      ]
-    },
-    "G026_P022": {
-      "id": "G026_P022",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
-      ],
-      "mass": 0.0343,
-      "power": 0.5,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        -440.143749,
-        -35.14374899999996,
-        120.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          -440.143749,
-          -35.14374899999996,
-          120.28669349999996
-        ],
-        "max": [
-          -370.143749,
-          34.85625100000004,
-          470.28669349999996
-        ]
-      },
-      "component_id": "P022",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -405.143749,
-        -0.14374899999995705,
-        470.28669349999996
-      ],
-      "install_pos": [
-        -443.143749,
-        -38.14374899999996,
-        120.28669349999996
-      ]
-    },
-    "G027_P023": {
-      "id": "G027_P023",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
-      ],
-      "mass": 0.0343,
-      "power": 0.5,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        -440.143749,
-        -135.143749,
-        120.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          -440.143749,
-          -135.143749,
-          120.28669349999996
-        ],
-        "max": [
-          -370.143749,
-          -65.14374899999996,
-          470.28669349999996
-        ]
-      },
-      "component_id": "P023",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -405.143749,
-        -100.14374899999999,
-        470.28669349999996
-      ],
-      "install_pos": [
-        -443.143749,
-        -138.143749,
-        120.28669349999996
-      ]
-    },
-    "G028_P024": {
-      "id": "G028_P024",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
-      ],
-      "mass": 0.0343,
-      "power": 0.5,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        -440.143749,
-        -235.143749,
-        120.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          -440.143749,
-          -235.143749,
-          120.28669349999996
-        ],
-        "max": [
-          -370.143749,
-          -165.143749,
-          470.28669349999996
-        ]
-      },
-      "component_id": "P024",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -405.143749,
-        -200.143749,
-        470.28669349999996
-      ],
-      "install_pos": [
-        -443.143749,
-        -238.143749,
-        120.28669349999996
-      ]
-    },
-    "G029_P025": {
-      "id": "G029_P025",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
-      ],
-      "mass": 0.0343,
-      "power": 0.5,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        370.14374899999996,
-        -134.856251,
-        120.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          370.14374899999996,
-          -134.856251,
-          120.28669349999996
-        ],
-        "max": [
-          440.14374900000007,
-          -64.85625100000004,
-          470.28669349999996
+          41.86959438583561,
+          -224.17080975916127,
+          140.01453088873026
         ]
       },
       "component_id": "P025",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
+      "semantic_name": "catch_catch_p025_测控数传一体机_B_Z0001",
+      "component_subtype": "ttc_box",
       "color": [
-        100,
-        150,
-        255,
+        235,
+        148,
+        33,
         255
       ],
-      "clearance_mm": 3.0,
+      "clearance_mm": 1,
       "thermal_surface": {
         "absorptivity": 0.3,
         "emissivity": 0.8
@@ -1781,178 +1114,76 @@
         "contact_resistance": 0.001
       },
       "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
+      "leaf_node_id": "leaf.09_CB_ZY_BJ",
       "mount_point": [
-        405.143749,
-        -99.85625100000001,
-        470.28669349999996
+        -9.508078910732166,
+        -249.58534064795163,
+        95.00000000000006
       ],
       "install_pos": [
-        367.14374899999996,
-        -137.856251,
-        120.28669349999996
-      ]
-    },
-    "G030_P026": {
-      "id": "G030_P026",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
+        -60.885752207299944,
+        -274.999871536742,
+        49.98546911126984
       ],
-      "mass": 0.0343,
-      "power": 0.5,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        370.14374899999996,
-        -234.856251,
-        120.28669349999996
-      ],
-      "bbox": {
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "mount_side": "inner",
+      "source_bbox": {
         "min": [
-          370.14374899999996,
-          -234.856251,
-          120.28669349999996
+          -60.885752207299944,
+          -274.999871536742,
+          49.98546911126984
         ],
         "max": [
-          440.14374900000007,
-          -164.856251,
-          470.28669349999996
+          41.86959438583561,
+          -224.17080975916127,
+          140.01453088873026
         ]
       },
-      "component_id": "P026",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        405.143749,
-        -199.856251,
-        470.28669349999996
-      ],
-      "install_pos": [
-        367.14374899999996,
-        -237.856251,
-        120.28669349999996
-      ]
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P025.local_ymin",
+      "power_W": 8
     },
-    "G031_P027": {
-      "id": "G031_P027",
+    "CATCH-G028_P028": {
+      "id": "CATCH-G028_P028",
       "kind": "internal",
-      "category": "payload",
+      "category": "adcs",
       "dims": [
-        70.0,
-        70.0,
-        350.0
+        88.5215796821391,
+        68.00000020000002,
+        87.24315916427821
       ],
-      "mass": 0.0343,
-      "power": 0.5,
+      "mass": 0.113434,
+      "power": 3,
       "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
+      "mount_face_id": "10_CB_FY_BJ.ymin_inner",
       "position": [
-        370.14374899999996,
-        -34.85625100000004,
-        120.28669349999996
+        -133.6215795821391,
+        206.99987133674534,
+        46.3784204178609
       ],
       "bbox": {
         "min": [
-          370.14374899999996,
-          -34.85625100000004,
-          120.28669349999996
+          -133.6215795821391,
+          206.99987133674534,
+          46.3784204178609
         ],
         "max": [
-          440.14374900000007,
-          35.14374899999996,
-          470.28669349999996
-        ]
-      },
-      "component_id": "P027",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
-      "color": [
-        100,
-        150,
-        255,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        405.143749,
-        0.14374899999995705,
-        470.28669349999996
-      ],
-      "install_pos": [
-        367.14374899999996,
-        -37.85625100000004,
-        120.28669349999996
-      ]
-    },
-    "G032_P028": {
-      "id": "G032_P028",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
-      ],
-      "mass": 0.0343,
-      "power": 0.5,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        370.14374899999996,
-        65.14374899999996,
-        120.28669349999996
-      ],
-      "bbox": {
-        "min": [
-          370.14374899999996,
-          65.14374899999996,
-          120.28669349999996
-        ],
-        "max": [
-          440.14374900000007,
-          135.14374899999996,
-          470.28669349999996
+          -45.0999999,
+          274.99987153674533,
+          133.6215795821391
         ]
       },
       "component_id": "P028",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
+      "semantic_name": "catch_catch_p028_反作用轮候选_FY",
+      "component_subtype": "reaction_wheel",
       "color": [
-        100,
-        150,
-        255,
+        235,
+        148,
+        33,
         255
       ],
-      "clearance_mm": 3.0,
+      "clearance_mm": 1,
       "thermal_surface": {
         "absorptivity": 0.3,
         "emissivity": 0.8
@@ -1961,58 +1192,2006 @@
         "contact_resistance": 0.001
       },
       "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
+      "leaf_node_id": "leaf.10_CB_FY_BJ",
       "mount_point": [
-        405.143749,
-        100.14374899999996,
-        470.28669349999996
+        -89.36078974106955,
+        240.99987143674537,
+        90
       ],
       "install_pos": [
-        367.14374899999996,
-        62.14374899999996,
-        120.28669349999996
-      ]
-    },
-    "G033_P029": {
-      "id": "G033_P029",
-      "kind": "internal",
-      "category": "payload",
-      "dims": [
-        70.0,
-        70.0,
-        350.0
+        -133.6215795821391,
+        206.99987133674534,
+        46.3784204178609
       ],
-      "mass": 0.0343,
-      "power": 0.5,
+      "panel_id": "10_CB_FY_BJ",
+      "panel_name": "CB_FY_BJ",
+      "mount_side": "inner",
+      "source_bbox": {
+        "min": [
+          -133.6215795821391,
+          206.99987133674534,
+          46.3784204178609
+        ],
+        "max": [
+          -45.0999999,
+          274.99987153674533,
+          133.6215795821391
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P028.local_ymax",
+      "power_W": 3
+    },
+    "CATCH-G004_P004": {
+      "id": "CATCH-G004_P004",
+      "kind": "internal",
+      "category": "adcs",
+      "dims": [
+        88.5215796821391,
+        87.24315916427821,
+        68.00000019999999
+      ],
+      "mass": 0.113434,
+      "power": 3,
       "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
+      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
       "position": [
-        370.14374899999996,
-        165.14374899999996,
-        120.28669349999996
+        -58.6215795821391,
+        155.87842041786087,
+        -149.94325317731676
       ],
       "bbox": {
         "min": [
-          370.14374899999996,
-          165.14374899999996,
-          120.28669349999996
+          -58.6215795821391,
+          155.87842041786087,
+          -149.94325317731676
         ],
         "max": [
-          440.14374900000007,
-          235.14374899999996,
-          470.28669349999996
+          29.9000001,
+          243.12157958213908,
+          -81.94325297731677
+        ]
+      },
+      "component_id": "P004",
+      "semantic_name": "catch_catch_p004_反作用轮候选_DIBAN-1",
+      "component_subtype": "reaction_wheel",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "clearance_mm": 1,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        -14.36078974106955,
+        199.49999999999997,
+        -115.94325307731677
+      ],
+      "install_pos": [
+        -58.6215795821391,
+        155.87842041786087,
+        -149.94325317731676
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "inner",
+      "source_bbox": {
+        "min": [
+          -58.6215795821391,
+          155.87842041786087,
+          -149.94325317731676
+        ],
+        "max": [
+          29.9000001,
+          243.12157958213908,
+          -81.94325297731677
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P004.local_zmin",
+      "power_W": 3
+    },
+    "CATCH-G006_P006": {
+      "id": "CATCH-G006_P006",
+      "kind": "internal",
+      "category": "avionics",
+      "dims": [
+        234.060645902853,
+        144.26064590285293,
+        198.03032305147647
+      ],
+      "mass": 1.444314,
+      "power": 12,
+      "shape": "box",
+      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
+      "position": [
+        -78.03032295142648,
+        -267.03032295142646,
+        -149.94325317731676
+      ],
+      "bbox": {
+        "min": [
+          -78.03032295142648,
+          -267.03032295142646,
+          -149.94325317731676
+        ],
+        "max": [
+          156.0303229514265,
+          -122.76967704857353,
+          48.08706987415972
+        ]
+      },
+      "component_id": "P006",
+      "semantic_name": "catch_catch_p006_综合电子_星务电子箱候选_含安装板",
+      "component_subtype": "electronics_box",
+      "color": [
+        31,
+        171,
+        184,
+        255
+      ],
+      "clearance_mm": 1,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        39.000000000000014,
+        -194.89999999999998,
+        -50.92809165157853
+      ],
+      "install_pos": [
+        -78.03032295142648,
+        -267.03032295142646,
+        -149.94325317731676
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "inner",
+      "source_bbox": {
+        "min": [
+          -78.03032295142648,
+          -267.03032295142646,
+          -149.94325317731676
+        ],
+        "max": [
+          156.0303229514265,
+          -122.76967704857353,
+          48.08706987415972
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P006.local_zmin",
+      "power_W": 12
+    },
+    "CATCH-G018_P018": {
+      "id": "CATCH-G018_P018",
+      "kind": "external",
+      "category": "payload",
+      "dims": [
+        87.35406394617917,
+        209.05433278009735,
+        192.3543153422063
+      ],
+      "mass": 0.758749,
+      "power": 6,
+      "shape": "box",
+      "mount_face_id": "05_CB_FX_BJ.xmax_outer",
+      "position": [
+        170.00003487778454,
+        -104.52716639008126,
+        -72.52720700774674
+      ],
+      "bbox": {
+        "min": [
+          170.00003487778454,
+          -104.52716639008126,
+          -72.52720700774674
+        ],
+        "max": [
+          257.3540988239637,
+          104.52716639001609,
+          119.82710833445957
+        ]
+      },
+      "component_id": "P018",
+      "semantic_name": "catch_catch_p018_探测器机箱候选",
+      "component_subtype": "detector_box",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "clearance_mm": 1,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.05_CB_FX_BJ",
+      "mount_point": [
+        213.67706685087413,
+        -3.2585489861958195e-11,
+        23.649950663356414
+      ],
+      "install_pos": [
+        170.00003487778454,
+        -104.52716639008126,
+        -72.52720700774674
+      ],
+      "panel_id": "05_CB_FX_BJ",
+      "panel_name": "CB_FX_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          170.00003487778454,
+          -104.52716639008126,
+          -72.52720700774674
+        ],
+        "max": [
+          257.3540988239637,
+          104.52716639001609,
+          119.82710833445957
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P018.local_xmin",
+      "power_W": 6
+    },
+    "CATCH-G022_P022": {
+      "id": "CATCH-G022_P022",
+      "kind": "internal",
+      "category": "adcs",
+      "dims": [
+        68.00000019999999,
+        88.52157968213913,
+        87.24315916427821
+      ],
+      "mass": 0.113434,
+      "power": 3,
+      "shape": "box",
+      "mount_face_id": "08_CB_FXFY_BJ.xmin_inner",
+      "position": [
+        91.99999970000002,
+        171.8499999,
+        44.37842041786089
+      ],
+      "bbox": {
+        "min": [
+          91.99999970000002,
+          171.8499999,
+          44.37842041786089
+        ],
+        "max": [
+          159.9999999,
+          260.37157958213913,
+          131.6215795821391
+        ]
+      },
+      "component_id": "P022",
+      "semantic_name": "catch_catch_p022_反作用轮候选_FXFY",
+      "component_subtype": "reaction_wheel",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "clearance_mm": 1,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.08_CB_FXFY_BJ",
+      "mount_point": [
+        125.99999980000001,
+        216.11078974106957,
+        88
+      ],
+      "install_pos": [
+        91.99999970000002,
+        171.8499999,
+        44.37842041786089
+      ],
+      "panel_id": "08_CB_FXFY_BJ",
+      "panel_name": "CB_FXFY_BJ",
+      "mount_side": "inner",
+      "source_bbox": {
+        "min": [
+          91.99999970000002,
+          171.8499999,
+          44.37842041786089
+        ],
+        "max": [
+          159.9999999,
+          260.37157958213913,
+          131.6215795821391
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P022.local_xmax",
+      "power_W": 3
+    },
+    "CATCH-G023_P023": {
+      "id": "CATCH-G023_P023",
+      "kind": "external",
+      "category": "payload",
+      "dims": [
+        106.42812160015939,
+        106.42812160015853,
+        101.96011022032167
+      ],
+      "mass": 0.249458,
+      "power": 3,
+      "shape": "box",
+      "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
+      "position": [
+        170.0000001,
+        162.3261539156287,
+        42.04416529546885
+      ],
+      "bbox": {
+        "min": [
+          170.0000001,
+          162.3261539156287,
+          42.04416529546885
+        ],
+        "max": [
+          276.4281217001594,
+          268.75427551578724,
+          144.0042755157905
+        ]
+      },
+      "component_id": "P023",
+      "semantic_name": "catch_catch_p023_小型相机_光学设备候选",
+      "component_subtype": "camera",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "clearance_mm": 1,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.08_CB_FXFY_BJ",
+      "mount_point": [
+        223.2140609000797,
+        215.54021471570798,
+        93.02422040562968
+      ],
+      "install_pos": [
+        170.0000001,
+        162.3261539156287,
+        42.04416529546885
+      ],
+      "panel_id": "08_CB_FXFY_BJ",
+      "panel_name": "CB_FXFY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          170.0000001,
+          162.3261539156287,
+          42.04416529546885
+        ],
+        "max": [
+          276.4281217001594,
+          268.75427551578724,
+          144.0042755157905
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P023.local_xmin",
+      "power_W": 3
+    },
+    "CATCH-G001_P001": {
+      "id": "CATCH-G001_P001",
+      "kind": "external",
+      "category": "mechanism",
+      "dims": [
+        312.26415553228827,
+        312.26415553228827,
+        65.06978745012555
+      ],
+      "mass": 1.370495,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "position": [
+        -146.13207776614414,
+        -156.13207776614334,
+        -225.03489372506277
+      ],
+      "bbox": {
+        "min": [
+          -146.13207776614414,
+          -156.13207776614334,
+          -225.03489372506277
+        ],
+        "max": [
+          166.13207776614414,
+          156.13207776614493,
+          -159.96510627493723
+        ]
+      },
+      "component_id": "P001",
+      "semantic_name": "catch_catch_p001_星箭分离机构_WF50",
+      "component_subtype": "separation_device",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        10.0,
+        7.958078640513122e-13,
+        -192.5
+      ],
+      "install_pos": [
+        -146.13207776614414,
+        -156.13207776614334,
+        -225.03489372506277
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -146.13207776614414,
+          -156.13207776614334,
+          -225.03489372506277
+        ],
+        "max": [
+          166.13207776614414,
+          156.13207776614493,
+          -159.96510627493723
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P001.local_zmax"
+    },
+    "CATCH-G002_P002": {
+      "id": "CATCH-G002_P002",
+      "kind": "external",
+      "category": "mechanism",
+      "dims": [
+        35.0000002,
+        17.000000200001523,
+        57.50000020000002
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "position": [
+        -55.5000001,
+        141.4999999,
+        -202.30000010000003
+      ],
+      "bbox": {
+        "min": [
+          -55.5000001,
+          141.4999999,
+          -202.30000010000003
+        ],
+        "max": [
+          -20.4999999,
+          158.50000010000153,
+          -144.79999990000002
+        ]
+      },
+      "component_id": "P002",
+      "semantic_name": "catch_catch_p002_行程开关_1",
+      "component_subtype": "limit_switch",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        -38.0,
+        150.00000000000077,
+        -173.55
+      ],
+      "install_pos": [
+        -55.5000001,
+        141.4999999,
+        -202.30000010000003
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -55.5000001,
+          141.4999999,
+          -202.30000010000003
+        ],
+        "max": [
+          -20.4999999,
+          158.50000010000153,
+          -144.79999990000002
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P002.local_zmax"
+    },
+    "CATCH-G003_P003": {
+      "id": "CATCH-G003_P003",
+      "kind": "external",
+      "category": "mechanism",
+      "dims": [
+        35.000000199999995,
+        17.000000199999988,
+        57.50000020000002
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "position": [
+        40.4999999,
+        -158.5000001,
+        -202.30000010000003
+      ],
+      "bbox": {
+        "min": [
+          40.4999999,
+          -158.5000001,
+          -202.30000010000003
+        ],
+        "max": [
+          75.5000001,
+          -141.4999999,
+          -144.79999990000002
+        ]
+      },
+      "component_id": "P003",
+      "semantic_name": "catch_catch_p003_行程开关_2",
+      "component_subtype": "limit_switch",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        58.0,
+        -150.0,
+        -173.55
+      ],
+      "install_pos": [
+        40.4999999,
+        -158.5000001,
+        -202.30000010000003
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          40.4999999,
+          -158.5000001,
+          -202.30000010000003
+        ],
+        "max": [
+          75.5000001,
+          -141.4999999,
+          -144.79999990000002
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P003.local_zmax"
+    },
+    "CATCH-G005_P005": {
+      "id": "CATCH-G005_P005",
+      "kind": "internal",
+      "category": "adcs",
+      "dims": [
+        125.58762152815734,
+        126.62320544616409,
+        115.56154586781989
+      ],
+      "mass": 0.396942,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "01_DIBAN_BJ.zmax_inner",
+      "position": [
+        36.5357495844484,
+        150.50016571628674,
+        -152.51600780508258
+      ],
+      "bbox": {
+        "min": [
+          36.5357495844484,
+          150.50016571628674,
+          -152.51600780508258
+        ],
+        "max": [
+          162.12337111260575,
+          277.12337116245084,
+          -36.95446193726269
+        ]
+      },
+      "component_id": "P005",
+      "semantic_name": "catch_catch_p005_反作用轮候选_DIBAN-2_含斜装支架",
+      "component_subtype": "reaction_wheel",
+      "color": [
+        140,
+        64,
+        194,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        99.32956034852708,
+        213.8117684393688,
+        -94.73523487117264
+      ],
+      "install_pos": [
+        36.5357495844484,
+        150.50016571628674,
+        -152.51600780508258
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "inner",
+      "source_bbox": {
+        "min": [
+          36.5357495844484,
+          150.50016571628674,
+          -152.51600780508258
+        ],
+        "max": [
+          162.12337111260575,
+          277.12337116245084,
+          -36.95446193726269
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P005.local_zmin"
+    },
+    "CATCH-G007_P007": {
+      "id": "CATCH-G007_P007",
+      "kind": "external",
+      "category": "communication",
+      "dims": [
+        114.00000020004498,
+        94.00000020004,
+        50.00000020000002
+      ],
+      "mass": 0.115733,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "position": [
+        -159.00000010003998,
+        165.99999989996002,
+        -210.00000010004
+      ],
+      "bbox": {
+        "min": [
+          -159.00000010003998,
+          165.99999989996002,
+          -210.00000010004
+        ],
+        "max": [
+          -44.999999899995004,
+          260.0000001,
+          -159.99999990004
+        ]
+      },
+      "component_id": "P007",
+      "semantic_name": "catch_catch_p007_短报文_GNSS_专有电子盒候选",
+      "component_subtype": "communication_box",
+      "color": [
+        219,
+        76,
+        143,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        -102.0000000000175,
+        212.99999999998002,
+        -185.00000000004002
+      ],
+      "install_pos": [
+        -159.00000010003998,
+        165.99999989996002,
+        -210.00000010004
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -159.00000010003998,
+          165.99999989996002,
+          -210.00000010004
+        ],
+        "max": [
+          -44.999999899995004,
+          260.0000001,
+          -159.99999990004
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P007.local_zmax"
+    },
+    "CATCH-G008_P008": {
+      "id": "CATCH-G008_P008",
+      "kind": "external",
+      "category": "power",
+      "dims": [
+        215.16178436548984,
+        100.00068333698982,
+        51.00068333698982
+      ],
+      "mass": 0.237027,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "position": [
+        -157.30034166849492,
+        -260.0003416684949,
+        -211.0003416684949
+      ],
+      "bbox": {
+        "min": [
+          -157.30034166849492,
+          -260.0003416684949,
+          -211.0003416684949
+        ],
+        "max": [
+          57.861442696994914,
+          -159.9996583315051,
+          -159.9996583315051
+        ]
+      },
+      "component_id": "P008",
+      "semantic_name": "catch_catch_p008_电池组或电源类盒体候选",
+      "component_subtype": "battery",
+      "color": [
+        128,
+        128,
+        31,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        -49.719449485750005,
+        -210.0,
+        -185.5
+      ],
+      "install_pos": [
+        -157.30034166849492,
+        -260.0003416684949,
+        -211.0003416684949
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -157.30034166849492,
+          -260.0003416684949,
+          -211.0003416684949
+        ],
+        "max": [
+          57.861442696994914,
+          -159.9996583315051,
+          -159.9996583315051
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P008.local_zmax"
+    },
+    "CATCH-G009_P009": {
+      "id": "CATCH-G009_P009",
+      "kind": "external",
+      "category": "adcs",
+      "dims": [
+        78.41600878460369,
+        64.91636170796716,
+        23.01600878462247
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "01_DIBAN_BJ.zmin_outer",
+      "position": [
+        -4.008004392301849,
+        -88.9083573156653,
+        -183.00800439232063
+      ],
+      "bbox": {
+        "min": [
+          -4.008004392301849,
+          -88.9083573156653,
+          -183.00800439232063
+        ],
+        "max": [
+          74.40800439230185,
+          -23.99199560769815,
+          -159.99199560769816
+        ]
+      },
+      "component_id": "P009",
+      "semantic_name": "catch_catch_p009_磁强计",
+      "component_subtype": "magnetometer",
+      "color": [
+        92,
+        92,
+        92,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.01_DIBAN_BJ",
+      "mount_point": [
+        35.2,
+        -56.45017646168172,
+        -171.50000000000938
+      ],
+      "install_pos": [
+        -4.008004392301849,
+        -88.9083573156653,
+        -183.00800439232063
+      ],
+      "panel_id": "01_DIBAN_BJ",
+      "panel_name": "DIBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -4.008004392301849,
+          -88.9083573156653,
+          -183.00800439232063
+        ],
+        "max": [
+          74.40800439230185,
+          -23.99199560769815,
+          -159.99199560769816
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P009.local_zmax"
+    },
+    "CATCH-G010_P010": {
+      "id": "CATCH-G010_P010",
+      "kind": "external",
+      "category": "payload",
+      "dims": [
+        12.525011812096068,
+        203.82501181175087,
+        247.17501181187342
+      ],
+      "mass": 0.136299,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
+      "position": [
+        -180.01250590592102,
+        -100.01250590584856,
+        -104.16250590593674
+      ],
+      "bbox": {
+        "min": [
+          -180.01250590592102,
+          -100.01250590584856,
+          -104.16250590593674
+        ],
+        "max": [
+          -167.48749409382495,
+          103.8125059059023,
+          143.01250590593668
+        ]
+      },
+      "component_id": "P010",
+      "semantic_name": "catch_catch_p010_载荷防污染_防尘机构",
+      "component_subtype": "payload_device",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.02_JIZHUNBAN_BJ",
+      "mount_point": [
+        -173.74999999987298,
+        1.9000000000268713,
+        19.42499999999997
+      ],
+      "install_pos": [
+        -180.01250590592102,
+        -100.01250590584856,
+        -104.16250590593674
+      ],
+      "panel_id": "02_JIZHUNBAN_BJ",
+      "panel_name": "JIZHUNBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -180.01250590592102,
+          -100.01250590584856,
+          -104.16250590593674
+        ],
+        "max": [
+          -167.48749409382495,
+          103.8125059059023,
+          143.01250590593668
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P010.local_xmax"
+    },
+    "CATCH-G011_P011": {
+      "id": "CATCH-G011_P011",
+      "kind": "external",
+      "category": "adcs",
+      "dims": [
+        150.180061972809,
+        94.01215437933232,
+        95.90123153993079
+      ],
+      "mass": 0.292465,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
+      "position": [
+        -320.180061872809,
+        18.49392281033385,
+        -207.4896453450941
+      ],
+      "bbox": {
+        "min": [
+          -320.180061872809,
+          18.49392281033385,
+          -207.4896453450941
+        ],
+        "max": [
+          -169.9999999,
+          112.50607718966617,
+          -111.5884138051633
+        ]
+      },
+      "component_id": "P011",
+      "semantic_name": "catch_catch_p011_星敏感器_A",
+      "component_subtype": "star_tracker",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.02_JIZHUNBAN_BJ",
+      "mount_point": [
+        -245.09003088640452,
+        65.50000000000001,
+        -159.5390295751287
+      ],
+      "install_pos": [
+        -320.180061872809,
+        18.49392281033385,
+        -207.4896453450941
+      ],
+      "panel_id": "02_JIZHUNBAN_BJ",
+      "panel_name": "JIZHUNBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -320.180061872809,
+          18.49392281033385,
+          -207.4896453450941
+        ],
+        "max": [
+          -169.9999999,
+          112.50607718966617,
+          -111.5884138051633
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P011.local_xmax"
+    },
+    "CATCH-G012_P012": {
+      "id": "CATCH-G012_P012",
+      "kind": "external",
+      "category": "adcs",
+      "dims": [
+        202.10243689047894,
+        86.00561459445402,
+        78.24706684772272
+      ],
+      "mass": 0.293779,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "02_JIZHUNBAN_BJ.xmin_outer",
+      "position": [
+        -321.0936353324423,
+        -112.50280729722701,
+        -178.3331984140599
+      ],
+      "bbox": {
+        "min": [
+          -321.0936353324423,
+          -112.50280729722701,
+          -178.3331984140599
+        ],
+        "max": [
+          -118.99119844196338,
+          -26.497192702772985,
+          -100.08613156633717
+        ]
+      },
+      "component_id": "P012",
+      "semantic_name": "catch_catch_p012_星敏感器_B",
+      "component_subtype": "star_tracker",
+      "color": [
+        235,
+        148,
+        33,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.02_JIZHUNBAN_BJ",
+      "mount_point": [
+        -220.04241688720285,
+        -69.5,
+        -139.20966499019852
+      ],
+      "install_pos": [
+        -321.0936353324423,
+        -112.50280729722701,
+        -178.3331984140599
+      ],
+      "panel_id": "02_JIZHUNBAN_BJ",
+      "panel_name": "JIZHUNBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -321.0936353324423,
+          -112.50280729722701,
+          -178.3331984140599
+        ],
+        "max": [
+          -118.99119844196338,
+          -26.497192702772985,
+          -100.08613156633717
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P012.local_xmax"
+    },
+    "CATCH-G014_P014": {
+      "id": "CATCH-G014_P014",
+      "kind": "external",
+      "category": "propulsion",
+      "dims": [
+        140.0043992415549,
+        144.0012928851061,
+        89.00439924155492
+      ],
+      "mass": 0.387591,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
+      "position": [
+        -6.001292785105907,
+        122.4999999,
+        -44.00129278510591
+      ],
+      "bbox": {
+        "min": [
+          -6.001292785105907,
+          122.4999999,
+          -44.00129278510591
+        ],
+        "max": [
+          134.003106456449,
+          266.5012927851061,
+          45.003106456449004
+        ]
+      },
+      "component_id": "P014",
+      "semantic_name": "catch_catch_p014_电推进_微推力器候选_含安装板",
+      "component_subtype": "thruster",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.04_GB_FY_BJ",
+      "mount_point": [
+        64.00090683567154,
+        194.50064634255307,
+        0.5009068356715467
+      ],
+      "install_pos": [
+        -6.001292785105907,
+        122.4999999,
+        -44.00129278510591
+      ],
+      "panel_id": "04_GB_FY_BJ",
+      "panel_name": "GB_FY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -6.001292785105907,
+          122.4999999,
+          -44.00129278510591
+        ],
+        "max": [
+          134.003106456449,
+          266.5012927851061,
+          45.003106456449004
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P014.local_ymin"
+    },
+    "CATCH-G015_P015": {
+      "id": "CATCH-G015_P015",
+      "kind": "external",
+      "category": "adcs",
+      "dims": [
+        50.52196131227228,
+        89.22196131227241,
+        50.02196131227225
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
+      "position": [
+        -138.51098065613616,
+        122.4890193438637,
+        -101.21098065613613
+      ],
+      "bbox": {
+        "min": [
+          -138.51098065613616,
+          122.4890193438637,
+          -101.21098065613613
+        ],
+        "max": [
+          -87.98901934386387,
+          211.71098065613612,
+          -51.189019343863876
+        ]
+      },
+      "component_id": "P015",
+      "semantic_name": "catch_catch_p015_光纤陀螺_YH50_含热控垫片",
+      "component_subtype": "gyro",
+      "color": [
+        31,
+        120,
+        209,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.04_GB_FY_BJ",
+      "mount_point": [
+        -113.25000000000001,
+        167.0999999999999,
+        -76.2
+      ],
+      "install_pos": [
+        -138.51098065613616,
+        122.4890193438637,
+        -101.21098065613613
+      ],
+      "panel_id": "04_GB_FY_BJ",
+      "panel_name": "GB_FY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -138.51098065613616,
+          122.4890193438637,
+          -101.21098065613613
+        ],
+        "max": [
+          -87.98901934386387,
+          211.71098065613612,
+          -51.189019343863876
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P015.local_ymin"
+    },
+    "CATCH-G016_P016": {
+      "id": "CATCH-G016_P016",
+      "kind": "external",
+      "category": "adcs",
+      "dims": [
+        73.60000019999998,
+        21.500000199999988,
+        44.8000002
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "04_GB_FY_BJ.ymax_outer",
+      "position": [
+        -80.60000009999999,
+        122.4999999,
+        -140.0000001
+      ],
+      "bbox": {
+        "min": [
+          -80.60000009999999,
+          122.4999999,
+          -140.0000001
+        ],
+        "max": [
+          -6.9999999,
+          144.0000001,
+          -95.1999999
+        ]
+      },
+      "component_id": "P016",
+      "semantic_name": "catch_catch_p016_MEMS_陀螺_100_含热控垫片",
+      "component_subtype": "gyro",
+      "color": [
+        46,
+        161,
+        84,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.04_GB_FY_BJ",
+      "mount_point": [
+        -43.8,
+        133.25,
+        -117.6
+      ],
+      "install_pos": [
+        -80.60000009999999,
+        122.4999999,
+        -140.0000001
+      ],
+      "panel_id": "04_GB_FY_BJ",
+      "panel_name": "GB_FY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -80.60000009999999,
+          122.4999999,
+          -140.0000001
+        ],
+        "max": [
+          -6.9999999,
+          144.0000001,
+          -95.1999999
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P016.local_ymin"
+    },
+    "CATCH-G017_P017": {
+      "id": "CATCH-G017_P017",
+      "kind": "external",
+      "category": "mechanism",
+      "dims": [
+        127.58918487212415,
+        450.68893708962423,
+        270.08925910990376
+      ],
+      "mass": 3.354686,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "05_CB_FX_BJ.xmax_outer",
+      "position": [
+        169.955565682958,
+        -225.34449035732715,
+        -130.04504038234606
+      ],
+      "bbox": {
+        "min": [
+          169.955565682958,
+          -225.34449035732715,
+          -130.04504038234606
+        ],
+        "max": [
+          297.54475055508215,
+          225.34444673229711,
+          140.0442187275577
+        ]
+      },
+      "component_id": "P017",
+      "semantic_name": "catch_catch_p017_载荷伸展_展开机构",
+      "component_subtype": "deployment_mechanism",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.05_CB_FX_BJ",
+      "mount_point": [
+        233.75015811902006,
+        -2.1812515015540157e-05,
+        4.999589172605823
+      ],
+      "install_pos": [
+        169.955565682958,
+        -225.34449035732715,
+        -130.04504038234606
+      ],
+      "panel_id": "05_CB_FX_BJ",
+      "panel_name": "CB_FX_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          169.955565682958,
+          -225.34449035732715,
+          -130.04504038234606
+        ],
+        "max": [
+          297.54475055508215,
+          225.34444673229711,
+          140.0442187275577
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P017.local_xmin"
+    },
+    "CATCH-G019_P019": {
+      "id": "CATCH-G019_P019",
+      "kind": "external",
+      "category": "adcs",
+      "dims": [
+        159.48414601795304,
+        73.53407685250272,
+        93.53407685250662
+      ],
+      "mass": 0.236935,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "06_CB_ZXFY_BJ.xmin_outer",
+      "position": [
+        -304.9671075917465,
+        165.2329615738014,
+        -128.51703842630562
+      ],
+      "bbox": {
+        "min": [
+          -304.9671075917465,
+          165.2329615738014,
+          -128.51703842630562
+        ],
+        "max": [
+          -145.4829615737935,
+          238.7670384263041,
+          -34.982961573799
+        ]
+      },
+      "component_id": "P019",
+      "semantic_name": "catch_catch_p019_星敏_小光学组件候选",
+      "component_subtype": "star_tracker",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.06_CB_ZXFY_BJ",
+      "mount_point": [
+        -225.22503458277,
+        202.00000000005275,
+        -81.75000000005231
+      ],
+      "install_pos": [
+        -304.9671075917465,
+        165.2329615738014,
+        -128.51703842630562
+      ],
+      "panel_id": "06_CB_ZXFY_BJ",
+      "panel_name": "CB_ZXFY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -304.9671075917465,
+          165.2329615738014,
+          -128.51703842630562
+        ],
+        "max": [
+          -145.4829615737935,
+          238.7670384263041,
+          -34.982961573799
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P019.local_xmax"
+    },
+    "CATCH-G020_P020": {
+      "id": "CATCH-G020_P020",
+      "kind": "external",
+      "category": "communication",
+      "dims": [
+        25.279806034499302,
+        73.78140179316097,
+        34.04379389059784
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "07_CB_FXZY_BJ.xmax_outer",
+      "position": [
+        169.990495152138,
+        -311.771896945299,
+        -140.02189694529892
+      ],
+      "bbox": {
+        "min": [
+          169.990495152138,
+          -311.771896945299,
+          -140.02189694529892
+        ],
+        "max": [
+          195.2703011866373,
+          -237.990495152138,
+          -105.97810305470108
+        ]
+      },
+      "component_id": "P020",
+      "semantic_name": "catch_catch_p020_测控_数传_短报文天线候选_FXZY",
+      "component_subtype": "antenna",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.07_CB_FXZY_BJ",
+      "mount_point": [
+        182.63039816938766,
+        -274.8811960487185,
+        -123.0
+      ],
+      "install_pos": [
+        169.990495152138,
+        -311.771896945299,
+        -140.02189694529892
+      ],
+      "panel_id": "07_CB_FXZY_BJ",
+      "panel_name": "CB_FXZY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          169.990495152138,
+          -311.771896945299,
+          -140.02189694529892
+        ],
+        "max": [
+          195.2703011866373,
+          -237.990495152138,
+          -105.97810305470108
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P020.local_xmin"
+    },
+    "CATCH-G021_P021": {
+      "id": "CATCH-G021_P021",
+      "kind": "external",
+      "category": "communication",
+      "dims": [
+        25.27980603140739,
+        78.78140179006903,
+        34.043793884414015
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "08_CB_FXFY_BJ.xmax_outer",
+      "position": [
+        169.990495152138,
+        237.990495152138,
+        -140.021896942207
+      ],
+      "bbox": {
+        "min": [
+          169.990495152138,
+          237.990495152138,
+          -140.021896942207
+        ],
+        "max": [
+          195.2703011835454,
+          316.77189694220704,
+          -105.97810305779299
+        ]
+      },
+      "component_id": "P021",
+      "semantic_name": "catch_catch_p021_测控_数传_短报文天线候选_FXFY",
+      "component_subtype": "antenna",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.08_CB_FXFY_BJ",
+      "mount_point": [
+        182.6303981678417,
+        277.3811960471725,
+        -123.0
+      ],
+      "install_pos": [
+        169.990495152138,
+        237.990495152138,
+        -140.021896942207
+      ],
+      "panel_id": "08_CB_FXFY_BJ",
+      "panel_name": "CB_FXFY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          169.990495152138,
+          237.990495152138,
+          -140.021896942207
+        ],
+        "max": [
+          195.2703011835454,
+          316.77189694220704,
+          -105.97810305779299
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P021.local_xmin"
+    },
+    "CATCH-G024_P024": {
+      "id": "CATCH-G024_P024",
+      "kind": "external",
+      "category": "communication",
+      "dims": [
+        50.00000019999999,
+        68.77189704220706,
+        50.00000019999999
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
+      "position": [
+        -160.0000001,
+        -356.77189694220704,
+        79.9999999
+      ],
+      "bbox": {
+        "min": [
+          -160.0000001,
+          -356.77189694220704,
+          79.9999999
+        ],
+        "max": [
+          -109.9999999,
+          -287.9999999,
+          130.0000001
+        ]
+      },
+      "component_id": "P024",
+      "semantic_name": "catch_catch_p024_测控_数传_短报文天线候选_ZY",
+      "component_subtype": "antenna",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.09_CB_ZY_BJ",
+      "mount_point": [
+        -135.0,
+        -322.38594842110354,
+        105.0
+      ],
+      "install_pos": [
+        -160.0000001,
+        -356.77189694220704,
+        79.9999999
+      ],
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -160.0000001,
+          -356.77189694220704,
+          79.9999999
+        ],
+        "max": [
+          -109.9999999,
+          -287.9999999,
+          130.0000001
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P024.local_ymax"
+    },
+    "CATCH-G026_P026": {
+      "id": "CATCH-G026_P026",
+      "kind": "external",
+      "category": "adcs",
+      "dims": [
+        26.000000199999988,
+        13.800000200000056,
+        160.00000020000002
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "09_CB_ZY_BJ.ymin_outer",
+      "position": [
+        128.9999999,
+        -296.80000010000003,
+        -125.0000001
+      ],
+      "bbox": {
+        "min": [
+          128.9999999,
+          -296.80000010000003,
+          -125.0000001
+        ],
+        "max": [
+          155.0000001,
+          -282.9999999,
+          35.000000100000015
+        ]
+      },
+      "component_id": "P026",
+      "semantic_name": "catch_catch_p026_磁力矩器_磁棒_ZY",
+      "component_subtype": "magnetorquer",
+      "color": [
+        140,
+        64,
+        194,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.09_CB_ZY_BJ",
+      "mount_point": [
+        142.0,
+        -289.9,
+        -44.999999999999986
+      ],
+      "install_pos": [
+        128.9999999,
+        -296.80000010000003,
+        -125.0000001
+      ],
+      "panel_id": "09_CB_ZY_BJ",
+      "panel_name": "CB_ZY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          128.9999999,
+          -296.80000010000003,
+          -125.0000001
+        ],
+        "max": [
+          155.0000001,
+          -282.9999999,
+          35.000000100000015
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P026.local_ymax"
+    },
+    "CATCH-G027_P027": {
+      "id": "CATCH-G027_P027",
+      "kind": "external",
+      "category": "communication",
+      "dims": [
+        50.00000019999999,
+        68.771897045299,
+        50.00000019999999
+      ],
+      "mass": 0.05,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "10_CB_FY_BJ.ymax_outer",
+      "position": [
+        -160.0000001,
+        287.9999999,
+        79.9999999
+      ],
+      "bbox": {
+        "min": [
+          -160.0000001,
+          287.9999999,
+          79.9999999
+        ],
+        "max": [
+          -109.9999999,
+          356.771896945299,
+          130.0000001
+        ]
+      },
+      "component_id": "P027",
+      "semantic_name": "catch_catch_p027_测控_数传_短报文天线候选_FY",
+      "component_subtype": "antenna",
+      "color": [
+        237,
+        46,
+        41,
+        255
+      ],
+      "clearance_mm": 1.0,
+      "thermal_surface": {
+        "absorptivity": 0.3,
+        "emissivity": 0.8
+      },
+      "thermal_interface": {
+        "contact_resistance": 0.001
+      },
+      "thermoelastic": {},
+      "leaf_node_id": "leaf.10_CB_FY_BJ",
+      "mount_point": [
+        -135.0,
+        322.38594842264945,
+        105.0
+      ],
+      "install_pos": [
+        -160.0000001,
+        287.9999999,
+        79.9999999
+      ],
+      "panel_id": "10_CB_FY_BJ",
+      "panel_name": "CB_FY_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -160.0000001,
+          287.9999999,
+          79.9999999
+        ],
+        "max": [
+          -109.9999999,
+          356.771896945299,
+          130.0000001
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P027.local_ymin"
+    },
+    "CATCH-G029_P029": {
+      "id": "CATCH-G029_P029",
+      "kind": "external",
+      "category": "power",
+      "dims": [
+        474.1731552760368,
+        712.1669456963295,
+        91.66690683190492
+      ],
+      "mass": 6.686288,
+      "power": null,
+      "shape": "box",
+      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
+      "position": [
+        -240.5849200384116,
+        -340.0844742206879,
+        160.41654658385082
+      ],
+      "bbox": {
+        "min": [
+          -240.5849200384116,
+          -340.0844742206879,
+          160.41654658385082
+        ],
+        "max": [
+          233.5882352376252,
+          372.0824714756416,
+          252.08345341575574
         ]
       },
       "component_id": "P029",
-      "semantic_name": "alba_orbital_pocketqube_launch_mechanism_v3",
-      "component_subtype": "payload_mechanism",
+      "semantic_name": "catch_catch_p029_太阳电池阵_帆板",
+      "component_subtype": "solar_array",
       "color": [
-        100,
-        150,
-        255,
+        237,
+        46,
+        41,
         255
       ],
-      "clearance_mm": 3.0,
+      "clearance_mm": 1.0,
       "thermal_surface": {
         "absorptivity": 0.3,
         "emissivity": 0.8
@@ -2021,58 +3200,75 @@
         "contact_resistance": 0.001
       },
       "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
+      "leaf_node_id": "leaf.11_DINGBAN_BJ",
       "mount_point": [
-        405.143749,
-        200.14374899999996,
-        470.28669349999996
+        -3.4983424003931987,
+        15.998998627476851,
+        206.24999999980326
       ],
       "install_pos": [
-        367.14374899999996,
-        162.14374899999996,
-        120.28669349999996
-      ]
+        -240.5849200384116,
+        -340.0844742206879,
+        160.41654658385082
+      ],
+      "panel_id": "11_DINGBAN_BJ",
+      "panel_name": "DINGBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -240.5849200384116,
+          -340.0844742206879,
+          160.41654658385082
+        ],
+        "max": [
+          233.5882352376252,
+          372.0824714756416,
+          252.08345341575574
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P029.local_zmin"
     },
-    "G034_P030": {
-      "id": "G034_P030",
-      "kind": "internal",
+    "CATCH-G030_P030": {
+      "id": "CATCH-G030_P030",
+      "kind": "external",
       "category": "adcs",
       "dims": [
-        150.0,
-        150.0,
-        60.0
+        26.000000199999995,
+        160.00000020000004,
+        13.8000002
       ],
-      "mass": 0.027,
-      "power": 8.0,
+      "mass": 0.05,
+      "power": null,
       "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
+      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
       "position": [
-        -584.560012,
-        -577.949076,
-        -440.2844705
+        -88.0000001,
+        -273.7500001,
+        167.9999999
       ],
       "bbox": {
         "min": [
-          -584.560012,
-          -577.949076,
-          -440.2844705
+          -88.0000001,
+          -273.7500001,
+          167.9999999
         ],
         "max": [
-          -434.56001200000003,
-          -427.949076,
-          -380.2844705
+          -61.9999999,
+          -113.74999989999999,
+          181.8000001
         ]
       },
       "component_id": "P030",
-      "semantic_name": "reaction_wheel_v7",
-      "component_subtype": "reaction_wheel",
+      "semantic_name": "catch_catch_p030_磁力矩器_磁棒_顶板_1",
+      "component_subtype": "magnetorquer",
       "color": [
-        200,
-        200,
-        200,
+        31,
+        120,
+        209,
         255
       ],
-      "clearance_mm": 3.0,
+      "clearance_mm": 1.0,
       "thermal_surface": {
         "absorptivity": 0.3,
         "emissivity": 0.8
@@ -2081,58 +3277,75 @@
         "contact_resistance": 0.001
       },
       "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
+      "leaf_node_id": "leaf.11_DINGBAN_BJ",
       "mount_point": [
-        -509.56001200000003,
-        -502.949076,
-        -440.2844705
+        -75.0,
+        -193.75,
+        174.9
       ],
       "install_pos": [
-        -587.560012,
-        -580.949076,
-        -440.2844705
-      ]
+        -88.0000001,
+        -273.7500001,
+        167.9999999
+      ],
+      "panel_id": "11_DINGBAN_BJ",
+      "panel_name": "DINGBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
+        "min": [
+          -88.0000001,
+          -273.7500001,
+          167.9999999
+        ],
+        "max": [
+          -61.9999999,
+          -113.74999989999999,
+          181.8000001
+        ]
+      },
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P030.local_zmin"
     },
-    "G035_P031": {
-      "id": "G035_P031",
-      "kind": "internal",
+    "CATCH-G031_P031": {
+      "id": "CATCH-G031_P031",
+      "kind": "external",
       "category": "adcs",
       "dims": [
-        60.0,
-        150.0,
-        150.0
+        160.00000020000002,
+        26.000000200000017,
+        13.8000002
       ],
-      "mass": 0.027,
-      "power": 8.0,
+      "mass": 0.05,
+      "power": null,
       "shape": "box",
-      "mount_face_id": "template_outer_shell.xmin",
+      "mount_face_id": "11_DINGBAN_BJ.zmax_outer",
       "position": [
-        -600.111353,
-        -527.949076,
-        121.33865949999995
+        -1.0000001000000143,
+        241.9999999,
+        167.9999999
       ],
       "bbox": {
         "min": [
-          -600.111353,
-          -527.949076,
-          121.33865949999995
+          -1.0000001000000143,
+          241.9999999,
+          167.9999999
         ],
         "max": [
-          -540.111353,
-          -377.949076,
-          271.33865949999995
+          159.0000001,
+          268.0000001,
+          181.8000001
         ]
       },
       "component_id": "P031",
-      "semantic_name": "reaction_wheel_v7",
-      "component_subtype": "reaction_wheel",
+      "semantic_name": "catch_catch_p031_磁力矩器_磁棒_顶板_2",
+      "component_subtype": "magnetorquer",
       "color": [
-        200,
-        200,
-        200,
+        46,
+        161,
+        84,
         255
       ],
-      "clearance_mm": 3.0,
+      "clearance_mm": 1.0,
       "thermal_surface": {
         "absorptivity": 0.3,
         "emissivity": 0.8
@@ -2141,1097 +3354,102 @@
         "contact_resistance": 0.001
       },
       "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
+      "leaf_node_id": "leaf.11_DINGBAN_BJ",
       "mount_point": [
-        -600.111353,
-        -452.949076,
-        196.33865949999995
+        78.99999999999999,
+        255.0,
+        174.9
       ],
       "install_pos": [
-        -600.111353,
-        -530.949076,
-        118.33865949999995
-      ]
-    },
-    "G036_P032": {
-      "id": "G036_P032",
-      "kind": "internal",
-      "category": "adcs",
-      "dims": [
-        150.0,
-        60.0,
-        150.0
+        -1.0000001000000143,
+        241.9999999,
+        167.9999999
       ],
-      "mass": 0.027,
-      "power": 8.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymin",
-      "position": [
-        -388.948034,
-        -600.111353,
-        196.33865949999995
-      ],
-      "bbox": {
+      "panel_id": "11_DINGBAN_BJ",
+      "panel_name": "DINGBAN_BJ",
+      "mount_side": "outer",
+      "source_bbox": {
         "min": [
-          -388.948034,
-          -600.111353,
-          196.33865949999995
+          -1.0000001000000143,
+          241.9999999,
+          167.9999999
         ],
         "max": [
-          -238.948034,
-          -540.111353,
-          346.33865949999995
+          159.0000001,
+          268.0000001,
+          181.8000001
         ]
       },
-      "component_id": "P032",
-      "semantic_name": "reaction_wheel_v7",
-      "component_subtype": "reaction_wheel",
-      "color": [
-        200,
-        200,
-        200,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        -313.948034,
-        -600.111353,
-        271.33865949999995
-      ],
-      "install_pos": [
-        -391.948034,
-        -600.111353,
-        193.33865949999995
-      ]
-    },
-    "G037_P033": {
-      "id": "G037_P033",
-      "kind": "internal",
-      "category": "adcs",
-      "dims": [
-        150.0,
-        150.0,
-        60.0
-      ],
-      "mass": 0.027,
-      "power": 8.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmin",
-      "position": [
-        434.5600119999999,
-        427.9490760000001,
-        -440.2844705
-      ],
+      "source_bbox_kind": "catch_step_decomposition_original_bbox",
+      "component_mount_face_id": "P031.local_zmin"
+    }
+  },
+  "walls": {
+    "03_GB_ZY_BJ": {
+      "id": "03_GB_ZY_BJ",
+      "name": "正 Y 隔板/盖板装配",
+      "panel_id": "03_GB_ZY_BJ",
+      "role": "internal_partition",
+      "axis": 1,
+      "normal_sign": -1,
       "bbox": {
         "min": [
-          434.5600119999999,
-          427.9490760000001,
-          -440.2844705
+          -160.07871521991498,
+          -123.301462255115,
+          -160.07871521991558
         ],
         "max": [
-          584.5600119999999,
-          577.9490760000001,
-          -380.2844705
+          160.07871521991498,
+          -112.421284780085,
+          160.07871521991498
         ]
       },
-      "component_id": "P033",
-      "semantic_name": "reaction_wheel_v7",
-      "component_subtype": "reaction_wheel",
-      "color": [
-        200,
-        200,
-        200,
-        255
+      "separates": [
+        "catch_cabin_yneg",
+        "catch_cabin_mid"
       ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
+      "adjacent_cabins": {
+        "negative_side": "catch_cabin_yneg",
+        "positive_side": "catch_cabin_mid"
       },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        509.5600119999999,
-        502.9490760000001,
-        -440.2844705
+      "install_face_ids": [
+        "03_GB_ZY_BJ.ymin_outer",
+        "03_GB_ZY_BJ.ymax_inner"
       ],
-      "install_pos": [
-        431.5600119999999,
-        424.9490760000001,
-        -440.2844705
-      ]
+      "power": 0
     },
-    "G038_P034": {
-      "id": "G038_P034",
-      "kind": "internal",
-      "category": "adcs",
-      "dims": [
-        60.0,
-        150.0,
-        150.0
-      ],
-      "mass": 0.027,
-      "power": 8.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmax",
-      "position": [
-        540.111353,
-        377.949076,
-        121.33865949999995
-      ],
+    "04_GB_FY_BJ": {
+      "id": "04_GB_FY_BJ",
+      "name": "负 Y 隔板/盖板装配",
+      "panel_id": "04_GB_FY_BJ",
+      "role": "internal_partition",
+      "axis": 1,
+      "normal_sign": 1,
       "bbox": {
         "min": [
-          540.111353,
-          377.949076,
-          121.33865949999995
+          -160.0150128041904,
+          112.48498719580958,
+          -160.015012804191
         ],
         "max": [
-          600.111353,
-          527.9490760000001,
-          271.33865949999995
+          160.0150128041904,
+          122.84005702039042,
+          160.0150128041904
         ]
       },
-      "component_id": "P034",
-      "semantic_name": "reaction_wheel_v7",
-      "component_subtype": "reaction_wheel",
-      "color": [
-        200,
-        200,
-        200,
-        255
+      "separates": [
+        "catch_cabin_mid",
+        "catch_cabin_ypos"
       ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
+      "adjacent_cabins": {
+        "negative_side": "catch_cabin_mid",
+        "positive_side": "catch_cabin_ypos"
       },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        600.111353,
-        452.94907600000005,
-        196.33865949999995
+      "install_face_ids": [
+        "04_GB_FY_BJ.ymin_inner",
+        "04_GB_FY_BJ.ymax_outer"
       ],
-      "install_pos": [
-        540.111353,
-        374.949076,
-        118.33865949999995
-      ]
-    },
-    "G039_P035": {
-      "id": "G039_P035",
-      "kind": "internal",
-      "category": "adcs",
-      "dims": [
-        150.0,
-        60.0,
-        150.0
-      ],
-      "mass": 0.027,
-      "power": 8.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymax",
-      "position": [
-        238.948034,
-        540.111353,
-        196.33865949999995
-      ],
-      "bbox": {
-        "min": [
-          238.948034,
-          540.111353,
-          196.33865949999995
-        ],
-        "max": [
-          388.948034,
-          600.111353,
-          346.33865949999995
-        ]
-      },
-      "component_id": "P035",
-      "semantic_name": "reaction_wheel_v7",
-      "component_subtype": "reaction_wheel",
-      "color": [
-        200,
-        200,
-        200,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_cabin",
-      "mount_point": [
-        313.948034,
-        600.111353,
-        271.33865949999995
-      ],
-      "install_pos": [
-        235.948034,
-        540.111353,
-        193.33865949999995
-      ]
-    },
-    "G040_P036": {
-      "id": "G040_P036",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        79.19009,
-        70.123,
-        167.298846
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        -35.150014000000056,
-        -560.0615,
-        302.98784749999993
-      ],
-      "bbox": {
-        "min": [
-          -35.150014000000056,
-          -560.0615,
-          302.98784749999993
-        ],
-        "max": [
-          44.040076,
-          -489.9385,
-          470.28669349999996
-        ]
-      },
-      "component_id": "P036",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        4.445030999999972,
-        -525.0,
-        470.28669349999996
-      ],
-      "install_pos": [
-        -38.150014000000056,
-        -563.0615,
-        302.98784749999993
-      ]
-    },
-    "G041_P037": {
-      "id": "G041_P037",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        79.19009,
-        70.123,
-        167.298846
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.zmax_inner",
-      "position": [
-        -35.150014000000056,
-        489.9385,
-        302.98784749999993
-      ],
-      "bbox": {
-        "min": [
-          -35.150014000000056,
-          489.9385,
-          302.98784749999993
-        ],
-        "max": [
-          44.040076,
-          560.0615,
-          470.28669349999996
-        ]
-      },
-      "component_id": "P037",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        4.445030999999972,
-        525.0,
-        470.28669349999996
-      ],
-      "install_pos": [
-        -38.150014000000056,
-        486.9385,
-        302.98784749999993
-      ]
-    },
-    "G042_P038": {
-      "id": "G042_P038",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        167.298846,
-        79.19009,
-        70.123
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmin",
-      "position": [
-        -600.111353,
-        -560.150014,
-        -319.77480650000007
-      ],
-      "bbox": {
-        "min": [
-          -600.111353,
-          -560.150014,
-          -319.77480650000007
-        ],
-        "max": [
-          -432.812507,
-          -480.959924,
-          -249.65180650000002
-        ]
-      },
-      "component_id": "P038",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        -600.111353,
-        -520.554969,
-        -284.71330650000004
-      ],
-      "install_pos": [
-        -600.111353,
-        -563.150014,
-        -322.77480650000007
-      ]
-    },
-    "G043_P039": {
-      "id": "G043_P039",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        167.298846,
-        79.19009,
-        70.123
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmin",
-      "position": [
-        -600.111353,
-        -560.150014,
-        280.22519349999993
-      ],
-      "bbox": {
-        "min": [
-          -600.111353,
-          -560.150014,
-          280.22519349999993
-        ],
-        "max": [
-          -432.812507,
-          -480.959924,
-          350.3481935
-        ]
-      },
-      "component_id": "P039",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        -600.111353,
-        -520.554969,
-        315.28669349999996
-      ],
-      "install_pos": [
-        -600.111353,
-        -563.150014,
-        277.22519349999993
-      ]
-    },
-    "G044_P040": {
-      "id": "G044_P040",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        167.298846,
-        79.19009,
-        70.123
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmin",
-      "position": [
-        -600.111353,
-        480.959924,
-        -319.77480650000007
-      ],
-      "bbox": {
-        "min": [
-          -600.111353,
-          480.959924,
-          -319.77480650000007
-        ],
-        "max": [
-          -432.812507,
-          560.150014,
-          -249.65180650000002
-        ]
-      },
-      "component_id": "P040",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        -600.111353,
-        520.554969,
-        -284.71330650000004
-      ],
-      "install_pos": [
-        -600.111353,
-        477.959924,
-        -322.77480650000007
-      ]
-    },
-    "G045_P041": {
-      "id": "G045_P041",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        167.298846,
-        79.19009,
-        70.123
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmin",
-      "position": [
-        -600.111353,
-        480.959924,
-        280.22519349999993
-      ],
-      "bbox": {
-        "min": [
-          -600.111353,
-          480.959924,
-          280.22519349999993
-        ],
-        "max": [
-          -432.812507,
-          560.150014,
-          350.3481935
-        ]
-      },
-      "component_id": "P041",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        -600.111353,
-        520.554969,
-        315.28669349999996
-      ],
-      "install_pos": [
-        -600.111353,
-        477.959924,
-        277.22519349999993
-      ]
-    },
-    "G046_P042": {
-      "id": "G046_P042",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        70.123,
-        167.298846,
-        79.19009
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymax",
-      "position": [
-        -35.061500000000024,
-        432.8125070000001,
-        -219.86332050000004
-      ],
-      "bbox": {
-        "min": [
-          -35.061500000000024,
-          432.8125070000001,
-          -219.86332050000004
-        ],
-        "max": [
-          35.061500000000024,
-          600.111353,
-          -140.67323050000005
-        ]
-      },
-      "component_id": "P042",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        0.0,
-        600.111353,
-        -180.26827550000004
-      ],
-      "install_pos": [
-        -38.061500000000024,
-        432.8125070000001,
-        -222.86332050000004
-      ]
-    },
-    "G047_P043": {
-      "id": "G047_P043",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        70.123,
-        167.298846,
-        79.19009
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymax",
-      "position": [
-        -35.061500000000024,
-        432.8125070000001,
-        180.1366794999999
-      ],
-      "bbox": {
-        "min": [
-          -35.061500000000024,
-          432.8125070000001,
-          180.1366794999999
-        ],
-        "max": [
-          35.061500000000024,
-          600.111353,
-          259.32676949999995
-        ]
-      },
-      "component_id": "P043",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        0.0,
-        600.111353,
-        219.73172449999993
-      ],
-      "install_pos": [
-        -38.061500000000024,
-        432.8125070000001,
-        177.1366794999999
-      ]
-    },
-    "G048_P044": {
-      "id": "G048_P044",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        70.123,
-        167.298846,
-        79.19009
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymin",
-      "position": [
-        -35.061500000000024,
-        -600.111353,
-        -219.86332050000004
-      ],
-      "bbox": {
-        "min": [
-          -35.061500000000024,
-          -600.111353,
-          -219.86332050000004
-        ],
-        "max": [
-          35.061500000000024,
-          -432.812507,
-          -140.67323050000005
-        ]
-      },
-      "component_id": "P044",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        0.0,
-        -600.111353,
-        -180.26827550000004
-      ],
-      "install_pos": [
-        -38.061500000000024,
-        -600.111353,
-        -222.86332050000004
-      ]
-    },
-    "G049_P045": {
-      "id": "G049_P045",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        70.123,
-        167.298846,
-        79.19009
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.ymin",
-      "position": [
-        -35.061500000000024,
-        -600.111353,
-        180.1366794999999
-      ],
-      "bbox": {
-        "min": [
-          -35.061500000000024,
-          -600.111353,
-          180.1366794999999
-        ],
-        "max": [
-          35.061500000000024,
-          -432.812507,
-          259.32676949999995
-        ]
-      },
-      "component_id": "P045",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        0.0,
-        -600.111353,
-        219.73172449999993
-      ],
-      "install_pos": [
-        -38.061500000000024,
-        -600.111353,
-        177.1366794999999
-      ]
-    },
-    "G050_P046": {
-      "id": "G050_P046",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        167.298846,
-        79.19009,
-        70.123
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmax",
-      "position": [
-        432.8125070000001,
-        480.959924,
-        -319.77480650000007
-      ],
-      "bbox": {
-        "min": [
-          432.8125070000001,
-          480.959924,
-          -319.77480650000007
-        ],
-        "max": [
-          600.111353,
-          560.150014,
-          -249.65180650000002
-        ]
-      },
-      "component_id": "P046",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        600.111353,
-        520.554969,
-        -284.71330650000004
-      ],
-      "install_pos": [
-        432.8125070000001,
-        477.959924,
-        -322.77480650000007
-      ]
-    },
-    "G051_P047": {
-      "id": "G051_P047",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        167.298846,
-        79.19009,
-        70.123
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmax",
-      "position": [
-        432.8125070000001,
-        480.959924,
-        280.22519349999993
-      ],
-      "bbox": {
-        "min": [
-          432.8125070000001,
-          480.959924,
-          280.22519349999993
-        ],
-        "max": [
-          600.111353,
-          560.150014,
-          350.3481935
-        ]
-      },
-      "component_id": "P047",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        600.111353,
-        520.554969,
-        315.28669349999996
-      ],
-      "install_pos": [
-        432.8125070000001,
-        477.959924,
-        277.22519349999993
-      ]
-    },
-    "G052_P048": {
-      "id": "G052_P048",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        167.298846,
-        79.19009,
-        70.123
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmax",
-      "position": [
-        432.8125070000001,
-        -560.150014,
-        -319.77480650000007
-      ],
-      "bbox": {
-        "min": [
-          432.8125070000001,
-          -560.150014,
-          -319.77480650000007
-        ],
-        "max": [
-          600.111353,
-          -480.959924,
-          -249.65180650000002
-        ]
-      },
-      "component_id": "P048",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        600.111353,
-        -520.554969,
-        -284.71330650000004
-      ],
-      "install_pos": [
-        432.8125070000001,
-        -563.150014,
-        -322.77480650000007
-      ]
-    },
-    "G053_P049": {
-      "id": "G053_P049",
-      "kind": "internal",
-      "category": "propulsion",
-      "dims": [
-        167.298846,
-        79.19009,
-        70.123
-      ],
-      "mass": 0.01858,
-      "power": 12.0,
-      "shape": "box",
-      "mount_face_id": "template_outer_shell.xmax",
-      "position": [
-        432.8125070000001,
-        -560.150014,
-        280.22519349999993
-      ],
-      "bbox": {
-        "min": [
-          432.8125070000001,
-          -560.150014,
-          280.22519349999993
-        ],
-        "max": [
-          600.111353,
-          -480.959924,
-          350.3481935
-        ]
-      },
-      "component_id": "P049",
-      "semantic_name": "dawnaerospace_b20_thruster_v2",
-      "component_subtype": "thruster",
-      "color": [
-        220,
-        140,
-        60,
-        255
-      ],
-      "clearance_mm": 3.0,
-      "thermal_surface": {
-        "absorptivity": 0.3,
-        "emissivity": 0.8
-      },
-      "thermal_interface": {
-        "contact_resistance": 0.001
-      },
-      "thermoelastic": {},
-      "leaf_node_id": "leaf.template_outer_shell",
-      "mount_point": [
-        600.111353,
-        -520.554969,
-        315.28669349999996
-      ],
-      "install_pos": [
-        432.8125070000001,
-        -563.150014,
-        277.22519349999993
-      ]
+      "power": 0
     }
   }
 }
