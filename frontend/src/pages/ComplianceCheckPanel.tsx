@@ -46,19 +46,19 @@ const MISSING_COLUMNS = [
 ] as const
 
 const RESULT_COLUMNS = [
-  { key: "序号", label: "序号", width: 70 },
-  { key: "元器件名称", label: "器件名称", width: 130 },
-  { key: "型号规格_规格", label: "型号规格", width: 130 },
-  { key: "降额参数", label: "降额参数", width: 118 },
-  { key: "参数值_额定", label: "额定值", width: 92 },
-  { key: "AI分类", label: "AI分类（新）", width: 180 },
-  { key: "I级降额公式", label: "I级降额公式（新）", width: 150 },
-  { key: "允许值判定组合", label: "允许值 / AI判定", width: 220 },
-  { key: "实际值判定组合", label: "实际值 / AI判定", width: 220 },
-  { key: "降额因子判定组合", label: "降额因子_规定 / AI判定", width: 230 },
-  { key: "实际降额因子判定组合", label: "实际降额因子 / AI判定", width: 230 },
-  { key: "判定结果", label: "判定结果", width: 142 },
-  { key: "综合判定详情", label: "综合判定详情", width: 260 },
+  { key: "序号", label: "序号", width: 56 },
+  { key: "元器件名称", label: "器件名称", width: 112 },
+  { key: "型号规格_规格", label: "型号规格", width: 118 },
+  { key: "降额参数", label: "降额参数", width: 96 },
+  { key: "参数值_额定", label: "额定值", width: 82 },
+  { key: "AI分类", label: "AI分类（新）", width: 150 },
+  { key: "I级降额公式", label: "I级降额公式（新）", width: 126 },
+  { key: "允许值判定组合", label: "允许值 / AI判定", width: 154 },
+  { key: "实际值判定组合", label: "实际值 / AI判定", width: 154 },
+  { key: "降额因子判定组合", label: "规定因子 / AI判定", width: 158 },
+  { key: "实际降额因子判定组合", label: "实际因子 / AI判定", width: 158 },
+  { key: "判定结果", label: "判定结果", width: 96 },
+  { key: "综合判定详情", label: "综合判定详情", width: 220 },
 ] as const
 
 const COMPLIANCE_TABS = [
@@ -121,6 +121,25 @@ const COMPLIANCE_TABS = [
     emptyText: "暂无目录匹配数据",
     key: "catalog",
     title: "目录匹配",
+  },
+  {
+    artifact: "reliability_query",
+    columns: [
+      { key: "index", label: "序号", width: 70 },
+      { key: "component_name", label: "器件名称", width: 140 },
+      { key: "model", label: "型号规格", width: 140 },
+      { key: "manufacturer", label: "生产厂商", width: 130 },
+      { key: "quality_match_level", label: "质量命中类型", width: 120 },
+      { key: "quality_count", label: "质量直接命中", width: 120 },
+      { key: "quality_summary", label: "质量问题摘要", width: 280 },
+      { key: "radiation_match_level", label: "辐照命中类型", width: 120 },
+      { key: "radiation_count", label: "辐照直接命中", width: 120 },
+      { key: "radiation_summary", label: "辐照信息摘要", width: 280 },
+    ],
+    description: "展示质量问题和辐照/辐射效应数据库查询结果。",
+    emptyText: "暂无质量问题与辐照信息查询数据",
+    key: "reliability",
+    title: "质量/辐照查询",
   },
 ] as const
 
@@ -189,6 +208,13 @@ type ModuleInsight = {
     catalogInRate: number
     unmatchedCount: number
     originShare: PercentItem[]
+  }
+  reliability: {
+    cleanCount: number
+    hitCount: number
+    qualityHits: number
+    radiationHits: number
+    total: number
   }
 }
 
@@ -265,8 +291,9 @@ function csvEscape(value: unknown) {
 }
 
 function issueText(row: JsonRow) {
-  const issues = Array.isArray(row["问题"]) ? row["问题"] : []
-  return issues.map(asText).filter(Boolean).join("；")
+  const issues = row["问题"]
+  if (Array.isArray(issues)) return issues.map(asText).filter(Boolean).join("；")
+  return asText(issues)
 }
 
 function rowIssues(row: JsonRow) {
@@ -293,6 +320,37 @@ function statusText(row: JsonRow) {
   return asText(row["综合判定"]) || asText(row["符合性"]) || "需确认"
 }
 
+function resultField(row: JsonRow, key: string) {
+  if (key === "型号规格_规格") return row["型号规格_规格"] ?? row["型号规格"]
+  if (key === "生产厂商_生产单位") return row["生产厂商_生产单位"] ?? row["生产厂商"]
+  if (key === "参数值_额定") return row["参数值_额定"] ?? row["额定值"]
+  if (key === "参数值_允许") return row["参数值_允许"] ?? row["允许值"]
+  if (key === "参数值_实际") return row["参数值_实际"] ?? row["实际值"]
+  if (key === "降额因子_规定") return row["降额因子_规定"] ?? row["标准I级降额"]
+  if (key === "降额因子_实际") return row["降额因子_实际"] ?? row["计算实际降额因子"]
+  return row[key]
+}
+
+function deratingDetailText(row: JsonRow) {
+  const explicit = asText(row["综合判定详情"]) || issueText(row)
+  if (explicit) return explicit
+
+  const status = statusText(row)
+  const actualValue = asText(resultField(row, "参数值_实际"))
+  const allowedValue = asText(resultField(row, "参数值_允许"))
+  const ratedValue = asText(resultField(row, "参数值_额定"))
+  const standardFactor = asText(resultField(row, "降额因子_规定"))
+  const actualFactor = asText(resultField(row, "降额因子_实际"))
+  const parts = [
+    actualValue && allowedValue ? `实际值 ${actualValue} 未超过允许值 ${allowedValue}` : "",
+    ratedValue && standardFactor ? `额定值 ${ratedValue}，I级降额要求 ${standardFactor}` : "",
+    actualFactor ? `实际降额因子 ${actualFactor}` : "",
+  ].filter(Boolean)
+
+  if (parts.length) return `${status}：${parts.join("；")}`
+  return status === "符合" ? "符合：未发现降额问题" : status
+}
+
 function passCount(rows: JsonRow[]) {
   return rows.filter(row => statusText(row) === "符合").length
 }
@@ -305,13 +363,13 @@ function getResultValue(row: JsonRow, key: string) {
   if (key === "序号") return row["序号"] ?? row["excel_row"]
   if (key === "AI分类") return asText(row["AI分类"]) || [row["元器件大类"], row["元器件子类"]].map(asText).filter(Boolean).join("-")
   if (key === "I级降额公式") return asText(row["I级降额公式"]) || asText(row["标准I级降额"])
-  if (key === "允许值判定组合") return asText(row["允许值判定组合"]) || [row["参数值_允许"], row["允许值判定"]].map(asText).filter(Boolean).join(" ▸ ")
-  if (key === "实际值判定组合") return asText(row["实际值判定组合"]) || [row["参数值_实际"], row["实际值判定"]].map(asText).filter(Boolean).join(" ▸ ")
-  if (key === "降额因子判定组合") return asText(row["降额因子判定组合"]) || [row["降额因子_规定"], row["降额因子判定"]].map(asText).filter(Boolean).join(" ▸ ")
-  if (key === "实际降额因子判定组合") return asText(row["实际降额因子判定组合"]) || [row["降额因子_实际"], row["实际降额因子判定"]].map(asText).filter(Boolean).join(" ▸ ")
+  if (key === "允许值判定组合") return asText(row["允许值判定组合"]) || [resultField(row, "参数值_允许"), row["允许值判定"]].map(asText).filter(Boolean).join(" ▸ ")
+  if (key === "实际值判定组合") return asText(row["实际值判定组合"]) || [resultField(row, "参数值_实际"), row["实际值判定"]].map(asText).filter(Boolean).join(" ▸ ")
+  if (key === "降额因子判定组合") return asText(row["降额因子判定组合"]) || [resultField(row, "降额因子_规定"), row["降额因子判定"]].map(asText).filter(Boolean).join(" ▸ ")
+  if (key === "实际降额因子判定组合") return asText(row["实际降额因子判定组合"]) || [resultField(row, "降额因子_实际"), row["实际降额因子判定"]].map(asText).filter(Boolean).join(" ▸ ")
   if (key === "判定结果") return statusText(row)
-  if (key === "综合判定详情") return asText(row["综合判定详情"]) || issueText(row)
-  return row[key]
+  if (key === "综合判定详情") return deratingDetailText(row)
+  return resultField(row, key)
 }
 
 function getComparisonValue(row: JsonRow, key: string) {
@@ -322,8 +380,17 @@ function getComparisonValue(row: JsonRow, key: string) {
   return {
     aiValue: asText(row[comparison.aiKey]) || combined[1] || deriveComparisonJudgement(row, key),
     tableLabel: comparison.tableLabel,
-    tableValue: asText(row[comparison.tableKey]) || combined[0] || "",
+    tableValue: asText(resultField(row, comparison.tableKey)) || combined[0] || "",
   }
+}
+
+function displayNumber(value: string) {
+  const text = value.trim()
+  if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/iu.test(text)) return value
+  const numberValue = Number(text)
+  if (!Number.isFinite(numberValue)) return value
+  const rounded = Math.round(numberValue * 10000) / 10000
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(4).replace(/0+$/u, "").replace(/\.$/u, "")
 }
 
 function deriveComparisonJudgement(row: JsonRow, key: string) {
@@ -375,13 +442,147 @@ function writeResultValue(row: JsonRow, key: string, value: string) {
   return { ...row, [key]: value }
 }
 
+function reliabilityBlock(row: JsonRow, key: "quality" | "radiation") {
+  return isJsonRecord(row[key]) ? row[key] as JsonRow : {}
+}
+
+function reliabilityRecords(block: JsonRow) {
+  return Array.isArray(block.records) ? block.records.filter(isJsonRecord) : []
+}
+
+function normalizeReliabilityModel(value: unknown) {
+  return asText(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/gu, "")
+    .trim()
+}
+
+function reliabilityModelFragments(value: unknown) {
+  const text = asText(value).toUpperCase()
+  const fragments = new Set<string>()
+  const compact = normalizeReliabilityModel(text)
+  if (compact.length >= 5) fragments.add(compact)
+
+  const pieces = text
+    .split(/[^A-Z0-9]+/u)
+    .map(piece => piece.trim())
+    .filter(piece => piece.length >= 5)
+  pieces.forEach(piece => {
+    fragments.add(piece)
+    const suffix = piece.match(/[0-9][A-Z0-9]{4,}$/u)?.[0]
+    if (suffix) fragments.add(suffix)
+  })
+
+  const compactSuffix = compact.match(/[0-9][A-Z0-9]{4,}$/u)?.[0]
+  if (compactSuffix) fragments.add(compactSuffix)
+  return Array.from(fragments)
+}
+
+function reliabilityRecordModels(record: JsonRow) {
+  return [
+    record.model,
+    record.component_model,
+    record["型号规格"],
+    record["型号"],
+  ]
+    .map(normalizeReliabilityModel)
+    .filter(Boolean)
+}
+
+function reliabilityDirectRecords(row: JsonRow, key: "quality" | "radiation") {
+  const model = normalizeReliabilityModel(row.model ?? row["型号规格"])
+  if (!model) return []
+  return reliabilityRecords(reliabilityBlock(row, key))
+    .filter(record => reliabilityRecordModels(record).some(recordModel => recordModel === model))
+}
+
+function reliabilityReferenceRecords(row: JsonRow, key: "quality" | "radiation") {
+  const model = normalizeReliabilityModel(row.model ?? row["型号规格"])
+  if (!model) return []
+  const queryFragments = reliabilityModelFragments(row.model ?? row["型号规格"])
+    .filter(fragment => fragment !== model)
+  if (queryFragments.length === 0) return []
+  return reliabilityRecords(reliabilityBlock(row, key))
+    .filter(record => {
+      const recordModels = reliabilityRecordModels(record)
+      if (recordModels.some(recordModel => recordModel === model)) return false
+      return recordModels.some(recordModel => queryFragments.some(fragment => recordModel.includes(fragment)))
+    })
+}
+
+function reliabilityMatchedFragment(row: JsonRow, key: "quality" | "radiation") {
+  const model = normalizeReliabilityModel(row.model ?? row["型号规格"])
+  const directRecords = reliabilityDirectRecords(row, key)
+  if (directRecords.length > 0) return asText(row.model ?? row["型号规格"])
+  const queryFragments = reliabilityModelFragments(row.model ?? row["型号规格"])
+    .filter(fragment => fragment !== model)
+  const referenceRecords = reliabilityReferenceRecords(row, key)
+  for (const record of referenceRecords) {
+    const recordModels = reliabilityRecordModels(record)
+    const fragment = queryFragments.find(candidate => recordModels.some(recordModel => recordModel.includes(candidate)))
+    if (fragment) return fragment
+  }
+  return ""
+}
+
+function reliabilityMatchLevel(row: JsonRow, key: "quality" | "radiation") {
+  const directCount = reliabilityDirectRecords(row, key).length
+  if (directCount > 0) return "直接命中"
+  return reliabilityReferenceRecords(row, key).length > 0 ? "参考命中" : "未命中"
+}
+
+function reliabilityDirectCount(row: JsonRow, key: "quality" | "radiation") {
+  return reliabilityMatchLevel(row, key) === "直接命中" ? reliabilityDirectRecords(row, key).length : 0
+}
+
+function reliabilityDirectSummary(row: JsonRow, key: "quality" | "radiation") {
+  const directRecords = reliabilityDirectRecords(row, key)
+  if (directRecords.length === 0) return ""
+  return reliabilityRecordsSummary(directRecords, key)
+}
+
+function reliabilityReferenceSummary(row: JsonRow, key: "quality" | "radiation") {
+  const referenceRecords = reliabilityReferenceRecords(row, key)
+  if (referenceRecords.length === 0) return ""
+  return reliabilityRecordsSummary(referenceRecords, key)
+}
+
+function reliabilityRecordsSummary(records: JsonRow[], key: "quality" | "radiation") {
+  return records.slice(0, 5).map(record => {
+    if (key === "quality") {
+      return [
+        record.model,
+        record.component_type,
+        record.manufacturer,
+        record.issue_description,
+      ].map(asText).filter(Boolean).join("；")
+    }
+    return [
+      record.model,
+      record.component_type,
+      record.radiation_source,
+      record.single_event_effects ?? record.total_dose_effects ?? record.functional_impact ?? record.observed_phenomena,
+    ].map(asText).filter(Boolean).join("；")
+  }).filter(Boolean).join("\n")
+}
+
+function reliabilityDisplaySummary(row: JsonRow, key: "quality" | "radiation") {
+  const directSummary = reliabilityDirectSummary(row, key)
+  if (directSummary) return directSummary
+  const referenceSummary = reliabilityReferenceSummary(row, key)
+  if (referenceSummary) return `参考命中：${referenceSummary}`
+  return key === "quality" ? "未检索到质量问题记录" : "未检索到辐射效应记录"
+}
+
 function normalizeComplianceRow(row: JsonRow) {
   const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
   const bestCandidate = bestCatalogCandidate(row)
+  const quality = isJsonRecord(row.quality) ? row.quality : {}
+  const radiation = isJsonRecord(row.radiation) ? row.radiation : {}
   const name = row.component_name ?? row.name ?? row["元器件名称"]
   const manufacturer = row.manufacturer ?? row.normalized_manufacturer ?? row["生产厂商"]
   const status = row.status ?? row.result ?? row.match_status ?? row.compliance_status ?? row["状态"] ?? row["目录内或外"] ?? row.is_in_catalog
-  return {
+  const normalized = {
     ...row,
     catalog_manufacturer: row.catalog_manufacturer ?? selectedCandidate?.catalog_manufacturer ?? bestCandidate?.catalog_manufacturer ?? "",
     catalog_model: row.catalog_model ?? selectedCandidate?.catalog_model ?? bestCandidate?.catalog_model ?? "",
@@ -389,6 +590,17 @@ function normalizeComplianceRow(row: JsonRow) {
     manufacturer,
     model: row.model ?? row["型号规格"],
     status,
+  }
+  return {
+    ...normalized,
+    quality_raw_count: row.quality_count ?? quality.count ?? 0,
+    radiation_raw_count: row.radiation_count ?? radiation.count ?? 0,
+    quality_count: reliabilityDirectCount(normalized, "quality"),
+    quality_match_level: reliabilityMatchLevel(normalized, "quality"),
+    quality_summary: reliabilityDisplaySummary(normalized, "quality"),
+    radiation_count: reliabilityDirectCount(normalized, "radiation"),
+    radiation_match_level: reliabilityMatchLevel(normalized, "radiation"),
+    radiation_summary: reliabilityDisplaySummary(normalized, "radiation"),
   }
 }
 
@@ -560,13 +772,31 @@ function keyUnitFlag(row: JsonRow) {
   return /^(true|是|关键|yes|1)$/iu.test(value)
 }
 
+function reliabilityHitCounts(row: JsonRow) {
+  return {
+    quality: Math.max(0, Number(row.quality_count ?? reliabilityDirectCount(row, "quality")) || 0),
+    radiation: Math.max(0, Number(row.radiation_count ?? reliabilityDirectCount(row, "radiation")) || 0),
+  }
+}
+
+function reliabilityIssueCount(rows: JsonRow[]) {
+  return rows.filter(row => {
+    const hits = reliabilityHitCounts(row)
+    return hits.quality > 0 || hits.radiation > 0
+  }).length
+}
+
 function buildModuleInsights(missingRows: JsonRow[], resultRows: JsonRow[], complianceRows: Record<string, JsonRow[]>): ModuleInsight {
   const classificationRows = complianceRows.classification ?? []
   const manufacturerRows = complianceRows.manufacturer ?? []
   const keyRows = complianceRows["key-units"] ?? []
   const catalogRows = complianceRows.catalog ?? []
-  const totalComponentCount = classificationRows.length || missingRows.length || resultRows.length || keyRows.length
+  const reliabilityRows = complianceRows.reliability ?? []
+  const totalComponentCount = classificationRows.length || missingRows.length || resultRows.length || keyRows.length || reliabilityRows.length
   const keyCount = keyRows.filter(keyUnitFlag).length
+  const reliabilityQualityHits = reliabilityRows.reduce((total, row) => total + reliabilityHitCounts(row).quality, 0)
+  const reliabilityRadiationHits = reliabilityRows.reduce((total, row) => total + reliabilityHitCounts(row).radiation, 0)
+  const reliabilityHitCount = reliabilityIssueCount(reliabilityRows)
   const groupedCatalogRows = catalogRows.filter(row => isKnownCatalogGroup(catalogGroup(row)))
   const catalogScores = groupedCatalogRows
     .map(row => catalogCandidateScore(selectedCatalogCandidate(row)) > Number.NEGATIVE_INFINITY ? catalogCandidateScore(selectedCatalogCandidate(row)) : Number(row.score))
@@ -609,6 +839,13 @@ function buildModuleInsights(missingRows: JsonRow[], resultRows: JsonRow[], comp
         return status && !/目录内/u.test(status)
       }).length,
     },
+    reliability: {
+      cleanCount: Math.max(0, reliabilityRows.length - reliabilityHitCount),
+      hitCount: reliabilityHitCount,
+      qualityHits: reliabilityQualityHits,
+      radiationHits: reliabilityRadiationHits,
+      total: reliabilityRows.length,
+    },
   }
 }
 
@@ -628,7 +865,7 @@ function dashboardIssueLabel(row: JsonRow) {
 }
 
 function dashboardAction(row: JsonRow) {
-  const detail = asText(row["综合判定详情"]) || issueText(row)
+  const detail = deratingDetailText(row)
   if (/实际值大于允许值|实际值.*超限|热设计/u.test(detail)) return "复核热设计"
   if (/允许值.*错误|应为/u.test(detail)) return "修正允许值"
   if (/降额因子/u.test(detail)) return "复核降额因子"
@@ -748,6 +985,33 @@ function catalogIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
     }))
 }
 
+function reliabilityIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
+  return rows
+    .filter(row => {
+      const hits = reliabilityHitCounts(row)
+      return hits.quality > 0 || hits.radiation > 0
+    })
+    .map(row => {
+      const hits = reliabilityHitCounts(row)
+      const qualitySummary = asText(row.quality_summary ?? (isJsonRecord(row.quality) ? row.quality.answer ?? row.quality.summary : ""))
+      const radiationSummary = asText(row.radiation_summary ?? (isJsonRecord(row.radiation) ? row.radiation.answer ?? row.radiation.summary : ""))
+      return {
+        action: "查看数据库命中",
+        component: componentName(row),
+        issue: [
+          hits.quality > 0 ? `确认存在历史质量问题 ${hits.quality} 条` : "",
+          hits.radiation > 0 ? `确认存在辐照信息 ${hits.radiation} 条` : "",
+          qualitySummary || radiationSummary,
+        ].filter(Boolean).join("；"),
+        manufacturer: componentManufacturer(row),
+        model: componentModel(row),
+        module: "质量/辐照查询",
+        priority: hits.radiation > 0 ? "高" : "中",
+        status: "数据库命中",
+      } satisfies DashboardRiskRow
+    })
+}
+
 function moduleRows(missingRows: JsonRow[], resultRows: JsonRow[], complianceRows: Record<string, JsonRow[]>, finalRows: JsonRow[], finalGenerated: boolean, progress?: DashboardProgress): DashboardModuleRow[] {
   const missingCount = missingRows.filter(row => Number(row.missing_count ?? 0) > 0).length
   const resultIssue = problemCount(resultRows)
@@ -780,20 +1044,21 @@ function moduleRows(missingRows: JsonRow[], resultRows: JsonRow[], complianceRow
 
   COMPLIANCE_TABS.forEach(tab => {
     const tabRows = complianceRows[tab.key] ?? []
-    const counts = complianceStatusCounts(tabRows)
+    const issue = tab.key === "reliability" ? reliabilityIssueCount(tabRows) : complianceStatusCounts(tabRows).issue
+    const ok = Math.max(0, tabRows.length - issue)
     rows.push({
       count: tabRows.length,
       done: tabRows.length > 0,
-      issue: counts.issue,
+      issue,
       label: tab.title,
-      ok: counts.ok,
+      ok,
     })
   })
 
   return rows
 }
 
-function buildDashboardRecommendations(totalIssues: number, missingCount: number, catalogIssues: number, completedModules: number, moduleCount: number): DashboardRecommendation[] {
+function buildDashboardRecommendations(totalIssues: number, missingCount: number, catalogIssues: number, reliabilityIssues: number, completedModules: number, moduleCount: number): DashboardRecommendation[] {
   const items: DashboardRecommendation[] = []
   if (completedModules < moduleCount) {
     items.push({ text: `还有 ${moduleCount - completedModules} 个报告模块未生成，建议先补齐输出后再定稿。`, tone: "warn" })
@@ -803,6 +1068,9 @@ function buildDashboardRecommendations(totalIssues: number, missingCount: number
   }
   if (catalogIssues > 0) {
     items.push({ text: `${catalogIssues} 条目录匹配需人工确认，建议先处理国产器件目录命中情况。`, tone: "warn" })
+  }
+  if (reliabilityIssues > 0) {
+    items.push({ text: `${reliabilityIssues} 个器件确认存在历史质量问题或辐照信息，建议复核数据库原始记录并写入审查结论。`, tone: "bad" })
   }
   if (totalIssues === 0 && completedModules === moduleCount) {
     items.push({ text: "所有模块已生成且暂无待确认项，可进入报告归档。", tone: "ok" })
@@ -825,11 +1093,13 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
   const manufacturerCounts = complianceStatusCounts(complianceRows.manufacturer ?? [])
   const keyUnitCounts = complianceStatusCounts(complianceRows["key-units"] ?? [])
   const catalogCounts = complianceStatusCounts(complianceRows.catalog ?? [])
+  const reliabilityIssues = reliabilityIssueCount(complianceRows.reliability ?? [])
   const distribution = [
     { color: HUD_RED, key: "降额", label: "降额问题", value: missingCount + problemCount(resultRows) },
     { color: HUD_WARN, key: "厂商匹配", label: "厂商匹配", value: manufacturerCounts.issue },
     { color: HUD_MUTED, key: "关键器件", label: "关键器件", value: keyUnitCounts.issue },
     { color: HUD_CYAN, key: "目录匹配", label: "目录匹配", value: catalogCounts.issue },
+    { color: KPI_PINK, key: "质量/辐照查询", label: "质量/辐照", value: reliabilityIssues },
     { color: HUD_GREEN, key: "AI器件分类", label: "分类确认", value: complianceStatusCounts(complianceRows.classification ?? []).issue },
   ]
   const issueTotal = distribution.reduce((total, item) => total + item.value, 0)
@@ -837,6 +1107,7 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
     ...manufacturerIssueRows(complianceRows.manufacturer ?? []),
     ...complianceIssueRows(complianceRows["key-units"] ?? [], "关键器件", "关键器件标记待确认", "确认关键器件属性"),
     ...catalogIssueRows(complianceRows.catalog ?? []),
+    ...reliabilityIssueRows(complianceRows.reliability ?? []),
   ]
   const riskRows = [...buildDashboardRiskRows(resultRows, missingRows), ...complianceRisks].slice(0, 8)
   const moduleCount = modules.length
@@ -854,7 +1125,7 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
     moduleCount,
     modules,
     passPercent,
-    recommendations: buildDashboardRecommendations(totalIssues, missingCount, catalogCounts.issue, completedModules, moduleCount),
+    recommendations: buildDashboardRecommendations(totalIssues, missingCount, catalogCounts.issue, reliabilityIssues, completedModules, moduleCount),
     riskRows,
     totalRows,
   }
@@ -867,7 +1138,7 @@ function buildFinalRows(rows: JsonRow[], missingRows: JsonRow[]) {
       if (key === "缺少降额项") return [label, component?.missing_standard_parameters ?? ""]
       if (key === "综合判定") return [label, statusText(row)]
       if (key === "备注") return [label, issueText(row)]
-      return [label, row[key]]
+      return [label, resultField(row, key)]
     }))
   })
 }
@@ -1019,7 +1290,8 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
       "compliance-check": dashboardSummary.missingCount + problemCount(resultRows),
     }
     COMPLIANCE_TABS.forEach(tab => {
-      counts[tab.key] = complianceStatusCounts(complianceRows[tab.key] ?? []).issue
+      const rows = complianceRows[tab.key] ?? []
+      counts[tab.key] = tab.key === "reliability" ? reliabilityIssueCount(rows) : complianceStatusCounts(rows).issue
     })
     return counts
   }, [complianceRows, dashboardSummary.issue, dashboardSummary.missingCount, resultRows])
@@ -1138,6 +1410,11 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
               <CatalogMatchView
                 emptyText={complianceSources[tab.key] || tab.emptyText}
                 onRowChange={(rowIndex, nextRow) => updateComplianceRow(tab.key, rowIndex, nextRow)}
+                rows={rows}
+              />
+            ) : tab.key === "reliability" ? (
+              <ReliabilityQueryView
+                emptyText={complianceSources[tab.key] || tab.emptyText}
                 rows={rows}
               />
             ) : (
@@ -1358,6 +1635,12 @@ function ComplianceCheckReportDashboard({
           palette="blue"
           value={`${summary.moduleInsights.catalog.matchedCount}个`}
         />
+        <KpiTile
+          detail={`确认质量 ${summary.moduleInsights.reliability.qualityHits} 条 · 确认辐照 ${summary.moduleInsights.reliability.radiationHits} 条`}
+          label="质量/辐照查询"
+          palette="red"
+          value={`${summary.moduleInsights.reliability.hitCount}项`}
+        />
       </div>
 
       <div style={dashboardAnalyticsGridStyle}>
@@ -1402,6 +1685,14 @@ function ComplianceCheckReportDashboard({
           <div style={moduleListStyle}>
             {(summary.moduleInsights.keyUnits.samples.length ? summary.moduleInsights.keyUnits.samples : ["暂无关键器件"]).map(item => <span key={item}>{item}</span>)}
           </div>
+        </ModuleInsightCard>
+
+        <ModuleInsightCard title="质量/辐照查询">
+          <div style={moduleMetricPairStyle}>
+            <DashboardSignal label="确认质量问题" value={`${summary.moduleInsights.reliability.qualityHits}`} tone={summary.moduleInsights.reliability.qualityHits > 0 ? "bad" : "ok"} />
+            <DashboardSignal label="确认辐照信息" value={`${summary.moduleInsights.reliability.radiationHits}`} tone={summary.moduleInsights.reliability.radiationHits > 0 ? "bad" : "ok"} />
+          </div>
+          <DashboardSignal label="无命中器件" value={`${summary.moduleInsights.reliability.cleanCount}/${summary.moduleInsights.reliability.total}`} tone={summary.moduleInsights.reliability.hitCount > 0 ? "warn" : "ok"} />
         </ModuleInsightCard>
       </div>
 
@@ -1495,7 +1786,7 @@ function DashboardSignal({ label, tone, value }: { label: string; tone: Dashboar
   )
 }
 
-type KpiPalette = "orange" | "violet" | "teal" | "pink" | "blue"
+type KpiPalette = "orange" | "violet" | "teal" | "pink" | "blue" | "red"
 
 const KPI_ORANGE = "#ff5a1f"
 const KPI_ORANGE_2 = "#ff8a3d"
@@ -1507,6 +1798,8 @@ const KPI_PINK = "#ec4899"
 const KPI_PINK_2 = "#fb7185"
 const KPI_BLUE = "#0ea5e9"
 const KPI_BLUE_2 = "#38bdf8"
+const KPI_RED = "#ef4444"
+const KPI_RED_2 = "#f97316"
 
 function KpiTile({ detail, label, palette, value }: { detail?: string; label: string; palette: KpiPalette; value: string }) {
   return (
@@ -1627,19 +1920,20 @@ function priorityToneColor(priority: DashboardRiskRow["priority"]) {
 }
 
 function optionToneColor(key: string, value: string) {
+  const text = value.trim()
   if (key === "国产/进口") {
-    if (value === "国产") return KPI_TEAL
-    if (value === "进口") return KPI_ORANGE
+    if (text === "国产") return KPI_TEAL
+    if (text === "进口") return KPI_ORANGE
     return HUD_MUTED
   }
   if (key === "目录内或外" || key === "is_in_catalog") {
-    if (value === "目录内") return KPI_TEAL
-    if (value === "目录外") return KPI_PINK
-    if (value === "未提供目录") return KPI_ORANGE
+    if (text === "目录内") return KPI_TEAL
+    if (text === "目录外") return KPI_PINK
+    if (text === "未提供目录") return KPI_ORANGE
     return HUD_MUTED
   }
-  if (value === "符合") return KPI_TEAL
-  if (value === "不符合") return KPI_PINK
+  if (isPositiveJudgement(text)) return KPI_TEAL
+  if (isNegativeJudgement(text)) return KPI_PINK
   return HUD_TEXT
 }
 
@@ -1648,6 +1942,7 @@ function tabForDashboardModule(module: string): ActiveTabKey {
   if (module.includes("关键")) return "key-units"
   if (module.includes("目录")) return "catalog"
   if (module.includes("分类")) return "classification"
+  if (module.includes("质量") || module.includes("辐照") || module.includes("辐射")) return "reliability"
   return "compliance-check"
 }
 
@@ -1691,7 +1986,7 @@ function EditableTable({
 
   return (
     <div style={tableWrapStyle}>
-      <table style={{ borderCollapse: "collapse", minWidth: Math.max(980, columns.reduce((total, column) => total + column.width, 76)), tableLayout: "fixed", width: "100%" }}>
+      <table style={{ borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(980, columns.reduce((total, column) => total + column.width, 76)), tableLayout: "fixed", width: "100%" }}>
         <thead>
           <tr>
             {columns.map(column => (
@@ -1705,8 +2000,16 @@ function EditableTable({
               {columns.map(column => {
                 const value = asText(getValue(row, column.key))
                 const isWarning = column.key.includes("判定") || column.key === "missing_standard_parameters"
+                const valueColor = isWarning && value ? optionToneColor(column.key, value) : HUD_TEXT
                 const comparison = getComparisonValue(row, column.key)
                 const options = selectColumns[column.key]
+                const selectValue = options
+                  ? options.includes(value.trim())
+                    ? value.trim()
+                    : isPositiveJudgement(value)
+                      ? "符合"
+                      : "不符合"
+                  : ""
                 return (
                   <td key={column.key} style={{ ...bodyCellStyle, ...stickyRightStyle(column.key, stickyOffsets, false) }}>
                     {comparison ? (
@@ -1720,12 +2023,13 @@ function EditableTable({
                       />
                     ) : options ? (
                       <select
-                        value={options.includes(value) ? value : value === "符合" ? "符合" : "不符合"}
+                        value={selectValue}
                         onChange={event => onChange?.(rowIndex, column.key, event.target.value)}
                         style={{
                           ...selectCellStyle,
-                          borderColor: optionToneColor(column.key, value),
-                          color: optionToneColor(column.key, value),
+                          backgroundImage: selectArrowBackground(optionToneColor(column.key, selectValue)),
+                          borderColor: optionToneColor(column.key, selectValue),
+                          color: optionToneColor(column.key, selectValue),
                         }}
                       >
                         {options.map(option => <option key={option} value={option} style={{ ...optionStyle, color: optionToneColor(column.key, option) }}>{option}</option>)}
@@ -1733,7 +2037,7 @@ function EditableTable({
                     ) : readOnly ? (
                       <div style={{
                         ...readOnlyCellStyle,
-                        color: isWarning && value && value !== "符合" ? HUD_RED : HUD_TEXT,
+                        color: valueColor,
                         fontWeight: isWarning ? 700 : 600,
                       }}>
                         {value || "-"}
@@ -1744,9 +2048,9 @@ function EditableTable({
                         onChange={event => onChange?.(rowIndex, column.key, event.target.value)}
                         style={{
                           ...cellInputStyle,
-                          color: isWarning && value && value !== "符合" ? HUD_RED : HUD_TEXT,
+                          color: valueColor,
                           fontWeight: isWarning ? 700 : 600,
-                          minHeight: value.length > 28 ? 46 : 34,
+                          minHeight: column.key === "综合判定详情" ? 88 : value.length > 28 ? 46 : 34,
                         }}
                       />
                     )}
@@ -1905,6 +2209,145 @@ function CatalogInfoCell({ label, strong = false, value, wide = false }: { label
   )
 }
 
+type ReliabilityKind = "quality" | "radiation"
+type ReliabilityFilter = "全部" | "直接命中" | "参考命中"
+
+const RELIABILITY_COLUMNS = [
+  { key: "index", label: "序号", width: 70 },
+  { key: "component_name", label: "元器件名称", width: 150 },
+  { key: "model", label: "型号规格", width: 160 },
+  { key: "manufacturer", label: "生产厂商", width: 140 },
+  { key: "match_level", label: "命中类型", width: 100 },
+  { key: "match_reason", label: "匹配依据", width: 180 },
+  { key: "match_fragment", label: "匹配片段", width: 160 },
+  { key: "matched_models", label: "匹配数据库型号", width: 190 },
+  { key: "summary", label: "摘要", width: 360 },
+] as const
+
+function ReliabilityQueryView({
+  emptyText,
+  rows,
+}: {
+  emptyText: string
+  rows: JsonRow[]
+}) {
+  return (
+    <div style={reliabilitySplitStyle}>
+      <ReliabilityResultTable emptyText={emptyText} kind="quality" rows={rows} title="质量问题查询" />
+      <ReliabilityResultTable emptyText={emptyText} kind="radiation" rows={rows} title="辐照效应查询" />
+    </div>
+  )
+}
+
+function ReliabilityResultTable({
+  emptyText,
+  kind,
+  rows,
+  title,
+}: {
+  emptyText: string
+  kind: ReliabilityKind
+  rows: JsonRow[]
+  title: string
+}) {
+  const [filter, setFilter] = useState<ReliabilityFilter>("全部")
+  const displayRows = rows.map(row => reliabilityDisplayRow(row, kind))
+  const directCount = displayRows.filter(row => row.match_level === "直接命中").length
+  const referenceCount = displayRows.filter(row => row.match_level === "参考命中").length
+  const hitCount = directCount + referenceCount
+  const filteredRows = displayRows.filter(row => filter === "全部" ? true : row.match_level === filter)
+  const titleHint = kind === "quality" ? "展示质量问题数据库查询结果。" : "展示辐照/辐射效应数据库查询结果。"
+
+  return (
+    <section style={reliabilityPanelStyle}>
+      <div style={reliabilityPanelHeaderStyle}>
+        <div>
+          <h3 style={reliabilityTitleStyle}>{title}</h3>
+          <div style={reliabilitySubtitleStyle}>{titleHint}</div>
+        </div>
+      </div>
+
+      <div style={reliabilityToolbarStyle}>
+        <span style={reliabilityChipStyle("info")}>型号 {rows.length} 个</span>
+        <span style={reliabilityChipStyle("ok")}>记录 {hitCount} 条</span>
+        {(["全部", "直接命中", "参考命中"] as const).map(option => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => setFilter(option)}
+            style={reliabilityFilterButtonStyle(filter === option, option)}
+          >
+            {option}
+          </button>
+        ))}
+        <span style={mutedTextStyle}>点击行可查看该型号的数据库明细。</span>
+      </div>
+
+      <div style={reliabilityTableWrapStyle}>
+        <table style={reliabilityTableStyle}>
+          <thead>
+            <tr>
+              {RELIABILITY_COLUMNS.map(column => (
+                <th key={column.key} style={{ ...reliabilityHeaderCellStyle, width: column.width }}>{column.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.map((row, rowIndex) => (
+              <tr key={`${kind}-${row.index}-${row.model}-${rowIndex}`} style={rowIndex % 2 === 1 ? reliabilityAltRowStyle : undefined}>
+                {RELIABILITY_COLUMNS.map(column => (
+                  <td key={column.key} style={reliabilityBodyCellStyle(column.key)}>
+                    <div style={reliabilityCellTextStyle(column.key, asText(row.match_level))}>
+                      {asText(row[column.key]) || "-"}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+            {filteredRows.length === 0 ? (
+              <tr>
+                <td colSpan={RELIABILITY_COLUMNS.length} style={emptyCellStyle}>{emptyText}</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function reliabilityDisplayRow(row: JsonRow, kind: ReliabilityKind): JsonRow {
+  const matchLevel = reliabilityMatchLevel(row, kind)
+  const matchedRecords = matchLevel === "直接命中"
+    ? reliabilityDirectRecords(row, kind)
+    : matchLevel === "参考命中"
+      ? reliabilityReferenceRecords(row, kind)
+      : []
+  const matchedModels = Array.from(new Set(
+    matchedRecords.flatMap(record => reliabilityRecordModels(record)),
+  )).join(", ")
+  return {
+    count: matchedRecords.length,
+    index: row.index,
+    component_name: componentName(row),
+    manufacturer: componentManufacturer(row),
+    match_fragment: reliabilityMatchedFragment(row, kind),
+    match_level: matchLevel,
+    match_reason: matchLevel === "直接命中"
+      ? "型号精准匹配"
+      : matchLevel === "参考命中"
+        ? "型号片段相似"
+        : "未命中",
+    matched_models: matchedModels,
+    model: componentModel(row),
+    summary: matchLevel === "直接命中"
+      ? reliabilityDirectSummary(row, kind)
+      : matchLevel === "参考命中"
+        ? reliabilityDisplaySummary(row, kind).replace(/^参考命中：/u, "")
+        : "",
+  }
+}
+
 function stickyRightStyle(key: string, offsets: Map<string, number>, header: boolean): CSSProperties {
   const right = offsets.get(key)
   if (right === undefined) return {}
@@ -1916,8 +2359,12 @@ function stickyRightStyle(key: string, offsets: Map<string, number>, header: boo
       : `-1px 0 0 ${HUD_LINE}`,
     position: "sticky",
     right,
-    zIndex: header ? 5 : 3,
+    zIndex: header ? 6 : right === 0 ? 4 : 5,
   }
+}
+
+function selectArrowBackground(color: string) {
+  return `linear-gradient(45deg, transparent 50%, ${color} 50%), linear-gradient(135deg, ${color} 50%, transparent 50%)`
 }
 
 function ComparisonCell({
@@ -1935,6 +2382,7 @@ function ComparisonCell({
   tableLabel: string
   tableValue: string
 }) {
+  const displayTableValue = displayNumber(tableValue)
   const aiTone = isPositiveJudgement(aiValue)
     ? "ok"
     : isNegativeJudgement(aiValue)
@@ -1947,7 +2395,7 @@ function ComparisonCell({
       <div style={comparisonCellStyle}>
         <div style={comparisonRowStyle}>
           <span style={comparisonLabelStyle}>{tableLabel}</span>
-          <span style={{ ...comparisonValueStyle, color: tableTone === "bad" ? HUD_RED : HUD_TEXT }}>{tableValue || "-"}</span>
+          <span style={{ ...comparisonValueStyle, color: tableTone === "bad" ? HUD_RED : HUD_TEXT }}>{displayTableValue || "-"}</span>
         </div>
         <div style={comparisonDividerStyle} />
         <div style={comparisonRowStyle}>
@@ -1963,7 +2411,7 @@ function ComparisonCell({
       <label style={comparisonEditorLabelStyle}>
         <span style={comparisonEditorTextStyle}>{tableLabel}</span>
         <textarea
-          value={tableValue}
+          value={displayTableValue}
           onChange={event => onTableChange?.(event.target.value)}
           style={{
             ...comparisonTextareaStyle,
@@ -2222,6 +2670,142 @@ const tableWrapStyle = {
   scrollbarColor: `${HUD_SCROLLBAR} transparent`,
 } satisfies CSSProperties
 
+const reliabilitySplitStyle = {
+  display: "grid",
+  gap: 14,
+} satisfies CSSProperties
+
+const reliabilityPanelStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE}`,
+  borderRadius: 6,
+  overflow: "hidden",
+} satisfies CSSProperties
+
+const reliabilityPanelHeaderStyle = {
+  alignItems: "center",
+  background: HUD_PANEL_SOFT,
+  borderBottom: `1px solid ${HUD_LINE_SOFT}`,
+  display: "flex",
+  justifyContent: "space-between",
+  padding: "10px 12px",
+} satisfies CSSProperties
+
+const reliabilityTitleStyle = {
+  color: HUD_TEXT,
+  fontSize: 14,
+  lineHeight: 1.25,
+  margin: 0,
+} satisfies CSSProperties
+
+const reliabilitySubtitleStyle = {
+  color: HUD_MUTED,
+  fontSize: 12,
+  fontWeight: 650,
+  marginTop: 4,
+} satisfies CSSProperties
+
+const reliabilityToolbarStyle = {
+  alignItems: "center",
+  background: HUD_PANEL_SOFT,
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  padding: "10px 12px",
+} satisfies CSSProperties
+
+function reliabilityChipStyle(tone: "info" | "ok"): CSSProperties {
+  return {
+    background: tone === "ok" ? "rgba(16, 185, 129, 0.12)" : "rgba(14, 165, 233, 0.12)",
+    border: `1px solid ${tone === "ok" ? "rgba(16, 185, 129, 0.24)" : "rgba(14, 165, 233, 0.24)"}`,
+    borderRadius: 4,
+    color: tone === "ok" ? HUD_GREEN : HUD_CYAN,
+    fontSize: 12,
+    fontWeight: 850,
+    padding: "4px 8px",
+  }
+}
+
+function reliabilityFilterButtonStyle(active: boolean, filter: ReliabilityFilter): CSSProperties {
+  const isDirect = filter === "直接命中"
+  const isReference = filter === "参考命中"
+  return {
+    background: active
+      ? isDirect
+        ? "rgba(236, 72, 153, 0.14)"
+        : isReference
+          ? "rgba(255, 138, 61, 0.16)"
+          : "rgba(14, 165, 233, 0.14)"
+      : HUD_CONTROL_BG,
+    border: `1px solid ${active ? isDirect ? "rgba(236, 72, 153, 0.34)" : isReference ? "rgba(255, 138, 61, 0.34)" : "rgba(14, 165, 233, 0.34)" : HUD_LINE}`,
+    borderRadius: 999,
+    color: active ? isDirect ? HUD_RED : isReference ? HUD_WARN : HUD_CYAN : HUD_TEXT,
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 850,
+    height: 28,
+    padding: "0 12px",
+  }
+}
+
+const reliabilityTableWrapStyle = {
+  maxHeight: 300,
+  overflow: "auto",
+  scrollbarColor: `${HUD_SCROLLBAR} transparent`,
+} satisfies CSSProperties
+
+const reliabilityTableStyle = {
+  borderCollapse: "collapse",
+  minWidth: 1510,
+  tableLayout: "fixed",
+  width: "100%",
+} satisfies CSSProperties
+
+const reliabilityHeaderCellStyle = {
+  background: HUD_TABLE_HEADER,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  color: HUD_TABLE_HEADER_TEXT,
+  fontSize: 12,
+  fontWeight: 800,
+  padding: "9px 8px",
+  position: "sticky",
+  textAlign: "left",
+  top: 0,
+  zIndex: 2,
+} satisfies CSSProperties
+
+function reliabilityBodyCellStyle(key: string): CSSProperties {
+  return {
+    background: "transparent",
+    border: `1px solid ${HUD_LINE_SOFT}`,
+    fontSize: 12,
+    padding: key === "summary" ? "8px 10px" : "8px",
+    verticalAlign: "top",
+  }
+}
+
+function reliabilityCellTextStyle(key: string, matchLevel: string): CSSProperties {
+  return {
+    color: key === "match_level"
+      ? matchLevel === "直接命中"
+        ? HUD_RED
+        : matchLevel === "参考命中"
+          ? HUD_WARN
+          : HUD_TEXT
+      : HUD_TEXT,
+    fontWeight: key === "match_level" || key === "component_name" || key === "model" ? 800 : 650,
+    lineHeight: 1.45,
+    maxHeight: key === "summary" ? 92 : undefined,
+    overflow: key === "summary" ? "auto" : "hidden",
+    overflowWrap: "anywhere",
+    whiteSpace: key === "summary" ? "pre-wrap" : "normal",
+  }
+}
+
+const reliabilityAltRowStyle = {
+  background: "rgba(100, 116, 139, 0.06)",
+} satisfies CSSProperties
+
 const actionsStyle = {
   display: "flex",
   gap: 10,
@@ -2308,6 +2892,7 @@ function kpiGradient(palette: KpiPalette) {
   if (palette === "violet") return `linear-gradient(135deg, ${KPI_VIOLET} 0%, ${KPI_VIOLET_2} 100%)`
   if (palette === "teal") return `linear-gradient(135deg, ${KPI_TEAL} 0%, ${KPI_TEAL_2} 100%)`
   if (palette === "pink") return `linear-gradient(135deg, ${KPI_PINK} 0%, ${KPI_PINK_2} 100%)`
+  if (palette === "red") return `linear-gradient(135deg, ${KPI_RED} 0%, ${KPI_RED_2} 100%)`
   return `linear-gradient(135deg, ${KPI_BLUE} 0%, ${KPI_BLUE_2} 100%)`
 }
 
@@ -2316,6 +2901,7 @@ function kpiShadow(palette: KpiPalette) {
   if (palette === "violet") return "0 16px 26px rgba(124, 92, 255, 0.2)"
   if (palette === "teal") return "0 16px 26px rgba(16, 185, 129, 0.2)"
   if (palette === "pink") return "0 16px 26px rgba(236, 72, 153, 0.2)"
+  if (palette === "red") return "0 16px 26px rgba(239, 68, 68, 0.2)"
   return "0 16px 26px rgba(14, 165, 233, 0.2)"
 }
 
@@ -2708,7 +3294,11 @@ const readOnlyCellStyle = {
 } satisfies CSSProperties
 
 const selectCellStyle = {
+  appearance: "none",
   background: HUD_CONTROL_BG,
+  backgroundPosition: "calc(100% - 14px) 50%, calc(100% - 8px) 50%",
+  backgroundRepeat: "no-repeat",
+  backgroundSize: "6px 6px, 6px 6px",
   border: `1px solid ${HUD_LINE}`,
   borderRadius: 6,
   boxSizing: "border-box",
@@ -2717,7 +3307,7 @@ const selectCellStyle = {
   height: 32,
   margin: 6,
   outline: "none",
-  padding: "0 8px",
+  padding: "0 24px 0 8px",
   width: "calc(100% - 12px)",
 } satisfies CSSProperties
 

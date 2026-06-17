@@ -1,0 +1,643 @@
+.catch-config-shell {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 14px;
+  color: #eef8ff;
+  background: linear-gradient(180deg, rgba(8, 20, 32, 0.36), rgba(3, 9, 16, 0.16));
+}
+
+.catch-config-top,
+.catch-config-summary,
+.catch-config-card,
+.catch-config-empty {
+  border: 1px solid rgba(23, 231, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(3, 12, 22, 0.7);
+  box-shadow: inset 0 0 28px rgba(0, 168, 255, 0.08);
+}
+
+.catch-config-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 70px;
+  padding: 12px 14px;
+}
+
+.catch-config-title {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.catch-config-title span,
+.catch-config-title small,
+.catch-config-stat span,
+.catch-config-card-head span,
+.catch-filter-grid label > span,
+.catch-toggle-row span {
+  color: rgba(190, 218, 232, 0.68);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.catch-config-title strong {
+  color: #f7fcff;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.catch-config-title small {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.catch-config-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.catch-config-actions button,
+.catch-row-add,
+.catch-row-delete {
+  height: 34px;
+  border: 1px solid rgba(23, 231, 255, 0.24);
+  border-radius: 6px;
+  background: rgba(23, 231, 255, 0.08);
+  color: rgba(238, 248, 255, 0.9);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 0 12px;
+}
+
+.catch-config-actions button.primary {
+  border-color: rgba(56, 248, 183, 0.28);
+  background: rgba(56, 248, 183, 0.16);
+  color: #edfff8;
+}
+
+.catch-row-delete {
+  width: 100%;
+  border-color: rgba(255, 111, 145, 0.22);
+  background: rgba(255, 111, 145, 0.08);
+  color: rgba(255, 220, 228, 0.9);
+}
+
+.catch-row-add {
+  width: 100%;
+  border-color: rgba(56, 248, 183, 0.26);
+  background: rgba(56, 248, 183, 0.12);
+  color: #dffdf3;
+}
+
+.catch-config-actions button:disabled,
+.catch-row-add:disabled,
+.catch-row-delete:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.catch-config-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 0.8fr)) minmax(210px, 1.1fr);
+  gap: 1px;
+  overflow: hidden;
+}
+
+.catch-config-stat,
+.catch-config-status {
+  display: grid;
+  align-content: center;
+  min-height: 58px;
+  min-width: 0;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 10px 12px;
+}
+
+.catch-config-stat strong,
+.catch-config-status {
+  overflow: hidden;
+  color: #f4fbff;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catch-config-stat.is-warn strong {
+  color: #ffd18f;
+}
+
+.catch-config-status {
+  border-left: 1px solid rgba(23, 231, 255, 0.12);
+  color: rgba(220, 238, 248, 0.82);
+}
+
+.catch-config-status.is-ok {
+  color: #aef7d9;
+}
+
+.catch-config-status.is-bad,
+.catch-config-empty.is-bad {
+  color: #ffb3b3;
+}
+
+.catch-config-workbench {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.24fr) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.catch-config-card {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.catch-table-card {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.catch-config-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(23, 231, 255, 0.12);
+  padding: 13px 14px;
+}
+
+.catch-config-card-head > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.catch-config-card-head strong {
+  color: #f7fcff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.catch-filter-grid {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px;
+}
+
+.catch-filter-grid label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.catch-filter-grid input[type="text"],
+.catch-filter-grid input:not([type]),
+.catch-filter-grid select,
+.catch-grid-table input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid rgba(23, 231, 255, 0.18);
+  border-radius: 6px;
+  background: rgba(2, 8, 16, 0.72);
+  color: #eef8ff;
+  color-scheme: dark;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 760;
+  outline: none;
+  padding: 0 9px;
+}
+
+.catch-filter-grid input:focus,
+.catch-filter-grid select:focus,
+.catch-grid-table input:focus {
+  border-color: rgba(56, 248, 183, 0.46);
+  box-shadow: 0 0 0 2px rgba(56, 248, 183, 0.12);
+}
+
+.catch-toggle-row {
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  border: 1px solid rgba(23, 231, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px;
+}
+
+.catch-toggle-row input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #38f8b7;
+}
+
+.catch-unsaved-pill {
+  flex: 0 0 auto;
+  border: 1px solid rgba(56, 248, 183, 0.22);
+  border-radius: 999px;
+  color: #aef7d9;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 6px 9px;
+}
+
+.catch-unsaved-pill.is-dirty {
+  border-color: rgba(255, 209, 143, 0.28);
+  color: #ffd18f;
+}
+
+.catch-table-scroll {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 231, 255, 0.42) transparent;
+}
+
+.catch-grid-table {
+  width: 100%;
+  min-width: 1220px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.catch-grid-table th,
+.catch-grid-table td {
+  border-right: 1px solid rgba(23, 231, 255, 0.08);
+  border-bottom: 1px solid rgba(23, 231, 255, 0.08);
+  background: rgba(3, 13, 24, 0.76);
+  padding: 6px;
+}
+
+.catch-grid-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(30, 41, 59, 0.98);
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.catch-grid-table th:first-child,
+.catch-grid-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.catch-grid-table th:first-child {
+  z-index: 3;
+}
+
+.catch-grid-table th:first-child { width: 92px; }
+.catch-grid-table th:nth-child(2) { width: 250px; }
+.catch-grid-table th:nth-child(3),
+.catch-grid-table th:nth-child(5),
+.catch-grid-table th:nth-child(6) { width: 112px; }
+.catch-grid-table th:nth-child(4) { width: 170px; }
+.catch-grid-table th:nth-child(7) { width: 150px; }
+.catch-grid-table th:nth-child(8) { width: 130px; }
+.catch-grid-table th:last-child { width: 82px; }
+
+.catch-grid-table input {
+  height: 30px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.catch-grid-table input:focus {
+  background: rgba(2, 8, 16, 0.96);
+}
+
+.catch-subsystem-cell {
+  color: rgba(220, 238, 248, 0.72);
+  font-size: 11px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catch-subsystem-title-cell strong {
+  display: block;
+  color: #f7fcff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 30px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catch-grid-table tr.is-subsystem td,
+.catch-grid-table tr.is-subsystem input {
+  background: rgba(23, 231, 255, 0.08);
+  font-weight: 900;
+}
+
+.catch-grid-table tr.is-subsystem.is-changed td {
+  box-shadow: none;
+}
+
+.catch-grid-table tr.is-changed td {
+  box-shadow: inset 3px 0 0 rgba(255, 209, 143, 0.42);
+}
+
+.catch-grid-table td.is-cell-changed input {
+  border-color: rgba(255, 209, 143, 0.28);
+  background: rgba(255, 209, 143, 0.07);
+}
+
+.catch-table-empty {
+  height: 120px;
+  color: rgba(220, 238, 248, 0.72);
+  font-size: 13px;
+  font-weight: 850;
+  text-align: center;
+}
+
+.catch-config-empty {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  color: rgba(220, 238, 248, 0.78);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+@media (max-width: 960px) {
+  .catch-config-top,
+  .catch-config-summary,
+  .catch-config-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .catch-config-top {
+    display: grid;
+  }
+
+  .catch-config-summary {
+    display: grid;
+  }
+}
+
+.workspace-apple .catch-config-shell,
+.workspace-page-shell .catch-config-shell,
+.agent-page.is-light-theme .catch-config-shell,
+.wa-stage-main .catch-config-shell {
+  color: #1d1d1f;
+  background: linear-gradient(180deg, rgba(246, 248, 251, 0.74), rgba(255, 255, 255, 0.28));
+}
+
+.workspace-apple .catch-config-top,
+.workspace-apple .catch-config-summary,
+.workspace-apple .catch-config-card,
+.workspace-apple .catch-config-empty,
+.workspace-page-shell .catch-config-top,
+.workspace-page-shell .catch-config-summary,
+.workspace-page-shell .catch-config-card,
+.workspace-page-shell .catch-config-empty,
+.agent-page.is-light-theme .catch-config-top,
+.agent-page.is-light-theme .catch-config-summary,
+.agent-page.is-light-theme .catch-config-card,
+.agent-page.is-light-theme .catch-config-empty,
+.wa-stage-main .catch-config-top,
+.wa-stage-main .catch-config-summary,
+.wa-stage-main .catch-config-card,
+.wa-stage-main .catch-config-empty {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: none;
+}
+
+.workspace-apple .catch-config-title strong,
+.workspace-apple .catch-config-stat strong,
+.workspace-apple .catch-config-card-head strong,
+.workspace-page-shell .catch-config-title strong,
+.workspace-page-shell .catch-config-stat strong,
+.workspace-page-shell .catch-config-card-head strong,
+.agent-page.is-light-theme .catch-config-title strong,
+.agent-page.is-light-theme .catch-config-stat strong,
+.agent-page.is-light-theme .catch-config-card-head strong,
+.wa-stage-main .catch-config-title strong,
+.wa-stage-main .catch-config-stat strong,
+.wa-stage-main .catch-config-card-head strong {
+  color: #1d1d1f;
+}
+
+.workspace-apple .catch-config-title span,
+.workspace-apple .catch-config-title small,
+.workspace-apple .catch-config-stat span,
+.workspace-apple .catch-config-card-head span,
+.workspace-apple .catch-filter-grid label > span,
+.workspace-apple .catch-toggle-row span,
+.workspace-page-shell .catch-config-title span,
+.workspace-page-shell .catch-config-title small,
+.workspace-page-shell .catch-config-stat span,
+.workspace-page-shell .catch-config-card-head span,
+.workspace-page-shell .catch-filter-grid label > span,
+.workspace-page-shell .catch-toggle-row span,
+.agent-page.is-light-theme .catch-config-title span,
+.agent-page.is-light-theme .catch-config-title small,
+.agent-page.is-light-theme .catch-config-stat span,
+.agent-page.is-light-theme .catch-config-card-head span,
+.agent-page.is-light-theme .catch-filter-grid label > span,
+.agent-page.is-light-theme .catch-toggle-row span,
+.wa-stage-main .catch-config-title span,
+.wa-stage-main .catch-config-title small,
+.wa-stage-main .catch-config-stat span,
+.wa-stage-main .catch-config-card-head span,
+.wa-stage-main .catch-filter-grid label > span,
+.wa-stage-main .catch-toggle-row span {
+  color: #6e6e73;
+}
+
+.workspace-apple .catch-config-stat,
+.workspace-apple .catch-config-status,
+.workspace-apple .catch-toggle-row,
+.workspace-page-shell .catch-config-stat,
+.workspace-page-shell .catch-config-status,
+.workspace-page-shell .catch-toggle-row,
+.agent-page.is-light-theme .catch-config-stat,
+.agent-page.is-light-theme .catch-config-status,
+.agent-page.is-light-theme .catch-toggle-row,
+.wa-stage-main .catch-config-stat,
+.wa-stage-main .catch-config-status,
+.wa-stage-main .catch-toggle-row {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.workspace-apple .catch-config-card-head,
+.workspace-apple .catch-config-status,
+.workspace-page-shell .catch-config-card-head,
+.workspace-page-shell .catch-config-status,
+.agent-page.is-light-theme .catch-config-card-head,
+.agent-page.is-light-theme .catch-config-status,
+.wa-stage-main .catch-config-card-head,
+.wa-stage-main .catch-config-status {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.workspace-apple .catch-config-status,
+.workspace-page-shell .catch-config-status,
+.agent-page.is-light-theme .catch-config-status,
+.wa-stage-main .catch-config-status {
+  color: #6e6e73;
+}
+
+.workspace-apple .catch-config-status.is-ok,
+.workspace-page-shell .catch-config-status.is-ok,
+.agent-page.is-light-theme .catch-config-status.is-ok,
+.wa-stage-main .catch-config-status.is-ok {
+  color: #0b6f48;
+}
+
+.workspace-apple .catch-config-status.is-bad,
+.workspace-apple .catch-config-empty.is-bad,
+.workspace-page-shell .catch-config-status.is-bad,
+.workspace-page-shell .catch-config-empty.is-bad,
+.agent-page.is-light-theme .catch-config-status.is-bad,
+.agent-page.is-light-theme .catch-config-empty.is-bad,
+.wa-stage-main .catch-config-status.is-bad,
+.wa-stage-main .catch-config-empty.is-bad {
+  color: #b42318;
+}
+
+.workspace-apple .catch-config-actions button,
+.workspace-page-shell .catch-config-actions button,
+.agent-page.is-light-theme .catch-config-actions button,
+.wa-stage-main .catch-config-actions button {
+  border-color: rgba(0, 113, 227, 0.18);
+  background: rgba(0, 113, 227, 0.08);
+  color: #0057b8;
+}
+
+.workspace-apple .catch-config-actions button.primary,
+.workspace-page-shell .catch-config-actions button.primary,
+.agent-page.is-light-theme .catch-config-actions button.primary,
+.wa-stage-main .catch-config-actions button.primary {
+  border-color: transparent;
+  background: #0a84ff;
+  color: #fff;
+}
+
+.workspace-apple .catch-filter-grid input[type="text"],
+.workspace-apple .catch-filter-grid input:not([type]),
+.workspace-apple .catch-filter-grid select,
+.workspace-apple .catch-grid-table input,
+.workspace-page-shell .catch-filter-grid input[type="text"],
+.workspace-page-shell .catch-filter-grid input:not([type]),
+.workspace-page-shell .catch-filter-grid select,
+.workspace-page-shell .catch-grid-table input,
+.agent-page.is-light-theme .catch-filter-grid input[type="text"],
+.agent-page.is-light-theme .catch-filter-grid input:not([type]),
+.agent-page.is-light-theme .catch-filter-grid select,
+.agent-page.is-light-theme .catch-grid-table input,
+.wa-stage-main .catch-filter-grid input[type="text"],
+.wa-stage-main .catch-filter-grid input:not([type]),
+.wa-stage-main .catch-filter-grid select,
+.wa-stage-main .catch-grid-table input {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  color: #1d1d1f;
+  color-scheme: light;
+}
+
+.workspace-apple .catch-grid-table th,
+.workspace-page-shell .catch-grid-table th,
+.agent-page.is-light-theme .catch-grid-table th,
+.wa-stage-main .catch-grid-table th {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.workspace-apple .catch-grid-table td,
+.workspace-page-shell .catch-grid-table td,
+.agent-page.is-light-theme .catch-grid-table td,
+.wa-stage-main .catch-grid-table td {
+  border-color: rgba(0, 0, 0, 0.06);
+  background: #fff;
+}
+
+.workspace-apple .catch-subsystem-cell,
+.workspace-apple .catch-subsystem-title-cell strong,
+.workspace-page-shell .catch-subsystem-cell,
+.workspace-page-shell .catch-subsystem-title-cell strong,
+.agent-page.is-light-theme .catch-subsystem-cell,
+.agent-page.is-light-theme .catch-subsystem-title-cell strong,
+.wa-stage-main .catch-subsystem-cell {
+  color: #64748b;
+}
+
+.wa-stage-main .catch-subsystem-title-cell strong {
+  color: #64748b;
+}
+
+.workspace-apple .catch-grid-table tr.is-subsystem td,
+.workspace-apple .catch-grid-table tr.is-subsystem input,
+.workspace-page-shell .catch-grid-table tr.is-subsystem td,
+.workspace-page-shell .catch-grid-table tr.is-subsystem input,
+.agent-page.is-light-theme .catch-grid-table tr.is-subsystem td,
+.agent-page.is-light-theme .catch-grid-table tr.is-subsystem input,
+.wa-stage-main .catch-grid-table tr.is-subsystem td,
+.wa-stage-main .catch-grid-table tr.is-subsystem input {
+  background: #eef6ff;
+}
+
+.workspace-apple .catch-grid-table input:focus,
+.workspace-page-shell .catch-grid-table input:focus,
+.agent-page.is-light-theme .catch-grid-table input:focus,
+.wa-stage-main .catch-grid-table input:focus {
+  background: #fff;
+}
+
+.workspace-apple .catch-grid-table td.is-cell-changed input,
+.workspace-page-shell .catch-grid-table td.is-cell-changed input,
+.agent-page.is-light-theme .catch-grid-table td.is-cell-changed input,
+.wa-stage-main .catch-grid-table td.is-cell-changed input {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: #fff7e6;
+}
+
+.workspace-apple .catch-row-delete,
+.workspace-page-shell .catch-row-delete,
+.agent-page.is-light-theme .catch-row-delete,
+.wa-stage-main .catch-row-delete {
+  border-color: rgba(180, 35, 24, 0.16);
+  background: rgba(180, 35, 24, 0.06);
+  color: #b42318;
+}
+
+.workspace-apple .catch-row-add,
+.workspace-page-shell .catch-row-add,
+.agent-page.is-light-theme .catch-row-add,
+.wa-stage-main .catch-row-add {
+  border-color: rgba(0, 113, 227, 0.18);
+  background: rgba(0, 113, 227, 0.08);
+  color: #0057b8;
+}

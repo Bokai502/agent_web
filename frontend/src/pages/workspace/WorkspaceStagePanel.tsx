@@ -2,9 +2,10 @@ import type { TFunction } from "i18next"
 import { GncConfigEditor } from "../../../gnc_config/GncConfigEditor"
 import type { BomComponent, BomInfo } from "../../components/bomData"
 import { BomStagePanel } from "./BomStagePanel"
+import { CatchSupportingTableEditor } from "./CatchSupportingTableEditor"
 import { LogStagePanel } from "./LogStagePanel"
 import type { RunLogEntry } from "./runLogUtils"
-import type { WorkspaceVersionContext } from "./workspaceVersion"
+import { type WorkspaceVersionContext, usesCatchSupportingTable } from "./workspaceVersion"
 
 type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
 
@@ -26,6 +27,7 @@ type WorkspaceStagePanelProps = {
   hasModelPreview: boolean
   logEntries: RunLogEntry[]
   onOpenExternalWindow: (url: string) => void
+  onRefreshWorkspaceViews?: () => void
   onSelectBom: (componentId: string) => void
   selectedBom?: BomComponent
   selectedLog: RunLogEntry | null
@@ -51,6 +53,7 @@ export function WorkspaceStagePanel({
   hasModelPreview,
   logEntries,
   onOpenExternalWindow,
+  onRefreshWorkspaceViews,
   onSelectBom,
   selectedBom,
   selectedLog,
@@ -100,6 +103,12 @@ export function WorkspaceStagePanel({
               </div>
             </div>
           )
+        ) : activePanel === "bom" && showBom && usesCatchSupportingTable(activeContext) ? (
+          <CatchSupportingTableEditor
+            activeContext={activeContext}
+            apiBase={apiBase}
+            onSaved={onRefreshWorkspaceViews}
+          />
         ) : activePanel === "bom" && showBom ? (
           <BomStagePanel
             bomInfo={bomInfo}

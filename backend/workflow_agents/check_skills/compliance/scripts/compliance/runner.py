@@ -226,7 +226,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--catalog-source", choices=["file", "postgres"], default="postgres"
     )
     parser.add_argument(
-        "--reliability-source", choices=["file", "postgres"], default="file"
+        "--reliability-source", choices=["file", "postgres"], default="postgres"
     )
     parser.add_argument("--llm-config", default=None)
     parser.add_argument("--llm-base-url", default=None)

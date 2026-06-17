@@ -912,6 +912,45 @@ describe("workspace data routes", () => {
     }
   })
 
+  it("reads reliability query compliance artifacts for quality and radiation checks", async () => {
+    const outputDir = path.join(versionDir(), "check_outputs", "compliance", "stages")
+    await writeJson(path.join(outputDir, "reliability_query.json"), {
+      output: [
+        {
+          component_name: "ADC",
+          index: 1,
+          manufacturer: "ACME",
+          model: "AD-1",
+          quality: {
+            answer: "批次质量问题记录",
+            count: 1,
+          },
+          radiation: {
+            answer: "单粒子效应记录",
+            count: 1,
+          },
+        },
+      ],
+      stage: "reliability_query",
+    })
+    const server = await createTestServer()
+    const workspaceDir = encodeURIComponent(versionDir())
+
+    try {
+      const response = await server.inject({
+        method: "GET",
+        url: `/api/workspace/compliance/artifact/reliability_query?workspaceDir=${workspaceDir}`,
+      })
+      assert.equal(response.statusCode, 200)
+      assert.equal(response.json().artifact, "reliability_query")
+      assert.equal(response.json().source_relative_path, "check_outputs/compliance/stages/reliability_query.json")
+      assert.equal(response.json().rows[0].quality.answer, "批次质量问题记录")
+      assert.equal(response.json().rows[0].radiation.answer, "单粒子效应记录")
+    } finally {
+      await server.close()
+    }
+  })
+
   it("returns derating parse errors for malformed output payloads", async () => {
     const outputDir = path.join(versionDir(), "check_outputs", "compliance", "derating")
     await fs.mkdir(outputDir, { recursive: true })
