@@ -920,6 +920,13 @@ function componentManufacturer(row: JsonRow) {
   return asText(row.manufacturer ?? row.normalized_manufacturer ?? row["厂商"] ?? row["生产厂商_生产单位"] ?? row["生产厂商"] ?? row.list_manufacturer) || "-"
 }
 
+function modelSpecKeys(row: JsonRow) {
+  return asText(row.model ?? row["型号规格_规格"] ?? row["型号规格"] ?? row.list_model)
+    .split(/[;；\n\r]+/u)
+    .map(value => value.trim().toLowerCase().replace(/\s+/gu, ""))
+    .filter(Boolean)
+}
+
 function buildDashboardRiskRows(resultRows: JsonRow[], missingRows: JsonRow[]): DashboardRiskRow[] {
   const missingByComponent = new Map(missingRows.map(row => [asText(row["元器件名称"]), row]))
   const issueRows = resultRows
@@ -1323,16 +1330,25 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
   }, [query])
 
   const missingSummary = useMemo(() => {
-    const componentCount = missingRows.length
-    const missingCount = missingRows.filter(row => Number(row.missing_count ?? 0) > 0).length
-    const unmatchedCount = missingRows.filter(row => !asText(row["元器件大类"]) || !asText(row["元器件子类"])).length
+    const listRows = complianceRows.classification ?? []
+    const listKeys = new Set(listRows.flatMap(row => modelSpecKeys(row)))
+    const deratingKeys = new Set(resultRows.flatMap(row => modelSpecKeys(row)))
+    const missingKeys = new Set(missingRows.filter(row => Number(row.missing_count ?? 0) > 0).flatMap(row => modelSpecKeys(row)))
+    const unmatchedKeys = new Set(missingRows.filter(row => !asText(row["元器件大类"]) || !asText(row["元器件子类"])).flatMap(row => modelSpecKeys(row)))
+    const incompleteKeys = new Set([...missingKeys, ...unmatchedKeys])
+    const completenessKeys = new Set(missingRows.flatMap(row => modelSpecKeys(row)))
+    const coveredCount = [...listKeys].filter(key => deratingKeys.has(key)).length
+    const listCount = listKeys.size || completenessKeys.size
     return {
-      completeCount: Math.max(0, componentCount - missingCount - unmatchedCount),
-      componentCount,
-      missingCount,
-      unmatchedCount,
+      completeCount: Math.max(0, completenessKeys.size - incompleteKeys.size),
+      coveredCount,
+      completenessCount: completenessKeys.size,
+      listCount,
+      missingCount: missingKeys.size,
+      uncoveredCount: Math.max(0, listCount - coveredCount),
+      unmatchedCount: unmatchedKeys.size,
     }
-  }, [missingRows])
+  }, [complianceRows, missingRows, resultRows])
 
   const workflowProgressEntries = useMemo(
     () => getWorkflowLoopProgressEntries(progressData?.data, t, "check"),
@@ -1549,8 +1565,8 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
           <summary style={summaryStyle}>步骤1：降额缺项分析（各器件降额项完整性检查）</summary>
           <div style={sectionBodyStyle}>
             <div style={metricsStyle}>
-              <span>元器件清单覆盖性：清单中 <b>{missingSummary.componentCount}</b> 个器件，<b style={greenText}>0</b> 个在降额表中有对应项，<b style={redText}>0</b> 个未在降额表覆盖</span>
-              <span>降额表缺项完整性：降额表中 <b>{missingSummary.componentCount}</b> 个器件，<b style={redText}>{missingSummary.missingCount}</b> 个存在缺项，<b style={redText}>{missingSummary.unmatchedCount}</b> 个未找到分类，<b style={greenText}>{missingSummary.completeCount}</b> 个完整</span>
+              <span>元器件清单覆盖性：清单中 <b>{missingSummary.listCount}</b> 个型号规格，<b style={greenText}>{missingSummary.coveredCount}</b> 个已在降额表中覆盖，<b style={redText}>{missingSummary.uncoveredCount}</b> 个未覆盖</span>
+              <span>降额缺项完整性：共检查 <b>{missingSummary.completenessCount}</b> 个型号规格，<b style={redText}>{missingSummary.missingCount}</b> 个型号规格存在缺项，<b style={redText}>{missingSummary.unmatchedCount}</b> 个型号规格未找到分类，<b style={greenText}>{missingSummary.completeCount}</b> 个型号规格完整</span>
             </div>
             <EditableTable
               columns={MISSING_COLUMNS}
