@@ -41,9 +41,21 @@ function getQualityOptions(config: ComplianceCheckInputConfig) {
 }
 
 function getImportBaselineGroups(config: ComplianceCheckInputConfig) {
-  return Array.isArray(config.quality_compare_baseline_options?.importBaselineOptions)
+  const groups = Array.isArray(config.quality_compare_baseline_options?.importBaselineOptions)
     ? config.quality_compare_baseline_options.importBaselineOptions
     : []
+  return groups.map(group => ({
+    ...group,
+    fields: group.fields.map(field => {
+      const hasIndustrial = field.options.some(option => option.value === '工业级')
+      return hasIndustrial
+        ? field
+        : {
+            ...field,
+            options: [...field.options, { label: '工业级', value: '工业级' }],
+          }
+    }),
+  }))
 }
 
 function getSelectedBaselineGroup(config: ComplianceCheckInputConfig, groups: ComplianceCheckImportBaselineGroup[]) {

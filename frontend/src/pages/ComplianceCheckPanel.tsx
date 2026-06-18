@@ -124,6 +124,26 @@ const COMPLIANCE_TABS = [
     title: "目录匹配",
   },
   {
+    artifact: "quality_level_check",
+    columns: [
+      { key: "index", label: "序号", width: 70 },
+      { key: "名称", label: "器件名称", width: 140 },
+      { key: "型号规格", label: "型号规格", width: 140 },
+      { key: "厂商", label: "生产厂商", width: 130 },
+      { key: "封装形式", label: "封装形式", width: 110 },
+      { key: "国产/进口", label: "国产/进口", width: 110 },
+      { key: "质量等级", label: "质量等级", width: 110 },
+      { key: "最低要求", label: "最低要求", width: 110 },
+      { key: "关键部位", label: "关键部位", width: 110 },
+      { key: "是否满足要求", label: "检查状态", width: 120 },
+      { key: "reason", label: "问题说明", width: 240 },
+    ],
+    description: "展示质量等级符合性检查结果，进口器件最低要求默认按工业级及以上判定。",
+    emptyText: "暂无质量等级检查数据",
+    key: "quality-level",
+    title: "质量等级",
+  },
+  {
     artifact: "reliability_query",
     columns: [
       { key: "index", label: "序号", width: 70 },
@@ -203,6 +223,12 @@ type ModuleInsight = {
     keyCount: number
     keyShare: number
     samples: string[]
+    total: number
+  }
+  qualityLevel: {
+    importIndustrialCount: number
+    issueCount: number
+    okCount: number
     total: number
   }
   manufacturer: {
@@ -423,7 +449,7 @@ function deriveComparisonJudgement(row: JsonRow, key: string) {
 }
 
 function isPositiveJudgement(value: string) {
-  return /^(符合|正确|正常|通过|ok|pass)$/iu.test(value.trim())
+  return /^(符合|满足|正确|正常|通过|目录内|ok|pass|true|yes)$/iu.test(value.trim())
 }
 
 function isNegativeJudgement(value: string) {
@@ -580,9 +606,9 @@ function normalizeComplianceRow(row: JsonRow) {
   const bestCandidate = bestCatalogCandidate(row)
   const quality = isJsonRecord(row.quality) ? row.quality : {}
   const radiation = isJsonRecord(row.radiation) ? row.radiation : {}
-  const name = row.component_name ?? row.name ?? row["元器件名称"]
-  const manufacturer = row.manufacturer ?? row.normalized_manufacturer ?? row["生产厂商"]
-  const status = row.status ?? row.result ?? row.match_status ?? row.compliance_status ?? row["状态"] ?? row["目录内或外"] ?? row.is_in_catalog
+  const name = row.component_name ?? row.name ?? row["名称"] ?? row["元器件名称"]
+  const manufacturer = row.manufacturer ?? row.normalized_manufacturer ?? row["厂商"] ?? row["生产厂商"]
+  const status = row.status ?? row.result ?? row.match_status ?? row.compliance_status ?? row["状态"] ?? row["目录内或外"] ?? row.is_in_catalog ?? row["是否满足要求"]
   const normalized = {
     ...row,
     catalog_manufacturer: row.catalog_manufacturer ?? selectedCandidate?.catalog_manufacturer ?? bestCandidate?.catalog_manufacturer ?? "",
@@ -792,9 +818,11 @@ function buildModuleInsights(missingRows: JsonRow[], resultRows: JsonRow[], comp
   const manufacturerRows = complianceRows.manufacturer ?? []
   const keyRows = complianceRows["key-units"] ?? []
   const catalogRows = complianceRows.catalog ?? []
+  const qualityRows = complianceRows["quality-level"] ?? []
   const reliabilityRows = complianceRows.reliability ?? []
-  const totalComponentCount = classificationRows.length || missingRows.length || resultRows.length || keyRows.length || reliabilityRows.length
+  const totalComponentCount = classificationRows.length || missingRows.length || resultRows.length || keyRows.length || qualityRows.length || reliabilityRows.length
   const keyCount = keyRows.filter(keyUnitFlag).length
+  const qualityCounts = complianceStatusCounts(qualityRows)
   const reliabilityQualityHits = reliabilityRows.reduce((total, row) => total + reliabilityHitCounts(row).quality, 0)
   const reliabilityRadiationHits = reliabilityRows.reduce((total, row) => total + reliabilityHitCounts(row).radiation, 0)
   const reliabilityHitCount = reliabilityIssueCount(reliabilityRows)
@@ -831,6 +859,12 @@ function buildModuleInsights(missingRows: JsonRow[], resultRows: JsonRow[], comp
       keyShare: percent(keyCount, totalComponentCount),
       samples: keySamples,
       total: totalComponentCount,
+    },
+    qualityLevel: {
+      importIndustrialCount: qualityRows.filter(row => asText(row["国产/进口"]) === "进口" && /工业级/u.test(asText(row["最低要求"]))).length,
+      issueCount: qualityCounts.issue,
+      okCount: qualityCounts.ok,
+      total: qualityRows.length,
     },
     manufacturer: {
       catalogInRate: percent(manufacturerRows.filter(row => /目录内/u.test(asText(row["目录内或外"] ?? row.status))).length, manufacturerRows.length),
@@ -875,7 +909,7 @@ function dashboardAction(row: JsonRow) {
 }
 
 function componentName(row: JsonRow) {
-  return asText(row.component_name ?? row.name ?? row["元器件名称"] ?? row.list_model) || "-"
+  return asText(row.component_name ?? row.name ?? row["名称"] ?? row["元器件名称"] ?? row.list_model) || "-"
 }
 
 function componentModel(row: JsonRow) {
@@ -883,7 +917,7 @@ function componentModel(row: JsonRow) {
 }
 
 function componentManufacturer(row: JsonRow) {
-  return asText(row.manufacturer ?? row.normalized_manufacturer ?? row["生产厂商_生产单位"] ?? row["生产厂商"] ?? row.list_manufacturer) || "-"
+  return asText(row.manufacturer ?? row.normalized_manufacturer ?? row["厂商"] ?? row["生产厂商_生产单位"] ?? row["生产厂商"] ?? row.list_manufacturer) || "-"
 }
 
 function buildDashboardRiskRows(resultRows: JsonRow[], missingRows: JsonRow[]): DashboardRiskRow[] {
@@ -986,6 +1020,24 @@ function catalogIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
     }))
 }
 
+function qualityLevelIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
+  return rows
+    .filter(row => {
+      const status = asText(row.status ?? row["是否满足要求"])
+      return status && !isPositiveJudgement(status)
+    })
+    .map(row => ({
+      action: "确认质量等级",
+      component: componentName(row),
+      issue: asText(row.reason) || `质量等级 ${asText(row["质量等级"]) || "未填写"}，最低要求 ${asText(row["最低要求"]) || "未明确"}`,
+      manufacturer: componentManufacturer(row),
+      model: componentModel(row),
+      module: "质量等级",
+      priority: asText(row["国产/进口"]) === "进口" ? "高" : "中",
+      status: asText(row["是否满足要求"] ?? row.status ?? "待确认") || "待确认",
+    } satisfies DashboardRiskRow))
+}
+
 function reliabilityIssueRows(rows: JsonRow[]): DashboardRiskRow[] {
   return rows
     .filter(row => {
@@ -1059,7 +1111,15 @@ function moduleRows(missingRows: JsonRow[], resultRows: JsonRow[], complianceRow
   return rows
 }
 
-function buildDashboardRecommendations(totalIssues: number, missingCount: number, catalogIssues: number, reliabilityIssues: number, completedModules: number, moduleCount: number): DashboardRecommendation[] {
+function buildDashboardRecommendations(
+  totalIssues: number,
+  missingCount: number,
+  catalogIssues: number,
+  reliabilityIssues: number,
+  completedModules: number,
+  moduleCount: number,
+  qualityLevelIssues: number,
+): DashboardRecommendation[] {
   const items: DashboardRecommendation[] = []
   if (completedModules < moduleCount) {
     items.push({ text: `还有 ${moduleCount - completedModules} 个报告模块未生成，建议先补齐输出后再定稿。`, tone: "warn" })
@@ -1069,6 +1129,9 @@ function buildDashboardRecommendations(totalIssues: number, missingCount: number
   }
   if (catalogIssues > 0) {
     items.push({ text: `${catalogIssues} 条目录匹配需人工确认，建议先处理国产器件目录命中情况。`, tone: "warn" })
+  }
+  if (qualityLevelIssues > 0) {
+    items.push({ text: `${qualityLevelIssues} 个器件质量等级低于要求，进口器件按工业级及以上优先复核。`, tone: "bad" })
   }
   if (reliabilityIssues > 0) {
     items.push({ text: `${reliabilityIssues} 个器件确认存在历史质量问题或辐照信息，建议复核数据库原始记录并写入审查结论。`, tone: "bad" })
@@ -1094,12 +1157,14 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
   const manufacturerCounts = complianceStatusCounts(complianceRows.manufacturer ?? [])
   const keyUnitCounts = complianceStatusCounts(complianceRows["key-units"] ?? [])
   const catalogCounts = complianceStatusCounts(complianceRows.catalog ?? [])
+  const qualityLevelCounts = complianceStatusCounts(complianceRows["quality-level"] ?? [])
   const reliabilityIssues = reliabilityIssueCount(complianceRows.reliability ?? [])
   const distribution = [
     { color: HUD_RED, key: "降额", label: "降额问题", value: missingCount + problemCount(resultRows) },
     { color: HUD_WARN, key: "厂商匹配", label: "厂商匹配", value: manufacturerCounts.issue },
     { color: HUD_MUTED, key: "关键器件", label: "关键器件", value: keyUnitCounts.issue },
     { color: HUD_CYAN, key: "目录匹配", label: "目录匹配", value: catalogCounts.issue },
+    { color: KPI_ORANGE, key: "质量等级", label: "质量等级", value: qualityLevelCounts.issue },
     { color: KPI_PINK, key: "质量/辐照查询", label: "质量/辐照", value: reliabilityIssues },
     { color: HUD_GREEN, key: "AI器件分类", label: "分类确认", value: complianceStatusCounts(complianceRows.classification ?? []).issue },
   ]
@@ -1108,6 +1173,7 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
     ...manufacturerIssueRows(complianceRows.manufacturer ?? []),
     ...complianceIssueRows(complianceRows["key-units"] ?? [], "关键器件", "关键器件标记待确认", "确认关键器件属性"),
     ...catalogIssueRows(complianceRows.catalog ?? []),
+    ...qualityLevelIssueRows(complianceRows["quality-level"] ?? []),
     ...reliabilityIssueRows(complianceRows.reliability ?? []),
   ]
   const riskRows = [...buildDashboardRiskRows(resultRows, missingRows), ...complianceRisks].slice(0, 8)
@@ -1126,7 +1192,7 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
     moduleCount,
     modules,
     passPercent,
-    recommendations: buildDashboardRecommendations(totalIssues, missingCount, catalogCounts.issue, reliabilityIssues, completedModules, moduleCount),
+    recommendations: buildDashboardRecommendations(totalIssues, missingCount, catalogCounts.issue, reliabilityIssues, completedModules, moduleCount, qualityLevelCounts.issue),
     riskRows,
     totalRows,
   }
@@ -1428,6 +1494,9 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
                 selectColumns={{
                   "国产/进口": ["国产", "进口", "无"],
                   "目录内或外": ["目录内", "目录外", "无"],
+                  "是否满足要求": ["满足", "需关注", "不满足", "无法确认"],
+                  "质量等级": ["CAST A", "CAST B", "CAST C", "GJB", "军品级", "工业级", "民品级", "商业级", "未填写"],
+                  "最低要求": ["CAST A", "CAST B", "CAST C", "GJB", "军品级", "工业级"],
                   is_key_part: ["true", "false"],
                   is_in_catalog: ["目录内", "目录外", "未提供目录", "无"],
                   status: ["符合", "不符合", "需确认"],
@@ -1649,6 +1718,12 @@ function ComplianceCheckReportDashboard({
           value={`${summary.moduleInsights.catalog.matchedCount}个`}
         />
         <KpiTile
+          detail={`进口工业级基线 ${summary.moduleInsights.qualityLevel.importIndustrialCount} 项 · 正常 ${summary.moduleInsights.qualityLevel.okCount} 项`}
+          label="质量等级"
+          palette="orange"
+          value={`${summary.moduleInsights.qualityLevel.issueCount}项`}
+        />
+        <KpiTile
           detail={`确认质量 ${summary.moduleInsights.reliability.qualityHits} 条 · 确认辐照 ${summary.moduleInsights.reliability.radiationHits} 条`}
           label="质量/辐照查询"
           palette="red"
@@ -1715,6 +1790,14 @@ function ComplianceCheckReportDashboard({
           <div style={moduleListStyle}>
             {(summary.moduleInsights.keyUnits.samples.length ? summary.moduleInsights.keyUnits.samples : ["暂无关键器件"]).map(item => <span key={item}>{item}</span>)}
           </div>
+        </ModuleInsightCard>
+
+        <ModuleInsightCard title="质量等级">
+          <div style={moduleMetricPairStyle}>
+            <DashboardSignal label="等级问题" value={`${summary.moduleInsights.qualityLevel.issueCount}`} tone={summary.moduleInsights.qualityLevel.issueCount > 0 ? "bad" : "ok"} />
+            <DashboardSignal label="通过器件" value={`${summary.moduleInsights.qualityLevel.okCount}/${summary.moduleInsights.qualityLevel.total}`} tone={summary.moduleInsights.qualityLevel.issueCount > 0 ? "warn" : "ok"} />
+          </div>
+          <DashboardSignal label="进口工业级基线" value={`${summary.moduleInsights.qualityLevel.importIndustrialCount}`} tone="neutral" />
         </ModuleInsightCard>
 
         <ModuleInsightCard title="质量/辐照查询">
@@ -1933,6 +2016,7 @@ function navIcon(key: ActiveTabKey) {
   if (key === "classification") return "◇"
   if (key === "manufacturer") return "↔"
   if (key === "key-units") return "◆"
+  if (key === "quality-level") return "Q"
   return "◎"
 }
 
@@ -1968,6 +2052,7 @@ function optionToneColor(key: string, value: string) {
 }
 
 function tabForDashboardModule(module: string): ActiveTabKey {
+  if (module.includes("质量等级")) return "quality-level"
   if (module.includes("厂商")) return "manufacturer"
   if (module.includes("关键")) return "key-units"
   if (module.includes("目录")) return "catalog"
