@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
 import type { TFunction } from 'i18next'
 import { GncConfigEditor } from '../../../gnc_config/GncConfigEditor'
+import { ExecutionFlow } from '../../components/execution-flow/ExecutionFlow'
 import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
 import { CatchSupportingTableEditor } from '../workspace/CatchSupportingTableEditor'
@@ -35,6 +36,7 @@ type AgentWorkspacePanelProps = {
   createChildBranch: CurrentWorkspaceCardProps['onCreateChildBranch']
   createInitialVersion: CurrentWorkspaceCardProps['onCreateInitialVersion']
   createSiblingBranch: CurrentWorkspaceCardProps['onCreateSiblingBranch']
+  createVersionFromInput: CurrentWorkspaceCardProps['onCreateVersionFromInput']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   manifestLoading: boolean
   selectedBom: BomStagePanelProps['selectedBom']
@@ -64,7 +66,7 @@ type AgentWorkspacePanelProps = {
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showComplianceCheckConfig: boolean, showGncConfig: boolean) {
   if (activeView === 'workspace') return '当前任务'
   if (activeView === 'bom' && showComplianceCheckConfig) return '配置文件'
-  if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '组件清单'
+  if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '配置文件'
   if (activeView === 'model') return '结果预览'
   if (activeView === 'tools') return showGncConfig ? 'GNC 工具' : '仿真工具'
   if (activeView === 'log') return '工作区文件'
@@ -86,6 +88,7 @@ export function AgentWorkspacePanel({
   createChildBranch,
   createInitialVersion,
   createSiblingBranch,
+  createVersionFromInput,
   handleSelectFile,
   manifestLoading,
   selectedBom,
@@ -126,6 +129,21 @@ export function AgentWorkspacePanel({
     if (tool === 'gnc-dashboard') return 'GNC 看板'
     return 'GNC'
   }
+  const thermalConfigContent = usesCatchSupportingTable(activeContext) ? (
+    <CatchSupportingTableEditor
+      activeContext={activeContext}
+      apiBase={apiBase}
+      onSaved={refreshWorkspaceViews}
+    />
+  ) : (
+    <BomStagePanel
+      bomInfo={bomInfo}
+      bomLoading={bomLoading}
+      onSelectBom={setSelectedBomId}
+      selectedBom={selectedBom}
+      t={t}
+    />
+  )
 
   return (
     <section className={panelClassName}>
@@ -192,6 +210,7 @@ export function AgentWorkspacePanel({
             onCreateChildBranch={createChildBranch}
             onCreateInitialVersion={createInitialVersion}
             onCreateSiblingBranch={createSiblingBranch}
+            onCreateVersionFromInput={createVersionFromInput}
             onRequestDeleteVersion={requestDeleteVersion}
             onSelectWorkspace={switchActiveWorkspace}
             versionAction={versionAction}
@@ -204,20 +223,23 @@ export function AgentWorkspacePanel({
           <ComplianceCheckInputConfigEditor activeContext={activeContext} />
         ) : activeView === 'bom' && showGncConfig ? (
           <GncConfigEditor activeContext={activeContext} />
-        ) : activeView === 'bom' && usesCatchSupportingTable(activeContext) ? (
-          <CatchSupportingTableEditor
-            activeContext={activeContext}
-            apiBase={apiBase}
-            onSaved={refreshWorkspaceViews}
-          />
         ) : activeView === 'bom' ? (
-          <BomStagePanel
-            bomInfo={bomInfo}
-            bomLoading={bomLoading}
-            onSelectBom={setSelectedBomId}
-            selectedBom={selectedBom}
-            t={t}
-          />
+          <div className="agent-thermal-config">
+            <section className="agent-thermal-flow-panel">
+              <ExecutionFlow
+                className="execution-flow-embedded"
+                height={360}
+                interactive
+                showControls={false}
+                showThemeSwitch={false}
+                theme="dark"
+                versionId={activeContext.versionId ?? undefined}
+                workspaceDir={activeContext.versionDir ?? undefined}
+                workspaceId={activeContext.workspaceId ?? undefined}
+              />
+            </section>
+            {thermalConfigContent}
+          </div>
         ) : activeView === 'model' && showModelPreview ? (
           activeContext.versionDir ? (
             <iframe className="agent-embed-frame" title="结果预览" src={viewerHref} />

@@ -174,7 +174,10 @@ export function getVersionWorkspaceKey(
 }
 
 async function readJsonResponse<T>(response: Response, fallbackMessage: string) {
-  if (!response.ok) throw new Error(fallbackMessage)
+  if (!response.ok) {
+    const data = await response.json().catch(() => null) as { error?: unknown } | null
+    throw new Error(typeof data?.error === "string" && data.error.trim() ? data.error : fallbackMessage)
+  }
   return response.json() as Promise<T>
 }
 
@@ -235,6 +238,8 @@ export function branchWorkspaceVersion({
   group = "xieteam",
   label,
   parentVersionId,
+  sourceWorkspaceDir,
+  sourceWorkspaceName,
   workspaceKey,
   workspaceId,
   workspaceDir,
@@ -245,6 +250,8 @@ export function branchWorkspaceVersion({
   group?: string
   label: string
   parentVersionId?: string | null
+  sourceWorkspaceDir?: string | null
+  sourceWorkspaceName?: string | null
   workspaceKey?: string | null
   workspaceId?: string | null
   workspaceDir?: string | null
@@ -252,7 +259,7 @@ export function branchWorkspaceVersion({
   return fetch(joinApiPath(apiBase, `/versions/${encodeURIComponent(baseVersionId)}/branch`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ group, label, parentVersionId, workspaceDir, workspaceId, workspaceKey }),
+    body: JSON.stringify({ group, label, parentVersionId, sourceWorkspaceDir, sourceWorkspaceName, workspaceDir, workspaceId, workspaceKey }),
   }).then(response => readJsonResponse<{ manifest?: WorkspaceManifestSummary }>(response, "version branch failed"))
 }
 

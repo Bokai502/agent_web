@@ -46,33 +46,14 @@ type ComponentDetail = {
 
 type RawComponentInfo = {
   components?: Array<{
-    category?: unknown
+    id?: unknown
     component_id?: unknown
-    component_subtype?: unknown
-    color?: unknown
-    kind?: unknown
-    semantic_name?: unknown
-    size_mm?: unknown
-    display_info?: {
-      dimensions?: unknown
-      kind?: unknown
-      model?: unknown
-      name?: unknown
-      name_cn?: unknown
-      semantic_name?: unknown
-      subsystem?: unknown
-    }
-    source_ref?: {
-      display_name?: unknown
-      selected_kind?: unknown
-      selected_model?: unknown
-      selected_name?: unknown
-      template_kind?: unknown
-      template_model?: unknown
-      template_name?: unknown
-    }
+    display_name?: unknown
   }>
-  items?: RawComponentInfo["components"]
+}
+
+type WorkspaceTextPayload = {
+  content?: unknown
 }
 
 type ViewerComponentMessage = {
@@ -124,6 +105,17 @@ function asText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : "-"
 }
 
+function normalizeComponentId(value: unknown) {
+  if (typeof value !== "string") return null
+  const match = value.trim().match(/(?:^|[^a-z0-9])P(\d{3})(?=$|[^a-z0-9])/iu)
+  return match ? `P${match[1]}` : null
+}
+
+function componentDetailLookupKeys(componentId: string) {
+  const normalized = normalizeComponentId(componentId)
+  return normalized && normalized !== componentId ? [componentId, normalized] : [componentId]
+}
+
 function presentText(...values: unknown[]) {
   for (const value of values) {
     const text = asText(value)
@@ -132,71 +124,50 @@ function presentText(...values: unknown[]) {
   return "-"
 }
 
-function formatSize(value: unknown) {
-  return Array.isArray(value) && value.length > 0
-    ? value.map(item => typeof item === "number" && Number.isFinite(item) ? Number(item.toFixed(3)) : item).join(" x ")
-    : "-"
-}
-
-function parseComponentColor(value: unknown) {
-  if (!Array.isArray(value) || value.length < 3) return null
-  const channels = value.slice(0, 3).map(channel => (
-    typeof channel === "number" && Number.isFinite(channel) ? channel : null
-  ))
-  if (channels.some(channel => channel === null)) return null
-  return new THREE.Color(
-    (channels[0] as number) / 255,
-    (channels[1] as number) / 255,
-    (channels[2] as number) / 255,
-  )
-}
-
 function parseComponentDetails(data: RawComponentInfo) {
   const detailsById: Record<string, ComponentDetail> = {}
 
-  const components = Array.isArray(data.components) ? data.components : Array.isArray(data.items) ? data.items : []
+  const components = Array.isArray(data.components) ? data.components : []
   components.forEach((component) => {
-    const componentId = asText(component.component_id)
+    const componentId = asText(component.component_id ?? component.id)
     if (componentId === "-") return
 
-    detailsById[componentId] = {
+    const detail = {
       componentId,
-      color: parseComponentColor(component.color) ?? undefined,
-      dimensions: asText(component.display_info?.dimensions) !== "-"
-        ? asText(component.display_info?.dimensions)
-        : formatSize(component.size_mm),
-      displayName: presentText(
-        component.display_info?.name_cn,
-        component.source_ref?.display_name,
-        component.display_info?.name,
-        component.source_ref?.selected_name,
-        component.source_ref?.template_name,
-        component.display_info?.kind,
-        component.component_subtype,
-        component.semantic_name,
-        componentId,
-      ),
-      kind: presentText(
-        component.source_ref?.selected_kind,
-        component.source_ref?.template_kind,
-        component.display_info?.kind,
-        component.kind,
-        component.category,
-        component.component_subtype,
-      ),
-      modelName: presentText(
-        component.display_info?.model,
-        component.source_ref?.selected_model,
-        component.source_ref?.template_model,
-        component.source_ref?.selected_name,
-        component.source_ref?.template_name,
-      ),
-      semanticName: presentText(component.display_info?.semantic_name, component.semantic_name),
-      subsystem: asText(component.display_info?.subsystem),
+      dimensions: "-",
+      displayName: presentText(component.display_name, componentId),
+      kind: "-",
+      modelName: "-",
+      semanticName: componentId,
+      subsystem: "-",
     }
+    componentDetailLookupKeys(componentId).forEach((key) => {
+      detailsById[key] = detail
+    })
   })
 
   return detailsById
+}
+
+function parseWorkspaceCadBuildSpec(data: WorkspaceTextPayload | RawComponentInfo | null) {
+  if (!data) return null
+  const content = (data as WorkspaceTextPayload).content
+  if (typeof content !== "string") return data as RawComponentInfo
+  try {
+    return JSON.parse(content) as RawComponentInfo
+  } catch {
+    return null
+  }
+}
+
+function componentDetailsSignature(detailsById: Record<string, ComponentDetail>) {
+  return Object.values(detailsById)
+    .filter((detail, index, details) =>
+      details.findIndex(candidate => candidate.componentId === detail.componentId) === index,
+    )
+    .map(detail => `${detail.componentId}:${detail.displayName}`)
+    .sort()
+    .join("|")
 }
 
 function buildComponentColorMap(detailsById: Record<string, ComponentDetail>): ComponentColorMap {
@@ -260,6 +231,7 @@ export default function ModelViewerPage() {
   const annotationSvgRef = useRef<SVGSVGElement>(null)
   const annotationLabelsRef = useRef<HTMLDivElement>(null)
   const componentDetailsRef = useRef<Record<string, ComponentDetail>>({})
+  const componentDetailsSignatureRef = useRef("")
   const modelVariant = getModelVariantFromUrl()
   const pageParams = new URLSearchParams(window.location.search)
   const sessionId = pageParams.get("sessionId")?.trim() ?? ""
@@ -301,22 +273,27 @@ export default function ModelViewerPage() {
 
     const loadComponentDetails = async () => {
       const queryParams = new URLSearchParams()
-      if (sessionId) queryParams.set("sessionId", sessionId)
       if (workspaceId) queryParams.set("workspaceId", workspaceId)
       if (versionId) queryParams.set("versionId", versionId)
       if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
+      queryParams.set("relativePath", "00_inputs/cad_build_spec.json")
       const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-      return fetch(`/api/workspace/bom${query}`, {
+      return fetch(`/api/workspace/files/text${query}`, {
         cache: "no-store",
         signal: controller.signal,
-      }).then((response) => response.ok ? response.json() as Promise<RawComponentInfo> : null)
+      }).then((response) => response.ok ? response.json() as Promise<WorkspaceTextPayload> : null)
         .catch(() => null)
     }
 
     loadComponentDetails()
       .then((data) => {
-        if (!data) return
-        componentDetailsRef.current = parseComponentDetails(data)
+        const spec = parseWorkspaceCadBuildSpec(data)
+        if (!spec) return
+        const nextDetails = parseComponentDetails(spec)
+        const nextSignature = componentDetailsSignature(nextDetails)
+        if (nextSignature === componentDetailsSignatureRef.current) return
+        componentDetailsRef.current = nextDetails
+        componentDetailsSignatureRef.current = nextSignature
         setComponentDetailsVersion(version => version + 1)
       })
       .catch(() => {
@@ -324,7 +301,7 @@ export default function ModelViewerPage() {
       })
 
     return () => controller.abort()
-  }, [sessionId, shouldInitializeCadViewer, versionId, workspaceDir, workspaceId])
+  }, [shouldInitializeCadViewer, versionId, workspaceDir, workspaceId])
 
   useEffect(() => {
     if (!shouldInitializeCadViewer) {
@@ -628,21 +605,23 @@ export default function ModelViewerPage() {
     }
 
     const selectComponent = (componentId: string, notifyParent = true) => {
-      const detail = componentDetailsRef.current[componentId] ?? {
-        componentId,
+      const normalizedComponentId = normalizeComponentId(componentId) ?? componentId
+      const detail = componentDetailsRef.current[componentId] ??
+        componentDetailsRef.current[normalizedComponentId] ?? {
+        componentId: normalizedComponentId,
         dimensions: "-",
-        displayName: componentId,
+        displayName: normalizedComponentId,
         kind: "-",
         modelName: "-",
-        semanticName: componentId,
+        semanticName: normalizedComponentId,
         subsystem: "-",
       }
       setSelectedComponent(detail)
-      highlightComponent(componentId)
+      highlightComponent(normalizedComponentId)
 
       if (notifyParent && window.parent !== window) {
         window.parent.postMessage({
-          componentId,
+          componentId: normalizedComponentId,
           semanticName: detail.semanticName,
           type: "viewer3d:component-selected",
         }, window.location.origin)
@@ -812,7 +791,7 @@ export default function ModelViewerPage() {
 
       componentRoots
         .map((componentRoot) => ({
-          componentId: resolveComponentLabel(componentRoot),
+          componentId: normalizeComponentId(resolveComponentLabel(componentRoot)) ?? resolveComponentLabel(componentRoot),
           node: componentRoot,
         }))
         .filter((component) => component.componentId.length > 0)

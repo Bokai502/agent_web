@@ -88,6 +88,7 @@ export default function AgentPage() {
     createChildBranch,
     createInitialVersion,
     createSiblingBranch,
+    createVersionFromInput,
     manifestLoading,
     requestDeleteVersion,
     switchActiveWorkspace,
@@ -191,7 +192,11 @@ export default function AgentPage() {
         .filter(item => item.href !== '#tools')
         .map(item => item.href === '#bom' ? { ...item, label: '配置文件', meta: 'Config' } : item)
     }
-    if (!showGncConfig) return NAV_ITEMS.filter(item => showModelPreview || item.href !== '#model')
+    if (!showGncConfig) {
+      return NAV_ITEMS
+        .filter(item => showModelPreview || item.href !== '#model')
+        .map(item => item.href === '#bom' ? { ...item, label: '配置文件', meta: 'Config' } : item)
+    }
     return NAV_ITEMS
       .filter(item => item.href !== '#model')
       .map(item => (
@@ -542,6 +547,7 @@ export default function AgentPage() {
           createChildBranch={createChildBranch}
           createInitialVersion={createInitialVersion}
           createSiblingBranch={createSiblingBranch}
+          createVersionFromInput={createVersionFromInput}
           handleSelectFile={handleSelectFile}
           manifestLoading={manifestLoading}
           selectedBom={selectedBom}

@@ -36,10 +36,15 @@ def _has_complete_after_state(geometry_edit_dir: Path, after_step: Path) -> bool
 
 def layout_stage_result(layout_result: dict[str, Any]) -> dict[str, Any]:
     status = "completed" if layout_result.get("ok") else "completed_with_unplaced"
+    inputs = {}
+    if layout_result.get("cad_build_spec"):
+        inputs["cad_build_spec"] = layout_result.get("cad_build_spec")
+    elif layout_result.get("bom"):
+        inputs["bom"] = layout_result.get("bom")
     return {
         "stage_name": "layout_generate",
         "status": status,
-        "inputs": {"bom": layout_result.get("bom")},
+        "inputs": inputs,
         "outputs": {
             "run_dir": layout_result.get("run_dir"),
             "layout_dir": layout_result.get("layout_dir"),

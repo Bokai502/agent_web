@@ -12,6 +12,9 @@ const THERMAL_SKILLS_DIR = path.join(BACKEND_ROOT, "workflow_agents", "thermal_s
 const FREECAD_CLI_SRC_DIR = path.join(BACKEND_ROOT, "workflow_agents", "agents", "freecad_cli_tools", "src")
 const SIM_CLI_SRC_DIR = path.join(BACKEND_ROOT, "workflow_agents", "agents", "sim_cli_tools", "src")
 const SIM_RUNTIME_DIR = path.join(BACKEND_ROOT, "workflow_agents", "agents", "sim_cli_tools", "runtime")
+const CAD_BUILD_DISPLAY_SCRIPT = path.join(THERMAL_SKILLS_DIR, "cad-box-builder", "scripts", "build_box.py")
+const CAD_BUILD_REAL_CAD_SCRIPT = path.join(THERMAL_SKILLS_DIR, "cad-real-assembly-builder", "scripts", "build_real_assembly.py")
+const CAD_BUILD_SIMULATION_SCRIPT = path.join(THERMAL_SKILLS_DIR, "cad-sim-input-builder", "scripts", "build_sim_input.py")
 
 async function listFiles(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true })
@@ -50,6 +53,26 @@ describe("thermal workflow skills", () => {
       "config-editor/references/热仿真数据库.json",
       "config-editor/references/热仿真数据库_headers.md",
       "config-editor/templates/config_editor_report_template.md",
+      "cad-box-builder/SKILL.md",
+      "cad-box-builder/agents/openai.yaml",
+      "cad-box-builder/scripts/build_box.py",
+      "cad-box-builder/scripts/spec_common.py",
+      "cad-real-assembly-builder/SKILL.md",
+      "cad-real-assembly-builder/agents/openai.yaml",
+      "cad-real-assembly-builder/scripts/build_real_assembly.py",
+      "cad-real-assembly-builder/scripts/freecad_glb_exporter.py",
+      "cad-real-assembly-builder/scripts/local_freecad_helpers.py",
+      "cad-real-assembly-builder/scripts/rpc_scripts/build_real_assembly_hybrid.py",
+      "cad-real-assembly-builder/scripts/spec_common.py",
+      "cad-sim-input-builder/SKILL.md",
+      "cad-sim-input-builder/agents/openai.yaml",
+      "cad-sim-input-builder/scripts/build_sim_input.py",
+      "cad-sim-input-builder/scripts/prepare_simulation_after_state.py",
+      "cad-sim-input-builder/scripts/spec_common.py",
+      "workflow-diagram-writer/SKILL.md",
+      "workflow-diagram-writer/agents/openai.yaml",
+      "workflow-diagram-writer/assets/thermal_execution_flow_template.json",
+      "workflow-diagram-writer/scripts/write_execution_flow.py",
       "freecad/SKILL.md",
       "freecad/agents/openai.yaml",
       "freecad/guides/cad-build-workflow.md",
@@ -87,23 +110,28 @@ describe("thermal workflow skills", () => {
     assert.ok(Object.keys(parsed as Record<string, unknown>).length > 0)
   })
 
-  it("exposes the FreeCAD CAD build CLI and its expected output contract", async () => {
+  it("exposes the split CAD build skills and their expected output contracts", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "freecad-skill-smoke-"))
     try {
       const env = {
         ...process.env,
         PYTHONPATH: pythonPath(FREECAD_CLI_SRC_DIR, process.env.PYTHONPATH ?? ""),
       }
-      const { stdout: rootHelp } = await execFileAsync("python3", [
+      const { stdout: freecadRootHelp } = await execFileAsync("python3", [
         "-m",
         "freecad_cli_tools.cli.main",
         "--help",
       ], { env })
-      const { stdout: buildHelp } = await execFileAsync("python3", [
-        "-m",
-        "freecad_cli_tools.cli.main",
-        "cad",
-        "build",
+      const { stdout: displayHelp } = await execFileAsync("python3", [
+        CAD_BUILD_DISPLAY_SCRIPT,
+        "--help",
+      ], { env })
+      const { stdout: realCadHelp } = await execFileAsync("python3", [
+        CAD_BUILD_REAL_CAD_SCRIPT,
+        "--help",
+      ], { env })
+      const { stdout: simulationHelp } = await execFileAsync("python3", [
+        CAD_BUILD_SIMULATION_SCRIPT,
         "--help",
       ], { env })
       const { stdout: configStdout } = await execFileAsync("python3", [
@@ -116,13 +144,15 @@ describe("thermal workflow skills", () => {
       ], { env })
       const config = JSON.parse(configStdout)
 
-      assert.match(rootHelp, /cad build/u)
-      assert.match(rootHelp, /cad validate/u)
-      assert.match(rootHelp, /progress update/u)
-      assert.match(buildHelp, /--workspace(?:\s|,)/u)
-      assert.match(buildHelp, /--real-cad-backend/u)
-      assert.match(buildHelp, /geometry_after\.step\/\.glb/u)
-      assert.match(buildHelp, /geometry_after_real_cad\.step\/\.glb/u)
+      assert.match(freecadRootHelp, /cad build/u)
+      assert.match(freecadRootHelp, /cad validate/u)
+      assert.match(freecadRootHelp, /progress update/u)
+      assert.match(displayHelp, /Build box GLB from cad_build_spec\.json/u)
+      assert.match(displayHelp, /--workspace-dir/u)
+      assert.match(realCadHelp, /Build supplemental real assembly GLB from cad_build_spec\.json/u)
+      assert.match(realCadHelp, /--workspace-dir/u)
+      assert.match(simulationHelp, /Build power-filtered simulation STEP from cad_build_spec\.json/u)
+      assert.match(simulationHelp, /--workspace-dir/u)
       assert.equal(config.workspace_dir, workspaceDir)
       assert.equal(config.real_bom_path, path.join(workspaceDir, "00_inputs", "real_bom.json"))
       assert.equal(config.layout_topology_path, path.join(workspaceDir, "00_inputs", "layout_topology.json"))
@@ -183,16 +213,14 @@ describe("thermal workflow skills", () => {
         simulation: path.join(workspaceDir, "02_sim", "simulation"),
       })
       assert.deepEqual(doctor.missing_files, [
-        path.join(workspaceDir, "00_inputs", "real_bom.json"),
-        path.join(workspaceDir, "00_inputs", "layout_topology.json"),
-        path.join(workspaceDir, "00_inputs", "geom.json"),
-        path.join(workspaceDir, "01_cad", "geometry_after.step"),
+        path.join(workspaceDir, "01_cad", "geometry_after_power_filtered.step"),
         path.join(workspaceDir, "01_cad", "geometry_after.geom.json"),
         path.join(workspaceDir, "01_cad", "geometry_after.layout_topology.json"),
         path.join(workspaceDir, "01_cad", "geometry_after_registry.json"),
         path.join(workspaceDir, "01_cad", "simulation_input.json"),
         path.join(workspaceDir, "01_cad", "comsol_inputs", "coord.txt"),
         path.join(workspaceDir, "01_cad", "comsol_inputs", "channels_input.npz"),
+        path.join(workspaceDir, "00_inputs", "cad_build_spec.json"),
       ])
     } finally {
       await fs.rm(workspaceDir, { force: true, recursive: true })

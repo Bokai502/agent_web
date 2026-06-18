@@ -822,9 +822,9 @@
 
 .agent-page .wa-flow-version-node.is-input .wa-flow-version-main:not(:disabled) {
   cursor: pointer;
-  border-color: rgba(80, 220, 255, 0.42);
-  background: linear-gradient(135deg, rgba(0, 111, 176, 0.38), rgba(4, 35, 58, 0.82));
-  color: #eaf7ff;
+  border-color: rgba(255, 194, 102, 0.46);
+  background: linear-gradient(135deg, rgba(75, 47, 17, 0.72), rgba(36, 28, 19, 0.82));
+  color: #ffe4b8;
 }
 
 .agent-page .wa-flow-version-node.active .wa-flow-version-main {
@@ -840,9 +840,9 @@
 }
 
 .agent-page .wa-flow-version-node.is-input.selected .wa-flow-version-main {
-  border-color: rgba(80, 220, 255, 0.58);
-  background: linear-gradient(135deg, rgba(0, 111, 176, 0.42), rgba(4, 35, 58, 0.86));
-  color: #eaf7ff;
+  border-color: rgba(255, 194, 102, 0.72);
+  background: linear-gradient(135deg, rgba(86, 54, 19, 0.78), rgba(46, 35, 22, 0.88));
+  color: #ffe4b8;
 }
 
 .agent-page .wa-flow-version-main:disabled {

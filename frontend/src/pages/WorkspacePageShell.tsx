@@ -155,6 +155,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     createChildBranch,
     createInitialVersion,
     createSiblingBranch,
+    createVersionFromInput,
     manifestLoading,
     requestDeleteVersion,
     setBranchManifest,
@@ -373,6 +374,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       onCreateChildBranch={createChildBranch}
       onCreateInitialVersion={createInitialVersion}
       onCreateSiblingBranch={createSiblingBranch}
+      onCreateVersionFromInput={createVersionFromInput}
       onRequestDeleteVersion={requestDeleteVersion}
       onSelectWorkspace={handleSelectWorkspace}
       versionAction={versionAction}

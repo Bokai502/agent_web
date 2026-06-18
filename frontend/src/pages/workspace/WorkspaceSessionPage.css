@@ -1660,9 +1660,9 @@ button.wa-run-card.selected {
 }
 .wa-flow-version-node.is-input .wa-flow-version-main:not(:disabled) {
   cursor: pointer;
-  border-color: rgba(0, 113, 227, 0.24);
-  background: linear-gradient(135deg, rgba(247, 251, 255, 0.98), rgba(234, 244, 255, 0.92));
-  color: #174f91;
+  border-color: rgba(183, 121, 31, 0.3);
+  background: linear-gradient(135deg, rgba(255, 250, 241, 0.98), rgba(255, 243, 220, 0.92));
+  color: #5e3f10;
 }
 .wa-flow-version-node.active .wa-flow-version-main {
   border-color: rgba(0, 113, 227, 0.36);
@@ -1675,9 +1675,9 @@ button.wa-run-card.selected {
   box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12), 0 10px 24px rgba(0, 113, 227, 0.12);
 }
 .wa-flow-version-node.is-input.selected .wa-flow-version-main {
-  border-color: rgba(0, 113, 227, 0.42);
-  background: linear-gradient(135deg, rgba(246, 251, 255, 0.98), rgba(226, 241, 255, 0.94));
-  color: #174f91;
+  border-color: rgba(183, 121, 31, 0.5);
+  background: linear-gradient(135deg, rgba(255, 250, 241, 0.98), rgba(255, 239, 209, 0.95));
+  color: #5e3f10;
 }
 .wa-flow-version-main:disabled {
   cursor: default;

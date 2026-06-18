@@ -288,23 +288,30 @@ def summarize_status(status: Any) -> dict[str, Any]:
     }
 
 
-def summarize_cad_validation(cad_output: Any) -> dict[str, Any]:
-    validation = cad_output.get("validation", {}) if isinstance(cad_output, dict) else {}
+def summarize_cad_validation(validation_report: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
+    validation = validation_report if isinstance(validation_report, dict) else {}
     summary = validation.get("summary", {}) if isinstance(validation, dict) else {}
     checks = validation.get("checks", {}) if isinstance(validation, dict) else {}
     bbox = checks.get("bbox", {}) if isinstance(checks, dict) else {}
-    mount = checks.get("mount_contact", {}) if isinstance(checks, dict) else {}
+    mount = checks.get("mount_contact", {}) if isinstance(checks, dict) else checks.get("mount", {})
     occupancy = checks.get("face_occupancy", {}) if isinstance(checks, dict) else {}
+    cad_files = [
+        artifacts.get("geometry_after_glb", {}),
+        artifacts.get("real_cad_glb", {}),
+        artifacts.get("power_filtered_step", {}),
+        artifacts.get("simulation_input", {}),
+    ]
+    files_ok = all(item.get("exists") and item.get("size_bytes", 0) > 0 for item in cad_files)
     return {
-        "status": cad_output.get("status") if isinstance(cad_output, dict) else None,
+        "status": validation.get("status") if validation else ("artifacts_ready" if files_ok else "missing_artifacts"),
         "component_count": summary.get("component_count"),
         "bbox_failure_count": summary.get("bbox_failure_count"),
         "bbox_overlap_count": summary.get("bbox_overlap_count"),
-        "contact_failure_count": summary.get("contact_failure_count"),
+        "contact_failure_count": summary.get("contact_failure_count", summary.get("mount_issue_count")),
         "face_occupancy_max": summary.get("face_occupancy_max"),
         "over_capacity_face_count": summary.get("over_capacity_face_count"),
-        "overlaps": bbox.get("overlaps", []) if isinstance(bbox, dict) else [],
-        "contact_failures": mount.get("contact_failures", []) if isinstance(mount, dict) else [],
+        "overlaps": bbox.get("overlaps", bbox.get("component_overlaps", [])) if isinstance(bbox, dict) else [],
+        "contact_failures": mount.get("contact_failures", mount.get("mount_issues", [])) if isinstance(mount, dict) else [],
         "face_occupancy_ok": occupancy.get("ok") if isinstance(occupancy, dict) else None,
     }
 
@@ -354,7 +361,7 @@ def collect_workspace(workspace: Path) -> dict[str, Any]:
             "case_dir": str(case_dir),
             "status_path": str(status_path) if status_path else None,
         },
-        "cad_agent_output": load_json(cad_dir / "cad_agent_output.json"),
+        "cad_validation_report": load_json(cad_dir / "cad_validation_report.json"),
         "simulation_input": load_json(cad_dir / "simulation_input.json"),
         "registry": load_json(cad_dir / "geometry_after_registry.json"),
         "geom_after": load_json(cad_dir / "geometry_after.geom.json"),
@@ -388,7 +395,7 @@ def collect_workspace(workspace: Path) -> dict[str, Any]:
     data["components"] = summarize_components(data["simulation_input"], data["registry"])
     data["manifest_summary"] = summarize_manifest(data["run_manifest"])
     data["status_summary"] = summarize_status(data["status"])
-    data["cad_validation"] = summarize_cad_validation(data["cad_agent_output"])
+    data["cad_validation"] = summarize_cad_validation(data["cad_validation_report"], data["artifacts"])
     data["field_sample_summary"] = summarize_field_samples(data["field_samples"])
     return data
 
@@ -623,7 +630,7 @@ def write_report(out_path: Path, data: dict[str, Any]) -> None:
     metrics = data["metrics_summary"] if isinstance(data["metrics_summary"], dict) else {}
     root_cause = data["root_cause_report"] if isinstance(data["root_cause_report"], dict) else {}
     diagnosis = data["diagnosis"] if isinstance(data["diagnosis"], dict) else {}
-    cad_output = data["cad_agent_output"] if isinstance(data["cad_agent_output"], dict) else {}
+    cad_spec_path = Path(data["workspace"]) / "00_inputs" / "cad_build_spec.json"
     sim_manifest = data["simulation_manifest"] if isinstance(data["simulation_manifest"], dict) else {}
     status_checks = data["status"].get("checks", {}) if isinstance(data["status"], dict) else {}
     recommendations = detect_recommendations(data)
@@ -662,16 +669,16 @@ def write_report(out_path: Path, data: dict[str, Any]) -> None:
         lines,
         ["项目", "内容"],
         [
-            ["input format", cad_output.get("input_format", "unknown")],
+            ["input format", "cad_build_spec" if cad_spec_path.exists() else "unknown"],
             ["CAD output dir", data["paths"]["cad_dir"]],
-            ["source files", ", ".join(sorted((cad_output.get("source_files") or {}).keys())) if isinstance(cad_output.get("source_files"), dict) else "unknown"],
+            ["source files", "00_inputs/cad_build_spec.json" if cad_spec_path.exists() else "unknown"],
             ["install faces / shells / cabins", f"{components['install_face_count']} / {components['shell_count']} / {components['cabin_count']}"],
             ["component bbox union coverage", f"{components['bbox_union']['count']} components" if components["bbox_union"] else "not available"],
         ],
     )
     analysis_note(
         lines,
-        "模型来源表用于确认报告追溯路径。当前输入来自 BOM、layout_topology 和 geom 数据，说明报告能追踪到 CAD 自动构建结果；但该表不能替代人工工程假设说明。",
+        "模型来源表用于确认报告追溯路径。当前输入来自 cad_build_spec 数据，说明报告能追踪到 CAD 自动构建结果；但该表不能替代人工工程假设说明。",
     )
     lines.append("")
     bullet(lines, "当前热分析模型由 `01_cad` 下的 STEP、GLB、geom、registry 和 simulation_input 数据生成。")

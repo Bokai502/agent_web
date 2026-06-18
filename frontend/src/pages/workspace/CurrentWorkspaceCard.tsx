@@ -18,7 +18,8 @@ type CurrentWorkspaceCardProps = {
   onConfirmDeleteVersion: () => Promise<void>
   onCreateChildBranch: (baseVersionId?: string) => void
   onCreateInitialVersion: () => void
-  onCreateSiblingBranch: () => void
+  onCreateSiblingBranch: (baseVersionId?: string) => void
+  onCreateVersionFromInput: (baseVersionId?: string) => void
   onRequestDeleteVersion: (versionId: string) => void
   onSelectWorkspace: (name: string) => void
   versionAction: VersionAction | null
@@ -41,7 +42,6 @@ function getWorkspaceNodeKey(name: string) {
 }
 
 export function CurrentWorkspaceCard({
-  activeManifestVersion,
   branchManifest,
   currentWorkspaceName,
   manifestLoading,
@@ -51,6 +51,7 @@ export function CurrentWorkspaceCard({
   onCreateChildBranch,
   onCreateInitialVersion,
   onCreateSiblingBranch,
+  onCreateVersionFromInput,
   onRequestDeleteVersion,
   onSelectWorkspace,
   versionAction,
@@ -63,12 +64,20 @@ export function CurrentWorkspaceCard({
   const [selectedVersionFlowNodeId, setSelectedVersionFlowNodeId] = useState<string | null>(null)
   const hasVersions = (branchManifest?.versions?.length ?? 0) > 0
   const inputDataSelected = selectedVersionFlowNodeId === INPUT_DATA_NODE_ID
-  const selectedVersionId = !inputDataSelected && branchManifest?.versions?.some(version => version.id === selectedVersionFlowNodeId)
-    ? selectedVersionFlowNodeId
+  const selectedVersion = !inputDataSelected
+    ? branchManifest?.versions?.find(version => version.id === selectedVersionFlowNodeId) ?? null
     : null
-  const canCreateFromInput = !!branchManifest && !hasVersions && inputDataSelected && versionAction === null && !manifestLoading
+  const selectedVersionId = selectedVersion?.id ?? null
+  const inputRootVersionId = branchManifest?.versions?.find(version => !!version.id && !version.parentVersionId)?.id
+    ?? branchManifest?.versions?.find(version => !!version.id)?.id
+    ?? null
+  const canCreateFromInput = !!branchManifest
+    && inputDataSelected
+    && versionAction === null
+    && !manifestLoading
+    && (!hasVersions || !!inputRootVersionId)
   const canCreateVersion = ((!!selectedVersionId && hasVersions) || canCreateFromInput) && versionAction === null
-  const canCreateSibling = !!activeManifestVersion?.id && versionAction === null
+  const canCreateSibling = !!selectedVersionId && versionAction === null
   const { itemByNodeKey, thermalItems } = useMemo(() => {
     const byKey = new Map<string, WorkspaceItem>()
     const thermal: WorkspaceItem[] = []
@@ -194,7 +203,8 @@ export function CurrentWorkspaceCard({
                 type="button"
                 disabled={!canCreateVersion}
                 onClick={() => {
-                  if (canCreateFromInput) onCreateInitialVersion()
+                  if (inputDataSelected && hasVersions && inputRootVersionId) onCreateVersionFromInput(inputRootVersionId)
+                  else if (canCreateFromInput) onCreateInitialVersion()
                   else onCreateChildBranch(selectedVersionId ?? undefined)
                 }}
               >
@@ -203,7 +213,7 @@ export function CurrentWorkspaceCard({
               <button
                 type="button"
                 disabled={!canCreateSibling}
-                onClick={onCreateSiblingBranch}
+                onClick={() => onCreateSiblingBranch(selectedVersionId ?? undefined)}
               >
                 新建并列版本
               </button>

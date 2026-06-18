@@ -21,12 +21,9 @@ The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes 
 - Always pass the execution context workspace explicitly with `--workspace-dir <workspace_dir>` for `doctor` and `run`. Do not rely on `config.json`, process `cwd`, or CLI defaults.
 - Before running `run`, inspect the selected workspace by running `--json doctor --workspace-dir <workspace_dir>`. If the reported `workspace_dir` differs from the prompt `workspace_dir`, stop and report the mismatch instead of running simulation into the wrong workspace.
 - Required inputs live under:
-  - `<workspace>/00_inputs/real_bom.json`
-  - `<workspace>/00_inputs/layout_topology.json`
-  - `<workspace>/00_inputs/geom.json`
+  - `<workspace>/00_inputs/cad_build_spec.json`
   - `<workspace>/01_cad/geometry_after_power_filtered.step`
-  - `<workspace>/01_cad/geometry_after.geom.json`
-  - `<workspace>/01_cad/geometry_after.layout_topology.json`
+  - after-state geometry/layout JSON files derived from the CAD-native spec
   - `<workspace>/01_cad/geometry_after_registry.json`
   - `<workspace>/01_cad/simulation_input.json`
   - `<workspace>/01_cad/comsol_inputs/coord.txt`

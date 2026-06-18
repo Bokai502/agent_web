@@ -3,7 +3,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { beforeEach, describe, it } from "node:test"
 import { createTestServer } from "../../helpers/createTestServer.js"
-import { createManifestFixture, installNoopWorkspaceCommands, versionDir } from "../../helpers/manifestFixture.js"
+import { createManifestFixture, installNoopWorkspaceCommands, userRoot, versionDir } from "../../helpers/manifestFixture.js"
 import { resetTestData } from "../../helpers/resetTestData.js"
 
 describe("version manifest routes", () => {
@@ -112,6 +112,43 @@ describe("version manifest routes", () => {
       assert.deepEqual(
         branchResponse.json().manifest.versions.map((version: { id: string; parentVersionId: string | null }) => [version.id, version.parentVersionId]),
         [["v0001", null], ["v0002", null]],
+      )
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("branches a root version from template inputs when the workspace source has no inputs", async () => {
+    const sourceWorkspaceDir = path.join(userRoot(), "thermal_catch")
+    const templateWorkspaceDir = path.resolve(process.cwd(), "..", "data", "input_data", "thermal_catch")
+    await fs.mkdir(sourceWorkspaceDir, { recursive: true })
+    await fs.mkdir(path.join(templateWorkspaceDir, "00_inputs"), { recursive: true })
+    await fs.writeFile(path.join(templateWorkspaceDir, "00_inputs", "cad_build_spec.json"), "{}", "utf-8")
+
+    const server = await createTestServer()
+
+    try {
+      const branchResponse = await server.inject({
+        method: "POST",
+        payload: {
+          label: "from input",
+          parentVersionId: null,
+          sourceWorkspaceDir,
+          sourceWorkspaceName: "thermal_catch",
+          workspaceId: "ws_manifest_test",
+        },
+        url: "/api/versions/v0001/branch",
+      })
+
+      assert.equal(branchResponse.statusCode, 200)
+      assert.equal(branchResponse.json().version.id, "v0002")
+      assert.equal(branchResponse.json().version.parentVersionId, null)
+      assert.equal(
+        await fs.readFile(path.join(versionDir("v0002"), "00_inputs", "cad_build_spec.json"), "utf-8"),
+        "{}",
+      )
+      await assert.rejects(
+        () => fs.access(path.join(versionDir("v0002"), "00_inputs", "input.txt")),
       )
     } finally {
       await server.close()

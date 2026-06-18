@@ -1035,9 +1035,9 @@
 }
 
 .agent-page.is-light-theme .wa-flow-version-node.is-input .wa-flow-version-main:not(:disabled) {
-  border-color: rgba(0, 113, 227, 0.24);
-  background: rgba(0, 113, 227, 0.08);
-  color: #174f91;
+  border-color: rgba(183, 121, 31, 0.34);
+  background: rgba(183, 121, 31, 0.1);
+  color: #6f4b12;
 }
 
 .agent-page.is-light-theme .wa-version-delete {

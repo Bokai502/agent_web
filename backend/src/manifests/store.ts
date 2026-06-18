@@ -9,6 +9,7 @@ import {
   getWorkspaceRoot,
   resolveWorkspaceDir,
 } from "../workspaces/workspaceManager.js"
+import { resolveWorkspaceTemplateRoot } from "../workspaces/workspacePaths.js"
 import type {
   ArtifactRecord,
   CheckpointRecord,
@@ -41,6 +42,10 @@ function normalizeDirectChildName(value: string, field: string) {
     throw new Error(`${field} must be a direct child name`)
   }
   return trimmed
+}
+
+function normalizeOptionalDirectChildName(value: string | null | undefined, field: string) {
+  return value?.trim() ? normalizeDirectChildName(value, field) : null
 }
 
 function getStringArray(value: unknown) {
@@ -151,6 +156,31 @@ async function assertPathInsideWorkspaceRoot(filePath: string, field: string) {
     throw new Error(`${field} must be under the workspace data root`)
   }
   return resolvedPath
+}
+
+async function assertSourceWorkspaceAllowed(filePath: string) {
+  const workspaceRoot = await getAllowedWorkspaceRoot()
+  const templateRoot = resolveWorkspaceTemplateRoot(loadConfig())
+  const resolvedPath = path.resolve(filePath)
+  if (!isPathInside(workspaceRoot, resolvedPath) && !isPathInside(templateRoot, resolvedPath)) {
+    throw new Error("sourceWorkspaceDir must be under the workspace data root or workspace template root")
+  }
+  return resolvedPath
+}
+
+async function resolveSourceWorkspaceDir(sourceWorkspaceDir?: string | null, sourceWorkspaceName?: string | null) {
+  const templateRoot = resolveWorkspaceTemplateRoot(loadConfig())
+  const templateName = normalizeOptionalDirectChildName(sourceWorkspaceName, "sourceWorkspaceName")
+  const candidateDirs = [
+    sourceWorkspaceDir ? await assertSourceWorkspaceAllowed(sourceWorkspaceDir) : null,
+    templateName ? path.join(templateRoot, templateName) : null,
+  ].filter((item): item is string => !!item)
+
+  for (const candidateDir of candidateDirs) {
+    if (await pathExists(path.join(candidateDir, "00_inputs"))) return candidateDir
+  }
+
+  return candidateDirs[0] ?? null
 }
 
 async function assertManifestRootAllowed(rootDir: string) {
@@ -415,9 +445,8 @@ async function ensureInitialVersion(manifest: WorkspaceManifest, sourceWorkspace
     }))
   }
 
-  const sourceWorkspace = sourceWorkspaceDir
-    ? await assertPathInsideWorkspaceRoot(sourceWorkspaceDir, "sourceWorkspaceDir")
-    : path.resolve(await getConfiguredWorkspaceDirFromConfig() ?? await resolveWorkspaceDir())
+  const sourceWorkspace = await resolveSourceWorkspaceDir(sourceWorkspaceDir) ??
+    path.resolve(await getConfiguredWorkspaceDirFromConfig() ?? await resolveWorkspaceDir())
   const versionId = "v0001"
   const workspaceDir = path.join(manifest.rootDir, "versions", versionId)
   await copyWorkspaceInputs(sourceWorkspace, workspaceDir)
@@ -471,6 +500,8 @@ export async function branchVersion({
   label,
   parentVersionId,
   sessionId,
+  sourceWorkspaceDir,
+  sourceWorkspaceName,
   workspaceDir: locatorWorkspaceDir,
 }: {
   baseVersionId?: string | null
@@ -478,6 +509,8 @@ export async function branchVersion({
   label?: string | null
   parentVersionId?: string | null
   sessionId: string
+  sourceWorkspaceDir?: string | null
+  sourceWorkspaceName?: string | null
   workspaceDir?: string | null
 }) {
   let manifest = await getOrCreateWorkspaceManifestByLocator({ sessionId, workspaceDir: locatorWorkspaceDir })
@@ -491,7 +524,10 @@ export async function branchVersion({
 
   const versionId = nextVersionId(manifest)
   const newWorkspaceDir = path.join(manifest.rootDir, "versions", versionId)
-  await copyWorkspaceInputs(baseVersion.workspaceDir, newWorkspaceDir)
+  const sourceWorkspace = sourceWorkspaceDir || sourceWorkspaceName
+    ? await resolveSourceWorkspaceDir(sourceWorkspaceDir, sourceWorkspaceName) ?? baseVersion.workspaceDir
+    : baseVersion.workspaceDir
+  await copyWorkspaceInputs(sourceWorkspace, newWorkspaceDir)
   const timestamp = nowIso()
   const version: VersionRecord = {
     id: versionId,
