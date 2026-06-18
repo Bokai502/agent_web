@@ -469,12 +469,14 @@ export async function branchVersion({
   baseVersionId,
   group,
   label,
+  parentVersionId,
   sessionId,
   workspaceDir: locatorWorkspaceDir,
 }: {
   baseVersionId?: string | null
   group?: string | null
   label?: string | null
+  parentVersionId?: string | null
   sessionId: string
   workspaceDir?: string | null
 }) {
@@ -483,6 +485,9 @@ export async function branchVersion({
   if (!baseId) throw new Error("base version is required")
   const baseVersion = manifest.versions.find(version => version.id === baseId)
   if (!baseVersion) throw new Error(`base version not found: ${baseId}`)
+  if (parentVersionId && !manifest.versions.some(version => version.id === parentVersionId)) {
+    throw new Error(`parent version not found: ${parentVersionId}`)
+  }
 
   const versionId = nextVersionId(manifest)
   const newWorkspaceDir = path.join(manifest.rootDir, "versions", versionId)
@@ -490,7 +495,7 @@ export async function branchVersion({
   const timestamp = nowIso()
   const version: VersionRecord = {
     id: versionId,
-    parentVersionId: baseVersion.id,
+    parentVersionId: parentVersionId === undefined ? baseVersion.id : parentVersionId,
     group: group?.trim() || baseVersion.group || manifest.group || DEFAULT_WORKSPACE_GROUP,
     ...(label ? { label } : {}),
     status: "active",
@@ -625,7 +630,7 @@ export async function deleteVersion(versionId: string, body: Record<string, unkn
   const manifest = await getManifestForBody(body)
   const target = manifest.versions.find(version => version.id === versionId)
   if (!target) throw new Error(`version not found: ${versionId}`)
-  if (manifest.versions.length <= 1) throw new Error("cannot delete the last version")
+  if (versionId === "v0001") throw new Error("cannot delete the initial version")
 
   const timestamp = nowIso()
   const versions = manifest.versions

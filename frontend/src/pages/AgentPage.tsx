@@ -7,7 +7,7 @@ import { useWorkspaceAppState } from '../hooks/useWorkspaceAppState'
 import { formatProgressUpdatedAt, type WorkflowProgressVariant } from './workspace/progressUtils'
 import { useWorkspaceRuntimeData } from './workspace/useWorkspaceRuntimeData'
 import { useWorkspaceVersionState } from './workspace/useWorkspaceVersionState'
-import { isThermalCadWorkspace } from './workspace/workspaceVersion'
+import { getWorkspaceDisplayName, isThermalCadWorkspace } from './workspace/workspaceVersion'
 import { getVisibleWorkspaceSessionState } from './workspace/workspaceSessionVisibility'
 import { AgentProgressRail } from './agent/AgentProgressRail'
 import { AgentConversationPopover } from './agent/AgentConversationPopover'
@@ -90,17 +90,12 @@ export default function AgentPage() {
     createSiblingBranch,
     manifestLoading,
     requestDeleteVersion,
-    setVersionListOpen,
-    setWorkspaceListOpen,
     switchActiveWorkspace,
     versionAction,
     versionDeleteTarget,
     versionError,
-    versionListOpen,
-    versionTreeRoots,
     workspaceChanging,
     workspaceItems,
-    workspaceListOpen,
     workspaces,
   } = versionState
   const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, {
@@ -464,7 +459,9 @@ export default function AgentPage() {
         ? 'failed'
         : sessionStatus
   const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
-  const dataSourceLabel = activeContext.workspaceName || activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
+  const dataSourceLabel = activeContext.workspaceName
+    ? getWorkspaceDisplayName(activeContext.workspaceName)
+    : activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
   const versionLabel = activeContext.versionId || '未选择版本'
   const agentPageClassName = [
     'agent-page',
@@ -554,8 +551,6 @@ export default function AgentPage() {
           selectedFilePreview={selectedFilePreview}
           setActiveTool={setActiveTool}
           setSelectedBomId={setSelectedBomId}
-          setVersionListOpen={() => setVersionListOpen(open => !open)}
-          setWorkspaceListOpen={() => setWorkspaceListOpen(open => !open)}
           requestDeleteVersion={requestDeleteVersion}
           refreshWorkspaceViews={refreshWorkspaceViews}
           showGncConfig={showGncConfig}
@@ -567,12 +562,9 @@ export default function AgentPage() {
           versionAction={versionAction}
           versionDeleteTarget={versionDeleteTarget}
           versionError={versionError}
-          versionListOpen={versionListOpen}
-          versionTreeRoots={versionTreeRoots}
           viewerHref={viewerHref}
           workspaceChanging={workspaceChanging}
           workspaceItems={workspaceItems}
-          workspaceListOpen={workspaceListOpen}
           workspaceRefreshNonce={workspaceRefreshNonce}
         />
 

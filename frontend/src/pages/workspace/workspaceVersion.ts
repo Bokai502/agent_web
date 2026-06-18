@@ -1,4 +1,5 @@
 import { joinApiPath } from "../../app/apiBase"
+export { getWorkspaceDisplayName, normalizeWorkspaceDisplayKey } from "./workspaceDisplay"
 
 export type WorkspaceManifestSummary = {
   activeVersionId: string | null
@@ -13,11 +14,6 @@ export type VersionSummary = {
   parentVersionId?: string | null
   status?: string
   workspaceDir?: string
-}
-
-export type VersionTreeNode = {
-  children: VersionTreeNode[]
-  version: VersionSummary
 }
 
 export type VersionAction = "branch" | "checkout" | "delete"
@@ -42,6 +38,7 @@ export type WorkspacesResponse = {
 }
 
 export type WorkspaceVersionContext = {
+  initialSourceWorkspaceDir: string | null
   manifestRoot: string | null
   manifestSessionId: string | null
   sourceWorkspaceDir: string | null
@@ -151,6 +148,7 @@ export function resolveWorkspaceVersionContext({
   const versionId = activeVersion?.id ?? null
 
   return {
+    initialSourceWorkspaceDir: currentWorkspaceItem?.sourcePath ?? (!isVersionWorkspaceDir(currentWorkspaceDir) ? currentWorkspaceDir : null),
     manifestRoot: currentManifestLocatorDir,
     manifestSessionId: currentManifest?.sessionId ?? null,
     sourceWorkspaceDir: currentWorkspaceDir,
@@ -173,30 +171,6 @@ export function getVersionWorkspaceKey(
   currentWorkspaceName: string,
 ) {
   return manifest?.workspaceId ?? currentWorkspaceName
-}
-
-export function buildVersionTree(manifest: WorkspaceManifestSummary | null): VersionTreeNode[] {
-  const versions = manifest?.versions ?? []
-  const nodes = new Map<string, VersionTreeNode>()
-  const roots: VersionTreeNode[] = []
-
-  versions.forEach(version => {
-    if (version.id) nodes.set(version.id, { children: [], version })
-  })
-  versions.forEach(version => {
-    const node = version.id ? nodes.get(version.id) : null
-    if (!node) return
-    const parentNode = version.parentVersionId ? nodes.get(version.parentVersionId) : null
-    if (parentNode) parentNode.children.push(node)
-    else roots.push(node)
-  })
-
-  const sortNodes = (items: VersionTreeNode[]) => {
-    items.sort((left, right) => (left.version.id ?? "").localeCompare(right.version.id ?? ""))
-    items.forEach(item => sortNodes(item.children))
-  }
-  sortNodes(roots)
-  return roots
 }
 
 async function readJsonResponse<T>(response: Response, fallbackMessage: string) {
@@ -260,6 +234,7 @@ export function branchWorkspaceVersion({
   baseVersionId,
   group = "xieteam",
   label,
+  parentVersionId,
   workspaceKey,
   workspaceId,
   workspaceDir,
@@ -269,6 +244,7 @@ export function branchWorkspaceVersion({
   baseVersionId: string
   group?: string
   label: string
+  parentVersionId?: string | null
   workspaceKey?: string | null
   workspaceId?: string | null
   workspaceDir?: string | null
@@ -276,7 +252,7 @@ export function branchWorkspaceVersion({
   return fetch(joinApiPath(apiBase, `/versions/${encodeURIComponent(baseVersionId)}/branch`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ group, label, workspaceDir, workspaceId, workspaceKey }),
+    body: JSON.stringify({ group, label, parentVersionId, workspaceDir, workspaceId, workspaceKey }),
   }).then(response => readJsonResponse<{ manifest?: WorkspaceManifestSummary }>(response, "version branch failed"))
 }
 

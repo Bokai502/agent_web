@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   branchWorkspaceVersion,
-  buildVersionTree,
   checkoutWorkspaceVersion,
   deleteWorkspaceVersion,
   fetchWorkspaces,
@@ -41,8 +40,6 @@ export function useWorkspaceVersionState({
   const [versionAction, setVersionAction] = useState<VersionAction | null>(null)
   const [versionDeleteTarget, setVersionDeleteTarget] = useState<string | null>(null)
   const [versionError, setVersionError] = useState("")
-  const [versionListOpen, setVersionListOpen] = useState(false)
-  const [workspaceListOpen, setWorkspaceListOpen] = useState(false)
 
   const activeContext = resolveWorkspaceVersionContext({
     branchManifest,
@@ -50,7 +47,6 @@ export function useWorkspaceVersionState({
     workspaces,
   })
   const activeManifestVersion = useMemo(() => getActiveVersion(branchManifest), [branchManifest])
-  const versionTreeRoots = useMemo(() => buildVersionTree(branchManifest), [branchManifest])
   const workspaceItems = workspaces?.items ?? []
 
   const refreshManifest = useCallback(() => {
@@ -75,19 +71,19 @@ export function useWorkspaceVersionState({
         setBranchManifest(data)
         onReloadSessions()
         onRefreshWorkspaceViews()
-        refreshManifest()
       })
       .catch(err => setVersionError(err instanceof Error ? err.message : "版本切换失败"))
       .finally(() => setVersionAction(null))
   }, [activeContext.manifestRoot, activeContext.workspaceId, apiBase, onRefreshWorkspaceViews, onReloadSessions, refreshManifest, versionWorkspaceKey])
 
-  const branchVersion = useCallback((baseVersionId: string, label: string) => {
+  const branchVersion = useCallback((baseVersionId: string, label: string, parentVersionId?: string | null) => {
     if ((!versionWorkspaceKey && !activeContext.workspaceId && !activeContext.manifestRoot) || !baseVersionId) return
     setVersionAction("branch")
     setVersionError("")
     branchWorkspaceVersion({
       baseVersionId,
       label,
+      parentVersionId,
       apiBase,
       workspaceKey: versionWorkspaceKey,
       workspaceId: activeContext.workspaceId,
@@ -98,7 +94,6 @@ export function useWorkspaceVersionState({
         onReloadSessions()
         onRefreshWorkspaceViews()
         refreshManifest()
-        setVersionListOpen(true)
       })
       .catch(err => setVersionError(err instanceof Error ? err.message : "版本创建失败"))
       .finally(() => setVersionAction(null))
@@ -110,10 +105,10 @@ export function useWorkspaceVersionState({
   }, [branchVersion])
 
   const createSiblingBranch = useCallback(() => {
-    const parentVersionId = activeManifestVersion?.parentVersionId
-    if (!parentVersionId) return
-    branchVersion(parentVersionId, "界面创建的同级版本")
-  }, [activeManifestVersion?.parentVersionId, branchVersion])
+    const baseVersionId = activeManifestVersion?.id
+    if (!baseVersionId) return
+    branchVersion(baseVersionId, "界面创建的同级版本", activeManifestVersion?.parentVersionId ?? null)
+  }, [activeManifestVersion?.id, activeManifestVersion?.parentVersionId, branchVersion])
 
   const createInitialVersion = useCallback(() => {
     const manifestRoot = activeContext.manifestRoot
@@ -126,18 +121,17 @@ export function useWorkspaceVersionState({
       workspaceKey: versionWorkspaceKey,
       workspaceId: activeContext.workspaceId,
       manifestRoot,
-      sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
+      sourceWorkspaceDir: activeContext.initialSourceWorkspaceDir,
     })
       .then(data => {
         if (data) setBranchManifest(data)
         onReloadSessions()
         onRefreshWorkspaceViews()
         refreshManifest()
-        setVersionListOpen(true)
       })
       .catch(err => setVersionError(err instanceof Error ? err.message : "版本创建失败"))
       .finally(() => setVersionAction(null))
-  }, [activeContext.manifestRoot, activeContext.sourceWorkspaceDir, activeContext.workspaceId, apiBase, onRefreshWorkspaceViews, onReloadSessions, refreshManifest, versionAction, versionWorkspaceKey])
+  }, [activeContext.initialSourceWorkspaceDir, activeContext.manifestRoot, activeContext.workspaceId, apiBase, onRefreshWorkspaceViews, onReloadSessions, refreshManifest, versionAction, versionWorkspaceKey])
 
   const requestDeleteVersion = useCallback((versionId: string) => {
     if (!versionId || versionAction !== null) return
@@ -169,7 +163,6 @@ export function useWorkspaceVersionState({
         onReloadSessions()
         onRefreshWorkspaceViews()
         refreshManifest()
-        setVersionListOpen(true)
       })
       .catch(err => {
         setVersionError(err instanceof Error ? err.message : "版本删除失败")
@@ -257,18 +250,13 @@ export function useWorkspaceVersionState({
     manifestLoading,
     refreshManifest,
     setBranchManifest,
-    setVersionListOpen,
-    setWorkspaceListOpen,
     switchActiveWorkspace,
     requestDeleteVersion,
     versionAction,
     versionDeleteTarget,
     versionError,
-    versionListOpen,
-    versionTreeRoots,
     workspaceChanging,
     workspaceItems,
-    workspaceListOpen,
     workspaces,
     workspacesLoaded,
   }

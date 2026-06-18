@@ -31,6 +31,7 @@ export function registerVersionRoutes(
           baseVersionId,
           group,
           label: getString(body?.label),
+          parentVersionId: Object.prototype.hasOwnProperty.call(body ?? {}, "parentVersionId") ? getString(body?.parentVersionId) : undefined,
           sessionId: workspaceId ?? workspaceKey ?? legacySessionId ?? "workspace",
           workspaceDir,
         }))

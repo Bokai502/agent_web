@@ -35,6 +35,7 @@ describe("resolveWorkspaceVersionContext", () => {
     expect(context.versionDir).toBeNull()
     expect(context.versionId).toBeNull()
     expect(context.sourceWorkspaceDir).toBeNull()
+    expect(context.initialSourceWorkspaceDir).toBe("/data/FreeCAD_data/lbk")
   })
 
   it("ignores stale manifest activeVersionId when no matching version remains", () => {

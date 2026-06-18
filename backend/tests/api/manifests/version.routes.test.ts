@@ -92,6 +92,32 @@ describe("version manifest routes", () => {
     }
   })
 
+  it("branches a root version as a sibling when parentVersionId is null", async () => {
+    const server = await createTestServer()
+
+    try {
+      const branchResponse = await server.inject({
+        method: "POST",
+        payload: {
+          label: "root sibling",
+          parentVersionId: null,
+          workspaceId: "ws_manifest_test",
+        },
+        url: "/api/versions/v0001/branch",
+      })
+
+      assert.equal(branchResponse.statusCode, 200)
+      assert.equal(branchResponse.json().version.id, "v0002")
+      assert.equal(branchResponse.json().version.parentVersionId, null)
+      assert.deepEqual(
+        branchResponse.json().manifest.versions.map((version: { id: string; parentVersionId: string | null }) => [version.id, version.parentVersionId]),
+        [["v0001", null], ["v0002", null]],
+      )
+    } finally {
+      await server.close()
+    }
+  })
+
   it("validates workspace locators for checkout and delete requests", async () => {
     const server = await createTestServer()
 
@@ -111,6 +137,23 @@ describe("version manifest routes", () => {
       })
       assert.equal(deleteResponse.statusCode, 400)
       assert.deepEqual(deleteResponse.json(), { error: "workspaceId, workspaceKey or workspaceDir is required" })
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("does not delete the initial version", async () => {
+    const server = await createTestServer()
+
+    try {
+      const response = await server.inject({
+        method: "DELETE",
+        payload: { workspaceKey: "ws_manifest_test" },
+        url: "/api/versions/v0001",
+      })
+
+      assert.equal(response.statusCode, 400)
+      assert.deepEqual(response.json(), { error: "cannot delete the initial version" })
     } finally {
       await server.close()
     }
