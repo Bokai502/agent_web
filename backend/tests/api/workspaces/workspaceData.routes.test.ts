@@ -730,6 +730,72 @@ describe("workspace data routes", () => {
     }
   })
 
+  it("updates CATCH supporting table and refreshes 00_inputs in TypeScript", async () => {
+    const server = await createTestServer()
+    const workspaceDir = encodeURIComponent(versionDir())
+    const rows = [
+      {
+        id: "r2",
+        row: 2,
+        "产品名称": "姿轨控分系统",
+        "重量（Kg）": null,
+        "包络尺寸（mm）": null,
+        "稳态功耗（W）": null,
+        "峰值功耗（W）": null,
+        "工作温度（℃）": null,
+        "配套单位": null,
+      },
+      {
+        id: "r3",
+        row: 3,
+        "产品名称": "自定义反作用飞轮X",
+        "重量（Kg）": 9.9,
+        "包络尺寸（mm）": "100x100x60",
+        "稳态功耗（W）": 7.7,
+        "峰值功耗（W）": 45,
+        "工作温度（℃）": "",
+        "配套单位": "用户",
+      },
+    ]
+
+    try {
+      const getResponse = await server.inject({
+        method: "GET",
+        url: `/api/workspace/catch-supporting-table?workspaceDir=${workspaceDir}`,
+      })
+      assert.equal(getResponse.statusCode, 200)
+      assert.match(getResponse.json().source_path, /CATCH整星配套表\.xlsx$/u)
+
+      const response = await server.inject({
+        method: "PUT",
+        url: `/api/workspace/catch-supporting-table?workspaceDir=${workspaceDir}`,
+        payload: { rows },
+      })
+      const body = response.json()
+
+      assert.equal(response.statusCode, 200)
+      assert.equal(body.generation.component_count, 1)
+      assert.equal(body.table.rows[1]["产品名称"], "自定义反作用飞轮X")
+      assert.match(body.source_path, /CATCH整星配套表\.xlsx$/u)
+
+      const realBom = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "real_bom.json"), "utf-8"))
+      const geom = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "geom.json"), "utf-8"))
+      const layout = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "layout_topology.json"), "utf-8"))
+      const report = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "match_report.json"), "utf-8"))
+
+      assert.equal(realBom.items.length, 1)
+      assert.equal(realBom.items[0].semantic_name, "自定义反作用飞轮X")
+      assert.equal(realBom.items[0].mass_kg, 9.9)
+      assert.deepEqual(realBom.items[0].size_mm, [100, 100, 60])
+      assert.equal(Object.keys(geom.components).length, 1)
+      assert.equal(layout.placements.length, 1)
+      assert.equal(report.component_count, 1)
+      assert.equal(report.matches[0].match_mode, "similar_kind_size")
+    } finally {
+      await server.close()
+    }
+  })
+
   it("handles uniform COMSOL temperature fields", async () => {
     await fs.mkdir(path.join(versionDir(), "02_sim", "simulation"), { recursive: true })
     await fs.writeFile(path.join(versionDir(), "02_sim", "simulation", "data1.txt"), [
