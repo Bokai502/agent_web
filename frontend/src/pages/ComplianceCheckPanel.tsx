@@ -469,6 +469,42 @@ function writeResultValue(row: JsonRow, key: string, value: string) {
   return { ...row, [key]: value }
 }
 
+function previousUnique(values: string[]) {
+  return [...new Set(values.map(value => value.trim()).filter(Boolean))]
+}
+
+function updateManufacturerConfirmationRow(row: JsonRow, key: string, value: string) {
+  const next = { ...row, [key]: value }
+  if (key === "国产/进口" && value === "进口") {
+    return { ...next, "厂商全称": "无", "目录内或外": "无" }
+  }
+  if (key === "目录内或外" && value !== "目录内") {
+    return { ...next, "厂商全称": "无" }
+  }
+  if (key === "厂商全称") {
+    return value && value !== "无"
+      ? { ...next, "国产/进口": "国产", "目录内或外": "目录内" }
+      : { ...next, "目录内或外": asText(next["国产/进口"]) === "进口" ? "无" : "目录外" }
+  }
+  return next
+}
+
+function fullNamesFromPayload(value: unknown) {
+  return isJsonRecord(value) && Array.isArray(value.full_names)
+    ? previousUnique(value.full_names.map(asText))
+    : []
+}
+
+function selectValueForOptions(value: string, options: string[]) {
+  const trimmedValue = value.trim()
+  if (options.includes(trimmedValue)) return trimmedValue
+  if (options.includes("无")) return "无"
+  if (options.includes("未填写")) return "未填写"
+  if (isPositiveJudgement(value) && options.includes("符合")) return "符合"
+  if (options.includes("不符合")) return "不符合"
+  return options[0] ?? ""
+}
+
 function reliabilityBlock(row: JsonRow, key: "quality" | "radiation") {
   return isJsonRecord(row[key]) ? row[key] as JsonRow : {}
 }
@@ -1231,6 +1267,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
   const [resultSourcePath, setResultSourcePath] = useState("")
   const [savingResults, setSavingResults] = useState(false)
   const [savingCompliance, setSavingCompliance] = useState("")
+  const [manufacturerFullNames, setManufacturerFullNames] = useState<string[]>([])
   const [finalGenerated, setFinalGenerated] = useState(false)
   const query = useMemo(() => buildWorkspaceQuery(props), [props.versionId, props.workspaceDir, props.workspaceId])
   const themeVars = props.theme === "light" ? lightThemeVars : darkThemeVars
@@ -1293,6 +1330,15 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
       setComplianceRows(nextRows)
       setComplianceSources(nextSources)
     })
+
+    fetch(buildWorkspaceApiPath("/workspace/compliance/manufacturer-full-names", query), { cache: "no-store" })
+      .then(async response => {
+        const data = await response.json().catch(() => null) as JsonRow | null
+        if (!response.ok) throw new Error(data && "error" in data && data.error ? asText(data.error) : "厂商全称列表不可用")
+        return fullNamesFromPayload(data)
+      })
+      .then(setManufacturerFullNames)
+      .catch(error => console.error(error))
   }, [query])
 
   useEffect(() => {
@@ -1387,7 +1433,11 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
   const updateComplianceCell = (tabKey: string, rowIndex: number, key: string, value: string) => {
     setComplianceRows(previous => ({
       ...previous,
-      [tabKey]: (previous[tabKey] ?? []).map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+      [tabKey]: (previous[tabKey] ?? []).map((row, index) => {
+        if (index !== rowIndex) return row
+        if (tabKey !== "manufacturer") return { ...row, [key]: value }
+        return updateManufacturerConfirmationRow(row, key, value)
+      }),
     }))
   }
 
@@ -1440,6 +1490,23 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
       })
       .catch(error => console.error(error))
       .finally(() => setSavingCompliance(""))
+  }
+
+  const addManufacturerFullName = () => {
+    const fullName = window.prompt("新增目录内厂商全称")?.trim()
+    if (!fullName) return
+    fetch(buildWorkspaceApiPath("/workspace/compliance/manufacturer-full-names", query), {
+      body: JSON.stringify({ full_name: fullName }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    })
+      .then(async response => {
+        const data = await response.json().catch(() => null) as JsonRow | null
+        if (!response.ok) throw new Error(data && "error" in data && data.error ? asText(data.error) : "新增失败")
+        const nextFullNames = fullNamesFromPayload(data)
+        setManufacturerFullNames(nextFullNames.length ? nextFullNames : previousUnique([...manufacturerFullNames, fullName]))
+      })
+      .catch(error => console.error(error))
   }
 
   const downloadMissingCsv = () => {
@@ -1508,6 +1575,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
                 onChange={(rowIndex, key, value) => updateComplianceCell(tab.key, rowIndex, key, value)}
                 rows={rows}
                 selectColumns={{
+                  "厂商全称": ["无", ...manufacturerFullNames],
                   "国产/进口": ["国产", "进口", "无"],
                   "目录内或外": ["目录内", "目录外", "无"],
                   "是否满足要求": ["满足", "需关注", "不满足", "无法确认"],
@@ -1521,6 +1589,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
               />
             )}
             <div style={actionsStyle}>
+              {tab.key === "manufacturer" ? <button type="button" onClick={addManufacturerFullName} style={toolbarButtonStyle}>新增目录内厂商全称</button> : null}
               <button type="button" onClick={() => downloadCsv(`${tab.artifact}.csv`, tableToCsv(tab.columns, rows, getComplianceValue))} disabled={rows.length === 0} style={toolbarButtonStyle}>下载 CSV</button>
               <button type="button" onClick={() => saveComplianceTab(tab)} disabled={rows.length === 0 || savingCompliance === tab.key} style={primaryButtonStyle}>{savingCompliance === tab.key ? "保存中" : "保存修改"}</button>
             </div>
@@ -2134,13 +2203,7 @@ function EditableTable({
                 const valueColor = isWarning && value ? optionToneColor(column.key, value) : HUD_TEXT
                 const comparison = getComparisonValue(row, column.key)
                 const options = selectColumns[column.key]
-                const selectValue = options
-                  ? options.includes(value.trim())
-                    ? value.trim()
-                    : isPositiveJudgement(value)
-                      ? "符合"
-                      : "不符合"
-                  : ""
+                const selectValue = options ? selectValueForOptions(value, options) : ""
                 return (
                   <td key={column.key} style={{ ...bodyCellStyle, ...stickyRightStyle(column.key, stickyOffsets, false) }}>
                     {comparison ? (

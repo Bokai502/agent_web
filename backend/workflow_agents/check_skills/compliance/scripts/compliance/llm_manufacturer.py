@@ -7,6 +7,10 @@ from typing import Any
 from .component_io import unique
 from .llm import async_chat_completions
 from .llm_classifier import LlmClassifierConfig
+from .manufacturer_local_data import (
+    find_manufacturer_confirmation,
+    load_manufacturer_confirmations,
+)
 from .schema import ComponentRecord
 
 
@@ -46,7 +50,8 @@ def _prompt(input_names: list[str], database_names: list[str]) -> dict[str, Any]
         "只输出 JSON 对象，键必须是输入厂商原文，值必须是对象，且只包含 "
         "database_full_name、国产/进口、目录内或外 三个字段。"
         "database_full_name 非空时，国产/进口=国产，目录内或外=目录内；"
-        "database_full_name 为空时，国产/进口=进口，目录内或外=无。"
+        "database_full_name 为空但判断为国产时，目录内或外=目录外；"
+        "database_full_name 为空且判断为进口时，目录内或外=无。"
     )
     user_payload = {
         "input_manufacturers": input_names,
@@ -97,8 +102,8 @@ def _normalize_matches(
         matched = bool(full_name) and full_name in database_names
         if not matched:
             full_name = ""
-            origin = "进口"
-            catalog_status = "无"
+            origin = "国产" if origin == "国产" else "进口"
+            catalog_status = "目录外" if origin == "国产" else "无"
         output[name] = {
             "matched": matched,
             "full_name": full_name,
@@ -115,6 +120,7 @@ def manufacturer_check_rows(
     config=None,
 ) -> list[dict[str, Any]]:
     rows = []
+    local_confirmations = load_manufacturer_confirmations()
     for name in unique(component.manufacturer for component in components):
         configured = config.manufacturer(name) if config else None
         if configured:
@@ -135,6 +141,18 @@ def manufacturer_check_rows(
                     or configured.get("catalog_status")
                     or ("目录内" if full_name else "无"),
                     "匹配来源": "config_override",
+                }
+            )
+            continue
+        local_confirmation = find_manufacturer_confirmation(name, local_confirmations)
+        if local_confirmation:
+            rows.append(
+                {
+                    "厂商简称": name,
+                    "厂商全称": local_confirmation.get("厂商全称") or "无",
+                    "国产/进口": local_confirmation.get("国产/进口") or "进口",
+                    "目录内或外": local_confirmation.get("目录内或外") or "无",
+                    "匹配来源": "local_manufacturer_alias",
                 }
             )
             continue

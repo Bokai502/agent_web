@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify"
 import fs from "fs/promises"
 import path from "path"
+import { pinyin } from "pinyin-pro"
 import { spawn } from "child_process"
 import { fileURLToPath } from "url"
 import type { AppConfig } from "../config.js"
@@ -43,6 +44,9 @@ type ComplianceCheckResultBody = {
 type ComplianceArtifactQuery = WorkspaceQuery
 type ComplianceArtifactBody = {
   rows?: unknown
+}
+type ManufacturerFullNameBody = {
+  full_name?: unknown
 }
 
 type WorkspaceTextFileQuery = WorkspaceFilesQuery & {
@@ -115,6 +119,10 @@ const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation"
 const COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "compliance")
 const LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "checks", "compliance")
 const DERATING_OUTPUT_RELATIVE_PATH = path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating")
+const CONFIRMED_RESULTS_RELATIVE_PATH = path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "confirmed_results.json")
+const COMPLIANCE_DATA_RELATIVE_PATH = path.join("data", "compliance")
+const MANUFACTURER_FULL_NAMES_RELATIVE_PATH = path.join(COMPLIANCE_DATA_RELATIVE_PATH, "manufacturer_full_names.json")
+const MANUFACTURER_ALIASES_RELATIVE_PATH = path.join(COMPLIANCE_DATA_RELATIVE_PATH, "manufacturer_aliases.json")
 const DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "mapping_completeness.json")
 const DERATING_TABLE_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "table.json")
 const DERATING_CHECK_RESULT_RELATIVE_PATH = path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", "derating_check.json")
@@ -159,6 +167,16 @@ type TemperaturePoint = {
 
 type JsonRecord = Record<string, unknown>
 
+function manufacturerPinyinSortKey(value: string) {
+  const initials = pinyin(value, { pattern: "first", toneType: "none", type: "array" }).join("")
+  const fullPinyin = pinyin(value, { toneType: "none", type: "array" }).join("")
+  return `${initials}|${fullPinyin}|${value.toLowerCase()}`
+}
+
+function compareChinesePinyin(left: string, right: string) {
+  return manufacturerPinyinSortKey(left).localeCompare(manufacturerPinyinSortKey(right), "en", { numeric: true })
+}
+
 type ThermalDbRecord = {
   assetRoot: string | null
   record: JsonRecord
@@ -170,12 +188,14 @@ type ThermalDbIndex = {
   sourcePath: string
 }
 
+const WORKSPACE_DATA_ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url))
+const APP_ROOT_DIR = path.resolve(WORKSPACE_DATA_ROUTES_DIR, "..", "..", "..")
+
 type CatchSupportingTableBody = {
   rows?: unknown
 }
 
 let thermalDbIndexPromise: Promise<ThermalDbIndex | null> | null = null
-const WORKSPACE_DATA_ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url))
 
 async function readWorkspaceProgress(progressPath: string): Promise<WorkspaceProgressData | null> {
   const raw = await fs.readFile(progressPath, "utf-8").catch(() => null)
@@ -879,6 +899,178 @@ function summarizeComplianceCheckRows(rows: JsonRecord[]) {
   return { issueCounts, summary }
 }
 
+async function updateConfirmedResults(workspaceDir: string, stage: string, rows: JsonRecord[]) {
+  if (stage === "manufacturer_check") return
+  const confirmedPath = path.join(workspaceDir, CONFIRMED_RESULTS_RELATIVE_PATH)
+  const existingRaw = await fs.readFile(confirmedPath, "utf-8").catch(() => null)
+  const existing = existingRaw ? JSON.parse(existingRaw) as unknown : {}
+  const existingStages = isRecord(existing) && isRecord(existing.stages) ? existing.stages : {}
+  const updatedAt = new Date().toISOString()
+  const nextPayload = {
+    ...(isRecord(existing) ? existing : {}),
+    schema_version: "1.0",
+    updated_at: updatedAt,
+    stages: {
+      ...existingStages,
+      [stage]: {
+        rows,
+        updated_at: updatedAt,
+      },
+    },
+  }
+  await fs.mkdir(path.dirname(confirmedPath), { recursive: true })
+  await fs.writeFile(confirmedPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+}
+
+async function updateManufacturerLocalData(rows: JsonRecord[]) {
+  const dataDir = path.join(APP_ROOT_DIR, COMPLIANCE_DATA_RELATIVE_PATH)
+  const fullNamesPath = path.join(APP_ROOT_DIR, MANUFACTURER_FULL_NAMES_RELATIVE_PATH)
+  const aliasesPath = path.join(APP_ROOT_DIR, MANUFACTURER_ALIASES_RELATIVE_PATH)
+  const fullNames = new Set(await readJsonStringArray(fullNamesPath))
+  const aliases = await readManufacturerAliases(aliasesPath)
+
+  for (const row of rows) {
+    const shortName = cleanString(row["厂商简称"]) || cleanString(row["厂商名称"]) || cleanString(row.manufacturer)
+    const aliasKey = normalizeManufacturerKey(shortName)
+    const existing = aliasKey ? aliases[aliasKey] : null
+    const submittedFullName = cleanString(row["厂商全称"]) || cleanString(row.full_name)
+    const existingFullName = existing ? cleanString(existing["厂商全称"]) : ""
+    const fullName = isValidManufacturerFullName(submittedFullName)
+      ? submittedFullName
+      : isValidManufacturerFullName(existingFullName)
+        ? existingFullName
+        : ""
+    const origin = cleanString(row["国产/进口"]) || cleanString(row.origin)
+    const catalogStatus = cleanString(row["目录内或外"]) || cleanString(row.catalog_status)
+    if (!shortName) continue
+    if (isValidManufacturerFullName(fullName)) fullNames.add(fullName)
+    aliases[aliasKey] = {
+      "厂商简称": shortName,
+      "厂商全称": isValidManufacturerFullName(fullName) ? fullName : "无",
+      "国产/进口": isValidManufacturerFullName(fullName) ? "国产" : origin || existing?.["国产/进口"] || "进口",
+      "目录内或外": isValidManufacturerFullName(fullName) ? "目录内" : catalogStatus || existing?.["目录内或外"] || "无",
+    }
+  }
+
+  await fs.mkdir(dataDir, { recursive: true })
+  await fs.writeFile(fullNamesPath, `${JSON.stringify([...fullNames].sort(compareChinesePinyin), null, 2)}\n`, "utf-8")
+  await fs.writeFile(aliasesPath, `${JSON.stringify({ aliases: sortRecord(aliases) }, null, 2)}\n`, "utf-8")
+}
+
+async function readManufacturerFullNameOptions(workspaceDir?: string) {
+  const fullNamesPath = path.join(APP_ROOT_DIR, MANUFACTURER_FULL_NAMES_RELATIVE_PATH)
+  const fullNames = new Set(await readJsonStringArray(fullNamesPath))
+
+  if (workspaceDir) {
+    const artifact = await readComplianceArtifact(workspaceDir, "manufacturer_check").catch(() => null)
+    const rows = artifact && Array.isArray(artifact.rows) ? artifact.rows : []
+    for (const row of rows) {
+      const fullName = cleanString(row["厂商全称"]) || cleanString(row.full_name)
+      if (isValidManufacturerFullName(fullName)) fullNames.add(fullName)
+    }
+  }
+
+  return [...fullNames].sort(compareChinesePinyin)
+}
+
+async function addManufacturerFullName(body: ManufacturerFullNameBody) {
+  const fullName = cleanString(body.full_name)
+  if (!isValidManufacturerFullName(fullName)) {
+    throw new WorkspaceQueryError("manufacturer full name is required", 400)
+  }
+  const dataDir = path.join(APP_ROOT_DIR, COMPLIANCE_DATA_RELATIVE_PATH)
+  const fullNamesPath = path.join(APP_ROOT_DIR, MANUFACTURER_FULL_NAMES_RELATIVE_PATH)
+  const fullNames = new Set(await readJsonStringArray(fullNamesPath))
+  const beforeSize = fullNames.size
+  fullNames.add(fullName)
+  const nextFullNames = [...fullNames].sort(compareChinesePinyin)
+  await fs.mkdir(dataDir, { recursive: true })
+  await fs.writeFile(fullNamesPath, `${JSON.stringify(nextFullNames, null, 2)}\n`, "utf-8")
+  return {
+    added: fullNames.size > beforeSize,
+    full_names: nextFullNames,
+  }
+}
+
+async function assertKnownManufacturerFullNames(workspaceDir: string, artifact: string, rows: JsonRecord[]) {
+  if (artifact !== "manufacturer_check") return
+  const knownFullNames = new Set(await readManufacturerFullNameOptions(workspaceDir))
+  for (const row of rows) {
+    const fullName = cleanString(row["厂商全称"]) || cleanString(row.full_name)
+    const hasFullName = isValidManufacturerFullName(fullName)
+    const origin = cleanString(row["国产/进口"]) || cleanString(row.origin)
+    const catalogStatus = cleanString(row["目录内或外"]) || cleanString(row.catalog_status)
+    if (hasFullName && !knownFullNames.has(fullName)) {
+      throw new WorkspaceQueryError("manufacturer full name must be selected from catalog options", 400)
+    }
+    if (hasFullName && origin === "进口") {
+      throw new WorkspaceQueryError("imported manufacturers cannot use catalog full names", 400)
+    }
+    if (catalogStatus === "目录内" && !hasFullName) {
+      throw new WorkspaceQueryError("catalog manufacturer full name is required for in-catalog manufacturers", 400)
+    }
+  }
+}
+
+async function readJsonStringArray(filePath: string) {
+  const raw = await fs.readFile(filePath, "utf-8").catch(() => null)
+  if (!raw) return []
+  const parsed = JSON.parse(raw) as unknown
+  if (Array.isArray(parsed)) return parsed.map(item => cleanString(item)).filter(Boolean)
+  if (isRecord(parsed) && Array.isArray(parsed.full_names)) return parsed.full_names.map(item => cleanString(item)).filter(Boolean)
+  return []
+}
+
+type ManufacturerAliasRecord = {
+  "厂商简称": string
+  "厂商全称": string
+  "国产/进口": string
+  "目录内或外": string
+}
+
+async function readManufacturerAliases(filePath: string) {
+  const raw = await fs.readFile(filePath, "utf-8").catch(() => null)
+  if (!raw) return {} as Record<string, ManufacturerAliasRecord>
+  const parsed = JSON.parse(raw) as unknown
+  const source = isRecord(parsed) && isRecord(parsed.aliases) ? parsed.aliases : parsed
+  if (!isRecord(source)) return {} as Record<string, ManufacturerAliasRecord>
+  const aliases: Record<string, ManufacturerAliasRecord> = {}
+  for (const [alias, value] of Object.entries(source)) {
+    const key = normalizeManufacturerKey(alias)
+    if (!key) continue
+    if (isRecord(value)) {
+      const fullName = cleanString(value["厂商全称"]) || cleanString(value.full_name)
+      aliases[key] = {
+        "厂商简称": cleanString(value["厂商简称"]) || cleanString(value.alias) || alias,
+        "厂商全称": isValidManufacturerFullName(fullName) ? fullName : "无",
+        "国产/进口": cleanString(value["国产/进口"]) || cleanString(value.origin) || (isValidManufacturerFullName(fullName) ? "国产" : "进口"),
+        "目录内或外": cleanString(value["目录内或外"]) || cleanString(value.catalog_status) || (isValidManufacturerFullName(fullName) ? "目录内" : "无"),
+      }
+      continue
+    }
+    const fullName = cleanString(value)
+    aliases[key] = {
+      "厂商简称": alias,
+      "厂商全称": isValidManufacturerFullName(fullName) ? fullName : "无",
+      "国产/进口": isValidManufacturerFullName(fullName) ? "国产" : "进口",
+      "目录内或外": isValidManufacturerFullName(fullName) ? "目录内" : "无",
+    }
+  }
+  return aliases
+}
+
+function isValidManufacturerFullName(value: string) {
+  return Boolean(value && value !== "无" && !value.startsWith("未找到"))
+}
+
+function normalizeManufacturerKey(value: unknown) {
+  return cleanString(value).toLowerCase().replace(/\s+/g, "")
+}
+
+function sortRecord<T>(record: Record<string, T>) {
+  return Object.fromEntries(Object.entries(record).sort(([left], [right]) => left.localeCompare(right)))
+}
+
 async function readComplianceCheckResult(workspaceDir: string) {
   const resolvedFile = await resolveComplianceCheckOutputFile(
     workspaceDir,
@@ -958,6 +1150,7 @@ async function writeComplianceCheckResult(workspaceDir: string, body: Compliance
   }
   await fs.mkdir(path.dirname(resultPath), { recursive: true })
   await fs.writeFile(resultPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+  await updateConfirmedResults(workspaceDir, "derating_check", rows)
   return readComplianceCheckResult(workspaceDir)
 }
 
@@ -1040,6 +1233,7 @@ async function writeComplianceArtifact(workspaceDir: string, artifactValue: unkn
   }
   const resolvedFile = await resolveComplianceArtifactFile(workspaceDir, artifact)
   const rows = body.rows.filter(isRecord)
+  await assertKnownManufacturerFullNames(workspaceDir, artifact, rows)
   const existingRaw = await fs.readFile(resolvedFile.fullPath, "utf-8").catch(() => null)
   const existingPayload = existingRaw ? JSON.parse(existingRaw) as unknown : null
   let nextPayload: unknown
@@ -1058,6 +1252,10 @@ async function writeComplianceArtifact(workspaceDir: string, artifactValue: unkn
   }
   await fs.mkdir(path.dirname(resolvedFile.fullPath), { recursive: true })
   await fs.writeFile(resolvedFile.fullPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+  await updateConfirmedResults(workspaceDir, artifact, rows)
+  if (artifact === "manufacturer_check") {
+    await updateManufacturerLocalData(rows)
+  }
   return readComplianceArtifact(workspaceDir, artifact)
 }
 
@@ -1387,6 +1585,25 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
       }
     }
   )
+
+  fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/compliance/manufacturer-full-names", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query).catch(() => undefined)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send({ full_names: await readManufacturerFullNameOptions(workspaceDir) })
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve manufacturer full names")
+    }
+  })
+
+  fastify.post<{ Body: ManufacturerFullNameBody }>("/api/workspace/compliance/manufacturer-full-names", async (req, reply) => {
+    try {
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await addManufacturerFullName(req.body ?? {}))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to add manufacturer full name")
+    }
+  })
 
   fastify.get<{ Querystring: WorkspaceTextFileQuery }>("/api/workspace/files/text", async (req, reply) => {
     try {
