@@ -169,6 +169,8 @@
 }
 
 .execution-flow-reactflow .react-flow__node {
+  width: var(--node-width, 280px);
+  box-sizing: border-box;
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -193,6 +195,7 @@
   --flow-accent: #ff7a45;
   --flow-muted: rgba(255, 122, 69, 0.16);
   position: relative;
+  box-sizing: border-box;
   display: grid;
   width: var(--node-width, 280px);
   min-height: 0;
@@ -246,8 +249,10 @@
 }
 
 .execution-flow-node-head {
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 0.85fr) minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   padding: 18px 22px 15px;
@@ -264,6 +269,7 @@
 
 .execution-flow-card-title {
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   color: var(--title-color);
   font-size: 16px;
@@ -274,13 +280,19 @@
 }
 
 .execution-flow-output {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--output-color);
   font-size: 12px;
   font-weight: 760;
   letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .execution-flow-summary {
+  box-sizing: border-box;
   display: -webkit-box;
   overflow: hidden;
   margin: 0;
@@ -295,8 +307,10 @@
 }
 
 .execution-flow-card-body {
+  box-sizing: border-box;
   display: flex;
   min-width: 0;
+  width: 100%;
   align-content: start;
   flex-direction: column;
   gap: 7px;
@@ -304,9 +318,12 @@
 }
 
 .execution-flow-chip {
+  box-sizing: border-box;
   display: inline-flex;
+  width: 100%;
   min-height: 38px;
   min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: 9px;
   overflow: hidden;
@@ -320,6 +337,14 @@
   font-size: 14px;
   font-weight: 620;
   line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.execution-flow-chip-label {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

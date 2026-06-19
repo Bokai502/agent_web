@@ -22,6 +22,8 @@ commands, run simulation commands, or write final report artifacts.
 4. Identify the specialist skill that should perform each step.
 5. State required inputs, expected artifacts, validation gates, and stop
    conditions.
+6. Use `workflow-diagram-writer` for every planned thermal workflow that
+  will proceed to execution workflow.
 
 ## Main Handoffs
 
@@ -45,18 +47,17 @@ screenshot-provided JSON files as CAD build inputs.
 
 For a full CAD plus thermal workflow, plan this sequence:
 
-1. `config-editor` if `00_inputs/cad_build_spec.json` must change.
-2. `workflow-diagram-writer`.
+1. `workflow-diagram-writer`.
+2. `config-editor` if `00_inputs/cad_build_spec.json` must change.
 3. `cad-box-builder`.
 4. `cad-real-assembly-builder`.
 5. `cad-sim-input-builder`.
-6. `simulation-skill doctor`; if it reports missing after-state files derived
-   from the CAD-native spec, prepare those files before `simulation-skill run`.
-7. `simulation-skill run`.
-8. `cad-sim-report-agent` only when the user asks for reporting or review.
+6. `simulation-skill run`.
+7. `cad-sim-report-agent` only when the user asks for reporting or review.
 
 If the goal is already a direct execution request with no ambiguity, produce a
-short plan and hand off to the needed specialist skill.
+short plan and hand off to the needed specialist skill only after applying the
+mandatory workflow-diagram handoff rule below.
 
 ## References
 
@@ -73,15 +74,6 @@ Read only the references needed for the current request:
 ## Rules
 
 - Do not edit files.
-- Do not run CAD or simulation commands.
-- Do not hand-write Markdown or JSON report files as a substitute for
-  `cad-sim-report-agent`.
-- Planner owns workflow planning; `config-editor` owns configuration updates.
-- Executors own CAD and simulation commands.
-- Reviewer must report from existing artifacts; it must not rerun or mutate the
-  workflow.
-- Use the focused CAD build skills for CAD generation from
-  `cad_build_spec.json`.
 - If required workspace/version context is missing, ask for it instead of
   guessing.
 - Keep the final chat response brief unless the user asks for the full plan.

@@ -8,7 +8,6 @@ import {
   type Edge,
   type Node,
   type NodeProps,
-  useEdgesState,
   useNodesState,
   useReactFlow,
 } from "@xyflow/react"
@@ -237,6 +236,8 @@ function buildVersionFlowElements(
       type: "smoothstep",
       animated: version.id === manifest?.activeVersionId,
       className: version.id === manifest?.activeVersionId ? "active" : undefined,
+      selectable: false,
+      zIndex: 0,
     }))
 
   if (hasInputNode) {
@@ -247,6 +248,8 @@ function buildVersionFlowElements(
         target: root.id,
         type: "straight",
         className: "input-edge",
+        selectable: false,
+        zIndex: 0,
       })
     })
   }
@@ -275,12 +278,10 @@ function WorkspaceVersionFlowInner({
     [elements.nodes],
   )
   const [nodes, setNodes, onNodesChange] = useNodesState<VersionFlowNode>(elements.nodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(elements.edges)
 
   useEffect(() => {
     setNodes(elements.nodes)
-    setEdges(elements.edges)
-  }, [elements, setEdges, setNodes])
+  }, [elements.nodes, setNodes])
 
   const onConnect = useCallback(() => undefined, [])
 
@@ -297,10 +298,9 @@ function WorkspaceVersionFlowInner({
   return (
     <ReactFlow
       nodes={nodes}
-      edges={edges}
+      edges={elements.edges}
       nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       nodesDraggable={false}
       nodesConnectable={false}

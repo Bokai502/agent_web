@@ -1,5 +1,6 @@
 import json
 import importlib
+import importlib.util
 import sys
 import time
 from pathlib import Path
@@ -18,30 +19,28 @@ INCLUDE_ENVELOPE = __INCLUDE_ENVELOPE__
 FREECAD_MODULE_DIR = __FREECAD_MODULE_DIR__
 if FREECAD_MODULE_DIR not in sys.path:
     sys.path.insert(0, FREECAD_MODULE_DIR)
-import freecad_glb_exporter
-freecad_glb_exporter = importlib.reload(freecad_glb_exporter)
+def load_module_from_path(module_name, module_path):
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+freecad_runtime = load_module_from_path("freecad_runtime", str(Path(FREECAD_MODULE_DIR) / "freecad_runtime.py"))
+freecad_glb_exporter = load_module_from_path("freecad_glb_exporter", str(Path(FREECAD_MODULE_DIR) / "freecad_glb_exporter.py"))
 export_component_node_glb = freecad_glb_exporter.export_component_node_glb
+from freecad_runtime import (
+    apply_color,
+    build_assembly_envelope,
+    build_walls,
+    matrix_to_rotation,
+    object_shape_or_none,
+)
 TIMINGS = {
     "step_template_seconds": {},
     "build_seconds": {},
 }
 
-FACE_DEFINITIONS = {
-    0: ("-x", 0, -1),
-    1: ("x", 0, 1),
-    2: ("-y", 1, -1),
-    3: ("y", 1, 1),
-    4: ("-z", 2, -1),
-    5: ("z", 2, 1),
-    6: ("ext-x", 0, -1),
-    7: ("ext+x", 0, 1),
-    8: ("ext-y", 1, -1),
-    9: ("ext+y", 1, 1),
-    10: ("ext-z", 2, -1),
-    11: ("ext+z", 2, 1),
-}
-
-__PLACEMENT_HELPERS__
+FACE_DEFINITIONS = __FACE_DEFINITIONS__
 
 
 def determinant3(matrix_rows):
@@ -67,27 +66,6 @@ def signed_permutation_rotations():
 
 
 ROTATION_ROWS = signed_permutation_rotations()
-
-
-def matrix_to_rotation(matrix_rows):
-    matrix = FreeCAD.Matrix()
-    matrix.A11 = float(matrix_rows[0][0])
-    matrix.A12 = float(matrix_rows[0][1])
-    matrix.A13 = float(matrix_rows[0][2])
-    matrix.A14 = 0.0
-    matrix.A21 = float(matrix_rows[1][0])
-    matrix.A22 = float(matrix_rows[1][1])
-    matrix.A23 = float(matrix_rows[1][2])
-    matrix.A24 = 0.0
-    matrix.A31 = float(matrix_rows[2][0])
-    matrix.A32 = float(matrix_rows[2][1])
-    matrix.A33 = float(matrix_rows[2][2])
-    matrix.A34 = 0.0
-    matrix.A41 = 0.0
-    matrix.A42 = 0.0
-    matrix.A43 = 0.0
-    matrix.A44 = 1.0
-    return FreeCAD.Placement(matrix).Rotation
 
 
 def face_normal(face_id):
@@ -131,95 +109,16 @@ def orientation_rows_from_normalized_placement(placement):
     return choose_rotation_rows(component_face, install_face)
 
 
-def build_envelope(doc, assembly, data):
-    envelope = data.get("envelope")
-    if not envelope:
-        return None
-    outer_size = envelope.get("outer_size")
-    inner_size = envelope.get("inner_size")
-    shell_thickness = envelope.get("shell_thickness")
-    if not outer_size or not inner_size or shell_thickness is None:
-        return None
-
-    outer_min = envelope.get("outer_min")
-    inner_min = envelope.get("inner_min")
-    if not outer_min or not inner_min:
-        outer_min = [-(float(v) / 2.0) for v in outer_size]
-        inner_min = [-(float(v) / 2.0) for v in inner_size]
-    else:
-        outer_min = [float(v) for v in outer_min]
-        inner_min = [float(v) for v in inner_min]
-    outer_shape = Part.makeBox(
-        float(outer_size[0]),
-        float(outer_size[1]),
-        float(outer_size[2]),
-        FreeCAD.Vector(*outer_min),
-    )
-    inner_shape = Part.makeBox(
-        float(inner_size[0]),
-        float(inner_size[1]),
-        float(inner_size[2]),
-        FreeCAD.Vector(*inner_min),
-    )
-    shell_shape = outer_shape.cut(inner_shape)
-
-    envelope_part = doc.addObject("App::Part", "Envelope_part")
-    assembly.addObject(envelope_part)
-    envelope_shell = doc.addObject("Part::Feature", "EnvelopeShell")
-    envelope_shell.Shape = shell_shape
-    envelope_shell.ViewObject.DisplayMode = "Wireframe"
-    envelope_shell.ViewObject.LineColor = (0.2, 0.5, 0.9, 0.0)
-    envelope_shell.ViewObject.LineWidth = 2.0
-    envelope_part.addObject(envelope_shell)
-    return envelope_shell.Name
-
-
-__WALL_HELPERS__
-
-
-def apply_color(obj, color, transparency=0):
-    if not color or len(color) < 3:
-        return
-    rgba = [float(c) / 255.0 for c in color[:4]]
-    while len(rgba) < 4:
-        rgba.append(1.0)
-    try:
-        obj.ViewObject.ShapeColor = (rgba[0], rgba[1], rgba[2], rgba[3])
-        obj.ViewObject.Transparency = int(transparency)
-    except Exception:
-        pass
-
-
-def iter_descendant_shapes(container):
-    stack = list(getattr(container, "Group", []) or [])
-    while stack:
-        obj = stack.pop()
-        if obj is None:
-            continue
-        if obj.TypeId == "App::Part":
-            stack.extend(getattr(obj, "Group", []) or [])
-            continue
-        try:
-            shape = obj.Shape
-        except Exception:
-            continue
-        if shape is None or shape.isNull():
-            continue
-        yield obj
 
 
 def collect_shape_objects(objects):
     shape_objects = []
     for obj in objects:
-        descendants = list(iter_descendant_shapes(obj))
+        descendants = list(freecad_glb_exporter._iter_descendant_shapes(obj))
         if descendants:
             shape_objects.extend(descendants)
             continue
-        try:
-            shape = obj.Shape
-        except Exception:
-            shape = None
-        if shape is not None and not shape.isNull():
+        if object_shape_or_none(obj) is not None:
             shape_objects.append(obj)
     return shape_objects
 
@@ -229,11 +128,8 @@ def create_component_part(doc, component_id):
 
 
 def shape_world_bbox(obj):
-    try:
-        shape = obj.Shape
-    except Exception:
-        return None
-    if shape is None or shape.isNull():
+    shape = object_shape_or_none(obj)
+    if shape is None:
         return None
     placed = shape.copy()
     placed.Placement = obj.getGlobalPlacement()
@@ -273,11 +169,8 @@ def bbox_center_from_bounds(bb):
 
 
 def copy_global_shape(obj):
-    try:
-        shape = obj.Shape
-    except Exception:
-        return None
-    if shape is None or shape.isNull():
+    shape = object_shape_or_none(obj)
+    if shape is None:
         return None
     placed = shape.copy()
     placed.Placement = obj.getGlobalPlacement()
@@ -331,7 +224,7 @@ def create_box_component(doc, part, component_id, component, target_bbox):
     solid.Width = float(size[1])
     solid.Height = float(size[2])
     solid.Placement.Base = FreeCAD.Vector(*minimum)
-    apply_color(solid, component.get("color"), transparency=40)
+    apply_color(solid, component.get("color"), transparency=40, alpha_sets_transparency=False)
     part.addObject(solid)
     return {"mode": "box", "fallback": True}
 
@@ -426,7 +319,7 @@ def create_step_component(doc, part, component_id, component, target_bbox, step_
     instance_shape = rotated_shape.copy()
     instance_shape.translate(FreeCAD.Vector(*delta))
     solid.Shape = instance_shape
-    apply_color(solid, component.get("color"), transparency=0)
+    apply_color(solid, component.get("color"), transparency=0, alpha_sets_transparency=False)
     part.addObject(solid)
 
     return {
@@ -459,7 +352,7 @@ try:
     # which can stall execute_code for large imported STEP payloads.
     assembly = doc.addObject("App::Part", "Assembly")
 
-    envelope_name = build_envelope(doc, assembly, data)
+    envelope_name = build_assembly_envelope(doc, assembly, data)
     wall_names = build_walls(doc, assembly, data)
     created = []
     step_template_cache = {}

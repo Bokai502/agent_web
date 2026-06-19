@@ -10,7 +10,7 @@ Build the real assembly model from the CAD-native spec.
 ## Command
 
 ```bash
-python scripts/build_real_assembly.py --workspace-dir <workspace_dir>
+cad_cli --json build real-assembly --workspace-dir <workspace_dir>
 ```
 
 Defaults:
@@ -21,6 +21,8 @@ Defaults:
 ## Rules
 
 - This skill requires `00_inputs/cad_build_spec.json`.
+- Use the installed `cad_cli`; implementation code lives under
+  `open_codex_web/backend/workflow_agents/agents/cad_cli`.
 - Use `components[].real_cad.step_path` when it exists and is readable.
 - Fall back to the component box if the STEP path is missing or unreadable.
 - This step is supplemental real assembly output; it must not create the simulation STEP.
@@ -30,5 +32,5 @@ Defaults:
 
 - `<workspace_dir>/01_cad/geometry_after_real_cad.glb`
 
-This step does not write `geometry_after_real_cad.hybrid_summary.json` into
-`01_cad`; any hybrid-link runtime diagnostics stay under `.hybrid_link/`.
+This step writes `geometry_after_real_cad.hybrid_summary.json` when the
+hybrid-link exporter produces it.

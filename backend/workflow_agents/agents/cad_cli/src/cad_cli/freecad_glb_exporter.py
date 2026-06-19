@@ -11,6 +11,8 @@ from pathlib import Path
 import MeshPart
 import Part
 
+from freecad_runtime import object_shape_or_none
+
 
 COMPONENT_GLB_LINEAR_DEFLECTION = 12.0
 COMPONENT_GLB_ANGULAR_DEFLECTION = 0.75
@@ -71,11 +73,8 @@ def _freecad_normal_to_gltf(normal):
 
 
 def _shape_copy_for_mesh(obj):
-    try:
-        shape = obj.Shape
-    except Exception:
-        return None
-    if shape is None or shape.isNull():
+    shape = object_shape_or_none(obj)
+    if shape is None:
         return None
     copied = shape.copy()
     try:
@@ -206,11 +205,7 @@ def _iter_descendant_shapes(container):
         if obj.TypeId == "App::Part":
             stack.extend(getattr(obj, "Group", []) or [])
             continue
-        try:
-            shape = obj.Shape
-        except Exception:
-            continue
-        if shape is None or shape.isNull():
+        if object_shape_or_none(obj) is None:
             continue
         yield obj
 

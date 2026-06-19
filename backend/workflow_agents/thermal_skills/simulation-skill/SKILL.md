@@ -120,9 +120,7 @@ sim-comsol-progress \
 
 - The simulation CLI no longer writes `<workspace>/logs/progress_percentages.json`.
 - `sim-run` is responsible for updating `<workspace>/logs/progress.json`.
-  Do not write this JSON manually and do not call
-  `python -m freecad_cli_tools.cli.main progress update` from the skill during a
-  normal simulation run.
+  Do not write this JSON manually during a normal simulation run.
 - During `simulation_run`, `sim-run` starts an internal COMSOL progress watcher
   around `SimulationStep.run()`. The watcher reads
   `<workspace>/02_sim/simulation/_comsol_work/sim/comsol_progress.json` and

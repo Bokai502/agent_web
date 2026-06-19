@@ -9,35 +9,27 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from local_freecad_helpers import (
+from .local_freecad_helpers import (
     FACE_DEFINITIONS,
-    PLACEMENT_HELPERS,
-    WALL_HELPERS,
     is_external_face,
     normalize_runtime_path,
     render_rpc_script,
 )
-from spec_common import (
+from .spec_common import (
+    add_common_build_args,
     component_bbox,
-    default_cad_dir,
     default_doc_name,
-    default_spec_path,
     execute_freecad_code,
     freecad_rpc_settings,
-    load_spec,
     print_result,
+    resolve_build_paths,
     write_json,
 )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build supplemental real assembly GLB from cad_build_spec.json.")
-    parser.add_argument("--workspace-dir", required=True)
-    parser.add_argument("--spec")
-    parser.add_argument("--output-dir")
-    parser.add_argument("--doc-name")
-    parser.add_argument("--host")
-    parser.add_argument("--port", type=int)
+    add_common_build_args(parser)
     return parser.parse_args()
 
 
@@ -120,7 +112,8 @@ def normalized_real_cad_input(spec: dict[str, Any], spec_path: Path) -> dict[str
         bbox = component_bbox(component)
         real_cad = component.get("real_cad") if isinstance(component.get("real_cad"), dict) else {}
         step_path = real_cad.get("step_path")
-        step_exists = isinstance(step_path, str) and Path(step_path).exists()
+        resolved_step_path = resolve_step_path(step_path, spec_path)
+        step_exists = resolved_step_path is not None and resolved_step_path.exists()
         components[component_id] = {
             "id": component_id,
             "component_id": component_id,
@@ -131,9 +124,9 @@ def normalized_real_cad_input(spec: dict[str, Any], spec_path: Path) -> dict[str
             "placement": placement_payload(component),
             "source": {
                 "kind": "step" if step_exists else "box",
-                "step_path": str(Path(step_path).resolve()) if step_exists else None,
+                "step_path": str(resolved_step_path) if step_exists else None,
                 "requested_step_path": step_path,
-                "step_size_bytes": Path(step_path).stat().st_size if step_exists else None,
+                "step_size_bytes": resolved_step_path.stat().st_size if step_exists else None,
                 "fallback_reason": None if step_exists else "missing_step_path",
                 "geom_component_info_path": str(spec_path.resolve()),
             },
@@ -152,13 +145,25 @@ def normalized_real_cad_input(spec: dict[str, Any], spec_path: Path) -> dict[str
     }
 
 
+def resolve_step_path(step_path: Any, spec_path: Path) -> Path | None:
+    if not isinstance(step_path, str) or not step_path.strip():
+        return None
+    path = Path(step_path).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+    candidates = [
+        spec_path.parent / path,
+        spec_path.parent.parent / path,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    return candidates[0].resolve()
+
+
 def main() -> int:
     args = parse_args()
-    workspace_dir = Path(args.workspace_dir).expanduser().resolve()
-    spec_path = Path(args.spec).expanduser().resolve() if args.spec else default_spec_path(workspace_dir)
-    output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else default_cad_dir(workspace_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    spec = load_spec(spec_path)
+    workspace_dir, spec_path, output_dir, spec = resolve_build_paths(args)
 
     final_output_root = output_dir / "geometry_after_real_cad"
     glb_path = output_dir / "geometry_after_real_cad.glb"
@@ -173,8 +178,7 @@ def main() -> int:
     hybrid_code = render_rpc_script(
         "build_real_assembly_hybrid.py",
         {
-            "__PLACEMENT_HELPERS__": PLACEMENT_HELPERS,
-            "__WALL_HELPERS__": WALL_HELPERS,
+            "__FACE_DEFINITIONS__": repr(FACE_DEFINITIONS),
             "__INPUT_PATH__": json.dumps(normalize_runtime_path(staged_input_path)),
             "__DOC_NAME__": json.dumps(doc_name),
             "__SAVE_PATH__": json.dumps(normalize_runtime_path(staged_step_path)),

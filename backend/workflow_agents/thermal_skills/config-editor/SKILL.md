@@ -12,8 +12,7 @@ Use this skill for satellite thermal simulation configuration edits.
 1. Read `references/satellite-thermal-workspace.md`.
 2. Resolve the workspace/version from `workspace_id`, `version_id`, and
    `workspace_dir`.
-3. Let the managed runner own progress updates; do not call legacy FreeCAD
-   progress commands from this skill.
+3. Let the managed runner own progress updates.
 4. Read only `cad_build_spec.json` from the selected version's `00_inputs` and
    relevant files from the selected version's `logs`.
 5. If component information must be queried or added beyond `cad_build_spec.json`,
@@ -33,10 +32,9 @@ Use `templates/config_editor_report_template.md` for the output shape.
 
 ## Progress
 
-Do not call `freecad_cli_tools` or any legacy FreeCAD progress command from
-this skill. The managed runner or orchestration layer owns progress tracking.
-This skill's durable output is `00_inputs/config_editor_output.md` plus any
-targeted edits to `00_inputs/cad_build_spec.json`.
+The managed runner or orchestration layer owns progress tracking. This skill's
+durable output is `00_inputs/config_editor_output.md` plus any targeted edits
+to `00_inputs/cad_build_spec.json`.
 
 ## Rules
 
@@ -45,6 +43,11 @@ targeted edits to `00_inputs/cad_build_spec.json`.
   If the component is not present in that database, do not add it. Also verify
   the component's mounting-face information and keep placement/topology
   consistent with that mounting face.
+- For every component included in simulation, set
+  `thermal.contact_resistance` to `0.001`. Do not introduce mixed contact
+  resistance values such as `0.15`, because the COMSOL thermal-contact builder
+  expects a single shared `PairThermalContact` resistance across component
+  contact pairs.
 - When adding or moving a component, edit only `00_inputs/cad_build_spec.json`.
   Keep each component's `mount`, `position`, `dims`, `bbox`, `rotation_rows`,
   `thermal`, `color`, `display_name`, and `real_cad.step_path` fields

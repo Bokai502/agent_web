@@ -143,7 +143,7 @@ function FlowCardNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
         {step.items.map(item => (
           <span key={item} className="execution-flow-chip">
             <span className="execution-flow-dot" />
-            {item}
+            <span className="execution-flow-chip-label">{item}</span>
           </span>
         ))}
       </div>

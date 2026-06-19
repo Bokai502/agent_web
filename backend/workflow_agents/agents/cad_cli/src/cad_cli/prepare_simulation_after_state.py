@@ -6,16 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import sys
 from pathlib import Path
 from typing import Any
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
+from .spec_common import read_json, spec_to_layout_data, write_json
 
-from spec_common import spec_to_layout_data  # noqa: E402
-
-import numpy as np  # noqa: E402
+import numpy as np
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,15 +20,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--spec", help="Path to cad_build_spec.json. Defaults to ../00_inputs/cad_build_spec.json from cad-dir.")
     parser.add_argument("--grid-shape", default="32,32,32", help="Grid shape as nx,ny,nz. Default: 32,32,32.")
     return parser.parse_args()
-
-
-def read_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def parse_grid_shape(value: str) -> tuple[int, int, int]:
@@ -117,11 +104,12 @@ def paint_bbox_into_mask(
     bbox_min: list[float],
     bbox_max: list[float],
     grid_shape: tuple[int, int, int],
-) -> None:
+) -> tuple[slice, ...]:
     min_i = grid_index(bbox["min"], bbox_min, bbox_max, grid_shape, floor=True)
     max_i = grid_index(bbox["max"], bbox_min, bbox_max, grid_shape, floor=False)
     slices = tuple(slice(min_i[axis], max_i[axis] + 1) for axis in range(3))
     mask[slices] = 1
+    return slices
 
 
 def write_grid_inputs(
@@ -149,12 +137,10 @@ def write_grid_inputs(
         if not isinstance(component, dict):
             continue
         bbox = component_bbox(component)
-        paint_bbox_into_mask(mask, bbox, bbox_min, bbox_max, grid_shape)
-        min_i = grid_index(bbox["min"], bbox_min, bbox_max, grid_shape, floor=True)
-        max_i = grid_index(bbox["max"], bbox_min, bbox_max, grid_shape, floor=False)
-        slices = tuple(slice(min_i[axis], max_i[axis] + 1) for axis in range(3))
-        power[slices] += np.float32(float_value(component.get("power"), default=0.0))
-        mass[slices] += np.float32(float_value(component.get("mass"), default=0.0))
+        slices = paint_bbox_into_mask(mask, bbox, bbox_min, bbox_max, grid_shape)
+        voxel_count = max(1, int(np.prod([item.stop - item.start for item in slices])))
+        power[slices] += np.float32(float_value(component.get("power"), default=0.0) / voxel_count)
+        mass[slices] += np.float32(float_value(component.get("mass"), default=0.0) / voxel_count)
 
     for wall in (geom.get("walls") or {}).values():
         if isinstance(wall, dict) and isinstance(wall.get("bbox"), dict):

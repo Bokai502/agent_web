@@ -10,7 +10,8 @@ Build the thermal simulation geometry from the CAD-native spec.
 ## Command
 
 ```bash
-python scripts/build_sim_input.py --workspace-dir <workspace_dir>
+cad_cli --json build sim-input --workspace-dir <workspace_dir>
+cad_cli --json build after-state --workspace-dir <workspace_dir>
 ```
 
 Defaults:
@@ -21,6 +22,8 @@ Defaults:
 ## Rules
 
 - This skill requires `00_inputs/cad_build_spec.json`.
+- Use the installed `cad_cli`; implementation code lives under
+  `open_codex_web/backend/workflow_agents/agents/cad_cli`.
 - Include only components where `thermal.include_in_simulation == true`.
 - Include walls in `simulation_input.json` metadata with `power_W = 0`.
 - Do not export a GLB in this step.

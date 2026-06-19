@@ -10,7 +10,7 @@ Build the placeholder box model from the CAD-native spec.
 ## Command
 
 ```bash
-python scripts/build_box.py --workspace-dir <workspace_dir>
+cad_cli --json build box --workspace-dir <workspace_dir>
 ```
 
 Defaults:
@@ -21,6 +21,8 @@ Defaults:
 ## Rules
 
 - This skill requires `00_inputs/cad_build_spec.json`.
+- Use the installed `cad_cli`; implementation code lives under
+  `open_codex_web/backend/workflow_agents/agents/cad_cli`.
 - This step exports only the placeholder box GLB.
 - It must not export `geometry_after_power_filtered.step` or real-CAD outputs.
 - If FreeCAD RPC is unavailable, report the host/port connection failure.

@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import math
 import os
-import sys
 import xmlrpc.client
+import argparse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -147,16 +147,137 @@ def _bbox_size(bbox: Any) -> list[float] | None:
     return [float(bbox_max[index]) - float(bbox_min[index]) for index in range(3)]
 
 
+def face_token(face_id: Any) -> str:
+    token = str(face_id or "").split(".")[-1]
+    return token.replace("local_", "")
+
+
+def component_mount_face(face_id: Any) -> dict[str, Any]:
+    token = face_token(face_id)
+    axis = {"x": 0, "y": 1, "z": 2}.get(token[:1], 2)
+    sign = -1 if token.endswith("min") else 1
+    other_axes = [item for item in (0, 1, 2) if item != axis]
+    return {
+        "local_face": token,
+        "normal_axis": axis,
+        "normal_sign": sign,
+        "u_axis": other_axes[0],
+        "v_axis": other_axes[1],
+    }
+
+
+def default_alignment(component: dict[str, Any], mount: dict[str, Any]) -> dict[str, Any]:
+    alignment = mount.get("alignment") if isinstance(mount.get("alignment"), dict) else component.get("alignment")
+    if isinstance(alignment, dict) and alignment:
+        return {
+            "normal_alignment": alignment.get("normal_alignment", "opposite"),
+            "component_u_axis_to_target_u_axis": bool(alignment.get("component_u_axis_to_target_u_axis", True)),
+            "in_plane_rotation_deg": float(alignment.get("in_plane_rotation_deg", 0) or 0),
+        }
+    return {
+        "normal_alignment": "opposite",
+        "component_u_axis_to_target_u_axis": True,
+        "in_plane_rotation_deg": 0,
+    }
+
+
+def install_face_from_id(face_id: str, envelope: dict[str, Any]) -> dict[str, Any]:
+    owner_id, token = face_id.split(".", 1) if "." in face_id else (face_id, "zmax_inner")
+    direction, side = token.split("_", 1) if "_" in token else (token, "inner")
+    axis = {"x": 0, "y": 1, "z": 2}.get(direction[:1], 2)
+    sign = -1 if direction.endswith("min") else 1
+    bbox = envelope.get("inner_bbox") if side == "inner" else envelope.get("outer_bbox")
+    if not isinstance(bbox, dict):
+        bbox = {}
+    bmin = bbox.get("min") if isinstance(bbox.get("min"), list) else [0.0, 0.0, 0.0]
+    bmax = bbox.get("max") if isinstance(bbox.get("max"), list) else [0.0, 0.0, 0.0]
+    plane_value = float(bmin[axis] if sign < 0 else bmax[axis])
+    center = [(float(bmin[index]) + float(bmax[index])) / 2.0 for index in range(3)]
+    center[axis] = plane_value
+    extents = [float(bmax[index]) - float(bmin[index]) for index in range(3)]
+    extents[axis] = 0.0
+    axes_2d = [index for index in (0, 1, 2) if index != axis]
+    return {
+        "face_id": face_id,
+        "id": face_id,
+        "owner_id": owner_id,
+        "side": side,
+        "face_role": "panel_mount",
+        "plane_axis": axis,
+        "plane_value": plane_value,
+        "normal_sign": sign,
+        "belongs_to": "panel" if side == "inner" else owner_id,
+        "panel_id": owner_id,
+        "panel_name": owner_id,
+        "cabin_face_tag": direction,
+        "center_xyz": center,
+        "extents_xyz": extents,
+        "bbox_2d": [
+            float(bmin[axes_2d[0]]),
+            float(bmax[axes_2d[0]]),
+            float(bmin[axes_2d[1]]),
+            float(bmax[axes_2d[1]]),
+        ],
+    }
+
+
+def shell_id_from_spec(spec: dict[str, Any]) -> str:
+    envelope = spec.get("envelope") if isinstance(spec.get("envelope"), dict) else {}
+    for key in ("shell_id", "id", "owner_id"):
+        value = envelope.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    parents = [
+        cabin.get("parent")
+        for cabin in spec.get("cabins") or []
+        if isinstance(cabin, dict) and isinstance(cabin.get("parent"), str) and cabin.get("parent").strip()
+    ]
+    unique = sorted(set(parents))
+    if len(unique) == 1:
+        return unique[0]
+    document = spec.get("document") if isinstance(spec.get("document"), dict) else {}
+    value = document.get("shell_id")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return "outer_shell"
+
+
+def shell_outer_face_ids(spec: dict[str, Any]) -> list[str]:
+    shell_id = shell_id_from_spec(spec)
+    return [f"{shell_id}.{direction}_outer" for direction in ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")]
+
+
+def install_faces_from_spec(spec: dict[str, Any]) -> list[dict[str, Any]]:
+    envelope = spec.get("envelope") if isinstance(spec.get("envelope"), dict) else {}
+    face_ids = sorted(
+        {
+            str((component.get("mount") or {}).get("install_face_id"))
+            for component in spec.get("components") or []
+            if (component.get("mount") or {}).get("install_face_id")
+        }
+    )
+    face_ids.extend(shell_outer_face_ids(spec))
+    return [install_face_from_id(face_id, envelope) for face_id in face_ids]
+
+
 def build_simulation_input(spec: dict[str, Any], *, step_filename: str = "geometry_after_power_filtered.step") -> dict[str, Any]:
     components = []
     skipped = []
+    install_faces = install_faces_from_spec(spec)
+    install_face_ids = {item["face_id"] for item in install_faces}
     for component in spec.get("components") or []:
         component_id = str(component.get("id") or component.get("component_id"))
         thermal = component.get("thermal") if isinstance(component.get("thermal"), dict) else {}
+        mount = component.get("mount") if isinstance(component.get("mount"), dict) else {}
         power = positive_number(thermal.get("power_W"))
         if not bool(thermal.get("include_in_simulation")) or power is None:
             skipped.append({"component_id": component_id, "reason": "not included in simulation", "power_W": thermal.get("power_W")})
             continue
+        component_mount_face_id = mount.get("component_face_id")
+        mount_face_id = mount.get("install_face_id")
+        if mount_face_id and mount_face_id not in install_face_ids:
+            install_faces.append(install_face_from_id(str(mount_face_id), spec.get("envelope") or {}))
+            install_face_ids.add(str(mount_face_id))
         components.append({
             "component_id": component_id,
             "semantic_name": component.get("semantic_name"),
@@ -165,10 +286,10 @@ def build_simulation_input(spec: dict[str, Any], *, step_filename: str = "geomet
             "category": component.get("category"),
             "geometry_id": component.get("geometry_id") or component_id,
             "thermal_id": component.get("thermal_id"),
-            "component_mount_face_id": (component.get("mount") or {}).get("component_face_id"),
-            "component_mount_face": {},
-            "mount_face_id": (component.get("mount") or {}).get("install_face_id"),
-            "alignment": {},
+            "component_mount_face_id": component_mount_face_id,
+            "component_mount_face": component_mount_face(component_mount_face_id),
+            "mount_face_id": mount_face_id,
+            "alignment": default_alignment(component, mount),
             "is_heat_source": True,
             "power_W": power,
             "mass_kg": float(thermal.get("mass_kg") or 0),
@@ -204,7 +325,7 @@ def build_simulation_input(spec: dict[str, Any], *, step_filename: str = "geomet
         "source_files": {"cad_build_spec": "../00_inputs/cad_build_spec.json"},
         "units": {"length": "mm", "power": "W", "contact_resistance": "m^2*K/W"},
         "components": components,
-        "install_faces": [],
+        "install_faces": install_faces,
         "shells": [{"shell_id": "outer_shell", "selection_role": "outer_shell"}],
         "walls": walls,
         "skipped_components": skipped,
@@ -212,7 +333,7 @@ def build_simulation_input(spec: dict[str, Any], *, step_filename: str = "geomet
         "radiators": [item["component_id"] for item in components if item.get("kind") == "radiator"],
         "selection_plan": {
             "component_selections": [{"selection_id": f"sel_{item['component_id']}", "component_id": item["component_id"], "semantic_name": item.get("semantic_name") or item["component_id"], "step_name": item["component_id"]} for item in components],
-            "install_face_selections": [],
+            "install_face_selections": [{"selection_id": f"sel_f_{str(face['face_id']).replace('.', '_')}", "face_id": face["face_id"]} for face in install_faces],
             "wall_selections": [{"selection_id": f"sel_wall_{str(wall.get('wall_id')).replace('.', '_')}", "wall_id": wall.get("wall_id")} for wall in walls],
             "shell_selections": [],
         },
@@ -255,6 +376,24 @@ def execute_freecad_code(host: str, port: int, code: str) -> dict[str, Any]:
 
 def print_result(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def add_common_build_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--workspace-dir", required=True)
+    parser.add_argument("--spec")
+    parser.add_argument("--output-dir")
+    parser.add_argument("--doc-name")
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
+
+
+def resolve_build_paths(args: argparse.Namespace) -> tuple[Path, Path, Path, dict[str, Any]]:
+    workspace_dir = Path(args.workspace_dir).expanduser().resolve()
+    spec_path = Path(args.spec).expanduser().resolve() if args.spec else default_spec_path(workspace_dir)
+    output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else default_cad_dir(workspace_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    spec = load_spec(spec_path)
+    return workspace_dir, spec_path, output_dir, spec
 
 
 @dataclass

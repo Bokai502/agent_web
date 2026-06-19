@@ -1,13 +1,13 @@
 # Execution Gates
 
-Do not run simulation unless CAD produced the simulation artifacts required by
-`simulation-skill doctor`. At minimum these must exist:
+Do not run simulation unless CAD produced the required simulation artifacts. At
+minimum these must exist:
 
 - `01_cad/geometry_after_power_filtered.step`
 - `01_cad/simulation_input.json`
 
-If the simulation CLI reports missing after-state or COMSOL input files,
-prepare the required derived files before `simulation-skill run`.
+If required after-state or COMSOL input files are missing, prepare the required
+derived files before `simulation-skill run`.
 
 `cad-box-builder` and `cad-real-assembly-builder` are box/review outputs. They
 are required for a full CAD review workflow, but they are not blockers for
