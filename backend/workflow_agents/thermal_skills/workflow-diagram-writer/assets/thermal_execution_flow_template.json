@@ -4,8 +4,7 @@
     {
       "id": "inputs",
       "title": "输入文件",
-      "tone": "teal",
-      "type": "files",
+      "kind": "plan",
       "output": "INPUT",
       "summary": "加载热控配置、CAD 构建规格和整星配套表。",
       "items": ["cad_build_spec.json", "整星配套表"]
@@ -13,8 +12,7 @@
     {
       "id": "planner",
       "title": "任务规划",
-      "tone": "blue",
-      "type": "tasks",
+      "kind": "plan",
       "output": "AI",
       "summary": "根据目标、工作区状态和失败证据生成 CAD/热仿真执行计划。",
       "items": ["流程规划", "阶段选择", "门禁判断"]
@@ -22,8 +20,7 @@
     {
       "id": "cad",
       "title": "CAD 构建",
-      "tone": "slate",
-      "type": "tasks",
+      "kind": "run",
       "output": "CAD",
       "summary": "生成箱体模型、真实装配模型和热仿真输入几何。",
       "items": ["箱体 GLB", "真实装配 GLB", "仿真 STEP"]
@@ -31,8 +28,7 @@
     {
       "id": "simulation",
       "title": "热仿真",
-      "tone": "amber",
-      "type": "checks",
+      "kind": "analyze",
       "output": "SIM",
       "summary": "检查仿真输入，运行热仿真并生成后处理结果。",
       "items": ["doctor 检查", "仿真运行", "后处理"]
@@ -40,8 +36,7 @@
     {
       "id": "outputs",
       "title": "输出结果",
-      "tone": "indigo",
-      "type": "files",
+      "kind": "output",
       "output": "OUTPUT",
       "summary": "输出 CAD、仿真结果和报告。",
       "items": ["01_cad", "02_sim", "reports"]

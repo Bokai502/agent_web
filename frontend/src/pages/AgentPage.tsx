@@ -559,6 +559,7 @@ export default function AgentPage() {
           setSelectedBomId={setSelectedBomId}
           requestDeleteVersion={requestDeleteVersion}
           refreshWorkspaceViews={refreshWorkspaceViews}
+          theme={agentTheme}
           showGncConfig={showGncConfig}
           showComplianceCheckConfig={progressVariant === 'check'}
           showModelPreview={showModelPreview}

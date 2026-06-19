@@ -1663,8 +1663,6 @@ function ComplianceCheckReportDashboard({
         <ExecutionFlow
           className="execution-flow-embedded"
           height={360}
-          interactive
-          showControls={false}
           showThemeSwitch={false}
           theme={theme}
           versionId={versionId}

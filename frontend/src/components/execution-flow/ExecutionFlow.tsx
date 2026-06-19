@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   Background,
-  Controls,
   Handle,
   MarkerType,
   Position,
@@ -18,15 +17,16 @@ import { joinApiPath } from "../../app/apiBase"
 import "./ExecutionFlow.css"
 
 type FlowTheme = "dark" | "light"
+type FlowStepKind = "plan" | "run" | "analyze" | "output"
 
 type FlowStep = {
   id: string
-  title: string
-  tone: "teal" | "blue" | "slate" | "amber" | "indigo"
-  type: "files" | "single" | "tasks" | "checks"
+  kind?: FlowStepKind
+  type?: "files" | "single" | "tasks" | "checks"
   items: string[]
   summary: string
   output: string
+  title: string
 }
 
 type FlowConnection = {
@@ -48,9 +48,7 @@ type ExecutionFlowProps = {
   apiBase?: string
   className?: string
   height?: number | string
-  interactive?: boolean
   relativePath?: string
-  showControls?: boolean
   showThemeSwitch?: boolean
   theme?: FlowTheme
   versionId?: string
@@ -118,25 +116,22 @@ async function fetchFlowData({
   return parsed
 }
 
-function getNodeWidth(type: FlowStep["type"]) {
-  if (type === "checks") return 390
-  if (type === "files") return 300
-  if (type === "tasks") return 280
-  return 190
+function getNodePosition(index: number) {
+  return { x: index * 360, y: 150 }
 }
 
-function getNodePosition(index: number, steps: FlowStep[]) {
-  const x = steps.slice(0, index).reduce((sum, item) => sum + getNodeWidth(item.type) + 90, 0)
-  const lane = index % 3
-  const y = lane === 0 ? 110 : lane === 1 ? 230 : 150
-  return { x, y }
+function getStepKind(step: FlowStep): FlowStepKind {
+  if (step.kind) return step.kind
+  if (step.type === "files" || step.type === "single") return "output"
+  if (step.type === "checks") return "analyze"
+  return "run"
 }
 
 function FlowCardNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
   const { step } = data
 
   return (
-    <div className={`execution-flow-card tone-${step.tone} type-${step.type}${selected ? " is-active" : ""}`}>
+    <div className={`execution-flow-card kind-${getStepKind(step)}${selected ? " is-active" : ""}`}>
       <Handle className="execution-flow-handle" type="target" position={Position.Left} />
       <div className="execution-flow-node-head">
         <span className="execution-flow-status" />
@@ -165,7 +160,7 @@ function buildNodes(data: FlowData): Node<FlowNodeData>[] {
   return data.nodes.map((step, index) => ({
     id: step.id,
     type: "flowCard",
-    position: getNodePosition(index, data.nodes),
+    position: getNodePosition(index),
     data: { step },
     selected: step.id === data.defaultActiveId,
   }))
@@ -189,9 +184,7 @@ function ExecutionFlowCanvas({
   apiBase,
   className,
   height = "100vh",
-  interactive = true,
   relativePath = DEFAULT_FLOW_RELATIVE_PATH,
-  showControls = true,
   showThemeSwitch = true,
   theme,
   versionId,
@@ -263,13 +256,7 @@ function ExecutionFlowCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
-        nodesDraggable={interactive}
         nodesConnectable={false}
-        elementsSelectable={interactive}
-        panOnDrag={interactive}
-        zoomOnDoubleClick={interactive}
-        zoomOnPinch={interactive}
-        zoomOnScroll={interactive}
         fitView
         fitViewOptions={{ padding: 0.12, minZoom: 0.45, maxZoom: 1.1 }}
         defaultEdgeOptions={{
@@ -279,7 +266,6 @@ function ExecutionFlowCanvas({
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={18} size={1.2} />
-        {showControls ? <Controls position="bottom-right" showInteractive={false} /> : null}
       </ReactFlow>
     </div>
   )

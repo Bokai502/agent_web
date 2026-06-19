@@ -48,6 +48,7 @@ type AgentWorkspacePanelProps = {
   setSelectedBomId: BomStagePanelProps['onSelectBom']
   requestDeleteVersion: CurrentWorkspaceCardProps['onRequestDeleteVersion']
   refreshWorkspaceViews?: () => void
+  theme: 'dark' | 'light'
   showComplianceCheckConfig: boolean
   showGncConfig: boolean
   showModelPreview: boolean
@@ -100,6 +101,7 @@ export function AgentWorkspacePanel({
   setSelectedBomId,
   requestDeleteVersion,
   refreshWorkspaceViews,
+  theme,
   showComplianceCheckConfig,
   showGncConfig,
   showModelPreview,
@@ -229,10 +231,8 @@ export function AgentWorkspacePanel({
               <ExecutionFlow
                 className="execution-flow-embedded"
                 height={360}
-                interactive
-                showControls={false}
                 showThemeSwitch={false}
-                theme="dark"
+                theme={theme}
                 versionId={activeContext.versionId ?? undefined}
                 workspaceDir={activeContext.versionDir ?? undefined}
                 workspaceId={activeContext.workspaceId ?? undefined}

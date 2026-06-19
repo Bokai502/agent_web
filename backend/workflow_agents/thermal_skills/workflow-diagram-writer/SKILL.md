@@ -47,8 +47,8 @@ Generate the draft from the actual planned workflow. Do not blindly use the
 fallback template when the plan differs.
 
 The script will normalize partial drafts. A minimal valid draft can contain only
-`nodes`; missing `tone`, `type`, `output`, `summary`, `items`, `connections`,
-and invalid `defaultActiveId` values are normalized before writing.
+`nodes`; missing `kind`, `output`, `summary`, `items`, `connections`, and
+invalid `defaultActiveId` values are normalized before writing.
 
 ## Rules
 
@@ -58,8 +58,7 @@ and invalid `defaultActiveId` values are normalized before writing.
 - Create `00_inputs/workflow_diagram/` when missing.
 - Preserve the frontend schema: top-level `defaultActiveId`, `nodes`, and
   `connections`.
-- Keep node `tone` values within `teal`, `blue`, `slate`, `amber`, `indigo`.
-- Keep node `type` values within `files`, `single`, `tasks`, `checks`.
+- Keep node `kind` values within `plan`, `run`, `analyze`, `output`.
 - Keep each node `summary` within 10 Chinese characters, and each `items`
   entry within 5 Chinese characters.
 - Use `--default-active-id <id>` only when a different active stage is needed.

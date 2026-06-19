@@ -14,9 +14,13 @@ from typing import Any
 SKILL_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_TEMPLATE = SKILL_DIR / "assets" / "thermal_execution_flow_template.json"
 
-VALID_TONES = {"teal", "blue", "slate", "amber", "indigo"}
-VALID_TYPES = {"files", "single", "tasks", "checks"}
-DEFAULT_TONES = ["teal", "blue", "slate", "amber", "indigo"]
+VALID_KINDS = {"plan", "run", "analyze", "output"}
+LEGACY_TYPE_TO_KIND = {
+    "files": "output",
+    "single": "output",
+    "tasks": "run",
+    "checks": "analyze",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,14 +71,16 @@ def normalize_node(raw: Any, index: int) -> dict[str, Any]:
         raw = {"title": str(raw)}
 
     node_id = slugify(raw.get("id") or raw.get("title"), f"step_{index + 1}")
-    tone = raw.get("tone")
-    node_type = raw.get("type")
+    raw_kind = raw.get("kind")
+    raw_type = raw.get("type")
+    kind = raw_kind if raw_kind in VALID_KINDS else LEGACY_TYPE_TO_KIND.get(raw_type)
+    if kind is None:
+        kind = "plan" if index == 0 else "run"
 
     return {
         "id": node_id,
         "title": str(raw.get("title") or node_id),
-        "tone": tone if tone in VALID_TONES else DEFAULT_TONES[min(index, len(DEFAULT_TONES) - 1)],
-        "type": node_type if node_type in VALID_TYPES else ("files" if index == 0 else "tasks"),
+        "kind": kind,
         "output": str(raw.get("output") or ("INPUT" if index == 0 else "AI")),
         "summary": str(raw.get("summary") or ""),
         "items": normalize_items(raw.get("items")),
@@ -148,10 +154,8 @@ def validate_flow(data: dict[str, Any]) -> None:
         if not isinstance(node_id, str) or not node_id:
             raise ValueError("each node must have a non-empty string id")
         node_ids.add(node_id)
-        if node.get("tone") not in VALID_TONES:
-            raise ValueError(f"node {node_id} has invalid tone: {node.get('tone')}")
-        if node.get("type") not in VALID_TYPES:
-            raise ValueError(f"node {node_id} has invalid type: {node.get('type')}")
+        if node.get("kind") not in VALID_KINDS:
+            raise ValueError(f"node {node_id} has invalid kind: {node.get('kind')}")
         if not isinstance(node.get("items"), list):
             raise ValueError(f"node {node_id} must contain items list")
 
