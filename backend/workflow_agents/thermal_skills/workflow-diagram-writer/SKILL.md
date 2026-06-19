@@ -24,22 +24,26 @@ write final report artifacts.
 Run from this skill directory:
 
 ```bash
-python scripts/write_execution_flow.py --workspace-dir <workspace_dir> --draft-json <draft_json>
+python scripts/write_execution_flow.py --workspace-dir <workspace_dir>
 ```
 
-You may also pipe the draft JSON through stdin:
+Before running the command, write the run-specific draft JSON directly to:
 
-```bash
-python scripts/write_execution_flow.py --workspace-dir <workspace_dir> --stdin < <draft_json>
-```
+`<workspace_dir>/00_inputs/workflow_diagram/executionFlowData.json`
+
+The script reads that file as the draft, normalizes it, validates it, and writes
+the normalized result back to the same path.
 
 ## Defaults
 
-- Draft source: `--draft-json` or `--stdin`.
-- Fallback template when no draft is supplied:
-  `assets/thermal_execution_flow_template.json`
-- Output:
+- Draft source and output:
   `<workspace_dir>/00_inputs/workflow_diagram/executionFlowData.json`
+- The fallback template is for schema/reference only. Do not pass
+  `assets/thermal_execution_flow_template.json` as `--draft-json` for normal
+  workflow runs.
+- `--draft-json` and `--stdin` remain available only for repair/debug
+  workflows. Normal workflow runs must not place drafts in `/tmp` or other
+  external paths.
 
 ## Draft Semantics
 

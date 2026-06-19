@@ -26,11 +26,19 @@ LEGACY_TYPE_TO_KIND = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Normalize and write execution flow JSON.")
     parser.add_argument("--workspace-dir", required=True)
-    parser.add_argument("--draft-json", help="Workflow-diagram-writer generated draft flow JSON.")
-    parser.add_argument("--stdin", action="store_true", help="Read draft flow JSON from stdin.")
+    parser.add_argument(
+        "--draft-json",
+        help="Optional repair/debug draft flow JSON. Normal runs read executionFlowData.json in place.",
+    )
+    parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Optional repair/debug mode to read draft flow JSON from stdin.",
+    )
     parser.add_argument("--template", default=str(DEFAULT_TEMPLATE))
     parser.add_argument("--output")
     parser.add_argument("--default-active-id")
+    parser.add_argument("--allow-template", action="store_true", help="Allow writing the built-in generic template.")
     return parser.parse_args()
 
 
@@ -188,11 +196,25 @@ def main() -> int:
         source = "stdin"
     elif args.draft_json:
         draft_path = Path(args.draft_json).expanduser().resolve()
+        if draft_path == DEFAULT_TEMPLATE.resolve() and not args.allow_template:
+            raise ValueError(
+                "Refusing to write the generic fallback template as a run draft. "
+                "Generate a run-specific draft JSON or pass --allow-template explicitly."
+            )
         raw_data = read_json(draft_path)
         source = str(draft_path)
     else:
-        raw_data = deepcopy(read_json(template_path))
-        source = str(template_path)
+        if not args.allow_template:
+            if not output_path.exists():
+                raise ValueError(
+                    "No in-place draft exists. Write the run-specific draft JSON to "
+                    f"{output_path} first, then run this script with --workspace-dir."
+                )
+            raw_data = read_json(output_path)
+            source = str(output_path)
+        else:
+            raw_data = deepcopy(read_json(template_path))
+            source = str(template_path)
 
     data = normalize_flow(raw_data, default_active_id=args.default_active_id)
     validate_flow(data)
