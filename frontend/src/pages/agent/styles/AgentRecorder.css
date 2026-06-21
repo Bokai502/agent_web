@@ -276,6 +276,7 @@
   height: 320px;
   min-height: 320px;
   pointer-events: auto;
+  z-index: 80;
 }
 
 .agent-panel--robot.is-docked {
@@ -500,7 +501,7 @@
   position: absolute;
   left: 50%;
   bottom: calc(50% + (var(--robot-size) / 2) + 8px);
-  z-index: 20;
+  z-index: 90;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 62px;
   gap: 8px;
