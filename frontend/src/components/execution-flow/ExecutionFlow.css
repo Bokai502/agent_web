@@ -306,6 +306,24 @@
   -webkit-line-clamp: 2;
 }
 
+.execution-flow-progress {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--flow-accent) 14%, transparent);
+}
+
+.execution-flow-progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 0 999px 999px 0;
+  background: var(--flow-accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--flow-accent) 48%, transparent);
+  transition: width 220ms ease;
+}
+
 .execution-flow-card-body {
   box-sizing: border-box;
   display: flex;

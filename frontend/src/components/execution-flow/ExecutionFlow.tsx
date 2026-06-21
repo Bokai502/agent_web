@@ -24,6 +24,7 @@ type FlowStep = {
   kind?: FlowStepKind
   type?: "files" | "single" | "tasks" | "checks"
   items: string[]
+  progress?: number
   summary: string
   output: string
   title: string
@@ -127,8 +128,15 @@ function getStepKind(step: FlowStep): FlowStepKind {
   return "run"
 }
 
+function getStepProgress(step: FlowStep) {
+  if (typeof step.progress !== "number" || !Number.isFinite(step.progress)) return 0
+  const progress = step.progress <= 1 && step.progress >= 0 ? step.progress * 100 : step.progress
+  return Math.max(0, Math.min(100, Math.round(progress)))
+}
+
 function FlowCardNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
   const { step } = data
+  const progress = getStepProgress(step)
 
   return (
     <div className={`execution-flow-card kind-${getStepKind(step)}${selected ? " is-active" : ""}`}>
@@ -137,6 +145,9 @@ function FlowCardNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
         <span className="execution-flow-status" />
         <div className="execution-flow-card-title">{step.title}</div>
         <span className="execution-flow-output">{step.output}</span>
+      </div>
+      <div className="execution-flow-progress" aria-label={`进度 ${progress}%`}>
+        <span style={{ width: `${progress}%` }} />
       </div>
       <p className="execution-flow-summary">{step.summary}</p>
       <div className="execution-flow-card-body">
@@ -243,8 +254,8 @@ function ExecutionFlowCanvas({
 
       {flowLoading || flowError ? (
         <div className={`execution-flow-state${flowError ? " is-error" : ""}`}>
-          <strong>{flowError ? "执行流程配置不可用" : "正在加载执行流程"}</strong>
-          <span>{flowError || relativePath}</span>
+          <strong>{flowError ? "任务规划中" : "正在加载执行流程"}</strong>
+          <span>{flowError ? "执行流程将在规划完成后显示" : relativePath}</span>
         </div>
       ) : null}
 

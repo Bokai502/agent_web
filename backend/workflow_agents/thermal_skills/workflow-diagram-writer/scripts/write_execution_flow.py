@@ -60,7 +60,7 @@ def read_stdin_json() -> dict[str, Any]:
 
 def slugify(value: Any, fallback: str) -> str:
     text = str(value or "").strip().lower()
-    chars = [ch if ch.isalnum() else "_" for ch in text]
+    chars = [ch if ch.isalnum() or ch == "-" else "_" for ch in text]
     slug = "_".join("".join(chars).split("_")).strip("_")
     return slug or fallback
 
@@ -85,7 +85,7 @@ def normalize_node(raw: Any, index: int) -> dict[str, Any]:
     if kind is None:
         kind = "plan" if index == 0 else "run"
 
-    return {
+    node = {
         "id": node_id,
         "title": str(raw.get("title") or node_id),
         "kind": kind,
@@ -93,6 +93,9 @@ def normalize_node(raw: Any, index: int) -> dict[str, Any]:
         "summary": str(raw.get("summary") or ""),
         "items": normalize_items(raw.get("items")),
     }
+    progress = raw.get("progress")
+    node["progress"] = progress if isinstance(progress, (int, float)) else 0
+    return node
 
 
 def normalize_connections(raw_connections: Any, node_ids: list[str]) -> list[dict[str, str]]:

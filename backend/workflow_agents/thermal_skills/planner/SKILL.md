@@ -24,6 +24,9 @@ commands, run simulation commands, or write final report artifacts.
    conditions.
 6. Use `workflow-diagram-writer` for every planned thermal workflow that
   will proceed to execution workflow.
+7. Treat `executionFlowData.json` as the source of progress loop names:
+   only nodes with `kind: "run"` become `<workspace>/logs/progress.json`
+   loop keys, and each node carries its frontend display `progress` field.
 
 ## Main Handoffs
 
@@ -74,6 +77,10 @@ Read only the references needed for the current request:
 ## Rules
 
 - Do not edit files.
+- Do not write `<workspace>/logs/progress.json` or node `progress` fields
+  directly. Progress is updated by
+  `open_codex_web/backend/workflow_agents/agents/progress_cli.py` after
+  `workflow-diagram-writer` creates `executionFlowData.json`.
 - If required workspace/version context is missing, ask for it instead of
   guessing.
 - Keep the final chat response brief unless the user asks for the full plan.

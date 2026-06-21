@@ -53,6 +53,9 @@ fallback template when the plan differs.
 The script will normalize partial drafts. A minimal valid draft can contain only
 `nodes`; missing `kind`, `output`, `summary`, `items`, `connections`, and
 invalid `defaultActiveId` values are normalized before writing.
+Every node is written with `progress: 0`. Only `kind: "run"` node ids are used
+as loop keys in `<workspace>/logs/progress.json`. Runtime updates must use the
+shared progress CLI so the loop entry and matching node `progress` stay in sync.
 
 ## Rules
 
@@ -63,6 +66,10 @@ invalid `defaultActiveId` values are normalized before writing.
 - Preserve the frontend schema: top-level `defaultActiveId`, `nodes`, and
   `connections`.
 - Keep node `kind` values within `plan`, `run`, `analyze`, `output`.
+- After writing `executionFlowData.json`, initialize run-node progress with:
+  `python3 open_codex_web/backend/workflow_agents/agents/progress_cli.py --workspace-dir <workspace_dir> --init`.
+- Do not edit node `progress` manually after initialization; use the progress
+  CLI for each `kind: "run"` node update.
 - Keep each node `summary` within 10 Chinese characters, and each `items`
   entry within 5 Chinese characters.
 - Use `--default-active-id <id>` only when a different active stage is needed.
