@@ -7,11 +7,12 @@ import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 
 const BACKEND_ROOT = path.resolve(process.cwd())
-const DEFAULT_COSYVOICE_ROOT = path.join(BACKEND_ROOT, "cosyvoice3", "CosyVoice")
-const PREGENERATED_TASK_ACCEPTED_AUDIO = path.join(BACKEND_ROOT, "..", "data", "agent-task-accepted.wav")
+const VOICE_INPUT_DIR = path.join(BACKEND_ROOT, "..", "data", "voice_input")
+const VOICE_OUTPUT_DIR = path.join(BACKEND_ROOT, "..", "data", "voice_output")
+const PREGENERATED_TASK_ACCEPTED_AUDIO = path.join(VOICE_INPUT_DIR, "agent-task-accepted.wav")
 const DEFAULT_COSYVOICE_URL = "http://127.0.0.1:50000/inference_zero_shot"
 const DEFAULT_PROMPT_TEXT = "You are a helpful assistant.<|endofprompt|>希望你以后能够做的比我还好呦。"
-const defaultPromptWav = (root: string) => path.join(root, "asset", "zero_shot_prompt.wav")
+const defaultPromptWav = () => path.join(VOICE_INPUT_DIR, "zero_shot_prompt.wav")
 
 type TtsBody = {
   text?: unknown
@@ -153,9 +154,9 @@ async function requestCosyVoiceAudio({
 }
 
 export async function cosyVoiceRoutes(fastify: FastifyInstance, { config, logger }: { config: AppConfig; logger: Logger }) {
-  const cosyvoiceRoot = config.cosyvoice.root || DEFAULT_COSYVOICE_ROOT
+  const cosyvoiceRoot = config.cosyvoice.root || VOICE_OUTPUT_DIR
   const cosyvoiceEndpoint = config.cosyvoice.apiUrl || DEFAULT_COSYVOICE_URL
-  const promptWavPath = config.cosyvoice.promptWav || defaultPromptWav(cosyvoiceRoot)
+  const promptWavPath = config.cosyvoice.promptWav || defaultPromptWav()
 
   fastify.get("/api/agent/audio/task-accepted", async (_req, reply) => {
     const stat = await fs.stat(PREGENERATED_TASK_ACCEPTED_AUDIO).catch(() => null)
