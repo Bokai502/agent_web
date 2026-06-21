@@ -26,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Update workspace progress from executionFlowData run nodes.")
     parser.add_argument("--workspace-dir", required=True)
     parser.add_argument("--node-id", help="Run node id to update. Omit with --init to initialize all run nodes.")
+    parser.add_argument("--role", help="Run node progressRole to update. Prefer this over --node-id for workflow-owned nodes.")
     parser.add_argument("--status", choices=sorted(VALID_STATUS), default="pending")
     parser.add_argument("--percentage", type=float, default=0.0)
     parser.add_argument("--completed", action="store_true")
@@ -131,10 +132,41 @@ def update_loop(
             "status": status,
         },
     })
+    progress_role = node.get("progressRole")
+    if isinstance(progress_role, str) and progress_role:
+        loop["progress_role"] = progress_role
+        loop["input"]["progress_role"] = progress_role
     if note:
         loop["note"] = " ".join(note.split())
         loop["input"]["note"] = loop["note"]
     loops[node_id] = loop
+
+
+def resolve_node(
+    *,
+    node_by_id: dict[str, dict[str, Any]],
+    nodes: list[dict[str, Any]],
+    node_id: str | None,
+    role: str | None,
+) -> dict[str, Any] | None:
+    if node_id and role:
+        raise SystemExit("use only one of --node-id or --role")
+    if node_id:
+        if node_id not in node_by_id:
+            raise SystemExit(f"node is not a run node in executionFlowData.json: {node_id}")
+        return node_by_id[node_id]
+    if role:
+        matches = [
+            node for node in nodes
+            if isinstance(node.get("progressRole"), str) and node["progressRole"] == role
+        ]
+        if not matches:
+            raise SystemExit(f"no run node with progressRole in executionFlowData.json: {role}")
+        if len(matches) > 1:
+            ids = ", ".join(str(node.get("id")) for node in matches)
+            raise SystemExit(f"multiple run nodes share progressRole {role}: {ids}")
+        return matches[0]
+    return None
 
 
 def update_flow_node_progress(flow: dict[str, Any], node_id: str | None, percentage: float | None) -> bool:
@@ -171,10 +203,14 @@ def main() -> int:
         flow = read_json(flow_path)
         nodes = run_nodes(flow)
         node_by_id = {str(node["id"]): node for node in nodes}
-        if not args.init and not args.node_id:
-            raise SystemExit("--node-id is required unless --init is set")
-        if args.node_id and args.node_id not in node_by_id:
-            raise SystemExit(f"node is not a run node in executionFlowData.json: {args.node_id}")
+        target_node = resolve_node(
+            node_by_id=node_by_id,
+            nodes=nodes,
+            node_id=args.node_id,
+            role=args.role,
+        )
+        if not args.init and target_node is None:
+            raise SystemExit("--node-id or --role is required unless --init is set")
 
         progress = load_progress(progress_path)
         loops = progress.setdefault("loops", {})
@@ -198,19 +234,20 @@ def main() -> int:
                         status="pending",
                     )
 
-        if args.node_id:
+        if target_node is not None:
             completed = bool(args.completed or args.status == "completed")
             node_progress = 100.0 if completed else args.percentage
+            target_node_id = str(target_node["id"])
             update_loop(
                 loops,
                 completed=completed,
-                node=node_by_id[args.node_id],
+                node=target_node,
                 note=args.note,
                 now=now,
                 percentage=node_progress,
                 status=args.status,
             )
-            flow_changed = update_flow_node_progress(flow, args.node_id, node_progress) or flow_changed
+            flow_changed = update_flow_node_progress(flow, target_node_id, node_progress) or flow_changed
 
         progress["loops"] = {str(node["id"]): loops[str(node["id"])] for node in nodes if str(node["id"]) in loops}
         progress["updated_at"] = now

@@ -57,6 +57,18 @@ Every node is written with `progress: 0`. Only `kind: "run"` node ids are used
 as loop keys in `<workspace>/logs/progress.json`. Runtime updates must use the
 shared progress CLI so the loop entry and matching node `progress` stay in sync.
 
+Run nodes that are updated by specialist skills must include a stable
+`progressRole` field. `id` is only a frontend graph identifier and may be
+changed to fit the current workflow. Runtime skills must update progress by
+role, not by hard-coded node id.
+
+Standard thermal progress roles:
+
+- `cad_box`: placeholder/display CAD build.
+- `cad_real`: supplemental real assembly build.
+- `cad_sim_input`: simulation geometry/input preparation.
+- `simulation`: thermal simulation and postprocess run.
+
 ## Rules
 
 - Resolve the selected workspace/version from execution context.
@@ -66,6 +78,8 @@ shared progress CLI so the loop entry and matching node `progress` stay in sync.
 - Preserve the frontend schema: top-level `defaultActiveId`, `nodes`, and
   `connections`.
 - Keep node `kind` values within `plan`, `run`, `analyze`, `output`.
+- Add `progressRole` to every `kind: "run"` node that a runtime skill will
+  update. Keep each `progressRole` unique within the flow.
 - After writing `executionFlowData.json`, initialize run-node progress with:
   `python3 open_codex_web/backend/workflow_agents/agents/progress_cli.py --workspace-dir <workspace_dir> --init`.
 - Do not edit node `progress` manually after initialization; use the progress

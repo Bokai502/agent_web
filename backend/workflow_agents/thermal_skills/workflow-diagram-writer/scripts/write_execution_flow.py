@@ -93,6 +93,9 @@ def normalize_node(raw: Any, index: int) -> dict[str, Any]:
         "summary": str(raw.get("summary") or ""),
         "items": normalize_items(raw.get("items")),
     }
+    progress_role = raw.get("progressRole")
+    if isinstance(progress_role, str) and progress_role.strip():
+        node["progressRole"] = progress_role.strip()
     progress = raw.get("progress")
     node["progress"] = progress if isinstance(progress, (int, float)) else 0
     return node
@@ -167,6 +170,9 @@ def validate_flow(data: dict[str, Any]) -> None:
         node_ids.add(node_id)
         if node.get("kind") not in VALID_KINDS:
             raise ValueError(f"node {node_id} has invalid kind: {node.get('kind')}")
+        progress_role = node.get("progressRole")
+        if progress_role is not None and (not isinstance(progress_role, str) or not progress_role.strip()):
+            raise ValueError(f"node {node_id} has invalid progressRole: {progress_role!r}")
         if not isinstance(node.get("items"), list):
             raise ValueError(f"node {node_id} must contain items list")
 
