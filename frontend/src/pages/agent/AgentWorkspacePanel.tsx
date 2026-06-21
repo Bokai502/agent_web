@@ -35,7 +35,6 @@ type AgentWorkspacePanelProps = {
   confirmDeleteVersion: CurrentWorkspaceCardProps['onConfirmDeleteVersion']
   createChildBranch: CurrentWorkspaceCardProps['onCreateChildBranch']
   createInitialVersion: CurrentWorkspaceCardProps['onCreateInitialVersion']
-  createSiblingBranch: CurrentWorkspaceCardProps['onCreateSiblingBranch']
   createVersionFromInput: CurrentWorkspaceCardProps['onCreateVersionFromInput']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   manifestLoading: boolean
@@ -88,7 +87,6 @@ export function AgentWorkspacePanel({
   confirmDeleteVersion,
   createChildBranch,
   createInitialVersion,
-  createSiblingBranch,
   createVersionFromInput,
   handleSelectFile,
   manifestLoading,
@@ -211,7 +209,6 @@ export function AgentWorkspacePanel({
             onConfirmDeleteVersion={confirmDeleteVersion}
             onCreateChildBranch={createChildBranch}
             onCreateInitialVersion={createInitialVersion}
-            onCreateSiblingBranch={createSiblingBranch}
             onCreateVersionFromInput={createVersionFromInput}
             onRequestDeleteVersion={requestDeleteVersion}
             onSelectWorkspace={switchActiveWorkspace}

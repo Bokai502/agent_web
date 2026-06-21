@@ -87,7 +87,6 @@ export default function AgentPage() {
     confirmDeleteVersion,
     createChildBranch,
     createInitialVersion,
-    createSiblingBranch,
     createVersionFromInput,
     manifestLoading,
     requestDeleteVersion,
@@ -546,7 +545,6 @@ export default function AgentPage() {
           confirmDeleteVersion={confirmDeleteVersion}
           createChildBranch={createChildBranch}
           createInitialVersion={createInitialVersion}
-          createSiblingBranch={createSiblingBranch}
           createVersionFromInput={createVersionFromInput}
           handleSelectFile={handleSelectFile}
           manifestLoading={manifestLoading}

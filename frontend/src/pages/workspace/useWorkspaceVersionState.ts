@@ -112,14 +112,6 @@ export function useWorkspaceVersionState({
     branchVersion(baseVersionId, "界面创建的子版本")
   }, [branchVersion])
 
-  const createSiblingBranch = useCallback((baseVersionId?: string) => {
-    const baseVersion = baseVersionId
-      ? branchManifest?.versions?.find(version => version.id === baseVersionId)
-      : activeManifestVersion
-    if (!baseVersion?.id) return
-    branchVersion(baseVersion.id, "界面创建的同级版本", baseVersion.parentVersionId ?? null)
-  }, [activeManifestVersion, branchManifest?.versions, branchVersion])
-
   const createVersionFromInput = useCallback((baseVersionId?: string) => {
     const baseVersion = baseVersionId
       ? branchManifest?.versions?.find(version => version.id === baseVersionId)
@@ -265,7 +257,6 @@ export function useWorkspaceVersionState({
     createChildBranch,
     createInitialVersion,
     createVersionFromInput,
-    createSiblingBranch,
     manifestLoading,
     refreshManifest,
     setBranchManifest,

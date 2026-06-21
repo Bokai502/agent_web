@@ -18,7 +18,6 @@ type CurrentWorkspaceCardProps = {
   onConfirmDeleteVersion: () => Promise<void>
   onCreateChildBranch: (baseVersionId?: string) => void
   onCreateInitialVersion: () => void
-  onCreateSiblingBranch: (baseVersionId?: string) => void
   onCreateVersionFromInput: (baseVersionId?: string) => void
   onRequestDeleteVersion: (versionId: string) => void
   onSelectWorkspace: (name: string) => void
@@ -50,7 +49,6 @@ export function CurrentWorkspaceCard({
   onConfirmDeleteVersion,
   onCreateChildBranch,
   onCreateInitialVersion,
-  onCreateSiblingBranch,
   onCreateVersionFromInput,
   onRequestDeleteVersion,
   onSelectWorkspace,
@@ -77,7 +75,6 @@ export function CurrentWorkspaceCard({
     && !manifestLoading
     && (!hasVersions || !!inputRootVersionId)
   const canCreateVersion = ((!!selectedVersionId && hasVersions) || canCreateFromInput) && versionAction === null
-  const canCreateSibling = !!selectedVersionId && versionAction === null
   const { itemByNodeKey, thermalItems } = useMemo(() => {
     const byKey = new Map<string, WorkspaceItem>()
     const thermal: WorkspaceItem[] = []
@@ -209,13 +206,6 @@ export function CurrentWorkspaceCard({
                 }}
               >
                 {versionAction === "branch" ? "创建中..." : "基于当前新建"}
-              </button>
-              <button
-                type="button"
-                disabled={!canCreateSibling}
-                onClick={() => onCreateSiblingBranch(selectedVersionId ?? undefined)}
-              >
-                新建并列版本
               </button>
             </div>
           </div>
