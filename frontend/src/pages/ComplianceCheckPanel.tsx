@@ -398,8 +398,8 @@ function stricterCount(rows: JsonRow[]) {
   return rows.filter(row => hasIssue(row, /更严格|规定降额因子小于/u)).length
 }
 
-function getResultValue(row: JsonRow, key: string) {
-  if (key === "序号") return row["序号"] ?? row["excel_row"]
+function getResultValue(row: JsonRow, key: string, rowIndex = 0) {
+  if (key === "序号") return row["序号"] ?? row.index ?? rowIndex + 1
   if (key === "AI分类") return asText(row["AI分类"]) || [row["元器件大类"], row["元器件子类"]].map(asText).filter(Boolean).join("-")
   if (key === "I级降额公式") return asText(row["I级降额公式"]) || asText(row["标准I级降额"])
   if (key === "允许值判定组合") return asText(row["允许值判定组合"]) || [resultField(row, "参数值_允许"), row["允许值判定"]].map(asText).filter(Boolean).join(" ▸ ")
@@ -469,7 +469,7 @@ function isNegativeJudgement(value: string) {
 }
 
 function writeResultValue(row: JsonRow, key: string, value: string) {
-  if (key === "序号") return { ...row, excel_row: value }
+  if (key === "序号") return { ...row, 序号: value }
   if (key === "AI分类") return { ...row, AI分类: value }
   if (key === "I级降额公式") return { ...row, I级降额公式: value }
   if (key === "允许值判定组合") return { ...row, 允许值判定组合: value }
@@ -683,7 +683,8 @@ function isJsonRecord(value: unknown): value is JsonRow {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function getComplianceValue(row: JsonRow, key: string) {
+function getComplianceValue(row: JsonRow, key: string, rowIndex = 0) {
+  if (key === "index") return row.index ?? row["序号"] ?? row.excel_row ?? rowIndex + 1
   if (key === "catalog_model") {
     const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
     const bestCandidate = bestCatalogCandidate(row)
@@ -2161,10 +2162,10 @@ function tabForDashboardModule(module: string): ActiveTabKey {
 function tableToCsv(
   columns: readonly { key: string; label: string; width: number }[],
   rows: JsonRow[],
-  getValue: (row: JsonRow, key: string) => unknown = (row, key) => row[key],
+  getValue: (row: JsonRow, key: string, rowIndex: number) => unknown = (row, key) => row[key],
 ) {
   const header = columns.map(column => column.label).join(",")
-  const csvRows = rows.map(row => columns.map(column => csvEscape(getValue(row, column.key))).join(","))
+  const csvRows = rows.map((row, rowIndex) => columns.map(column => csvEscape(getValue(row, column.key, rowIndex))).join(","))
   return [header, ...csvRows].join("\n")
 }
 
@@ -2180,7 +2181,7 @@ function EditableTable({
 }: {
   columns: readonly { key: string; label: string; width: number }[]
   emptyText: string
-  getValue: (row: JsonRow, key: string) => unknown
+  getValue: (row: JsonRow, key: string, rowIndex: number) => unknown
   onChange?: (rowIndex: number, key: string, value: string) => void
   readOnly?: boolean
   rows: JsonRow[]
@@ -2210,7 +2211,7 @@ function EditableTable({
           {rows.map((row, rowIndex) => (
             <tr key={`${asText(row["元器件名称"])}-${rowIndex}`}>
               {columns.map(column => {
-                const value = asText(getValue(row, column.key))
+                const value = asText(getValue(row, column.key, rowIndex))
                 const isWarning = column.key.includes("判定") || column.key === "missing_standard_parameters"
                 const valueColor = isWarning && value ? optionToneColor(column.key, value) : HUD_TEXT
                 const comparison = getComparisonValue(row, column.key)
