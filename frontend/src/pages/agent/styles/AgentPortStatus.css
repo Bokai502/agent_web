@@ -142,7 +142,7 @@
   right: 14px;
   top: calc(100% + 10px);
   z-index: 40;
-  width: min(520px, calc(100vw - 24px));
+  width: min(340px, calc(100vw - 28px));
   overflow: hidden;
   border: 1px solid rgba(23, 231, 255, 0.16);
   border-radius: 10px;
@@ -277,11 +277,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-height: 40px;
   border: 0;
   background: transparent;
-  padding: 6px 10px 6px 14px;
+  padding: 6px 10px 6px 12px;
 }
 
 .agent-port-mode-row > span {

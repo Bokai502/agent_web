@@ -36,9 +36,7 @@ export type WorkflowProgressSummary = {
 }
 
 const THERMAL_WORKFLOW_PROGRESS_STAGES = [
-  { key: "create_cad", labelKey: "workspace.progress.createCad" },
-  { key: "simulation", labelKey: "workspace.progress.simulationRun" },
-  { key: "cad_sim_report", labelKey: "workspace.progress.cadSimReport" },
+  { key: "__planning__", labelKey: "workspace.progress.planning" },
 ]
 
 const GNC_WORKFLOW_PROGRESS_STAGES = [
@@ -86,6 +84,12 @@ function getWorkflowProgressStages(variant: WorkflowProgressVariant) {
   if (variant === "gnc") return GNC_WORKFLOW_PROGRESS_STAGES
   if (variant === "check") return CHECK_WORKFLOW_PROGRESS_STAGES
   return THERMAL_WORKFLOW_PROGRESS_STAGES
+}
+
+function getLoopLabel(loopKey: string, loop: Record<string, unknown> | null, t: TFunction) {
+  const title = getStringField(loop, "title")
+  if (title) return title
+  return t(`workspace.progress.nodes.${loopKey}`, { defaultValue: loopKey })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -213,6 +217,28 @@ export function getWorkflowLoopProgressEntries(data: unknown, t: TFunction, vari
   const loops = isRecord(data) && data.schema_version === "loop_progress/1.0" && isRecord(data.loops)
     ? data.loops
     : {}
+
+  if (variant === "thermal") {
+    const loopEntries = Object.entries(loops)
+      .filter(([, loop]) => isRecord(loop))
+      .map(([loopKey, loop]) => {
+        const loopRecord = isRecord(loop) ? loop : null
+        const completed = loopRecord?.completed === true
+        const rawStatus = getRawStatus(loopRecord?.status, completed)
+        const status = normalizeLoopStatus(loopRecord?.status, completed)
+        return {
+          completed,
+          key: loopKey,
+          label: getLoopLabel(loopKey, loopRecord, t),
+          percent: normalizePercent(loopRecord?.percentage),
+          rawStatus,
+          status,
+          statusLabel: getStatusLabel(rawStatus, status, t),
+          updatedAt: getStringField(loopRecord, "updated_at") || null,
+        }
+      })
+    if (loopEntries.length > 0) return loopEntries
+  }
 
   return getWorkflowProgressStages(variant).map(stage => {
     const loopEntries = Object.entries(loops)

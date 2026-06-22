@@ -170,14 +170,13 @@ export function createAnnotationLabel(id: string, palette: AnnotationPalette) {
   const textEl = document.createElement("span")
   textEl.textContent = id
   textEl.style.color = palette.text
-  textEl.style.fontFamily = "\"IBM Plex Mono\", \"SFMono-Regular\", Consolas, monospace"
+  textEl.style.fontFamily = "\"Space Grotesk\", \"Noto Sans SC\", system-ui, sans-serif"
   textEl.style.fontSize = "11px"
   textEl.style.fontWeight = "700"
-  textEl.style.letterSpacing = "0.12em"
-  textEl.style.maxWidth = "124px"
+  textEl.style.letterSpacing = "0"
+  textEl.style.maxWidth = "180px"
   textEl.style.overflow = "hidden"
   textEl.style.textOverflow = "ellipsis"
-  textEl.style.textTransform = "uppercase"
   labelEl.appendChild(textEl)
 
   return labelEl

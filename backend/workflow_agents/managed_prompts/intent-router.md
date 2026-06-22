@@ -9,7 +9,7 @@ Return exactly one JSON object:
 ```json
 {
   "managedSkills": ["task-runner"],
-  "selectedSkills": ["planner", "simulation-skill"],
+  "selectedSkills": ["planner", "workflow-diagram-writer", "config-editor", "cad-box-builder", "cad-real-assembly-builder", "cad-sim-input-builder", "simulation-skill"],
   "skillScopes": ["public", "thermal"]
 }
 ```
@@ -28,9 +28,7 @@ Allowed `skillScopes`:
 
 Allowed `selectedSkills` values are skill names from the selected scope. Return an empty array for `progress-summarizer` and general tasks. Prefer the smallest set of skills that can handle the request:
 
-- Thermal full workflow without report output: `planner`, `config-editor`, `freecad`, `simulation-skill`
-- Thermal full workflow with report/final report/output report: `planner`, `config-editor`, `freecad`, `simulation-skill`, `cad-sim-report-agent`
-- Thermal report/review: `cad-sim-report-agent`
+- Thermal full workflow without report output: `planner`, then `workflow-diagram-writer`
 - AIGNC full workflow: `aignc-42-orchestrator`
 - AIGNC scenario clarification: `aignc-scenario-brainstorm`
 - AIGNC capability check: `42-capability-auditor`
@@ -43,7 +41,7 @@ Choose `progress-summarizer` only when the user asks about the current, previous
 
 Choose `task-runner` for new questions, analysis, execution, design, simulation, coding, weather, finance, or general requests. Do not treat "怎么样" alone as progress; for example, "苹果股票今年行情怎么样" is `task-runner`.
 
-Choose `thermal` for satellite thermal design or CAD/thermal simulation requests, including COMSOL, ParaView, FreeCAD CAD-to-simulation workflow, satellite CAD assembly or reassembly, placeholder-box CAD generation, real-CAD replacement assembly, STEP/GLB export, heat sources, materials, radiators, conduction, convection, boundary conditions, thermal reports, CAD geometry, or thermal layout changes. Requests like "assemble/reassemble the satellite", "重新组装卫星", "组装卫星", "生成卫星CAD", "重建当前卫星模型", or "00_inputs -> 01_cad model build" are thermal workflow requests. When a thermal request includes "报告", "输出报告", "生成报告", "重新生成报告", "总结报告", "report", "final report", "review", or "modification suggestions", include `cad-sim-report-agent` in `selectedSkills`; if the request is only about report/review from existing artifacts, select only `cad-sim-report-agent`.
+Choose `thermal` for satellite thermal design or CAD/thermal simulation requests, including COMSOL, ParaView, FreeCAD CAD-to-simulation workflow, satellite CAD assembly or reassembly, placeholder-box CAD generation, real-CAD replacement assembly, STEP/GLB export, heat sources, materials, radiators, conduction, convection, boundary conditions, thermal reports, CAD geometry, or thermal layout changes. Requests like "assemble/reassemble the satellite", "重新组装卫星", "组装卫星", "生成卫星CAD", "重建当前卫星模型", or "00_inputs -> 01_cad model build" are thermal workflow requests. For thermal requests that will plan, edit, build, simulate, or report a workflow, include `workflow-diagram-writer` in `selectedSkills` and keep it before configuration/CAD/simulation/report skills; do not omit it because `cad_build_spec.json` already exists or the CAD step is unambiguous. When a thermal request includes "报告", "输出报告", "生成报告", "重新生成报告", "总结报告", "report", "final report", "review", or "modification suggestions", include `cad-sim-report-agent` in `selectedSkills`; if the request is only about report/review from existing artifacts, select only `cad-sim-report-agent`.
 
 Choose `gnc` for satellite guidance, navigation, control, ADCS, 42, or FSW requests, including attitude/orbit control, pointing, detumble, acquisition, tracking, reaction wheels, magnetorquers, thruster modes, sensor/actuator contracts, 42 configuration/runtime/plots/tuning, and FSW requirements/architecture/implementation/control-law debugging.
 

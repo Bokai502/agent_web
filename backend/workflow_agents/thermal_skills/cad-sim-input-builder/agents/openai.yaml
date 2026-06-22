@@ -1,0 +1,4 @@
+interface:
+  display_name: "CAD Sim Input Builder"
+  short_description: "Build power-filtered STEP"
+  default_prompt: "Use $cad-sim-input-builder to build geometry_after_power_filtered.step and simulation_input.json from 00_inputs/cad_build_spec.json."

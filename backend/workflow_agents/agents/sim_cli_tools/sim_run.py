@@ -22,7 +22,7 @@ DEFAULT_PYTHON = Path("/data/conda/bin/python")
 DEFAULT_SAMPLE_ID = "930001"
 TOOL_NAME = "sim-run"
 
-REQUIRED_INPUT_FILES = ("real_bom.json", "layout_topology.json", "geom.json")
+REQUIRED_INPUT_FILES = ("cad_build_spec.json",)
 REQUIRED_CAD_FILES = (
     "geometry_after_power_filtered.step",
     "geometry_after.geom.json",
@@ -68,7 +68,6 @@ from codex_agents.local_io import read_json, write_json  # noqa: E402
 from codex_agents.logging_utils import configure_logging, step_logging_context  # noqa: E402
 from codex_agents.stage_adapters import case_stage, layout_stage_result  # noqa: E402
 from codex_agents.steps import AnalysisStep, CaseBuildStep, FieldExportStep, PostprocessStep, SimulationStep  # noqa: E402
-from input_normalize.normalize import normalize_bom_to_components  # noqa: E402
 
 
 SIMULATION_LOOP_STAGE_START_PROGRESS = {
@@ -196,7 +195,7 @@ def handle_run(args: argparse.Namespace) -> int:
 
     with run_lock(paths["output_dir"], force=bool(args.force)):
         config = BomExternalToolsPipelineConfig(
-            bom_json=paths["input_dir"] / "real_bom.json",
+            bom_json=paths["input_dir"] / "cad_build_spec.json",
             run_root=paths["output_dir"],
             sample_id=args.sample_id,
             seed=args.seed,
@@ -337,12 +336,14 @@ def resolve_paths(args: argparse.Namespace) -> dict[str, Path]:
 
 def missing_required_files(input_dir: Path, cad_dir: Path) -> list[Path]:
     missing: list[Path] = []
-    for name in REQUIRED_INPUT_FILES:
-        path = input_dir / name
-        if not path.exists():
-            missing.append(path)
     for name in REQUIRED_CAD_FILES:
         path = cad_dir / name
+        if not path.exists():
+            missing.append(path)
+    if not missing:
+        return []
+    for name in REQUIRED_INPUT_FILES:
+        path = input_dir / name
         if not path.exists():
             missing.append(path)
     return missing
@@ -446,7 +447,7 @@ def prepare_contract_workspace(
 
     layout_result = {
         "ok": True,
-        "bom": str(paths["input_dir"] / "real_bom.json"),
+        "cad_build_spec": str(paths["input_dir"] / "cad_build_spec.json"),
         "run_dir": str(ctx.paths["run_root"]),
         "layout_dir": str(paths["input_dir"]),
         "component_info_dir": None,
@@ -488,12 +489,10 @@ def bind_source_paths(ctx: BomExternalToolsPipelineContext, paths: dict[str, Pat
 
 def ensure_components(input_dir: Path, cad_dir: Path, components_path: Path) -> None:
     simulation_input_path = cad_dir / "simulation_input.json"
-    if simulation_input_path.exists():
-        simulation_input = read_json(simulation_input_path)
-        components = components_from_simulation_input(simulation_input)
-    else:
-        bom = read_json(input_dir / "real_bom.json")
-        components = normalize_bom_to_components(bom, source_file="real_bom.json")
+    if not simulation_input_path.exists():
+        raise RuntimeError(f"missing required CAD-native simulation input: {simulation_input_path}")
+    simulation_input = read_json(simulation_input_path)
+    components = components_from_simulation_input(simulation_input)
     write_json(components_path, components)
 
 
@@ -561,7 +560,10 @@ def components_from_simulation_input(simulation_input: dict[str, Any]) -> dict[s
 
 def ensure_sample_yaml(geometry_dir: Path, input_dir: Path, sample_yaml: Path, sample_id: str, seed: int) -> None:
     simulation_input = read_json(geometry_dir / "simulation_input.json")
-    geom = read_json(input_dir / "geom.json")
+    after_geom = geometry_dir / "geometry_after.geom.json"
+    if not after_geom.exists():
+        raise RuntimeError(f"missing required CAD-native after-state geometry: {after_geom}")
+    geom = read_json(after_geom)
     sample_yaml.write_text(to_yaml(sample_document(sample_id, seed, simulation_input, geom)), encoding="utf-8")
 
 
@@ -584,7 +586,11 @@ def sample_document(sample_id: str, seed: int, simulation_input: dict[str, Any],
             "alignment": component.get("alignment", {}),
             "thermal_interface": {"contact_resistance": contact_resistance},
         }
-    outer_shell = geom.get("outer_shell", {})
+    outer_shell = dict(geom.get("outer_shell", {}) or {})
+    if "thickness" not in outer_shell:
+        outer_shell["thickness"] = outer_shell.get("thickness_mm", outer_shell.get("shell_thickness", 0.0))
+    if "thickness_mm" not in outer_shell:
+        outer_shell["thickness_mm"] = outer_shell.get("thickness", outer_shell.get("shell_thickness", 0.0))
     return {
         "schema_version": "2.0",
         "units": {"length": "mm", "mass": "kg", "power": "W", "temperature": "K"},
@@ -606,13 +612,21 @@ def cabin_walls_from_simulation_input(simulation_input: dict[str, Any]) -> list[
         wall_id = str(wall.get("wall_id") or wall.get("component_id") or "")
         if not wall_id:
             continue
+        bbox = wall.get("bbox") if isinstance(wall.get("bbox"), dict) else {}
+        bbox_min = bbox.get("min") if isinstance(bbox.get("min"), list) else None
+        bbox_max = bbox.get("max") if isinstance(bbox.get("max"), list) else None
+        thickness = wall.get("thickness")
+        if thickness is None and bbox_min is not None and bbox_max is not None and len(bbox_min) == 3 and len(bbox_max) == 3:
+            thickness = min(abs(float(bbox_max[index]) - float(bbox_min[index])) for index in range(3))
         walls.append(
             {
                 "id": wall_id,
                 "wall_id": wall_id,
                 "name": wall.get("name"),
                 "panel_id": wall.get("panel_id"),
-                "bbox": wall.get("bbox"),
+                "bbox": bbox,
+                "thickness": float(thickness) if thickness is not None else None,
+                "thickness_mm": float(thickness) if thickness is not None else None,
                 "between": wall.get("separates") or [],
                 "adjacent_cabins": wall.get("adjacent_cabins") or {},
                 "install_face_ids": wall.get("install_face_ids") or [],

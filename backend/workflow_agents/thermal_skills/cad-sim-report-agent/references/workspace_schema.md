@@ -2,9 +2,7 @@
 
 ## File Roles
 
-- `00_inputs/real_bom.json`: source component list.
-- `00_inputs/geom.json`: source component geometry and envelope.
-- `00_inputs/layout_topology.json`: source placement/mount topology.
+- `00_inputs/cad_build_spec.json`: single CAD-native source for component geometry, placement, real-CAD paths, and thermal metadata.
 - `01_cad/cad_agent_output.json`: CAD build and validation status.
 - `01_cad/geometry_after.step`: rebuilt CAD geometry for COMSOL import.
 - `01_cad/geometry_after.glb`: visual CAD preview.
@@ -32,7 +30,7 @@
 
 Use this order when proposing fixes:
 
-1. Data consistency: all source and derived JSON files agree on the active component set.
+1. Data consistency: `cad_build_spec.json` and derived CAD/simulation JSON files agree on the active component set.
 2. CAD importability: `geometry_after.step` exists and COMSOL geometry check passes.
 3. Selection validity: every heat-producing component has a non-empty domain selection.
 4. Physics feature validity: COMSOL feature tags are safe and stale `work.mph` nodes are cleaned.

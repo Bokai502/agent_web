@@ -24,6 +24,7 @@ export function registerVersionRoutes(
       const workspaceKey = getString(body?.workspaceKey)
       const workspaceDir = getString(body?.workspaceDir)
       const group = getString(body?.group)
+      const sourceWorkspaceName = getString(body?.sourceWorkspaceName)
       if (!workspaceId && !workspaceKey && !legacySessionId && !workspaceDir) return sendBadRequest(reply, "workspaceId, workspaceKey or workspaceDir is required")
       if (!baseVersionId) return sendBadRequest(reply, "versionId is required")
       try {
@@ -31,7 +32,10 @@ export function registerVersionRoutes(
           baseVersionId,
           group,
           label: getString(body?.label),
+          parentVersionId: Object.prototype.hasOwnProperty.call(body ?? {}, "parentVersionId") ? getString(body?.parentVersionId) : undefined,
           sessionId: workspaceId ?? workspaceKey ?? legacySessionId ?? "workspace",
+          sourceWorkspaceDir: getString(body?.sourceWorkspaceDir),
+          sourceWorkspaceName,
           workspaceDir,
         }))
       } catch (err) {

@@ -245,10 +245,9 @@
 }
 
 .agent-recorder-status {
-  position: absolute;
-  top: calc(50% + 66px);
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  z-index: 1;
+  justify-self: center;
   color: rgba(234, 247, 255, 0.74);
   font-size: 12px;
   font-weight: 750;
@@ -257,7 +256,6 @@
 }
 
 .agent-panel.is-docked .agent-recorder-status {
-  top: calc(50% + 40px);
   font-size: 11px;
 }
 
@@ -265,6 +263,7 @@
   --robot-size: 132px;
   --robot-radius: 32px;
   --robot-chat-width: 320px;
+  --robot-bubble-width: min(520px, calc(100vw - 48px));
   --robot-shift-x: 0px;
   --robot-shift-y: 0px;
   --robot-rotate-x: 0deg;
@@ -272,18 +271,133 @@
   --robot-chat-rotate-x: 0deg;
   --robot-chat-rotate-y: 0deg;
   perspective: 1000px;
-  grid-template-rows: 1fr;
+  grid-template-rows: var(--robot-size) auto;
+  align-content: center;
+  row-gap: 12px;
   height: 320px;
   min-height: 320px;
   pointer-events: auto;
+  z-index: 80;
+}
+
+.agent-panel--robot.is-centered {
+  transform: translateY(22px);
 }
 
 .agent-panel--robot.is-docked {
   --robot-size: 74px;
   --robot-radius: 19px;
   --robot-chat-width: 280px;
+  --robot-bubble-width: min(460px, calc(100vw - 48px));
+  row-gap: 6px;
   height: 148px;
   min-height: 148px;
+}
+
+.agent-robot-bubble-stack {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 28px);
+  z-index: 85;
+  display: grid;
+  justify-items: end;
+  width: max-content;
+  max-width: var(--robot-bubble-width);
+  max-height: min(150px, 26vh);
+  overflow: visible;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transform-style: preserve-3d;
+}
+
+.agent-robot-bubble {
+  position: relative;
+  overflow: visible;
+  width: max-content;
+  max-width: var(--robot-bubble-width);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 15px;
+  background:
+    linear-gradient(to bottom, rgba(242, 243, 252, 0.82), rgba(220, 220, 232, 0.76)),
+    rgba(236, 237, 246, 0.62);
+  box-shadow:
+    inset 0 0 2px rgba(255, 255, 255, 0.95),
+    0 16px 34px -18px rgba(0, 0, 60, 0.38),
+    0 8px 18px -14px rgba(0, 0, 60, 0.28);
+  padding: 12px 18px;
+  pointer-events: none;
+  backdrop-filter: blur(10px) saturate(130%);
+  transform: none;
+  transform-style: flat;
+}
+
+.agent-robot-bubble::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(236, 237, 246, 0.7);
+  box-shadow:
+    inset 0 0 2px rgba(255, 255, 255, 0.9),
+    0 5px 10px -5px rgba(0, 0, 60, 0.25);
+  filter: blur(0) brightness(1.25);
+  pointer-events: none;
+}
+
+.agent-robot-bubble-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  max-height: 82px;
+  overflow: auto;
+  margin: 0;
+  color: #696969;
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 18px;
+  white-space: normal;
+  word-break: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(105, 105, 105, 0.24) transparent;
+}
+
+.agent-robot-bubble-text span {
+  display: inline-block;
+  animation: agentBubbleLabelIn 360ms ease calc(var(--i) * 35ms) both;
+}
+
+.agent-robot-bubble-label {
+  color: rgba(7, 8, 16, 0.92);
+  font-weight: 700;
+}
+
+.agent-robot-bubble.is-error {
+  border-color: rgba(248, 113, 113, 0.34);
+  background:
+    linear-gradient(135deg, rgba(255, 235, 238, 0.82), rgba(255, 255, 255, 0.46)),
+    rgba(255, 255, 255, 0.5);
+}
+
+.agent-robot-bubble.is-error span {
+  color: rgba(118, 24, 42, 0.86);
+}
+
+.agent-robot-bubble.is-error .agent-robot-bubble-text {
+  color: rgba(118, 24, 42, 0.86);
+}
+
+@keyframes agentBubbleLabelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
 }
 
 .agent-panel--robot.is-docked.is-user-positioned {
@@ -302,13 +416,27 @@
   cursor: grabbing;
 }
 
-.agent-robot-button {
+.agent-robot-anchor {
   position: relative;
   z-index: 1;
   display: grid;
   place-items: center;
   width: var(--robot-size);
   height: var(--robot-size);
+  pointer-events: auto;
+  transform-style: preserve-3d;
+  transform: translate3d(var(--robot-shift-x), var(--robot-shift-y), 0);
+  transition: transform 120ms ease, filter 180ms ease;
+  will-change: transform;
+}
+
+.agent-robot-button {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
   border: 0;
   border-radius: var(--robot-radius);
   background: transparent;
@@ -319,7 +447,7 @@
   touch-action: none;
   user-select: none;
   transform-style: preserve-3d;
-  transform: translate3d(var(--robot-shift-x), var(--robot-shift-y), 0) perspective(1000px) rotateX(var(--robot-rotate-x)) rotateY(var(--robot-rotate-y)) translateZ(0);
+  transform: perspective(1000px) rotateX(var(--robot-rotate-x)) rotateY(var(--robot-rotate-y)) translateZ(0);
   transition: transform 120ms ease, filter 180ms ease;
   will-change: transform;
 }
@@ -338,18 +466,22 @@
 }
 
 .agent-robot-button:hover:not(:disabled) {
-  transform: translate3d(var(--robot-shift-x), calc(var(--robot-shift-y) - 2px), 0) perspective(1000px) rotateX(var(--robot-rotate-x)) rotateY(var(--robot-rotate-y)) translateZ(10px) scale(1.02);
+  transform: perspective(1000px) rotateX(var(--robot-rotate-x)) rotateY(var(--robot-rotate-y)) translateZ(10px) scale(1.02);
   filter: saturate(112%);
 }
 
+.agent-panel--robot.is-docked .agent-robot-button:hover:not(:disabled) {
+  transform: perspective(1000px) rotateX(var(--robot-rotate-x)) rotateY(var(--robot-rotate-y)) translateZ(4px) scale(1.01);
+}
+
 .agent-robot-button:active:not(:disabled) {
-  transform: translate3d(var(--robot-shift-x), var(--robot-shift-y), 0) perspective(1000px) rotateX(var(--robot-rotate-x)) rotateY(var(--robot-rotate-y)) scale(0.96);
+  transform: perspective(1000px) rotateX(var(--robot-rotate-x)) rotateY(var(--robot-rotate-y)) scale(0.96);
 }
 
 .agent-robot-button:disabled {
   cursor: wait;
   opacity: 0.78;
-  transform: translate3d(var(--robot-shift-x), var(--robot-shift-y), 0) perspective(1000px) rotateX(0deg) rotateY(0deg);
+  transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
 }
 
 .agent-panel--robot.is-chat-open .agent-robot-button,
@@ -499,8 +631,8 @@
 .agent-robot-chat {
   position: absolute;
   left: 50%;
-  bottom: calc(50% + (var(--robot-size) / 2) + 8px);
-  z-index: 20;
+  bottom: calc(100% + 8px);
+  z-index: 90;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 62px;
   gap: 8px;

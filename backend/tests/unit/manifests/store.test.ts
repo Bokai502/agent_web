@@ -168,28 +168,27 @@ describe("manifest store helpers", () => {
     })
 
     await withWorkspaceContext(async () => {
-      const result = await deleteVersion("v0001", { workspaceId: "ws_manifest_test" })
+      const result = await deleteVersion("v0002", { workspaceId: "ws_manifest_test" })
 
-      assert.equal(result.versionId, "v0001")
-      assert.equal(result.manifest.activeVersionId, "v0002")
-      assert.deepEqual(result.manifest.versions.map(version => version.id), ["v0002"])
-      assert.equal(result.manifest.versions[0]?.parentVersionId, null)
-      assert.deepEqual(result.manifest.artifacts.map(artifact => artifact.id), ["artifact-2"])
-      assert.deepEqual(result.manifest.checkpoints.map(checkpoint => checkpoint.id), ["checkpoint-2"])
-      assert.deepEqual(result.manifest.runs.map(run => run.id), ["run-4"])
-      assert.deepEqual(result.manifest.scores.map(score => score.id), ["score-2"])
-      assert.equal(await fs.access(versionDir()).then(() => true).catch(() => false), false)
-      assert.equal(await fs.access(childDir).then(() => true).catch(() => false), true)
+      assert.equal(result.versionId, "v0002")
+      assert.equal(result.manifest.activeVersionId, "v0001")
+      assert.deepEqual(result.manifest.versions.map(version => version.id), ["v0001"])
+      assert.deepEqual(result.manifest.artifacts.map(artifact => artifact.id), ["artifact-1"])
+      assert.deepEqual(result.manifest.checkpoints.map(checkpoint => checkpoint.id), ["checkpoint-1"])
+      assert.deepEqual(result.manifest.runs.map(run => run.id), ["run-1"])
+      assert.deepEqual(result.manifest.scores.map(score => score.id), ["score-1"])
+      assert.equal(await fs.access(versionDir()).then(() => true).catch(() => false), true)
+      assert.equal(await fs.access(childDir).then(() => true).catch(() => false), false)
     })
   })
 
-  it("does not delete the last version", async () => {
+  it("does not delete the initial version", async () => {
     await createManifestFixture()
 
     await withWorkspaceContext(async () => {
       await assert.rejects(
         () => deleteVersion("v0001", { workspaceId: "ws_manifest_test" }),
-        /cannot delete the last version/u,
+        /cannot delete the initial version/u,
       )
       assert.equal(await fs.access(versionDir()).then(() => true).catch(() => false), true)
     })

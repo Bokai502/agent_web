@@ -7,14 +7,13 @@ import { useWorkspaceAppState } from '../hooks/useWorkspaceAppState'
 import { formatProgressUpdatedAt, type WorkflowProgressVariant } from './workspace/progressUtils'
 import { useWorkspaceRuntimeData } from './workspace/useWorkspaceRuntimeData'
 import { useWorkspaceVersionState } from './workspace/useWorkspaceVersionState'
-import { isThermalCadWorkspace } from './workspace/workspaceVersion'
+import { getWorkspaceDisplayName, isThermalCadWorkspace } from './workspace/workspaceVersion'
 import { getVisibleWorkspaceSessionState } from './workspace/workspaceSessionVisibility'
 import { AgentProgressRail } from './agent/AgentProgressRail'
 import { AgentConversationPopover } from './agent/AgentConversationPopover'
 import { AgentRecorderControl } from './agent/AgentRecorderControl'
 import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
-import { AgentVoiceExchange } from './agent/AgentVoiceExchange'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
 import {
@@ -87,20 +86,15 @@ export default function AgentPage() {
     confirmDeleteVersion,
     createChildBranch,
     createInitialVersion,
-    createSiblingBranch,
+    createVersionFromInput,
     manifestLoading,
     requestDeleteVersion,
-    setVersionListOpen,
-    setWorkspaceListOpen,
     switchActiveWorkspace,
     versionAction,
     versionDeleteTarget,
     versionError,
-    versionListOpen,
-    versionTreeRoots,
     workspaceChanging,
     workspaceItems,
-    workspaceListOpen,
     workspaces,
   } = versionState
   const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, {
@@ -196,7 +190,11 @@ export default function AgentPage() {
         .filter(item => item.href !== '#tools')
         .map(item => item.href === '#bom' ? { ...item, label: '配置文件', meta: 'Config' } : item)
     }
-    if (!showGncConfig) return NAV_ITEMS.filter(item => showModelPreview || item.href !== '#model')
+    if (!showGncConfig) {
+      return NAV_ITEMS
+        .filter(item => showModelPreview || item.href !== '#model')
+        .map(item => item.href === '#bom' ? { ...item, label: '配置文件', meta: 'Config' } : item)
+    }
     return NAV_ITEMS
       .filter(item => item.href !== '#model')
       .map(item => (
@@ -429,6 +427,7 @@ export default function AgentPage() {
     if (agentSpeechPlaying || agentSpeechState === 'synthesizing') stopAgentSpeechPlayback()
     clearAgentSpeechDisplay()
     clearRecorderDisplay()
+    setTextInputDisplay('')
     setInputMode(nextMode)
   }, [agentSpeechPlaying, agentSpeechState, cancelRecording, clearAgentSpeechDisplay, clearRecorderDisplay, inputMode, state, stopAgentSpeechPlayback])
 
@@ -464,7 +463,9 @@ export default function AgentPage() {
         ? 'failed'
         : sessionStatus
   const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
-  const dataSourceLabel = activeContext.workspaceName || activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
+  const dataSourceLabel = activeContext.workspaceName
+    ? getWorkspaceDisplayName(activeContext.workspaceName)
+    : activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
   const versionLabel = activeContext.versionId || '未选择版本'
   const agentPageClassName = [
     'agent-page',
@@ -544,7 +545,7 @@ export default function AgentPage() {
           confirmDeleteVersion={confirmDeleteVersion}
           createChildBranch={createChildBranch}
           createInitialVersion={createInitialVersion}
-          createSiblingBranch={createSiblingBranch}
+          createVersionFromInput={createVersionFromInput}
           handleSelectFile={handleSelectFile}
           manifestLoading={manifestLoading}
           selectedBom={selectedBom}
@@ -554,10 +555,9 @@ export default function AgentPage() {
           selectedFilePreview={selectedFilePreview}
           setActiveTool={setActiveTool}
           setSelectedBomId={setSelectedBomId}
-          setVersionListOpen={() => setVersionListOpen(open => !open)}
-          setWorkspaceListOpen={() => setWorkspaceListOpen(open => !open)}
           requestDeleteVersion={requestDeleteVersion}
           refreshWorkspaceViews={refreshWorkspaceViews}
+          theme={agentTheme}
           showGncConfig={showGncConfig}
           showComplianceCheckConfig={progressVariant === 'check'}
           showModelPreview={showModelPreview}
@@ -567,37 +567,29 @@ export default function AgentPage() {
           versionAction={versionAction}
           versionDeleteTarget={versionDeleteTarget}
           versionError={versionError}
-          versionListOpen={versionListOpen}
-          versionTreeRoots={versionTreeRoots}
           viewerHref={viewerHref}
           workspaceChanging={workspaceChanging}
           workspaceItems={workspaceItems}
-          workspaceListOpen={workspaceListOpen}
           workspaceRefreshNonce={workspaceRefreshNonce}
-        />
-
-        <AgentVoiceExchange
-          agentSpeechError={agentSpeechError}
-          agentSpeechState={agentSpeechState}
-          error={error}
-          inputMode={inputMode}
-          state={state}
-          text={inputMode === 'text' ? textInputDisplay : text}
-          visibleAgentResponse={visibleAgentResponse}
         />
 
         <AgentRecorderControl
           activeView={activeView}
+          agentSpeechError={agentSpeechError}
+          agentSpeechState={agentSpeechState}
           busy={recordButtonBusy}
           disabled={recordButtonDisabled}
+          error={error}
           inputMode={inputMode}
           onButtonClick={handleButtonClick}
           onTextChange={setTextInput}
           onTextSubmit={handleTextSubmit}
           recorderStatusText={inputMode === 'text' ? textRecorderStatusText : recorderStatusText}
           state={state}
+          text={inputMode === 'text' ? textInputDisplay : text}
           textInputDisabled={textComposerBusy}
           textInputValue={textInput}
+          visibleAgentResponse={visibleAgentResponse}
         />
       </section>
     </main>

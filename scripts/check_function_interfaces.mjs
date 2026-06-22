@@ -99,11 +99,11 @@ async function readJson(file) {
 }
 
 function defaultCosyVoiceRoot() {
-  return path.join(PROJECT_ROOT, "backend", "cosyvoice3", "CosyVoice")
+  return path.join(PROJECT_ROOT, "data", "voice_output")
 }
 
-function defaultCosyPromptWav(root) {
-  return path.join(root, "asset", "zero_shot_prompt.wav")
+function defaultCosyPromptWav() {
+  return path.join(PROJECT_ROOT, "data", "voice_input", "zero_shot_prompt.wav")
 }
 
 function executableExists(file) {
@@ -527,7 +527,7 @@ async function buildChecks(config, args) {
   const cosyvoice = config.cosyvoice ?? {}
   const cosyRoot = cosyvoice.root || defaultCosyVoiceRoot()
   const cosyEndpoint = cosyvoice.apiUrl || "http://127.0.0.1:50000/inference_zero_shot"
-  const cosyPromptWav = cosyvoice.promptWav || defaultCosyPromptWav(cosyRoot)
+  const cosyPromptWav = cosyvoice.promptWav || defaultCosyPromptWav()
   const cosyPromptText = cosyvoice.promptText || "You are a helpful assistant.<|endofprompt|>希望你以后能够做的比我还好呦。"
   if (cosyEndpoint) {
     checks.push({

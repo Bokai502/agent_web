@@ -99,6 +99,7 @@ type WorkspaceProgressData = {
 const DEFAULT_GEOM_COMPONENT_INFO_RELATIVE_PATH = path.join("component_info", "geom_component_info.json")
 const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_info.json")
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
+const DEFAULT_CAD_BUILD_SPEC_RELATIVE_PATH = path.join("00_inputs", "cad_build_spec.json")
 const CATCH_SUPPORTING_TABLE_RELATIVE_PATH = path.join("00_inputs", "CATCH整星配套表.xlsx")
 const LEGACY_CATCH_SUPPORTING_TABLE_TEMPLATE_RELATIVE_PATH = path.join("catch_task", "CATCH整星配套表.xlsx")
 const CATCH_SUPPORTING_THERMAL_DB_RELATIVE_PATH = path.join(
@@ -1706,6 +1707,46 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
       })
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to resolve BOM data")
+    }
+  })
+
+  fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/cad-component-display-names", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      const specPath = path.join(workspaceDir, DEFAULT_CAD_BUILD_SPEC_RELATIVE_PATH)
+      const raw = await fs.readFile(specPath, "utf-8").catch(() => null)
+
+      if (raw === null) {
+        reply.header("Cache-Control", "no-cache")
+        return reply.send({
+          components: [],
+          schema_version: "-",
+          source_path: "",
+          source_version: "",
+        })
+      }
+
+      const stat = await fs.stat(specPath)
+      const payload = JSON.parse(raw) as unknown
+      const components = isRecord(payload) && Array.isArray(payload.components)
+        ? payload.components
+          .filter(isRecord)
+          .map((component) => ({
+            component_id: cleanString(component.id),
+            display_name: cleanString(component.display_name),
+          }))
+          .filter(component => component.component_id && component.display_name)
+        : []
+
+      reply.header("Cache-Control", "no-cache")
+      return reply.send({
+        components,
+        schema_version: isRecord(payload) ? cleanString(payload.schema_version) || "1.0" : "1.0",
+        source_path: specPath,
+        source_version: [specPath, stat.mtimeMs, stat.size].join(":"),
+      })
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve CAD component display names")
     }
   })
 

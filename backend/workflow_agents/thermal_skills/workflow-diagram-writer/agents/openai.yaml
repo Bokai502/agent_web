@@ -1,0 +1,4 @@
+interface:
+  display_name: "Workflow Diagram Writer"
+  short_description: "Write execution flow JSON"
+  default_prompt: "Use $workflow-diagram-writer to write 00_inputs/workflow_diagram/executionFlowData.json for the selected thermal workspace."

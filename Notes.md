@@ -50,7 +50,9 @@ open_codex_web/
 │   │   ├── thermal_skills/          # 热仿真、FreeCAD、仿真相关 skills
 │   │   ├── check_skills/            # 降额检查等 skills
 │   │   └── agents/                  # freecad_cli_tools、sim_cli_tools
-│   ├── cosyvoice3/                  # 本地 CosyVoice 依赖目录，可未纳入 git
+├── data/
+│   ├── voice_input/                 # TTS prompt wav 与任务提示音
+│   ├── voice_output/                # Web 侧保存的 TTS 生成音频
 ├── frontend/
 │   ├── src/
 │   │   ├── main.tsx                 # 前端轻量路由分发
