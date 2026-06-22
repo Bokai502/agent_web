@@ -29,7 +29,7 @@ type CurrentWorkspaceCardProps = {
 }
 
 function getThermalOptionLabel(name: string) {
-  return normalizeWorkspaceDisplayKey(name) === "thermal_catch" ? "catch" : "立方形"
+  return normalizeWorkspaceDisplayKey(name) === "thermal_catch" ? "catch" : "立方星"
 }
 
 function getWorkspaceNodeKey(name: string) {
