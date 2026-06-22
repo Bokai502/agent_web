@@ -347,6 +347,11 @@ function statusText(row: JsonRow) {
   return asText(row["综合判定"]) || asText(row["符合性"]) || "需确认"
 }
 
+function isDeratingIssue(row: JsonRow) {
+  const status = statusText(row)
+  return status !== "符合"
+}
+
 function resultField(row: JsonRow, key: string) {
   if (key === "型号规格_规格") return row["型号规格_规格"] ?? row["型号规格"]
   if (key === "生产厂商_生产单位") return row["生产厂商_生产单位"] ?? row["生产厂商"]
@@ -368,9 +373,12 @@ function deratingDetailText(row: JsonRow) {
   const ratedValue = asText(resultField(row, "参数值_额定"))
   const standardFactor = asText(resultField(row, "降额因子_规定"))
   const actualFactor = asText(resultField(row, "降额因子_实际"))
+  const computedAllowed = valueWithSourceUnit(row["计算允许值"], resultField(row, "参数值_额定"))
   const parts = [
-    actualValue && allowedValue ? `实际值 ${actualValue} 未超过允许值 ${allowedValue}` : "",
+    actualValue && computedAllowed ? `实际值 ${actualValue} 未超过 I级计算允许值 ${computedAllowed}` : "",
+    actualValue && !computedAllowed && allowedValue ? `实际值 ${actualValue} 未超过允许值 ${allowedValue}` : "",
     ratedValue && standardFactor ? `额定值 ${ratedValue}，I级降额要求 ${standardFactor}` : "",
+    allowedValue ? `表中允许值 ${allowedValue}` : "",
     actualFactor ? `实际降额因子 ${actualFactor}` : "",
   ].filter(Boolean)
 
@@ -383,7 +391,11 @@ function passCount(rows: JsonRow[]) {
 }
 
 function problemCount(rows: JsonRow[]) {
-  return rows.filter(row => statusText(row) !== "符合").length
+  return rows.filter(isDeratingIssue).length
+}
+
+function stricterCount(rows: JsonRow[]) {
+  return rows.filter(row => hasIssue(row, /更严格|规定降额因子小于/u)).length
 }
 
 function getResultValue(row: JsonRow, key: string) {
@@ -423,14 +435,14 @@ function displayNumber(value: string) {
 function deriveComparisonJudgement(row: JsonRow, key: string) {
   if (key === "允许值判定组合") {
     if (hasIssue(row, /允许值不等于|允许值.*错误|允许值.*填写错误/u)) {
-      const expected = valueWithSourceUnit(row["计算允许值"], row["参数值_允许"])
+      const expected = valueWithSourceUnit(row["计算允许值"], resultField(row, "参数值_允许"))
       return expected ? `表中填写错误，应为 ${expected}` : "表中填写错误"
     }
     return "正确"
   }
 
   if (key === "实际值判定组合") {
-    if (hasIssue(row, /实际值大于允许值|实际值.*错误|实际值.*不符合/u)) return "实际值大于允许值"
+    if (hasIssue(row, /实际值大于允许值|实际值.*超过允许值|实际值.*错误|实际值.*不符合/u)) return "实际值大于允许值"
     return "正确"
   }
 
@@ -441,7 +453,7 @@ function deriveComparisonJudgement(row: JsonRow, key: string) {
   }
 
   if (key === "实际降额因子判定组合") {
-    if (hasIssue(row, /实际降额因子大于规定降额因子/u)) return "实际降额因子大于规定降额因子"
+    if (hasIssue(row, /实际降额因子.*填写错误|实际降额因子大于规定降额因子/u)) return "实际降额因子问题"
     return "正确"
   }
 
@@ -966,7 +978,7 @@ function modelSpecKeys(row: JsonRow) {
 function buildDashboardRiskRows(resultRows: JsonRow[], missingRows: JsonRow[]): DashboardRiskRow[] {
   const missingByComponent = new Map(missingRows.map(row => [asText(row["元器件名称"]), row]))
   const issueRows = resultRows
-    .filter(row => statusText(row) !== "符合")
+    .filter(isDeratingIssue)
     .slice(0, 5)
     .map((row): DashboardRiskRow => ({
       action: dashboardAction(row),
@@ -1656,7 +1668,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
           <summary style={summaryStyle}>步骤2：AI 判定结果（可编辑确认）</summary>
           <div style={sectionBodyStyle}>
             <div style={metricsStyle}>
-              <span>共 <b>{resultRows.length}</b> 行 · <b style={greenText}>✔ {passCount(resultRows)} 通过</b> · <b style={redText}>✕ {problemCount(resultRows)} 问题</b></span>
+              <span>共 <b>{resultRows.length}</b> 行 · <b style={greenText}>✔ {passCount(resultRows)} 通过</b> · <b style={redText}>✕ {problemCount(resultRows)} 问题</b>{stricterCount(resultRows) > 0 ? <b> · 其中 {stricterCount(resultRows)} 行更严格</b> : null}</span>
               <span style={hintTextStyle}>可直接点击单元格编辑判定内容</span>
             </div>
             <EditableTable
@@ -1665,7 +1677,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
               getValue={getResultValue}
               onChange={updateResultCell}
               rows={resultRows}
-              selectColumns={{ 判定结果: ["符合", "不符合"] }}
+              selectColumns={{ 判定结果: ["符合", "不符合", "需人工确认", "更严格"] }}
               stickyRightColumns={["判定结果", "综合判定详情"]}
             />
             <div style={actionsStyle}>
@@ -1681,7 +1693,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
           <summary style={summaryStyle}>步骤3：降额总表（原始数据 + AI 分析 + 确认结果）</summary>
           <div style={sectionBodyStyle}>
             <div style={metricsStyle}>
-              <span>根据步骤2当前确认结果生成：共 <b>{finalRows.length}</b> 行 · <b style={greenText}>{passCount(finalRows)} 通过</b> · <b style={redText}>{problemCount(finalRows)} 问题</b></span>
+              <span>根据步骤2当前确认结果生成：共 <b>{finalRows.length}</b> 行 · <b style={greenText}>{passCount(finalRows)} 通过</b> · <b style={redText}>{problemCount(finalRows)} 问题</b>{stricterCount(finalRows) > 0 ? <b> · 其中 {stricterCount(finalRows)} 行更严格</b> : null}</span>
               <span style={mutedTextStyle}>{finalGenerated ? "已生成降额总表，可下载 CSV。" : "点击步骤2“确认并生成降额总表”后生成。"}</span>
             </div>
             <EditableTable
