@@ -15,7 +15,7 @@
   position: fixed;
   top: 56px;
   right: 14px;
-  bottom: 242px;
+  bottom: 118px;
   z-index: 18;
   width: min(340px, calc(100vw - 28px));
   height: auto;
@@ -113,7 +113,7 @@
   position: fixed;
   top: 56px;
   left: 14px;
-  bottom: 242px;
+  bottom: 118px;
   z-index: 18;
   display: flex;
   width: min(340px, calc(100vw - 28px));
@@ -139,7 +139,7 @@
 .agent-page.is-gnc-agent .agent-conversation-popover,
 .agent-page.is-thermal-agent .agent-conversation-popover,
 .agent-page.is-derating-agent .agent-conversation-popover {
-  bottom: 216px;
+  bottom: 92px;
 }
 
 .agent-conversation-popover::before {

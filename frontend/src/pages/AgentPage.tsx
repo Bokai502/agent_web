@@ -14,7 +14,6 @@ import { AgentConversationPopover } from './agent/AgentConversationPopover'
 import { AgentRecorderControl } from './agent/AgentRecorderControl'
 import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
-import { AgentVoiceExchange } from './agent/AgentVoiceExchange'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
 import {
@@ -428,6 +427,7 @@ export default function AgentPage() {
     if (agentSpeechPlaying || agentSpeechState === 'synthesizing') stopAgentSpeechPlayback()
     clearAgentSpeechDisplay()
     clearRecorderDisplay()
+    setTextInputDisplay('')
     setInputMode(nextMode)
   }, [agentSpeechPlaying, agentSpeechState, cancelRecording, clearAgentSpeechDisplay, clearRecorderDisplay, inputMode, state, stopAgentSpeechPlayback])
 
@@ -573,28 +573,23 @@ export default function AgentPage() {
           workspaceRefreshNonce={workspaceRefreshNonce}
         />
 
-        <AgentVoiceExchange
-          agentSpeechError={agentSpeechError}
-          agentSpeechState={agentSpeechState}
-          error={error}
-          inputMode={inputMode}
-          state={state}
-          text={inputMode === 'text' ? textInputDisplay : text}
-          visibleAgentResponse={visibleAgentResponse}
-        />
-
         <AgentRecorderControl
           activeView={activeView}
+          agentSpeechError={agentSpeechError}
+          agentSpeechState={agentSpeechState}
           busy={recordButtonBusy}
           disabled={recordButtonDisabled}
+          error={error}
           inputMode={inputMode}
           onButtonClick={handleButtonClick}
           onTextChange={setTextInput}
           onTextSubmit={handleTextSubmit}
           recorderStatusText={inputMode === 'text' ? textRecorderStatusText : recorderStatusText}
           state={state}
+          text={inputMode === 'text' ? textInputDisplay : text}
           textInputDisabled={textComposerBusy}
           textInputValue={textInput}
+          visibleAgentResponse={visibleAgentResponse}
         />
       </section>
     </main>

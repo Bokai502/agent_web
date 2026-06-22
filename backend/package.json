@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --import tsx --test \"tests/**/*.test.ts\""
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "test:e2e:thermal": "node --import tsx --test tests/e2e/thermalModelBackends.e2e.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
