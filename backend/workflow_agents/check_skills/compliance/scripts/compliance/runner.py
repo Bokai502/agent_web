@@ -27,13 +27,13 @@ from .llm_analysis import (
 )
 from .llm_classifier import classify_components_with_llm, load_llm_classifier_config
 from .llm_manufacturer import (
+    match_manufacturers_from_database,
     manufacturer_check_rows,
     manufacturer_origin_map,
     match_manufacturers_with_llm,
 )
 from .llm_report import LlmReportConfig, build_llm_report
-from .manufacturer_db import query_manufacturer_rows
-from .manufacturer_local_data import load_manufacturer_full_names
+from .manufacturer_db import query_manufacturer_alias_rows, query_manufacturer_rows
 from .reliability_db import (
     PostgresReliabilityConfig,
     load_postgres_components,
@@ -556,57 +556,58 @@ def catalog_match_threshold(context: RunnerContext) -> float:
 def run_manufacturer_check(
     context: RunnerContext, components: list[ComponentRecord]
 ) -> list[dict[str, Any]]:
-    manufacturer_rows = [
-        {"full_name": name} for name in load_manufacturer_full_names()
-    ]
     try:
-        postgres_rows = query_manufacturer_rows(postgres_config(context))
-        manufacturer_rows = _merge_manufacturer_rows(
-            postgres_rows,
-            manufacturer_rows,
-        )
+        manufacturer_rows = query_manufacturer_rows(postgres_config(context))
+        alias_rows = query_manufacturer_alias_rows(postgres_config(context))
     except Exception as exc:
         write_stage(
             context,
             "manufacturer_db_issue",
             {
-                "source": "postgres.public.manufacturer",
+                "source": "postgres.public.manufacturer + postgres.public.manufacturer_alias",
                 "status": "unavailable",
                 "message": str(exc),
-                "fallback": "continued_with_local_manufacturer_json",
+                "fallback": "marked_all_manufacturers_unmatched",
             },
         )
-    try:
-        matches = match_manufacturers_with_llm(
-            components, manufacturer_rows, context.llm_config
+        matches = {
+            name: {
+                "matched": False,
+                "full_name": "",
+                "国产/进口": "进口",
+                "目录内或外": "无",
+                "匹配来源": "manufacturer_db_unavailable",
+            }
+            for name in unique(component.manufacturer for component in components)
+        }
+    else:
+        matches = match_manufacturers_from_database(
+            components, manufacturer_rows, alias_rows
         )
+        unmatched_components = [
+            component
+            for component in components
+            if not (matches.get(component.manufacturer) or {}).get("matched")
+        ]
+        if unmatched_components and context.llm_config.enabled:
+            try:
+                llm_matches = match_manufacturers_with_llm(
+                    unmatched_components, manufacturer_rows, context.llm_config
+                )
+                matches.update(llm_matches)
+            except Exception as exc:
+                write_stage(
+                    context,
+                    "manufacturer_check_issue",
+                    {
+                        "source": "postgres.public.manufacturer + llm",
+                        "status": "unavailable",
+                        "message": str(exc),
+                        "fallback": "used_database_matches_only",
+                    },
+                )
         write_stage(context, "manufacturer_match", matches)
-    except Exception as exc:
-        write_stage(
-            context,
-            "manufacturer_check_issue",
-            {
-                "source": "postgres.public.manufacturer + llm",
-                "status": "unavailable",
-                "message": str(exc),
-                "fallback": "continued_with_config_and_local_rules",
-            },
-        )
-        matches = {}
     return manufacturer_check_rows(components, matches, context.config)
-
-
-def _merge_manufacturer_rows(*groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    seen: set[str] = set()
-    output: list[dict[str, Any]] = []
-    for group in groups:
-        for row in group:
-            full_name = str(row.get("full_name") or "").strip()
-            if not full_name or full_name in seen:
-                continue
-            seen.add(full_name)
-            output.append(row)
-    return output
 
 
 def manufacturer_origins_for_stage(

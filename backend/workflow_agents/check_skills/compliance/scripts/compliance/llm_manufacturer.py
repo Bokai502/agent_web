@@ -7,10 +7,6 @@ from typing import Any
 from .component_io import unique
 from .llm import async_chat_completions
 from .llm_classifier import LlmClassifierConfig
-from .manufacturer_local_data import (
-    find_manufacturer_confirmation,
-    load_manufacturer_confirmations,
-)
 from .schema import ComponentRecord
 
 
@@ -120,7 +116,6 @@ def manufacturer_check_rows(
     config=None,
 ) -> list[dict[str, Any]]:
     rows = []
-    local_confirmations = load_manufacturer_confirmations()
     for name in unique(component.manufacturer for component in components):
         configured = config.manufacturer(name) if config else None
         if configured:
@@ -141,18 +136,6 @@ def manufacturer_check_rows(
                     or configured.get("catalog_status")
                     or ("目录内" if full_name else "无"),
                     "匹配来源": "config_override",
-                }
-            )
-            continue
-        local_confirmation = find_manufacturer_confirmation(name, local_confirmations)
-        if local_confirmation:
-            rows.append(
-                {
-                    "厂商简称": name,
-                    "厂商全称": local_confirmation.get("厂商全称") or "无",
-                    "国产/进口": local_confirmation.get("国产/进口") or "进口",
-                    "目录内或外": local_confirmation.get("目录内或外") or "无",
-                    "匹配来源": "local_manufacturer_alias",
                 }
             )
             continue
@@ -179,3 +162,62 @@ def manufacturer_origin_map(
         for row in rows
         if isinstance(row, dict) and str(row.get("厂商简称") or "").strip()
     }
+
+
+def match_manufacturers_from_database(
+    components: list[ComponentRecord],
+    manufacturer_rows: list[dict[str, Any]],
+    alias_rows: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    full_names = [
+        str(row.get("full_name") or "").strip()
+        for row in manufacturer_rows
+        if str(row.get("full_name") or "").strip()
+    ]
+    full_name_by_key = {_normalize_key(full_name): full_name for full_name in full_names}
+    alias_by_key: dict[str, str] = {}
+    for row in alias_rows:
+        alias = str(row.get("alias") or row.get("short_name") or "").strip()
+        full_name = str(row.get("full_name") or "").strip()
+        if alias and full_name:
+            alias_by_key[_normalize_key(alias)] = full_name
+
+    output: dict[str, dict[str, Any]] = {}
+    for name in unique(component.manufacturer for component in components):
+        key = _normalize_key(name)
+        full_name = alias_by_key.get(key)
+        source = "manufacturer_alias"
+        if not full_name:
+            full_name = full_name_by_key.get(key, "")
+            source = "manufacturer"
+        if not full_name:
+            full_name = _contained_full_name_match(key, full_name_by_key)
+            source = "manufacturer_contains" if full_name else "manufacturer_unmatched"
+        output[name] = {
+            "matched": bool(full_name),
+            "full_name": full_name,
+            "国产/进口": "国产" if full_name else "进口",
+            "目录内或外": "目录内" if full_name else "无",
+            "匹配来源": source,
+        }
+    return output
+
+
+def _contained_full_name_match(
+    key: str,
+    full_name_by_key: dict[str, str],
+) -> str:
+    if len(key) < 2:
+        return ""
+    matches = [
+        full_name
+        for full_key, full_name in full_name_by_key.items()
+        if key in full_key or full_key in key
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return ""
+
+
+def _normalize_key(value: Any) -> str:
+    return "".join(str(value or "").strip().lower().split())

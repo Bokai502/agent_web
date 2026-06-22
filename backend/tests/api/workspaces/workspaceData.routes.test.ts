@@ -916,9 +916,9 @@ describe("workspace data routes", () => {
           rows: [
             {
               "厂商简称": "718",
-              "厂商全称": "北京七一八友晟电子有限公司",
-              "国产/进口": "国产",
-              "目录内或外": "目录内",
+              "厂商全称": "无",
+              "国产/进口": "进口",
+              "目录内或外": "无",
             },
             ["ignored"],
           ],
@@ -931,75 +931,6 @@ describe("workspace data routes", () => {
       const confirmed = await fs.readFile(confirmedPath, "utf-8").catch(() => null)
       assert.equal(confirmed, null)
     } finally {
-      await server.close()
-    }
-  })
-
-  it("requires manufacturer full names to be selected from catalog options", async () => {
-    const server = await createTestServer()
-    const workspaceDir = encodeURIComponent(versionDir())
-    const fullName = `测试目录内厂商${process.pid}有限公司`
-    const alias = `测试厂商${process.pid}`
-    const fullNamesPath = path.resolve(process.cwd(), "..", "data", "compliance", "manufacturer_full_names.json")
-    const aliasesPath = path.resolve(process.cwd(), "..", "data", "compliance", "manufacturer_aliases.json")
-
-    try {
-      const invalidResponse = await server.inject({
-        method: "PUT",
-        payload: {
-          rows: [
-            {
-              "厂商简称": alias,
-              "厂商全称": fullName,
-              "国产/进口": "国产",
-              "目录内或外": "目录内",
-            },
-          ],
-        },
-        url: `/api/workspace/compliance/artifact/manufacturer_check?workspaceDir=${workspaceDir}`,
-      })
-      assert.equal(invalidResponse.statusCode, 400)
-      assert.equal(invalidResponse.json().error, "manufacturer full name must be selected from catalog options")
-
-      const addResponse = await server.inject({
-        method: "POST",
-        payload: { full_name: fullName },
-        url: "/api/workspace/compliance/manufacturer-full-names",
-      })
-      assert.equal(addResponse.statusCode, 200)
-      assert.ok(addResponse.json().full_names.includes(fullName))
-
-      const validResponse = await server.inject({
-        method: "PUT",
-        payload: {
-          rows: [
-            {
-              "厂商简称": alias,
-              "厂商全称": fullName,
-              "国产/进口": "国产",
-              "目录内或外": "目录内",
-            },
-          ],
-        },
-        url: `/api/workspace/compliance/artifact/manufacturer_check?workspaceDir=${workspaceDir}`,
-      })
-      assert.equal(validResponse.statusCode, 200)
-    } finally {
-      const fullNamesRaw = await fs.readFile(fullNamesPath, "utf-8").catch(() => null)
-      if (fullNamesRaw) {
-        const fullNames = JSON.parse(fullNamesRaw) as unknown
-        if (Array.isArray(fullNames)) {
-          await writeJson(fullNamesPath, fullNames.filter(item => item !== fullName))
-        }
-      }
-      const aliasesRaw = await fs.readFile(aliasesPath, "utf-8").catch(() => null)
-      if (aliasesRaw) {
-        const aliasesPayload = JSON.parse(aliasesRaw) as { aliases?: Record<string, unknown> }
-        if (aliasesPayload.aliases) {
-          delete aliasesPayload.aliases[alias.toLowerCase()]
-          await writeJson(aliasesPath, aliasesPayload)
-        }
-      }
       await server.close()
     }
   })

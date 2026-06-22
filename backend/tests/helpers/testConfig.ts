@@ -58,6 +58,23 @@ export function createTestConfig(overrides: Partial<AppConfig> = {}): AppConfig 
       model: "test-chat-model",
       responsesCompat: null,
     },
+    compliance: {
+      database: {
+        host: "127.0.0.1",
+        port: "9",
+        user: "postgres",
+        password: "postgres",
+        catalog: {
+          db: "components_db",
+          recallLimitPerComponent: 80,
+        },
+        reliability: {
+          db: "satllm_db",
+          schema: "staging",
+          limitPerComponent: 5,
+        },
+      },
+    },
     server: {
       corsOrigin: "http://localhost:5173",
       host: "127.0.0.1",
@@ -115,6 +132,22 @@ export function createTestConfig(overrides: Partial<AppConfig> = {}): AppConfig 
     logging: { ...config.logging, ...overrides.logging },
     openai: { ...config.openai, ...overrides.openai },
     chatModel: { ...config.chatModel, ...overrides.chatModel },
+    compliance: {
+      ...config.compliance,
+      ...overrides.compliance,
+      database: {
+        ...config.compliance.database,
+        ...overrides.compliance?.database,
+        catalog: {
+          ...config.compliance.database.catalog,
+          ...overrides.compliance?.database?.catalog,
+        },
+        reliability: {
+          ...config.compliance.database.reliability,
+          ...overrides.compliance?.database?.reliability,
+        },
+      },
+    },
     server: { ...config.server, ...overrides.server },
     tools: {
       ...config.tools,

@@ -100,6 +100,23 @@ export interface AppConfig {
     file: string
     alsoStdout: boolean
   }
+  compliance: {
+    database: {
+      host: string
+      port: string
+      user: string
+      password: string
+      catalog: {
+        db: string
+        recallLimitPerComponent: number
+      }
+      reliability: {
+        db: string
+        schema: string
+        limitPerComponent: number
+      }
+    }
+  }
 }
 
 const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -342,6 +359,10 @@ export function loadConfig(): AppConfig {
   const logging = cfg.logging ?? {} as Partial<AppConfig["logging"]>
   const funasr = cfg.funasr ?? {} as Partial<AppConfig["funasr"]>
   const cosyvoice = cfg.cosyvoice ?? {} as Partial<AppConfig["cosyvoice"]>
+  const compliance = cfg.compliance ?? {} as Partial<AppConfig["compliance"]>
+  const complianceDatabase = compliance.database ?? {} as Partial<AppConfig["compliance"]["database"]>
+  const complianceCatalogDatabase = complianceDatabase.catalog ?? {} as Partial<AppConfig["compliance"]["database"]["catalog"]>
+  const complianceReliabilityDatabase = complianceDatabase.reliability ?? {} as Partial<AppConfig["compliance"]["database"]["reliability"]>
   const envServerPort = process.env.BACKEND_PORT ? Number(process.env.BACKEND_PORT) : null
 
   if (envServerPort !== null && (!Number.isInteger(envServerPort) || envServerPort <= 0)) {
@@ -486,6 +507,31 @@ export function loadConfig(): AppConfig {
       level: logging.level ?? "info",
       file: logging.file ?? "logs/app.log",
       alsoStdout: logging.alsoStdout ?? true,
+    },
+    compliance: {
+      database: {
+        host: optionalString(process.env.POSTGRES_HOST ?? complianceDatabase.host, "compliance.database.host") ?? "10.110.10.101",
+        port: optionalString(process.env.POSTGRES_PORT ?? complianceDatabase.port, "compliance.database.port") ?? "5432",
+        user: optionalString(process.env.POSTGRES_USER ?? complianceDatabase.user, "compliance.database.user") ?? "postgres",
+        password: optionalString(process.env.POSTGRES_PASSWORD ?? complianceDatabase.password, "compliance.database.password") ?? "lbk123",
+        catalog: {
+          db: optionalString(process.env.CATALOG_POSTGRES_DB ?? complianceCatalogDatabase.db, "compliance.database.catalog.db") ?? "components_db",
+          recallLimitPerComponent: positiveInteger(
+            complianceCatalogDatabase.recallLimitPerComponent,
+            "compliance.database.catalog.recallLimitPerComponent",
+            80,
+          ),
+        },
+        reliability: {
+          db: optionalString(process.env.POSTGRES_DB ?? complianceReliabilityDatabase.db, "compliance.database.reliability.db") ?? "satllm_db",
+          schema: optionalString(complianceReliabilityDatabase.schema, "compliance.database.reliability.schema") ?? "staging",
+          limitPerComponent: positiveInteger(
+            complianceReliabilityDatabase.limitPerComponent,
+            "compliance.database.reliability.limitPerComponent",
+            5,
+          ),
+        },
+      },
     },
   }
 }
