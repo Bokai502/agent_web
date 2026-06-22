@@ -305,7 +305,7 @@
   max-width: var(--robot-bubble-width);
   max-height: min(150px, 26vh);
   overflow: visible;
-  pointer-events: none;
+  pointer-events: auto;
   transform: translateX(-50%);
   transform-style: preserve-3d;
 }
@@ -325,7 +325,7 @@
     0 16px 34px -18px rgba(0, 0, 60, 0.38),
     0 8px 18px -14px rgba(0, 0, 60, 0.28);
   padding: 12px 18px;
-  pointer-events: none;
+  pointer-events: auto;
   backdrop-filter: blur(10px) saturate(130%);
   transform: none;
   transform-style: flat;
@@ -351,9 +351,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0 4px;
-  max-height: 82px;
-  overflow: auto;
+  max-height: min(128px, 24vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   margin: 0;
+  padding-right: 6px;
   color: #696969;
   font-size: 13px;
   font-weight: 560;

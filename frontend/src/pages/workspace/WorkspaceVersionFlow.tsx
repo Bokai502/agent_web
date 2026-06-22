@@ -62,7 +62,7 @@ function getInputDataModuleKey(manifest: WorkspaceManifestSummary | null) {
 
 function getInputDataLabel(moduleKey: string | null) {
   if (moduleKey === "thermal_catch") return "输入数据 · catch"
-  if (moduleKey === "thermal") return "输入数据 · 立方形"
+  if (moduleKey === "thermal") return "输入数据 · 立方星"
   if (moduleKey === "gnc") return "输入数据 · 姿轨控"
   if (moduleKey === "derating") return "输入数据 · 合规性"
   return "输入数据"

@@ -162,7 +162,7 @@ export function AgentRecorderControl({
   const handleDockedPointerDown = (event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return
     const target = event.target as HTMLElement
-    if (target.closest('.agent-robot-chat')) return
+    if (target.closest('.agent-robot-chat, .agent-robot-bubble-stack')) return
     const track = robotTrackRef.current
     if (!track) return
     const bounds = track.getBoundingClientRect()
