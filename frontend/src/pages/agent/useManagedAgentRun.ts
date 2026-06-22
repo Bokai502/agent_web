@@ -246,7 +246,7 @@ export function useManagedAgentRun({
           const data = await fetchWorkspaceManifest({
             initialize: true,
             manifestRoot: activeContext.manifestRoot,
-            sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
+            sourceWorkspaceDir: activeContext.initialSourceWorkspaceDir,
             workspaceId: activeContext.workspaceId,
             workspaceKey: activeContext.workspaceKey,
           })

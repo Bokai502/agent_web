@@ -1,6 +1,6 @@
 ---
 name: cad-sim-report-agent
-description: "Mandatory CLI-first report workflow for satellite FreeCAD/COMSOL workspaces with 00_inputs, 01_cad, 02_sim, and logs. Use for any request to generate, regenerate, summarize, review, inspect, or finalize CAD/thermal simulation reports, including full workflows that end with 输出报告/report. Do not hand-write thermal_report.md or ad hoc report JSON when this skill can run."
+description: "Mandatory CLI-first report workflow for satellite CAD/COMSOL workspaces with 00_inputs, 01_cad, 02_sim, and logs. Use for any request to generate, regenerate, summarize, review, inspect, or finalize CAD/thermal simulation reports, including full workflows that end with 输出报告/report. Do not hand-write thermal_report.md or ad hoc report JSON when this skill can run."
 ---
 
 # CAD Sim Report Agent
@@ -28,55 +28,12 @@ Expected workspace shape:
 
 1. Resolve the workspace to an absolute path. Do not guess from unrelated repo
    roots when the user provides a specific workspace.
-2. Mark report progress as running with the FreeCAD progress CLI.
-3. Run the skill's report CLI from cad-sim-report-agent.
-4. Mark report progress as completed or failed.
-5. Report the generated artifact paths and the main status/limitations.
+2. Run the skill's report CLI from cad-sim-report-agent.
+3. Report the generated artifact paths and the main status/limitations.
 
 ## Progress
 
-Use the FreeCAD progress CLI to update `<workspace>/logs/progress.json` only.
 Do not create or modify `<workspace>/logs/progress_percentages.json`.
-
-Open Codex Web injects the bundled FreeCAD CLI source directory into
-`PYTHONPATH` for agent runs, so progress commands should be invoked directly as
-`python -m freecad_cli_tools.cli.main ...` from the current working directory.
-
-Before the report command:
-
-```bash
-python -m freecad_cli_tools.cli.main progress update \
-  --workspace-dir /abs/path/to/FreeCAD_data/v9_data \
-  --loop-name cad_sim_report \
-  --status running \
-  --completed false \
-  --percentage 0
-```
-
-After success:
-
-```bash
-python -m freecad_cli_tools.cli.main progress update \
-  --workspace-dir /abs/path/to/FreeCAD_data/v9_data \
-  --loop-name cad_sim_report \
-  --status completed \
-  --completed true \
-  --percentage 100
-```
-
-After failure:
-
-```bash
-python -m freecad_cli_tools.cli.main progress update \
-  --workspace-dir /abs/path/to/FreeCAD_data/v9_data \
-  --loop-name cad_sim_report \
-  --status failed \
-  --completed true \
-  --percentage 100
-```
-
-The loop name must be `cad_sim_report`. The `--completed` value must be exactly
-`true` or `false`.
 
 ## Report CLI
 

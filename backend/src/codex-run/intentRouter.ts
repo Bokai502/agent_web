@@ -67,7 +67,15 @@ export function fallbackRouting(body?: RunRequestBody): IntentRoutingResult {
     return {
       intent: "thermal",
       managedSkills: ["task-runner"],
-      selectedSkills: ["planner", "config-editor", "freecad", "simulation-skill"],
+      selectedSkills: [
+        "planner",
+        "workflow-diagram-writer",
+        "config-editor",
+        "cad-box-builder",
+        "cad-real-assembly-builder",
+        "cad-sim-input-builder",
+        "simulation-skill",
+      ],
       skillScopes: ["public", "thermal"],
       source: "fallback",
     }

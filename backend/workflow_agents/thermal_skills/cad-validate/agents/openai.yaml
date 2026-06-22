@@ -1,0 +1,4 @@
+interface:
+  display_name: "CAD Validate"
+  short_description: "Validate split CAD outputs"
+  default_prompt: "Use $cad-validate to validate 01_cad outputs generated from 00_inputs/cad_build_spec.json and update cad_agent_output.json."

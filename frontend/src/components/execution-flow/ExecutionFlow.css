@@ -169,6 +169,8 @@
 }
 
 .execution-flow-reactflow .react-flow__node {
+  width: var(--node-width, 280px);
+  box-sizing: border-box;
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -189,29 +191,11 @@
   stroke: var(--edge-color);
 }
 
-.execution-flow-reactflow .react-flow__controls {
-  overflow: hidden;
-  border: 1px solid var(--switch-border);
-  border-radius: 14px;
-  background: var(--switch-bg);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
-}
-
-.execution-flow-reactflow .react-flow__controls-button {
-  width: 34px;
-  height: 34px;
-  border: 0;
-  border-bottom: 1px solid var(--switch-border);
-  background: transparent;
-  color: var(--switch-text);
-}
-
-.execution-flow-reactflow .react-flow__controls-button svg {
-  fill: currentColor;
-}
-
 .execution-flow-card {
+  --flow-accent: #ff7a45;
+  --flow-muted: rgba(255, 122, 69, 0.16);
   position: relative;
+  box-sizing: border-box;
   display: grid;
   width: var(--node-width, 280px);
   min-height: 0;
@@ -229,22 +213,6 @@
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.type-files {
-  --node-width: clamp(260px, 18vw, 330px);
-}
-
-.type-checks {
-  --node-width: clamp(360px, 25vw, 430px);
-}
-
-.type-tasks {
-  --node-width: clamp(270px, 19vw, 320px);
-}
-
-.type-single {
-  --node-width: clamp(180px, 13vw, 230px);
-}
-
 .execution-flow-card:hover,
 .execution-flow-card.is-active {
   border-color: color-mix(in srgb, var(--flow-accent) 72%, #ffffff);
@@ -255,44 +223,36 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.tone-teal {
+.kind-plan {
+  --flow-accent: #56c2a3;
+  --flow-muted: rgba(86, 194, 163, 0.16);
+}
+
+.kind-run {
   --flow-accent: #ff7a45;
   --flow-muted: rgba(255, 122, 69, 0.16);
 }
 
-.tone-blue {
-  --flow-accent: #b2b2b2;
-  --flow-muted: rgba(255, 255, 255, 0.08);
+.kind-analyze {
+  --flow-accent: #8fb8ff;
+  --flow-muted: rgba(143, 184, 255, 0.16);
 }
 
-.tone-slate {
-  --flow-accent: #ff9b5c;
-  --flow-muted: rgba(255, 129, 73, 0.18);
-}
-
-.tone-amber {
-  --flow-accent: #ff6a3d;
-  --flow-muted: rgba(255, 106, 61, 0.18);
-}
-
-.tone-indigo {
+.kind-output {
   --flow-accent: #f0efea;
   --flow-muted: rgba(255, 255, 255, 0.08);
 }
 
-.theme-light .tone-blue {
-  --flow-accent: #5b6672;
-  --flow-muted: rgba(91, 102, 114, 0.1);
-}
-
-.theme-light .tone-indigo {
+.theme-light .kind-output {
   --flow-accent: #4d5d75;
   --flow-muted: rgba(77, 93, 117, 0.1);
 }
 
 .execution-flow-node-head {
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 0.85fr) minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   padding: 18px 22px 15px;
@@ -309,6 +269,7 @@
 
 .execution-flow-card-title {
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   color: var(--title-color);
   font-size: 16px;
@@ -319,13 +280,19 @@
 }
 
 .execution-flow-output {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--output-color);
   font-size: 12px;
   font-weight: 760;
   letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .execution-flow-summary {
+  box-sizing: border-box;
   display: -webkit-box;
   overflow: hidden;
   margin: 0;
@@ -339,34 +306,42 @@
   -webkit-line-clamp: 2;
 }
 
+.execution-flow-progress {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--flow-accent) 14%, transparent);
+}
+
+.execution-flow-progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 0 999px 999px 0;
+  background: var(--flow-accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--flow-accent) 48%, transparent);
+  transition: width 220ms ease;
+}
+
 .execution-flow-card-body {
+  box-sizing: border-box;
   display: flex;
   min-width: 0;
+  width: 100%;
   align-content: start;
+  flex-direction: column;
   gap: 7px;
   padding: 15px 18px 18px;
 }
 
-.type-files .execution-flow-card-body,
-.type-single .execution-flow-card-body {
-  flex-direction: column;
-}
-
-.type-single .execution-flow-card-body {
-  justify-content: center;
-}
-
-.type-tasks .execution-flow-card-body,
-.type-checks .execution-flow-card-body {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: center;
-}
-
 .execution-flow-chip {
+  box-sizing: border-box;
   display: inline-flex;
+  width: 100%;
   min-height: 38px;
   min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: 9px;
   overflow: hidden;
@@ -384,17 +359,12 @@
   white-space: nowrap;
 }
 
-.type-tasks .execution-flow-chip,
-.type-checks .execution-flow-chip,
-.type-single .execution-flow-chip {
-  justify-content: center;
-  font-weight: 760;
-  white-space: normal;
-}
-
-.type-single .execution-flow-chip {
-  min-height: 54px;
-  font-size: 16px;
+.execution-flow-chip-label {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .execution-flow-dot {
@@ -404,12 +374,6 @@
   border-radius: 50%;
   background: var(--flow-accent);
   opacity: 0.94;
-}
-
-.type-single .execution-flow-dot,
-.type-tasks .execution-flow-dot,
-.type-checks .execution-flow-dot {
-  display: none;
 }
 
 .execution-flow-handle {

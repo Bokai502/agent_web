@@ -154,21 +154,16 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     confirmDeleteVersion,
     createChildBranch,
     createInitialVersion,
-    createSiblingBranch,
+    createVersionFromInput,
     manifestLoading,
     requestDeleteVersion,
     setBranchManifest,
-    setVersionListOpen,
-    setWorkspaceListOpen,
     switchActiveWorkspace,
     versionAction,
     versionDeleteTarget,
     versionError,
-    versionListOpen,
-    versionTreeRoots,
     workspaceChanging,
     workspaceItems,
-    workspaceListOpen,
     workspaces,
     workspacesLoaded,
   } = useWorkspaceVersionState({
@@ -281,7 +276,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
         initialize: true,
         apiBase,
         manifestRoot: activeContext.manifestRoot,
-        sourceWorkspaceDir: activeContext.sourceWorkspaceDir,
+        sourceWorkspaceDir: activeContext.initialSourceWorkspaceDir,
         workspaceId: activeContext.workspaceId,
         workspaceKey: activeContext.workspaceKey,
       })
@@ -377,19 +372,14 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       onConfirmDeleteVersion={confirmDeleteVersion}
       onCreateChildBranch={createChildBranch}
       onCreateInitialVersion={createInitialVersion}
-      onCreateSiblingBranch={createSiblingBranch}
+      onCreateVersionFromInput={createVersionFromInput}
       onRequestDeleteVersion={requestDeleteVersion}
       onSelectWorkspace={handleSelectWorkspace}
-      onToggleVersionList={() => setVersionListOpen(open => !open)}
-      onToggleWorkspaceList={() => setWorkspaceListOpen(open => !open)}
       versionAction={versionAction}
       versionDeleteTarget={versionDeleteTarget}
       versionError={versionError}
-      versionListOpen={versionListOpen}
-      versionTreeRoots={versionTreeRoots}
       workspaceChanging={workspaceChanging}
       workspaceItems={workspaceItems}
-      workspaceListOpen={workspaceListOpen}
     />
   )
   const progressCard = (

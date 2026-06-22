@@ -1,11 +1,12 @@
-import { useCallback } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type {
   WorkspaceItem,
   VersionAction,
   VersionSummary,
-  VersionTreeNode,
   WorkspaceManifestSummary,
 } from "./workspaceVersion"
+import { normalizeWorkspaceDisplayKey } from "./workspaceVersion"
+import { INPUT_DATA_NODE_ID, WorkspaceVersionFlow } from "./WorkspaceVersionFlow"
 
 type CurrentWorkspaceCardProps = {
   activeManifestVersion: VersionSummary | null
@@ -17,23 +18,29 @@ type CurrentWorkspaceCardProps = {
   onConfirmDeleteVersion: () => Promise<void>
   onCreateChildBranch: (baseVersionId?: string) => void
   onCreateInitialVersion: () => void
-  onCreateSiblingBranch: () => void
+  onCreateVersionFromInput: (baseVersionId?: string) => void
   onRequestDeleteVersion: (versionId: string) => void
   onSelectWorkspace: (name: string) => void
-  onToggleVersionList: () => void
-  onToggleWorkspaceList: () => void
   versionAction: VersionAction | null
   versionDeleteTarget: string | null
   versionError: string
-  versionListOpen: boolean
-  versionTreeRoots: VersionTreeNode[]
   workspaceChanging: boolean
   workspaceItems: WorkspaceItem[]
-  workspaceListOpen: boolean
+}
+
+function getThermalOptionLabel(name: string) {
+  return normalizeWorkspaceDisplayKey(name) === "thermal_catch" ? "catch" : "立方形"
+}
+
+function getWorkspaceNodeKey(name: string) {
+  const key = normalizeWorkspaceDisplayKey(name)
+  if (key === "gnc") return "gnc"
+  if (key === "derating") return "derating"
+  if (key === "thermal" || key === "thermal_catch") return key
+  return key
 }
 
 export function CurrentWorkspaceCard({
-  activeManifestVersion,
   branchManifest,
   currentWorkspaceName,
   manifestLoading,
@@ -42,166 +49,179 @@ export function CurrentWorkspaceCard({
   onConfirmDeleteVersion,
   onCreateChildBranch,
   onCreateInitialVersion,
-  onCreateSiblingBranch,
+  onCreateVersionFromInput,
   onRequestDeleteVersion,
   onSelectWorkspace,
-  onToggleVersionList,
-  onToggleWorkspaceList,
   versionAction,
   versionDeleteTarget,
   versionError,
-  versionListOpen,
-  versionTreeRoots,
   workspaceChanging,
   workspaceItems,
-  workspaceListOpen,
 }: CurrentWorkspaceCardProps) {
-  const versionCount = branchManifest?.versions?.length ?? 0
-  const renderVersionNode = useCallback((node: VersionTreeNode) => {
-    const versionId = node.version.id ?? ""
-    const isActive = versionId === branchManifest?.activeVersionId
-    const canDelete = !!versionId && versionCount > 1 && versionAction !== "delete"
-    return (
-      <div className="wa-version-branch" key={versionId}>
-        <div className={`wa-version-node${isActive ? " active" : ""}`}>
-          <button
-            type="button"
-            className={`wa-version-row${isActive ? " active" : ""}`}
-            disabled={!versionId || isActive || versionAction !== null}
-            onClick={() => onCheckoutVersion(versionId)}
-            title={isActive ? `${versionId} 为当前版本` : `切换到 ${versionId}`}
-          >
-            <strong>{versionId || "-"}</strong>
-          </button>
-          <button
-            type="button"
-            className="wa-version-delete"
-            disabled={!canDelete || versionAction !== null}
-            onClick={() => onRequestDeleteVersion(versionId)}
-            title={versionCount <= 1 ? "至少保留一个版本" : `删除 ${versionId}`}
-            aria-label={`删除 ${versionId}`}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 5h6" />
-              <path d="M10 5l1-2h2l1 2" />
-              <path d="M5 7h14" />
-              <path d="M7 7l1 14h8l1-14" />
-              <path d="M10 11v6" />
-              <path d="M14 11v6" />
-            </svg>
-          </button>
-        </div>
-        {node.children.length > 0 && (
-          <div className="wa-version-children">
-            {node.children.map(child => renderVersionNode(child))}
-          </div>
-        )}
-      </div>
+  const [thermalMenuOpen, setThermalMenuOpen] = useState(false)
+  const [selectedVersionFlowNodeId, setSelectedVersionFlowNodeId] = useState<string | null>(null)
+  const hasVersions = (branchManifest?.versions?.length ?? 0) > 0
+  const inputDataSelected = selectedVersionFlowNodeId === INPUT_DATA_NODE_ID
+  const selectedVersion = !inputDataSelected
+    ? branchManifest?.versions?.find(version => version.id === selectedVersionFlowNodeId) ?? null
+    : null
+  const selectedVersionId = selectedVersion?.id ?? null
+  const inputRootVersionId = branchManifest?.versions?.find(version => !!version.id && !version.parentVersionId)?.id
+    ?? branchManifest?.versions?.find(version => !!version.id)?.id
+    ?? null
+  const canCreateFromInput = !!branchManifest
+    && inputDataSelected
+    && versionAction === null
+    && !manifestLoading
+    && (!hasVersions || !!inputRootVersionId)
+  const canCreateVersion = ((!!selectedVersionId && hasVersions) || canCreateFromInput) && versionAction === null
+  const { itemByNodeKey, thermalItems } = useMemo(() => {
+    const byKey = new Map<string, WorkspaceItem>()
+    const thermal: WorkspaceItem[] = []
+    workspaceItems.forEach(item => {
+      const key = getWorkspaceNodeKey(item.name)
+      byKey.set(key, item)
+      if (key === "thermal" || key === "thermal_catch") thermal.push(item)
+    })
+    thermal.sort((left, right) => {
+      const leftKey = normalizeWorkspaceDisplayKey(left.name)
+      const rightKey = normalizeWorkspaceDisplayKey(right.name)
+      if (leftKey === rightKey) return left.name.localeCompare(right.name)
+      if (leftKey === "thermal") return -1
+      if (rightKey === "thermal") return 1
+      return left.name.localeCompare(right.name)
+    })
+    return { itemByNodeKey: byKey, thermalItems: thermal }
+  }, [workspaceItems])
+  const activeThermalItem = thermalItems.find(item => item.name === currentWorkspaceName) ?? null
+  const hasThermalGroup = thermalItems.length > 0
+  useEffect(() => {
+    if (!branchManifest) {
+      setSelectedVersionFlowNodeId(null)
+      return
+    }
+    const versionIds = new Set((branchManifest.versions ?? []).map(version => version.id).filter(Boolean))
+    if (versionIds.size === 0) {
+      setSelectedVersionFlowNodeId(INPUT_DATA_NODE_ID)
+      return
+    }
+    setSelectedVersionFlowNodeId(current =>
+      current && versionIds.has(current)
+        ? current
+        : branchManifest.activeVersionId ?? (branchManifest.versions?.find(version => version.id)?.id ?? null)
     )
-  }, [branchManifest?.activeVersionId, onCheckoutVersion, onRequestDeleteVersion, versionAction, versionCount])
-
-  const activeVersionId = branchManifest?.activeVersionId ?? "-"
+  }, [branchManifest])
+  const sourceNodes = [
+    { key: "gnc", label: "姿轨控设计" },
+    { key: "thermal_group", label: "力热设计" },
+    { key: "derating", label: "合规性检查" },
+    { key: "structure", label: "结构设计", disabled: true },
+    { key: "power", label: "电源设计", disabled: true },
+    { key: "communication", label: "通信设计", disabled: true },
+  ]
+  const renderWorkspaceSourceButton = (item: WorkspaceItem, label: string, className = "") => {
+    const isActive = item.name === currentWorkspaceName
+    return (
+      <button
+        type="button"
+        className={`wa-source-flow-node is-selectable${isActive ? " active" : ""}${className ? ` ${className}` : ""}`}
+        disabled={isActive || workspaceChanging || !item.valid}
+        key={item.name}
+        onClick={() => onSelectWorkspace(item.name)}
+        title={item.path}
+      >
+        <strong>{label}</strong>
+      </button>
+    )
+  }
 
   return (
-    <section className="wa-info-card wa-task-card">
-      <div className="wa-version-card-header wa-task-card-header">
-        <div>
-          <h3>当前任务</h3>
-          <p>{currentWorkspaceName} · {activeVersionId}</p>
-        </div>
-      </div>
+    <>
       {manifestLoading && <p>正在加载版本状态...</p>}
-      <div className="wa-current-context">
-        <button
-          type="button"
-          disabled={workspaceChanging}
-          onClick={onToggleWorkspaceList}
-          aria-expanded={workspaceListOpen}
-          aria-label={workspaceListOpen ? "收起任务" : "选择任务"}
-        >
-          <span>任务</span>
-          <strong>{currentWorkspaceName}</strong>
-          <em>{workspaceListOpen ? "⌃" : "⌄"}</em>
-        </button>
-        <button
-          type="button"
-          onClick={onToggleVersionList}
-          aria-expanded={versionListOpen}
-          aria-label={versionListOpen ? "收起版本" : "选择版本"}
-        >
-          <span>当前版本</span>
-          <strong>{activeVersionId}</strong>
-          <em>{versionListOpen ? "⌃" : "⌄"}</em>
-        </button>
-      </div>
-      {workspaceListOpen && (
-        <div className="wa-context-popover wa-task-picker">
-          <div className="wa-context-popover-header">
-            <span>选择任务</span>
-            <strong>{workspaceItems.length}</strong>
+      <div className="wa-task-layout">
+        <section className="wa-task-container wa-task-source-pane" aria-label="数据源">
+          <div className="wa-section-title">
+            <span>数据源</span>
           </div>
-          {workspaceItems.length > 0 ? workspaceItems.map(item => (
-            <button
-              type="button"
-              className={`wa-branch-workspace-row${item.name === currentWorkspaceName ? " active" : ""}`}
-              disabled={item.name === currentWorkspaceName || workspaceChanging}
-              key={item.name}
-              onClick={() => onSelectWorkspace(item.name)}
-              title={item.path}
-            >
-              <span>
-                <strong>{item.name}</strong>
-                {!item.valid && (
-                  <small>{item.missing?.length ? `缺少 ${item.missing.join(", ")}` : "不可用"}</small>
-                )}
-              </span>
-              <em>{item.name === currentWorkspaceName ? "当前" : "切换"}</em>
-            </button>
-          )) : (
-            <span className="wa-version-empty">暂无任务</span>
-          )}
-        </div>
-      )}
-      {versionError && <p className="wa-version-error">{versionError}</p>}
-      {versionListOpen && (
-        <div className="wa-context-popover wa-version-picker">
-          <div className="wa-context-popover-header">
-            <span>选择版本</span>
+          <div className="wa-source-flow">
+            <div className="wa-source-flow-root">
+              <strong>卫星设计</strong>
+            </div>
+            <div className="wa-source-flow-trunk" aria-hidden="true" />
+            <div className="wa-source-flow-grid">
+              {sourceNodes.map(node => {
+                const item = itemByNodeKey.get(node.key)
+                if (node.key === "thermal_group") {
+                  return (
+                    <div className={`wa-source-flow-group${activeThermalItem ? " active" : ""}`} key={node.key}>
+                      <button
+                        type="button"
+                        className="wa-source-flow-node is-group"
+                        disabled={!hasThermalGroup || workspaceChanging}
+                        onClick={() => setThermalMenuOpen(open => !open)}
+                        aria-expanded={thermalMenuOpen}
+                      >
+                        <strong>{node.label}</strong>
+                        <span aria-hidden="true">{thermalMenuOpen ? "⌃" : "⌄"}</span>
+                      </button>
+                      {thermalMenuOpen && (
+                        <div className="wa-source-flow-children">
+                          {thermalItems.map(thermalItem => renderWorkspaceSourceButton(
+                            thermalItem,
+                            getThermalOptionLabel(thermalItem.name),
+                            "is-child",
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+                if (item) return renderWorkspaceSourceButton(item, node.label)
+                return (
+                  <button
+                    type="button"
+                    className="wa-source-flow-node is-disabled"
+                    disabled
+                    key={node.key}
+                  >
+                    <strong>{node.label}</strong>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+        <section className="wa-task-container wa-task-version-pane" aria-label="版本流">
+          {versionError && <p className="wa-version-error">{versionError}</p>}
+          <div className="wa-version-flow-header">
+            <span>版本流</span>
             <div className="wa-version-header-actions">
-              <strong>{versionCount}</strong>
               <button
                 type="button"
-                disabled={!branchManifest?.activeVersionId || versionAction !== null}
-                onClick={() => onCreateChildBranch(branchManifest?.activeVersionId ?? undefined)}
+                disabled={!canCreateVersion}
+                onClick={() => {
+                  if (inputDataSelected && hasVersions && inputRootVersionId) onCreateVersionFromInput(inputRootVersionId)
+                  else if (canCreateFromInput) onCreateInitialVersion()
+                  else onCreateChildBranch(selectedVersionId ?? undefined)
+                }}
               >
                 {versionAction === "branch" ? "创建中..." : "基于当前新建"}
               </button>
-              <button
-                type="button"
-                disabled={!activeManifestVersion?.parentVersionId || versionAction !== null}
-                onClick={onCreateSiblingBranch}
-              >
-                {activeManifestVersion?.parentVersionId ? "新建并列版本" : "无父版本"}
-              </button>
             </div>
           </div>
-          <div className="wa-version-tree">
-            {versionTreeRoots.map(root => renderVersionNode(root))}
-            {versionTreeRoots.length === 0 && (
-              <div className="wa-version-empty-state">
-                <span className="wa-version-empty">暂无版本</span>
-                <button
-                  type="button"
-                  disabled={versionAction !== null || manifestLoading}
-                  onClick={onCreateInitialVersion}
-                >
-                  {versionAction === "branch" ? "创建中..." : "新建版本"}
-                </button>
-              </div>
-            )}
+          <div className="wa-version-flow-shell">
+            <WorkspaceVersionFlow
+              manifest={branchManifest}
+              onCheckoutVersion={onCheckoutVersion}
+              onCreateInitialVersion={versionAction === null && !manifestLoading ? onCreateInitialVersion : undefined}
+              onRequestDeleteVersion={onRequestDeleteVersion}
+              onSelectNode={setSelectedVersionFlowNodeId}
+              selectedNodeId={selectedVersionFlowNodeId}
+              versionAction={versionAction}
+            />
           </div>
-        </div>
-      )}
+        </section>
+      </div>
       {versionDeleteTarget && (
         <div className="wa-version-delete-dialog-backdrop" role="presentation" onClick={() => versionAction !== "delete" && onCancelDeleteVersion()}>
           <section
@@ -223,7 +243,7 @@ export function CurrentWorkspaceCard({
                 </svg>
               </div>
               <h3 id="wa-version-delete-title">删除版本？</h3>
-              <p>版本 {versionDeleteTarget} 的工作区文件和版本记录会被删除。任务至少需要保留一个版本。</p>
+              <p>版本 {versionDeleteTarget} 的工作区文件和版本记录会被删除。</p>
               {versionError && <span className="wa-version-delete-dialog-error">{versionError}</span>}
             </div>
             <div className="wa-version-delete-dialog-actions">
@@ -242,6 +262,6 @@ export function CurrentWorkspaceCard({
           </section>
         </div>
       )}
-    </section>
+    </>
   )
 }

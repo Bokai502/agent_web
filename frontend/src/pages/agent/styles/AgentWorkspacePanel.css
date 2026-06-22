@@ -24,6 +24,11 @@
     box-shadow 260ms ease;
 }
 
+.agent-page.has-workspace-view .agent-workspace-panel.is-open {
+  grid-row: 1 / 3;
+  margin-bottom: 14px;
+}
+
 .agent-workspace-panel.is-collapsed {
   align-self: center;
   justify-self: center;

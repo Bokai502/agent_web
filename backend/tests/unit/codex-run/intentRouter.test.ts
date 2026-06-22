@@ -4,6 +4,16 @@ import { fallbackRouting, routeManagedRunIntent } from "../../../src/codex-run/i
 import { createTestConfig } from "../../helpers/testConfig.js"
 import { createTestLogger } from "../../helpers/testLogger.js"
 
+const THERMAL_WORKFLOW_SKILLS = [
+  "planner",
+  "workflow-diagram-writer",
+  "config-editor",
+  "cad-box-builder",
+  "cad-real-assembly-builder",
+  "cad-sim-input-builder",
+  "simulation-skill",
+]
+
 describe("fallbackRouting", () => {
   afterEach(() => {
     mock.restoreAll()
@@ -30,7 +40,7 @@ describe("fallbackRouting", () => {
     })
 
     assert.equal(result.intent, "thermal")
-    assert.deepEqual(result.selectedSkills, ["planner", "config-editor", "freecad", "simulation-skill"])
+    assert.deepEqual(result.selectedSkills, THERMAL_WORKFLOW_SKILLS)
     assert.deepEqual(result.skillScopes, ["public", "thermal"])
   })
 
@@ -42,7 +52,20 @@ describe("fallbackRouting", () => {
     })
 
     assert.equal(result.intent, "thermal")
-    assert.deepEqual(result.selectedSkills, ["planner", "config-editor", "freecad", "simulation-skill"])
+    assert.deepEqual(result.selectedSkills, THERMAL_WORKFLOW_SKILLS)
+    assert.deepEqual(result.skillScopes, ["public", "thermal"])
+  })
+
+  it("routes satellite CAD modeling plus thermal simulation to the split CAD workflow", () => {
+    const result = fallbackRouting({
+      input: "执行卫星的cad建模和热仿真",
+      workspaceId: "ws_thermal_catch",
+      workspaceName: "thermal_catch",
+    })
+
+    assert.equal(result.intent, "thermal")
+    assert.deepEqual(result.selectedSkills, THERMAL_WORKFLOW_SKILLS)
+    assert.equal(result.selectedSkills.includes("freecad"), false)
     assert.deepEqual(result.skillScopes, ["public", "thermal"])
   })
 

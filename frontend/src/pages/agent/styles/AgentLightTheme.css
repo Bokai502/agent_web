@@ -959,17 +959,85 @@
   text-shadow: none;
 }
 
-.agent-page.is-light-theme .agent-workspace-card-stage .wa-info-card,
-.agent-page.is-light-theme .wa-info-card,
-.agent-page.is-light-theme .wa-current-context,
-.agent-page.is-light-theme .wa-context-popover,
-.agent-page.is-light-theme .wa-version-header-actions button,
-.agent-page.is-light-theme .wa-branch-workspace-row,
-.agent-page.is-light-theme .wa-version-row {
+.agent-page.is-light-theme .wa-source-flow-node,
+.agent-page.is-light-theme .wa-flow-version-main,
+.agent-page.is-light-theme .wa-version-header-actions button {
   border-color: rgba(0, 0, 0, 0.08);
   background: rgba(255, 255, 255, 0.78);
   box-shadow: none;
   color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-task-container {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+}
+
+.agent-page.is-light-theme .wa-source-flow-root {
+  border-color: rgba(0, 113, 227, 0.24);
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--light-text);
+}
+
+.agent-page.is-light-theme .wa-source-flow-trunk {
+  background: linear-gradient(180deg, rgba(0, 113, 227, 0.32), rgba(0, 113, 227, 0.12));
+}
+
+.agent-page.is-light-theme .wa-source-flow-grid::before {
+  background: rgba(0, 113, 227, 0.18);
+}
+
+.agent-page.is-light-theme .wa-source-flow-node.active,
+.agent-page.is-light-theme .wa-source-flow-group.active > .wa-source-flow-node,
+.agent-page.is-light-theme .wa-flow-version-node.active .wa-flow-version-main {
+  border-color: rgba(0, 113, 227, 0.36);
+  background: rgba(0, 113, 227, 0.1);
+}
+
+.agent-page.is-light-theme .wa-source-flow-node.is-disabled {
+  border-color: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.025);
+  color: #b3b3b8;
+}
+
+.agent-page.is-light-theme .wa-section-title,
+.agent-page.is-light-theme .wa-version-flow-header {
+  color: var(--light-text-muted);
+}
+
+.agent-page.is-light-theme .wa-task-divider {
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(0, 113, 227, 0.2) 18%, rgba(15, 127, 86, 0.12) 50%, rgba(0, 113, 227, 0.2) 82%, transparent 100%);
+}
+
+.agent-page.is-light-theme .wa-version-flow-shell .react-flow__edge-path {
+  stroke: rgba(0, 113, 227, 0.42);
+}
+
+.agent-page.is-light-theme .wa-version-flow-shell .react-flow__edge.active .react-flow__edge-path {
+  stroke: rgba(0, 113, 227, 0.82);
+}
+
+.agent-page.is-light-theme .wa-version-flow-shell .react-flow__edge.input-edge .react-flow__edge-path {
+  stroke: rgba(183, 121, 31, 0.38);
+}
+
+.agent-page.is-light-theme .wa-flow-version-node .react-flow__handle {
+  border-color: rgba(255, 255, 255, 0.96);
+  background: rgba(0, 113, 227, 0.68);
+}
+
+.agent-page.is-light-theme .wa-flow-version-node.is-input .wa-flow-version-main {
+  border-color: rgba(183, 121, 31, 0.24);
+  background: rgba(183, 121, 31, 0.08);
+  color: #6f4b12;
+}
+
+.agent-page.is-light-theme .wa-flow-version-node.is-input .wa-flow-version-main:not(:disabled) {
+  border-color: rgba(183, 121, 31, 0.34);
+  background: rgba(183, 121, 31, 0.1);
+  color: #6f4b12;
 }
 
 .agent-page.is-light-theme .wa-version-delete {
@@ -1025,18 +1093,12 @@
   background: rgba(0, 113, 227, 0.12);
 }
 
-.agent-page.is-light-theme .wa-version-card-header h3,
-.agent-page.is-light-theme .wa-task-card-header p,
 .agent-page.is-light-theme .wa-info-card p,
-.agent-page.is-light-theme .wa-current-context span,
-.agent-page.is-light-theme .wa-branch-workspace-row small,
-.agent-page.is-light-theme .wa-branch-workspace-row em,
 .agent-page.is-light-theme .wa-version-empty {
   color: var(--light-text-muted);
 }
 
-.agent-page.is-light-theme .wa-current-context strong,
-.agent-page.is-light-theme .wa-branch-workspace-row strong,
-.agent-page.is-light-theme .wa-version-row strong {
+.agent-page.is-light-theme .wa-source-flow-node strong,
+.agent-page.is-light-theme .wa-flow-version-main strong {
   color: var(--light-text);
 }

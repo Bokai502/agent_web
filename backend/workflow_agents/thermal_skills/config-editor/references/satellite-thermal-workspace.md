@@ -36,23 +36,22 @@ If `version_id` is missing, use the active version from the workspace manifest
 when available. If no active version can be identified, stop and ask for the
 workspace/version context instead of guessing.
 
-For this config-editing task, the configuration source is always the initial version:
+For this config-editing task, the configuration source is the selected version:
 
 ```text
-<workspace root>/workspaces/<workspace_id>/versions/v0001/00_inputs
+<workspace root>/workspaces/<workspace_id>/versions/<version_id>/00_inputs
 ```
 
-Use `version_id` to identify the selected run/history context, but read and
-update configuration under `v0001/00_inputs` unless the user explicitly changes
-this policy.
+Read and update the selected version's `00_inputs/cad_build_spec.json` unless
+the user explicitly asks to edit another version.
 
 ## Primary Directories
 
-`v0001/00_inputs/`
+`<selected version>/00_inputs/`
 
 - Fixed configuration input directory for satellite thermal simulation.
-- Contains component, geometry, and layout/topology data used by CAD and
-  simulation stages.
+- Contains the CAD-native thermal configuration used by CAD and simulation
+  stages.
 - Read only the specific files required by the user's requested change.
 - The config editor's Markdown output must also be written here as
   `config_editor_output.md`.
@@ -75,33 +74,15 @@ this policy.
 
 ## Configuration Files In `00_inputs`
 
-`real_bom.json`
+`cad_build_spec.json`
 
-- Bill of materials and component/device metadata.
-- Typical contents include component ids, names/types, physical dimensions,
-  mass/material metadata, power or heat-load related fields, source information,
-  and references to real device data.
-- Read this for requests about replacing devices, changing power/heat
-  dissipation, component selection, mass/material updates, or component-level
-  thermal properties.
-
-`geom.json`
-
-- Geometry configuration used to build or validate the satellite model.
-- Typical contents include body dimensions, component dimensions, positions,
-  mounting faces, coordinate frames, bounding boxes, and geometry parameters
-  consumed by CAD or thermal meshing.
-- Read this for requests about size, placement, clearances, mounting geometry,
-  model dimensions, or geometry-dependent simulation behavior.
-
-`layout_topology.json`
-
-- Layout and topology relationship source of truth.
-- Typical contents include component placement, adjacency, installed faces,
-  orientation, parent/child relationships, collision-sensitive placement, and
-  topology constraints.
-- Read this for requests about moving components, changing installation faces,
-  rearranging layout, avoiding overlap, or preserving topology constraints.
+- Single source of truth for the normal CAD and thermal workflow.
+- Contains component ids, display names, semantic names, dimensions, positions,
+  bounding boxes, rotations, colors, real-CAD STEP paths, mount relationships,
+  walls, cabins, envelope data, and thermal properties.
+- Read and edit this file for component replacement, power/heat dissipation,
+  material, placement, mounting face, color, real-CAD path, wall, cabin,
+  envelope, and simulation-inclusion changes.
 
 Other `00_inputs` files, if present
 
@@ -156,22 +137,16 @@ Other log files, if present
 
 Do not read every file by default. Route by user intent:
 
-- Component replacement or BOM edits: read `real_bom.json`; then read
-  `geom.json` or `layout_topology.json` only if dimensions, placement, or
-  topology may be affected.
-- Power, heat load, material, or thermal property changes: read
-  `real_bom.json`; read recent simulation/analysis stage results if the change
-  is motivated by prior thermal output.
-- Move, rotate, face, clearance, or overlap changes: read
-  `layout_topology.json` and `geom.json`; read CAD/validation logs only if the
-  request mentions previous geometry failures. For overlaps or geometry
-  errors, identify the affected component ids and change only those components.
+- Component replacement, BOM edits, power, heat load, material, thermal
+  property, move, rotate, face, clearance, or overlap changes: read
+  `cad_build_spec.json`; read recent CAD/simulation/analysis stage results only
+  if the change is motivated by prior output.
 - Thermal simulation failure or retry planning: read
   `logs/progress_percentages.json`, the relevant `*_stage_result.json`, and
   targeted excerpts from `pipeline.log` if needed.
 - Temperature or analysis interpretation: read analysis stage results first;
-  read `real_bom.json` only for component names, powers, or materials needed to
-  explain the result.
+  read `cad_build_spec.json` only for component display names, powers, or
+  materials needed to explain the result.
 - General "adjust config based on my request": read filenames under
   `00_inputs`, then open the smallest likely set from the descriptions above.
 

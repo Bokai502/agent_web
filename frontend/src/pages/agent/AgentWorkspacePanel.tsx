@@ -1,12 +1,13 @@
 import type { ComponentProps } from 'react'
 import type { TFunction } from 'i18next'
 import { GncConfigEditor } from '../../../gnc_config/GncConfigEditor'
+import { ExecutionFlow } from '../../components/execution-flow/ExecutionFlow'
 import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
 import { CatchSupportingTableEditor } from '../workspace/CatchSupportingTableEditor'
 import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
 import { GncDashboardPanel } from '../workspace/GncDashboardPanel'
-import { usesCatchSupportingTable } from '../workspace/workspaceVersion'
+import { getWorkspaceDisplayName, usesCatchSupportingTable } from '../workspace/workspaceVersion'
 import { ComplianceCheckInputConfigEditor } from './ComplianceCheckInputConfigEditor'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
@@ -34,7 +35,7 @@ type AgentWorkspacePanelProps = {
   confirmDeleteVersion: CurrentWorkspaceCardProps['onConfirmDeleteVersion']
   createChildBranch: CurrentWorkspaceCardProps['onCreateChildBranch']
   createInitialVersion: CurrentWorkspaceCardProps['onCreateInitialVersion']
-  createSiblingBranch: CurrentWorkspaceCardProps['onCreateSiblingBranch']
+  createVersionFromInput: CurrentWorkspaceCardProps['onCreateVersionFromInput']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   manifestLoading: boolean
   selectedBom: BomStagePanelProps['selectedBom']
@@ -44,10 +45,9 @@ type AgentWorkspacePanelProps = {
   selectedFilePreview: WorkspaceFilePreview | null
   setActiveTool: (tool: AgentToolView) => void
   setSelectedBomId: BomStagePanelProps['onSelectBom']
-  setVersionListOpen: CurrentWorkspaceCardProps['onToggleVersionList']
-  setWorkspaceListOpen: CurrentWorkspaceCardProps['onToggleWorkspaceList']
   requestDeleteVersion: CurrentWorkspaceCardProps['onRequestDeleteVersion']
   refreshWorkspaceViews?: () => void
+  theme: 'dark' | 'light'
   showComplianceCheckConfig: boolean
   showGncConfig: boolean
   showModelPreview: boolean
@@ -57,19 +57,16 @@ type AgentWorkspacePanelProps = {
   versionAction: CurrentWorkspaceCardProps['versionAction']
   versionDeleteTarget: CurrentWorkspaceCardProps['versionDeleteTarget']
   versionError: CurrentWorkspaceCardProps['versionError']
-  versionListOpen: boolean
-  versionTreeRoots: CurrentWorkspaceCardProps['versionTreeRoots']
   viewerHref: string
   workspaceChanging: boolean
   workspaceItems: CurrentWorkspaceCardProps['workspaceItems']
-  workspaceListOpen: boolean
   workspaceRefreshNonce?: number
 }
 
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showComplianceCheckConfig: boolean, showGncConfig: boolean) {
   if (activeView === 'workspace') return '当前任务'
   if (activeView === 'bom' && showComplianceCheckConfig) return '配置文件'
-  if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '组件清单'
+  if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '配置文件'
   if (activeView === 'model') return '结果预览'
   if (activeView === 'tools') return showGncConfig ? 'GNC 工具' : '仿真工具'
   if (activeView === 'log') return '工作区文件'
@@ -90,7 +87,7 @@ export function AgentWorkspacePanel({
   confirmDeleteVersion,
   createChildBranch,
   createInitialVersion,
-  createSiblingBranch,
+  createVersionFromInput,
   handleSelectFile,
   manifestLoading,
   selectedBom,
@@ -100,10 +97,9 @@ export function AgentWorkspacePanel({
   selectedFilePreview,
   setActiveTool,
   setSelectedBomId,
-  setVersionListOpen,
-  setWorkspaceListOpen,
   requestDeleteVersion,
   refreshWorkspaceViews,
+  theme,
   showComplianceCheckConfig,
   showGncConfig,
   showModelPreview,
@@ -113,12 +109,9 @@ export function AgentWorkspacePanel({
   versionAction,
   versionDeleteTarget,
   versionError,
-  versionListOpen,
-  versionTreeRoots,
   viewerHref,
   workspaceChanging,
   workspaceItems,
-  workspaceListOpen,
   workspaceRefreshNonce = 0,
 }: AgentWorkspacePanelProps) {
   const panelClassName = [
@@ -136,6 +129,21 @@ export function AgentWorkspacePanel({
     if (tool === 'gnc-dashboard') return 'GNC 看板'
     return 'GNC'
   }
+  const thermalConfigContent = usesCatchSupportingTable(activeContext) ? (
+    <CatchSupportingTableEditor
+      activeContext={activeContext}
+      apiBase={apiBase}
+      onSaved={refreshWorkspaceViews}
+    />
+  ) : (
+    <BomStagePanel
+      bomInfo={bomInfo}
+      bomLoading={bomLoading}
+      onSelectBom={setSelectedBomId}
+      selectedBom={selectedBom}
+      t={t}
+    />
+  )
 
   return (
     <section className={panelClassName}>
@@ -170,7 +178,7 @@ export function AgentWorkspacePanel({
       <div className="agent-workspace-header">
         <div>
           <strong>{getWorkspacePanelTitle(activeView, showComplianceCheckConfig, showGncConfig)}</strong>
-          <span>{activeView ? `${activeContext.workspaceName}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : '选择左侧模块展开当前任务'}</span>
+          <span>{activeView ? `${getWorkspaceDisplayName(activeContext.workspaceName)}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : '选择左侧模块展开当前任务'}</span>
         </div>
         {activeView === 'tools' && (
           <div className="agent-tool-tabs">
@@ -191,50 +199,44 @@ export function AgentWorkspacePanel({
         {!activeView ? (
           <div className="agent-empty-state">当前任务已收回，点击左侧模块重新展开</div>
         ) : activeView === 'workspace' ? (
-          <div className="agent-workspace-card-stage">
-            <CurrentWorkspaceCard
-              activeManifestVersion={activeManifestVersion}
-              branchManifest={branchManifest}
-              currentWorkspaceName={activeContext.workspaceName ?? '当前任务'}
-              manifestLoading={manifestLoading}
-              onCheckoutVersion={checkoutVersion}
-              onCancelDeleteVersion={cancelDeleteVersion}
-              onConfirmDeleteVersion={confirmDeleteVersion}
-              onCreateChildBranch={createChildBranch}
-              onCreateInitialVersion={createInitialVersion}
-              onCreateSiblingBranch={createSiblingBranch}
-              onRequestDeleteVersion={requestDeleteVersion}
-              onSelectWorkspace={switchActiveWorkspace}
-              onToggleVersionList={setVersionListOpen}
-              onToggleWorkspaceList={setWorkspaceListOpen}
-              versionAction={versionAction}
-              versionDeleteTarget={versionDeleteTarget}
-              versionError={versionError}
-              versionListOpen={versionListOpen}
-              versionTreeRoots={versionTreeRoots}
-              workspaceChanging={workspaceChanging}
-              workspaceItems={workspaceItems}
-              workspaceListOpen={workspaceListOpen}
-            />
-          </div>
+          <CurrentWorkspaceCard
+            activeManifestVersion={activeManifestVersion}
+            branchManifest={branchManifest}
+            currentWorkspaceName={activeContext.workspaceName ?? '当前任务'}
+            manifestLoading={manifestLoading}
+            onCheckoutVersion={checkoutVersion}
+            onCancelDeleteVersion={cancelDeleteVersion}
+            onConfirmDeleteVersion={confirmDeleteVersion}
+            onCreateChildBranch={createChildBranch}
+            onCreateInitialVersion={createInitialVersion}
+            onCreateVersionFromInput={createVersionFromInput}
+            onRequestDeleteVersion={requestDeleteVersion}
+            onSelectWorkspace={switchActiveWorkspace}
+            versionAction={versionAction}
+            versionDeleteTarget={versionDeleteTarget}
+            versionError={versionError}
+            workspaceChanging={workspaceChanging}
+            workspaceItems={workspaceItems}
+          />
         ) : activeView === 'bom' && showComplianceCheckConfig ? (
           <ComplianceCheckInputConfigEditor activeContext={activeContext} />
         ) : activeView === 'bom' && showGncConfig ? (
           <GncConfigEditor activeContext={activeContext} />
-        ) : activeView === 'bom' && usesCatchSupportingTable(activeContext) ? (
-          <CatchSupportingTableEditor
-            activeContext={activeContext}
-            apiBase={apiBase}
-            onSaved={refreshWorkspaceViews}
-          />
         ) : activeView === 'bom' ? (
-          <BomStagePanel
-            bomInfo={bomInfo}
-            bomLoading={bomLoading}
-            onSelectBom={setSelectedBomId}
-            selectedBom={selectedBom}
-            t={t}
-          />
+          <div className="agent-thermal-config">
+            <section className="agent-thermal-flow-panel">
+              <ExecutionFlow
+                className="execution-flow-embedded"
+                height={360}
+                showThemeSwitch={false}
+                theme={theme}
+                versionId={activeContext.versionId ?? undefined}
+                workspaceDir={activeContext.versionDir ?? undefined}
+                workspaceId={activeContext.workspaceId ?? undefined}
+              />
+            </section>
+            {thermalConfigContent}
+          </div>
         ) : activeView === 'model' && showModelPreview ? (
           activeContext.versionDir ? (
             <iframe className="agent-embed-frame" title="结果预览" src={viewerHref} />
