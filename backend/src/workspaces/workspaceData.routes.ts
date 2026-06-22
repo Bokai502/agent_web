@@ -1,10 +1,13 @@
 import { FastifyInstance } from "fastify"
 import fs from "fs/promises"
 import path from "path"
+import { pinyin } from "pinyin-pro"
+import { Client } from "pg"
 import { spawn } from "child_process"
 import { fileURLToPath } from "url"
 import type { AppConfig } from "../config.js"
 import { isPathInside } from "../shared/index.js"
+import { readCatchSupportingTable, writeAndRefreshCatchSupportingTable } from "./catchSupportingTable.js"
 import { resolveProgressFromLatestSessionRun } from "./workspaceRegistry.js"
 import { resolveScopedWorkspaceFilePath } from "./workspaceFiles.js"
 import {
@@ -42,6 +45,9 @@ type ComplianceCheckResultBody = {
 type ComplianceArtifactQuery = WorkspaceQuery
 type ComplianceArtifactBody = {
   rows?: unknown
+}
+type ManufacturerFullNameBody = {
+  full_name?: unknown
 }
 
 type WorkspaceTextFileQuery = WorkspaceFilesQuery & {
@@ -95,7 +101,15 @@ const DEFAULT_BOM_INFO_RELATIVE_PATH = path.join("00_inputs", "bom_component_inf
 const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const CATCH_SUPPORTING_TABLE_RELATIVE_PATH = path.join("00_inputs", "CATCH整星配套表.xlsx")
 const LEGACY_CATCH_SUPPORTING_TABLE_TEMPLATE_RELATIVE_PATH = path.join("catch_task", "CATCH整星配套表.xlsx")
-const CATCH_SUPPORTING_TABLE_SCRIPT_RELATIVE_PATH = path.join("data", "input_data", "catch_task", "scripts", "catch_supporting_table_io.py")
+const CATCH_SUPPORTING_THERMAL_DB_RELATIVE_PATH = path.join(
+  "backend",
+  "workflow_agents",
+  "thermal_skills",
+  "config-editor",
+  "references",
+  "热仿真数据库.json",
+)
+const CATCH_SUPPORTING_TEMPLATE_RELATIVE_PATH = path.join("data", "input_data", "thermal_catch", "00_inputs")
 const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
 const AIGNC_PROGRESS_RELATIVE_PATH = path.join("AIGNC_Workflow", "loop_progress.json")
 const WORKSPACE_PROGRESS_RELATIVE_PATHS = [
@@ -106,6 +120,7 @@ const DEFAULT_TEMPERATURE_FIELD_RELATIVE_PATH = path.join("02_sim", "simulation"
 const COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "compliance")
 const LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH = path.join("check_outputs", "checks", "compliance")
 const DERATING_OUTPUT_RELATIVE_PATH = path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "derating")
+const CONFIRMED_RESULTS_RELATIVE_PATH = path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "confirmed_results.json")
 const DERATING_MAPPING_COMPLETENESS_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "mapping_completeness.json")
 const DERATING_TABLE_RELATIVE_PATH = path.join(DERATING_OUTPUT_RELATIVE_PATH, "table.json")
 const DERATING_CHECK_RESULT_RELATIVE_PATH = path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", "derating_check.json")
@@ -150,6 +165,139 @@ type TemperaturePoint = {
 
 type JsonRecord = Record<string, unknown>
 
+type ManufacturerDatabaseConfig = AppConfig["compliance"]["database"]
+
+function manufacturerPinyinSortKey(value: string) {
+  const initials = pinyin(value, { pattern: "first", toneType: "none", type: "array" }).join("")
+  const fullPinyin = pinyin(value, { toneType: "none", type: "array" }).join("")
+  return `${initials}|${fullPinyin}|${value.toLowerCase()}`
+}
+
+function compareChinesePinyin(left: string, right: string) {
+  return manufacturerPinyinSortKey(left).localeCompare(manufacturerPinyinSortKey(right), "en", { numeric: true })
+}
+
+async function withManufacturerDb<T>(config: ManufacturerDatabaseConfig, fn: (client: Client) => Promise<T>) {
+  const client = new Client({
+    database: config.reliability.db,
+    host: config.host,
+    password: config.password,
+    port: Number(config.port),
+    user: config.user,
+  })
+  await client.connect()
+  try {
+    return await fn(client)
+  } finally {
+    await client.end()
+  }
+}
+
+async function readManufacturerFullNameOptions(config: ManufacturerDatabaseConfig) {
+  return withManufacturerDb(config, async client => {
+    return readManufacturerFullNamesFromClient(client)
+  })
+}
+
+async function addManufacturerFullName(config: ManufacturerDatabaseConfig, body: ManufacturerFullNameBody) {
+  const fullName = cleanString(body.full_name)
+  if (!isValidManufacturerFullName(fullName)) {
+    throw new WorkspaceQueryError("manufacturer full name is required", 400)
+  }
+
+  return withManufacturerDb(config, async client => {
+    const existing = await client.query<{ id: string }>(
+      "select id::text as id from public.manufacturer where full_name = $1 limit 1",
+      [fullName],
+    )
+    const beforeSize = existing.rowCount ?? 0
+    if (beforeSize === 0) {
+      await client.query(
+        "insert into public.manufacturer (full_name, main_products) values ($1, '')",
+        [fullName],
+      )
+    }
+    return {
+      added: beforeSize === 0,
+      full_names: await readManufacturerFullNamesFromClient(client),
+    }
+  })
+}
+
+async function readManufacturerFullNamesFromClient(client: Client) {
+  const result = await client.query<{ full_name: string }>(`
+    select full_name::text as full_name
+    from public.manufacturer
+    where full_name is not null and btrim(full_name::text) <> ''
+    order by full_name
+  `)
+  return [...new Set(result.rows.map(row => cleanString(row.full_name)).filter(Boolean))]
+    .sort(compareChinesePinyin)
+}
+
+async function saveManufacturerAliases(config: ManufacturerDatabaseConfig, rows: JsonRecord[]) {
+  const aliasRows = rows
+    .map(row => ({
+      alias: cleanString(row["厂商简称"]) || cleanString(row["厂商名称"]) || cleanString(row.manufacturer),
+      fullName: cleanString(row["厂商全称"]) || cleanString(row.full_name),
+    }))
+    .filter(row => row.alias && isValidManufacturerFullName(row.fullName))
+  if (aliasRows.length === 0) return
+
+  await withManufacturerDb(config, async client => {
+    for (const row of aliasRows) {
+      const manufacturer = await client.query<{ id: string }>(
+        "select id::text as id from public.manufacturer where full_name = $1 limit 1",
+        [row.fullName],
+      )
+      if ((manufacturer.rowCount ?? 0) === 0) {
+        throw new WorkspaceQueryError("manufacturer full name must exist in manufacturer database", 400)
+      }
+      await upsertManufacturerAlias(client, row.alias, manufacturer.rows[0].id)
+    }
+  })
+}
+
+async function assertKnownManufacturerFullNames(config: ManufacturerDatabaseConfig, artifact: string, rows: JsonRecord[]) {
+  if (artifact !== "manufacturer_check") return
+  let knownFullNames: Set<string> | null = null
+  for (const row of rows) {
+    const fullName = cleanString(row["厂商全称"]) || cleanString(row.full_name)
+    const hasFullName = isValidManufacturerFullName(fullName)
+    const origin = cleanString(row["国产/进口"]) || cleanString(row.origin)
+    const catalogStatus = cleanString(row["目录内或外"]) || cleanString(row.catalog_status)
+    if (!hasFullName && catalogStatus !== "目录内") continue
+    knownFullNames ??= new Set(await readManufacturerFullNameOptions(config))
+    if (hasFullName && !knownFullNames.has(fullName)) {
+      throw new WorkspaceQueryError("manufacturer full name must exist in manufacturer database", 400)
+    }
+    if (hasFullName && origin === "进口") {
+      throw new WorkspaceQueryError("imported manufacturers cannot use catalog full names", 400)
+    }
+    if (catalogStatus === "目录内" && !hasFullName) {
+      throw new WorkspaceQueryError("catalog manufacturer full name is required for in-catalog manufacturers", 400)
+    }
+  }
+}
+
+async function upsertManufacturerAlias(client: Client, alias: string, manufacturerId: string) {
+  const existing = await client.query<{ id: string }>(
+    "select id::text as id from public.manufacturer_alias where alias_name = $1 limit 1",
+    [alias],
+  )
+  if ((existing.rowCount ?? 0) > 0) {
+    await client.query(
+      "update public.manufacturer_alias set manufacturer_id = $2 where alias_name = $1",
+      [alias, manufacturerId],
+    )
+    return
+  }
+  await client.query(
+    "insert into public.manufacturer_alias (alias_name, manufacturer_id) values ($1, $2)",
+    [alias, manufacturerId],
+  )
+}
+
 type ThermalDbRecord = {
   assetRoot: string | null
   record: JsonRecord
@@ -161,12 +309,14 @@ type ThermalDbIndex = {
   sourcePath: string
 }
 
+const WORKSPACE_DATA_ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url))
+const APP_ROOT_DIR = path.resolve(WORKSPACE_DATA_ROUTES_DIR, "..", "..", "..")
+
 type CatchSupportingTableBody = {
   rows?: unknown
 }
 
 let thermalDbIndexPromise: Promise<ThermalDbIndex | null> | null = null
-const WORKSPACE_DATA_ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url))
 
 async function readWorkspaceProgress(progressPath: string): Promise<WorkspaceProgressData | null> {
   const raw = await fs.readFile(progressPath, "utf-8").catch(() => null)
@@ -530,10 +680,6 @@ function resolveRepoRoot() {
   return path.resolve(WORKSPACE_DATA_ROUTES_DIR, "..", "..", "..")
 }
 
-function resolveCatchSupportingTableScript() {
-  return path.join(resolveRepoRoot(), CATCH_SUPPORTING_TABLE_SCRIPT_RELATIVE_PATH)
-}
-
 function normalizeCatchSupportingRows(value: unknown) {
   if (!Array.isArray(value)) {
     throw new WorkspaceQueryError("rows array is required", 400)
@@ -550,48 +696,6 @@ async function firstExistingFile(paths: string[]) {
     if (stat?.isFile()) return filePath
   }
   return null
-}
-
-async function runPythonJson(scriptPath: string, args: string[]) {
-  return new Promise<JsonRecord>((resolve, reject) => {
-    let settled = false
-    const child = spawn("python", [scriptPath, ...args], {
-      cwd: resolveRepoRoot(),
-      stdio: ["ignore", "pipe", "pipe"],
-    })
-    const timeout = setTimeout(() => {
-      if (settled) return
-      settled = true
-      child.kill("SIGKILL")
-      reject(new WorkspaceQueryError("python helper timed out while refreshing CATCH 00_inputs", 504))
-    }, 30_000)
-    let stdout = ""
-    let stderr = ""
-    child.stdout.on("data", chunk => { stdout += String(chunk) })
-    child.stderr.on("data", chunk => { stderr += String(chunk) })
-    child.on("error", err => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeout)
-      reject(err)
-    })
-    child.on("close", code => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeout)
-      if (code !== 0) {
-        reject(new WorkspaceQueryError(stderr.trim() || `python exited with code ${code}`, 500))
-        return
-      }
-      try {
-        const parsed = JSON.parse(stdout) as unknown
-        if (!isRecord(parsed)) throw new Error("python output is not an object")
-        resolve(parsed)
-      } catch (err) {
-        reject(err)
-      }
-    })
-  })
 }
 
 async function ensureCatchSupportingTable(workspaceDir: string, config: AppConfig) {
@@ -621,6 +725,14 @@ async function ensureCatchSupportingTable(workspaceDir: string, config: AppConfi
   await fs.mkdir(path.dirname(tablePath), { recursive: true })
   await fs.copyFile(sourcePath, tablePath)
   return tablePath
+}
+
+function resolveCatchSupportingThermalDbPath() {
+  return path.join(resolveRepoRoot(), CATCH_SUPPORTING_THERMAL_DB_RELATIVE_PATH)
+}
+
+function resolveCatchSupportingTemplateDir() {
+  return path.join(resolveRepoRoot(), CATCH_SUPPORTING_TEMPLATE_RELATIVE_PATH)
 }
 
 function normalizeComplianceCheckCompletenessPayload(value: unknown) {
@@ -908,6 +1020,33 @@ function summarizeComplianceCheckRows(rows: JsonRecord[]) {
   return { issueCounts, summary }
 }
 
+async function updateConfirmedResults(workspaceDir: string, stage: string, rows: JsonRecord[]) {
+  if (stage === "manufacturer_check") return
+  const confirmedPath = path.join(workspaceDir, CONFIRMED_RESULTS_RELATIVE_PATH)
+  const existingRaw = await fs.readFile(confirmedPath, "utf-8").catch(() => null)
+  const existing = existingRaw ? JSON.parse(existingRaw) as unknown : {}
+  const existingStages = isRecord(existing) && isRecord(existing.stages) ? existing.stages : {}
+  const updatedAt = new Date().toISOString()
+  const nextPayload = {
+    ...(isRecord(existing) ? existing : {}),
+    schema_version: "1.0",
+    updated_at: updatedAt,
+    stages: {
+      ...existingStages,
+      [stage]: {
+        rows,
+        updated_at: updatedAt,
+      },
+    },
+  }
+  await fs.mkdir(path.dirname(confirmedPath), { recursive: true })
+  await fs.writeFile(confirmedPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+}
+
+function isValidManufacturerFullName(value: string) {
+  return Boolean(value && value !== "无" && !value.startsWith("未找到"))
+}
+
 async function readComplianceCheckResult(workspaceDir: string) {
   const resolvedFile = await resolveComplianceCheckOutputFile(
     workspaceDir,
@@ -987,6 +1126,7 @@ async function writeComplianceCheckResult(workspaceDir: string, body: Compliance
   }
   await fs.mkdir(path.dirname(resultPath), { recursive: true })
   await fs.writeFile(resultPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+  await updateConfirmedResults(workspaceDir, "derating_check", rows)
   return readComplianceCheckResult(workspaceDir)
 }
 
@@ -1062,13 +1202,14 @@ async function readComplianceArtifact(workspaceDir: string, artifactValue: unkno
   }
 }
 
-async function writeComplianceArtifact(workspaceDir: string, artifactValue: unknown, body: ComplianceArtifactBody) {
+async function writeComplianceArtifact(workspaceDir: string, artifactValue: unknown, body: ComplianceArtifactBody, databaseConfig: ManufacturerDatabaseConfig) {
   const artifact = assertComplianceArtifact(artifactValue)
   if (!Array.isArray(body.rows)) {
     throw new WorkspaceQueryError("rows array is required", 400)
   }
   const resolvedFile = await resolveComplianceArtifactFile(workspaceDir, artifact)
   const rows = body.rows.filter(isRecord)
+  await assertKnownManufacturerFullNames(databaseConfig, artifact, rows)
   const existingRaw = await fs.readFile(resolvedFile.fullPath, "utf-8").catch(() => null)
   const existingPayload = existingRaw ? JSON.parse(existingRaw) as unknown : null
   let nextPayload: unknown
@@ -1087,6 +1228,10 @@ async function writeComplianceArtifact(workspaceDir: string, artifactValue: unkn
   }
   await fs.mkdir(path.dirname(resolvedFile.fullPath), { recursive: true })
   await fs.writeFile(resolvedFile.fullPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
+  await updateConfirmedResults(workspaceDir, artifact, rows)
+  if (artifact === "manufacturer_check") {
+    await saveManufacturerAliases(databaseConfig, rows)
+  }
   return readComplianceArtifact(workspaceDir, artifact)
 }
 
@@ -1410,12 +1555,30 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
       try {
         const workspaceDir = await resolveQueryWorkspaceDir(req.query)
         reply.header("Cache-Control", "no-cache")
-        return reply.send(await writeComplianceArtifact(workspaceDir, req.params.artifact, req.body ?? {}))
+        return reply.send(await writeComplianceArtifact(workspaceDir, req.params.artifact, req.body ?? {}, config.compliance.database))
       } catch (err) {
         return replyWithWorkspaceQueryError(reply, err, "failed to save compliance artifact")
       }
     }
   )
+
+  fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/compliance/manufacturer-full-names", async (req, reply) => {
+    try {
+      reply.header("Cache-Control", "no-cache")
+      return reply.send({ full_names: await readManufacturerFullNameOptions(config.compliance.database) })
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to resolve manufacturer full names")
+    }
+  })
+
+  fastify.post<{ Body: ManufacturerFullNameBody }>("/api/workspace/compliance/manufacturer-full-names", async (req, reply) => {
+    try {
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await addManufacturerFullName(config.compliance.database, req.body ?? {}))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to add manufacturer full name")
+    }
+  })
 
   fastify.get<{ Querystring: WorkspaceTextFileQuery }>("/api/workspace/files/text", async (req, reply) => {
     try {
@@ -1550,8 +1713,7 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       const tablePath = await ensureCatchSupportingTable(workspaceDir, config)
-      const scriptPath = resolveCatchSupportingTableScript()
-      const payload = await runPythonJson(scriptPath, ["read", tablePath])
+      const payload = await readCatchSupportingTable(tablePath)
       const stat = await fs.stat(tablePath)
       reply.header("Cache-Control", "no-cache")
       return reply.send({
@@ -1569,14 +1731,13 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       const rows = normalizeCatchSupportingRows(req.body?.rows)
       const tablePath = await ensureCatchSupportingTable(workspaceDir, config)
-      const scriptPath = resolveCatchSupportingTableScript()
-      const payload = await runPythonJson(scriptPath, [
-        "write-refresh",
-        tablePath,
-        path.join(workspaceDir, "00_inputs"),
-        "--rows-json",
-        JSON.stringify(rows),
-      ])
+      const payload = await writeAndRefreshCatchSupportingTable({
+        dbPath: resolveCatchSupportingThermalDbPath(),
+        outputDir: path.join(workspaceDir, "00_inputs"),
+        rows,
+        templateDir: resolveCatchSupportingTemplateDir(),
+        xlsxPath: tablePath,
+      })
       const stat = await fs.stat(tablePath)
       reply.header("Cache-Control", "no-cache")
       return reply.send({

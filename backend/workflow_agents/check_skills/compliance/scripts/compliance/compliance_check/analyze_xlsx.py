@@ -359,6 +359,18 @@ def report_row(row: dict) -> dict:
         "标准I级降额": row.get("标准I级降额") or "",
         "计算允许值": row.get("计算允许值") or "",
         "计算实际降额因子": row.get("计算实际降额因子") or "",
+        "参数值_额定": row.get("参数值_额定") or "",
+        "参数值_允许": row.get("参数值_允许") or "",
+        "参数值_实际": row.get("参数值_实际") or "",
+        "降额因子_规定": row.get("降额因子_规定") or "",
+        "降额因子_实际": row.get("降额因子_实际") or "",
+        "降额等级": row.get("降额等级") or "",
+        "允许值判定": row.get("允许值判定") or "",
+        "实际值判定": row.get("实际值判定") or "",
+        "降额因子判定": row.get("降额因子判定") or "",
+        "实际降额因子判定": row.get("实际降额因子判定") or "",
+        "温度判定": row.get("温度判定") or "",
+        "综合判定详情": row.get("综合判定详情") or issue_text,
         "问题": issue_text,
     }
 
@@ -395,6 +407,29 @@ def parse_measured_value(value, parameter) -> float | None:
     return numbers[0]
 
 
+def is_temperature_row(parameter, standard_value) -> bool:
+    parameter_text = normalize(parameter)
+    standard_text = normalize(standard_value)
+    return (
+        "温度" in parameter_text
+        or "结温" in parameter_text
+        or "热点温度" in parameter_text
+        or ("℃" in parameter_text and "1/℃" not in parameter_text and "每℃" not in parameter_text)
+        or bool(re.search(r"T[A-Za-z_]*[-+]\d+", standard_text))
+    )
+
+
+def parse_temperature_allowed(standard_value, rated_max: float | None) -> float | None:
+    text = normalize(standard_value)
+    if re.fullmatch(r"-?\d+(?:\.\d+)?", text):
+        return float(text)
+    for sign, operation in [("-", lambda left, right: left - right), ("+", lambda left, right: left + right)]:
+        match = re.search(rf"T[A-Za-z_]*\s*\{sign}\s*(\d+(?:\.\d+)?)", text)
+        if match and rated_max is not None:
+            return operation(rated_max, float(match.group(1)))
+    return None
+
+
 def parse_simple_standard_value(value) -> float | None:
     text = normalize(value)
     if not text:
@@ -416,6 +451,44 @@ def is_level_i(value) -> bool:
         .replace("Ⅲ", "III")
     )
     return text == "I"
+
+
+def values_close(left: float | None, right: float | None, *, relative_tolerance: float = 0.02, absolute_tolerance: float = 1e-9) -> bool | None:
+    if left is None or right is None:
+        return None
+    return abs(left - right) <= max(absolute_tolerance, abs(right) * relative_tolerance)
+
+
+def format_number(value: float | None) -> str:
+    if value is None:
+        return "无法计算"
+    rounded = round(value, 6)
+    if rounded == int(rounded):
+        return str(int(rounded))
+    return f"{rounded:.6f}".rstrip("0").rstrip(".")
+
+
+def source_unit(value) -> str:
+    text = str(value or "").strip()
+    if "℃" in text:
+        return "℃"
+    match = re.match(r"^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*([^\d\s].*)$", text)
+    return match.group(1).strip() if match else ""
+
+
+def with_source_unit(value: float | None, source_value) -> str:
+    if value is None:
+        return "无法计算"
+    unit = source_unit(source_value)
+    return f"{format_number(value)}{unit}"
+
+
+def ok_text(message: str) -> str:
+    return f"✓正确({message})" if message else "✓正确"
+
+
+def warn_text(message: str) -> str:
+    return f"⚠️{message}"
 
 
 def load_reference(path: Path) -> list[dict]:
@@ -623,8 +696,7 @@ def check_row(
         else None
     )
     issues: list[str] = []
-    hard_fail = False
-    stricter = False
+    detail_items: list[str] = []
 
     standard_factor = (
         parse_simple_standard_value(standard.get("I级降额")) if standard else None
@@ -647,68 +719,155 @@ def check_row(
         if actual_value is not None and rated_value not in (None, 0)
         else None
     )
+    is_temperature = is_temperature_row(parameter_name, standard.get("I级降额") if standard else "")
+    temperature_allowed = (
+        parse_temperature_allowed(standard.get("I级降额"), rated_value)
+        if standard and is_temperature
+        else None
+    )
+
+    factor_judgement = "不适用（温度参数）" if is_temperature else ""
+    allowed_judgement = ""
+    actual_judgement = ""
+    actual_factor_judgement = "不适用（温度参数）" if is_temperature else ""
+    temperature_judgement = "不适用"
 
     if not classification.get("matched"):
         issues.append("未匹配到元器件分类。")
+        detail_items.append("未匹配到元器件分类")
     if not standard:
         issues.append("未找到对应的标准降额参数。")
+        detail_items.append("未找到对应的标准降额参数")
     if not is_level_i(row.get("降额等级")):
         issues.append("降额等级不是 I 级。")
+        detail_items.append("降额等级不是 I 级")
 
     is_ratio_standard = standard_factor is not None and standard_factor <= 1.5
-    if is_ratio_standard and required_factor is not None:
-        if abs(required_factor - standard_factor) > 1e-9:
-            if required_factor < standard_factor:
-                stricter = True
-                issues.append("规定降额因子小于 I 级标准值，属于更严格填写。")
-            else:
-                hard_fail = True
-                issues.append("规定降额因子大于 I 级标准值。")
-    elif is_ratio_standard and standard and required_factor is None:
-        issues.append("规定降额因子无法提取数值。")
+    if is_temperature:
+        if temperature_allowed is None:
+            allowed_judgement = warn_text("无法解析I级温度允许值")
+            issues.append("无法解析I级温度允许值。")
+            detail_items.append("无法解析I级温度允许值")
+        elif values_close(allowed_value, temperature_allowed, relative_tolerance=0, absolute_tolerance=0.5) is True:
+            allowed_judgement = ok_text(f"应为{with_source_unit(temperature_allowed, row.get('参数值_允许'))}")
+        else:
+            expected = with_source_unit(temperature_allowed, row.get("参数值_允许"))
+            allowed_judgement = warn_text(f"表中填写错误，应为{expected}")
+            issues.append(f"允许值填写错误，应为{expected}。")
+            detail_items.append(f"允许值填写错误，应为{expected}")
 
-    if (
-        actual_value is not None
-        and allowed_value is not None
-        and actual_value > allowed_value
-    ):
-        hard_fail = True
-        issues.append("实际值大于允许值。")
-
-    if (
-        is_ratio_standard
-        and actual_factor is not None
-        and required_factor is not None
-        and actual_factor > required_factor
-    ):
-        hard_fail = True
-        issues.append("实际降额因子大于规定降额因子。")
-
-    if (
-        standard_factor is not None
-        and standard_factor > 1.5
-        and actual_value is not None
-        and actual_value > standard_factor
-    ):
-        hard_fail = True
-        issues.append("实际值大于 I 级标准限值。")
-
-    if (
-        "温" in normalize(row.get("降额参数"))
-        and actual_value is not None
-        and actual_value > 85
-    ):
-        hard_fail = True
-        issues.append("温度相关实际值超过 85 deg C。")
-
-    if hard_fail:
-        status = "不符合"
-    elif stricter:
-        status = "更严格"
-    elif issues:
-        status = "需人工确认"
+        actual_limit_text = with_source_unit(temperature_allowed, row.get("参数值_实际"))
+        actual_limit_ok = (
+            actual_value <= temperature_allowed
+            if actual_value is not None and temperature_allowed is not None
+            else None
+        )
+        actual_85_ok = actual_value < 85 if actual_value is not None else None
+        if actual_limit_ok is True and actual_85_ok is True:
+            actual_judgement = ok_text(f"实际最高温度{with_source_unit(actual_value, row.get('参数值_实际'))}≤{actual_limit_text}且<85℃")
+            temperature_judgement = actual_judgement
+        else:
+            actual_problems = []
+            if actual_limit_ok is False:
+                actual_problems.append(f"实际最高温度超过允许值{actual_limit_text}")
+            if actual_85_ok is False:
+                actual_problems.append("实际最高温度不小于85℃")
+            if not actual_problems:
+                actual_problems.append("实际温度无法计算")
+            actual_judgement = warn_text("；".join(actual_problems))
+            temperature_judgement = actual_judgement
+            issues.append("；".join(actual_problems) + "。")
+            detail_items.extend(actual_problems)
     else:
-        status = "符合"
+        if is_ratio_standard and required_factor is not None:
+            close_to_standard = values_close(required_factor, standard_factor, relative_tolerance=0, absolute_tolerance=1e-9)
+            if close_to_standard is True:
+                factor_judgement = ok_text(f"规定因子{format_number(required_factor)}符合I级{format_number(standard_factor)}")
+            elif required_factor < standard_factor:
+                factor_judgement = warn_text(
+                    f"规定降额因子更严格，表中{format_number(required_factor)}，I级{format_number(standard_factor)}"
+                )
+                issues.append("规定降额因子小于 I 级标准值，属于更严格填写。")
+                detail_items.append(
+                    f"规定降额因子更严格，表中{format_number(required_factor)}，I级{format_number(standard_factor)}"
+                )
+            else:
+                factor_judgement = warn_text(
+                    f"规定降额因子大于I级标准值，表中{format_number(required_factor)}，I级{format_number(standard_factor)}"
+                )
+                issues.append("规定降额因子大于 I 级标准值。")
+                detail_items.append(
+                    f"规定降额因子大于I级标准值，表中{format_number(required_factor)}，I级{format_number(standard_factor)}"
+                )
+        elif is_ratio_standard and standard:
+            factor_judgement = warn_text("规定降额因子无法提取数值")
+            issues.append("规定降额因子无法提取数值。")
+            detail_items.append("规定降额因子无法提取数值")
+        else:
+            factor_judgement = "无法判定（标准I级降额不是简单比例）"
+
+        expected_from_required = (
+            rated_value * required_factor
+            if rated_value is not None and required_factor is not None
+            else None
+        )
+        expected_allowed_for_output = expected_from_required if expected_from_required is not None else expected_allowed
+        expected_allowed_text = with_source_unit(expected_allowed_for_output, row.get("参数值_允许"))
+        allowed_ok = values_close(allowed_value, expected_from_required)
+        if allowed_ok is True:
+            allowed_judgement = ok_text(f"应为{expected_allowed_text}")
+        elif allowed_ok is False:
+            allowed_judgement = warn_text(f"表中填写错误，应为{expected_allowed_text}")
+            issues.append(f"允许值填写错误，应为{expected_allowed_text}。")
+            detail_items.append(f"允许值填写错误，应为{expected_allowed_text}")
+        else:
+            allowed_judgement = warn_text("允许值无法计算")
+            issues.append("允许值无法计算。")
+            detail_items.append("允许值无法计算")
+
+        if actual_value is not None and allowed_value is not None:
+            if actual_value <= allowed_value:
+                actual_judgement = ok_text(f"实际值{row.get('参数值_实际')}≤允许值{row.get('参数值_允许')}")
+            else:
+                actual_judgement = warn_text(f"实际值{row.get('参数值_实际')}超过允许值{row.get('参数值_允许')}")
+                issues.append("实际值大于允许值。")
+                detail_items.append(f"实际值{row.get('参数值_实际')}超过允许值{row.get('参数值_允许')}")
+        else:
+            actual_judgement = warn_text("实际值或允许值无法计算")
+            issues.append("实际值或允许值无法计算。")
+            detail_items.append("实际值或允许值无法计算")
+
+        actual_factor_matches_table = values_close(actual_factor, calculated_actual_factor)
+        actual_factor_within_required = (
+            calculated_actual_factor <= required_factor
+            if calculated_actual_factor is not None and required_factor is not None
+            else None
+        )
+        calculated_factor_text = format_number(calculated_actual_factor)
+        if actual_factor_matches_table is True and actual_factor_within_required is True:
+            actual_factor_judgement = ok_text(calculated_factor_text)
+        else:
+            factor_problems = []
+            if actual_factor_matches_table is False:
+                factor_problems.append(f"表中实际降额因子填写错误，计算值应为{calculated_factor_text}")
+                issues.append(f"实际降额因子填写错误，应为{calculated_factor_text}。")
+            elif actual_factor_matches_table is None:
+                factor_problems.append("实际降额因子无法计算")
+                issues.append("实际降额因子无法计算。")
+            if actual_factor_within_required is False:
+                factor_problems.append(
+                    f"实际降额因子{calculated_factor_text}大于规定因子{format_number(required_factor)}"
+                )
+                issues.append("实际降额因子大于规定降额因子。")
+            elif actual_factor_within_required is None:
+                factor_problems.append("实际降额因子或规定因子无法比较")
+            actual_factor_judgement = warn_text("；".join(factor_problems))
+            detail_items.extend(factor_problems)
+
+    status = "符合" if not issues else "不符合"
+    detail_text = "通过" if not detail_items else "；".join(
+        f"{index + 1}.{item}" for index, item in enumerate(detail_items)
+    )
 
     return {
         "excel_row": excel_row,
@@ -719,7 +878,13 @@ def check_row(
         "标准I级降额": standard.get("I级降额") if standard else None,
         "计算允许值": expected_allowed,
         "计算实际降额因子": calculated_actual_factor,
+        "降额因子判定": factor_judgement,
+        "允许值判定": allowed_judgement,
+        "实际值判定": actual_judgement,
+        "实际降额因子判定": actual_factor_judgement,
+        "温度判定": temperature_judgement,
         "符合性": status,
+        "综合判定详情": detail_text,
         "问题": issues,
     }
 

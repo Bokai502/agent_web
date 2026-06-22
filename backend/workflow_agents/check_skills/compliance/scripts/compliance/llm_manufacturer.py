@@ -46,7 +46,8 @@ def _prompt(input_names: list[str], database_names: list[str]) -> dict[str, Any]
         "只输出 JSON 对象，键必须是输入厂商原文，值必须是对象，且只包含 "
         "database_full_name、国产/进口、目录内或外 三个字段。"
         "database_full_name 非空时，国产/进口=国产，目录内或外=目录内；"
-        "database_full_name 为空时，国产/进口=进口，目录内或外=无。"
+        "database_full_name 为空但判断为国产时，目录内或外=目录外；"
+        "database_full_name 为空且判断为进口时，目录内或外=无。"
     )
     user_payload = {
         "input_manufacturers": input_names,
@@ -97,8 +98,8 @@ def _normalize_matches(
         matched = bool(full_name) and full_name in database_names
         if not matched:
             full_name = ""
-            origin = "进口"
-            catalog_status = "无"
+            origin = "国产" if origin == "国产" else "进口"
+            catalog_status = "目录外" if origin == "国产" else "无"
         output[name] = {
             "matched": matched,
             "full_name": full_name,
@@ -161,3 +162,62 @@ def manufacturer_origin_map(
         for row in rows
         if isinstance(row, dict) and str(row.get("厂商简称") or "").strip()
     }
+
+
+def match_manufacturers_from_database(
+    components: list[ComponentRecord],
+    manufacturer_rows: list[dict[str, Any]],
+    alias_rows: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    full_names = [
+        str(row.get("full_name") or "").strip()
+        for row in manufacturer_rows
+        if str(row.get("full_name") or "").strip()
+    ]
+    full_name_by_key = {_normalize_key(full_name): full_name for full_name in full_names}
+    alias_by_key: dict[str, str] = {}
+    for row in alias_rows:
+        alias = str(row.get("alias") or row.get("short_name") or "").strip()
+        full_name = str(row.get("full_name") or "").strip()
+        if alias and full_name:
+            alias_by_key[_normalize_key(alias)] = full_name
+
+    output: dict[str, dict[str, Any]] = {}
+    for name in unique(component.manufacturer for component in components):
+        key = _normalize_key(name)
+        full_name = alias_by_key.get(key)
+        source = "manufacturer_alias"
+        if not full_name:
+            full_name = full_name_by_key.get(key, "")
+            source = "manufacturer"
+        if not full_name:
+            full_name = _contained_full_name_match(key, full_name_by_key)
+            source = "manufacturer_contains" if full_name else "manufacturer_unmatched"
+        output[name] = {
+            "matched": bool(full_name),
+            "full_name": full_name,
+            "国产/进口": "国产" if full_name else "进口",
+            "目录内或外": "目录内" if full_name else "无",
+            "匹配来源": source,
+        }
+    return output
+
+
+def _contained_full_name_match(
+    key: str,
+    full_name_by_key: dict[str, str],
+) -> str:
+    if len(key) < 2:
+        return ""
+    matches = [
+        full_name
+        for full_key, full_name in full_name_by_key.items()
+        if key in full_key or full_key in key
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return ""
+
+
+def _normalize_key(value: Any) -> str:
+    return "".join(str(value or "").strip().lower().split())

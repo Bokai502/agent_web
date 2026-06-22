@@ -12,6 +12,7 @@ from .catalog_db import PostgresCatalogConfig, query_catalog_candidate_rows
 from .component_io import load_components, load_reference_rows
 from .config import ComplianceConfig
 from .compliance_check import analyze_xlsx
+from .confirmed_results import apply_confirmed_rows, load_confirmed_results
 from .input_config import read_input_config
 from .io_utils import (
     ensure_dir,
@@ -26,12 +27,13 @@ from .llm_analysis import (
 )
 from .llm_classifier import classify_components_with_llm, load_llm_classifier_config
 from .llm_manufacturer import (
+    match_manufacturers_from_database,
     manufacturer_check_rows,
     manufacturer_origin_map,
     match_manufacturers_with_llm,
 )
 from .llm_report import LlmReportConfig, build_llm_report
-from .manufacturer_db import query_manufacturer_rows
+from .manufacturer_db import query_manufacturer_alias_rows, query_manufacturer_rows
 from .reliability_db import (
     PostgresReliabilityConfig,
     load_postgres_components,
@@ -293,6 +295,7 @@ class RunnerContext:
         )
         self.config = ComplianceConfig(self.config_path)
         self.resolved_inputs = self._resolved_input_config()
+        self.confirmed_results = load_confirmed_results(self.workspace_dir)
         self.requirement_doc = self._path_arg(
             args.requirement_doc, "requirement_document"
         ) or Path("missing_requirement.md")
@@ -471,11 +474,12 @@ def run_stage(stage: str, context: RunnerContext) -> Any:
                 manufacturer_origins_for_stage(context, components, artifacts),
             ),
         )
-        return rows
+        return apply_confirmed_rows(stage, rows, context.confirmed_results)
     if stage == "manufacturer_check":
         return run_manufacturer_check(context, components)
     if stage == "key_units_check":
-        return checks.select_key_units(components)
+        rows = checks.select_key_units(components)
+        return apply_confirmed_rows(stage, rows, context.confirmed_results)
     if stage == "flight_history_check":
         return checks.check_flight_history(
             components, manufacturer_origins_for_stage(context, components, artifacts)
@@ -491,7 +495,7 @@ def run_stage(stage: str, context: RunnerContext) -> Any:
         else:
             rows = load_reference_rows(context.catalog_path)
         configured = context.config.external_results("catalog_match_results")
-        return checks.catalog_match_with_candidates(
+        rows = checks.catalog_match_with_candidates(
             components,
             rows,
             configured,
@@ -499,19 +503,23 @@ def run_stage(stage: str, context: RunnerContext) -> Any:
             catalog_match_threshold(context),
             context.llm_config,
         )
+        return apply_confirmed_rows(stage, rows, context.confirmed_results)
     if stage == "quality_level_check":
         configured = context.config.external_results("quality_compare_results")
-        return configured or checks.detect_low_quality(
+        rows = configured or checks.detect_low_quality(
             components,
             config=context.config,
             manufacturer_origins=manufacturer_origins_for_stage(
                 context, components, artifacts
             ),
         )
+        return apply_confirmed_rows(stage, rows, context.confirmed_results)
     if stage == "derating_check":
-        return run_compliance_check(context)
+        output = run_compliance_check(context)
+        return apply_confirmed_rows(stage, output, context.confirmed_results)
     if stage == "reliability_query":
-        return run_reliability(context, components)
+        rows = run_reliability(context, components)
+        return apply_confirmed_rows(stage, rows, context.confirmed_results)
     if stage == "report_generation":
         required = [
             "load_inputs",
@@ -550,22 +558,55 @@ def run_manufacturer_check(
 ) -> list[dict[str, Any]]:
     try:
         manufacturer_rows = query_manufacturer_rows(postgres_config(context))
-        matches = match_manufacturers_with_llm(
-            components, manufacturer_rows, context.llm_config
-        )
-        write_stage(context, "manufacturer_match", matches)
+        alias_rows = query_manufacturer_alias_rows(postgres_config(context))
     except Exception as exc:
         write_stage(
             context,
-            "manufacturer_check_issue",
+            "manufacturer_db_issue",
             {
-                "source": "postgres.public.manufacturer + llm",
+                "source": "postgres.public.manufacturer + postgres.public.manufacturer_alias",
                 "status": "unavailable",
                 "message": str(exc),
-                "fallback": "continued_with_config_and_local_rules",
+                "fallback": "marked_all_manufacturers_unmatched",
             },
         )
-        matches = {}
+        matches = {
+            name: {
+                "matched": False,
+                "full_name": "",
+                "国产/进口": "进口",
+                "目录内或外": "无",
+                "匹配来源": "manufacturer_db_unavailable",
+            }
+            for name in unique(component.manufacturer for component in components)
+        }
+    else:
+        matches = match_manufacturers_from_database(
+            components, manufacturer_rows, alias_rows
+        )
+        unmatched_components = [
+            component
+            for component in components
+            if not (matches.get(component.manufacturer) or {}).get("matched")
+        ]
+        if unmatched_components and context.llm_config.enabled:
+            try:
+                llm_matches = match_manufacturers_with_llm(
+                    unmatched_components, manufacturer_rows, context.llm_config
+                )
+                matches.update(llm_matches)
+            except Exception as exc:
+                write_stage(
+                    context,
+                    "manufacturer_check_issue",
+                    {
+                        "source": "postgres.public.manufacturer + llm",
+                        "status": "unavailable",
+                        "message": str(exc),
+                        "fallback": "used_database_matches_only",
+                    },
+                )
+        write_stage(context, "manufacturer_match", matches)
     return manufacturer_check_rows(components, matches, context.config)
 
 

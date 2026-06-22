@@ -28,6 +28,30 @@ order by id
         return [_clean_row(dict(row)) for row in cur.fetchall()]
 
 
+def query_manufacturer_alias_rows(
+    config: PostgresReliabilityConfig | None = None,
+) -> list[dict[str, Any]]:
+    config = config or PostgresReliabilityConfig()
+    sql = """
+select
+  a.alias_name::text as alias,
+  m.full_name::text as full_name,
+  m.id::text as manufacturer_id,
+  'manufacturer_alias' as source
+from public.manufacturer_alias a
+join public.manufacturer m
+  on m.id = a.manufacturer_id
+where a.alias_name is not null
+  and btrim(a.alias_name::text) <> ''
+"""
+    with (
+        _connect(config) as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+    ):
+        cur.execute(sql)
+        return [_clean_row(dict(row)) for row in cur.fetchall()]
+
+
 def _clean_row(row: dict[str, Any]) -> dict[str, str]:
     return {
         str(key): "" if value is None else str(value).strip()

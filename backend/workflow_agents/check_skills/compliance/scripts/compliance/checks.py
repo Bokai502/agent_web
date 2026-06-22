@@ -13,14 +13,27 @@ from .schema import ComponentRecord
 QUALITY_ORDER = {
     "宇航级": 6,
     "S": 6,
+    "JANS": 6,
+    "V级": 6,
+    "K级": 6,
     "CAST A": 6,
     "CAST B": 5,
+    "JANTXV": 5,
+    "ESCC B": 5,
+    "Q级": 5,
+    "H级": 5,
     "B": 5,
     "CAST C": 4,
+    "JANTX": 4,
+    "ESCC C": 4,
+    "M级": 4,
+    "G级": 4,
+    "JAN": 4,
+    "883级": 4,
     "C": 4,
     "GJB": 4,
     "军品级": 3,
-    "工业级": 2,
+    "工业级": 1,
     "民品级": 1,
     "商业级": 1,
     "": 0,
@@ -90,30 +103,36 @@ def detect_low_quality(
     config=None,
     manufacturer_origins: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
-    min_level = _quality_min_level(config, min_level)
     low_models = (
         config.selected_models("user_confirmations.low_quality_models")
         if config
         else set()
     )
-    threshold = quality_rank(min_level)
     rows = []
     for comp in components:
+        origin = _origin_from_map(comp.manufacturer, manufacturer_origins)
+        required_level = _quality_min_level_for_origin(origin, config, min_level)
+        threshold = quality_rank(required_level)
         rank = quality_rank(comp.quality_level)
         is_ok = bool(rank and rank >= threshold)
         if comp.is_low_quality or comp.model in low_models:
             is_ok = False
+        reason = ""
+        if not is_ok:
+            reason = f"质量等级低于{required_level}或被标记为低等级"
         rows.append(
             {
                 "index": comp.index,
                 "型号规格": comp.model,
                 "名称": comp.name,
+                "厂商": comp.manufacturer,
                 "封装形式": comp.package_type or "未填写",
                 "质量等级": comp.quality_level or "未填写",
+                "最低要求": required_level,
                 "关键部位": comp.is_key_part,
-                "国产/进口": _origin_from_map(comp.manufacturer, manufacturer_origins),
+                "国产/进口": origin,
                 "是否满足要求": "满足" if is_ok else "需关注",
-                "reason": "" if is_ok else f"质量等级低于{min_level}或被标记为低等级",
+                "reason": reason,
             }
         )
     return rows
@@ -127,6 +146,27 @@ def _quality_min_level(config, fallback: str = "CAST C") -> str:
         or config.get("quality_level.selected")
         or config.get("compliance_config.quality_level.min_required")
         or fallback
+    )
+
+
+def _quality_min_level_for_origin(
+    origin: str,
+    config,
+    fallback: str = "CAST C",
+) -> str:
+    if origin == "进口":
+        return _import_quality_min_level(config)
+    return _quality_min_level(config, fallback)
+
+
+def _import_quality_min_level(config) -> str:
+    if not config:
+        return "工业级"
+    return (
+        config.get("quality_level.import_min_required")
+        or config.get("quality_level.selected_import_min_required")
+        or config.get("compliance_config.quality_level.import_min_required")
+        or "工业级"
     )
 
 
