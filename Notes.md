@@ -71,7 +71,18 @@ open_codex_web/
 │   ├── gnc_config/                  # GNC 配置编辑器组件与样式
 │   └── vite.config.ts
 ├── data/                            # 提示音、示例输入数据等
-├── start_remote_gui_tools.sh        # GUI 工具启动/状态/重启脚本
+├── start_open_codex_web.sh          # Web 服务总启动入口，调用 scripts/start_*.sh
+├── start_remote_gui_tools.sh        # GUI 工具入口，调用 scripts/remote_gui_*.sh
+├── scripts/
+│   ├── validate_config.mjs          # config.json 校验
+│   ├── validate_start_config.sh     # 启动前配置校验封装
+│   ├── install_node_deps.sh         # 前后端 npm 依赖检查/安装
+│   ├── restart_web_services.sh      # tmux/端口/GUI/Web 服务重启
+│   ├── start_common.sh              # Web 启动公共 shell 函数
+│   ├── remote_gui_common.sh         # 远程 GUI 配置和公共函数
+│   ├── remote_gui_desktop.sh        # Xvfb/openbox/x11vnc/noVNC 管理
+│   ├── remote_gui_freecad_rpc.sh    # FreeCAD RPC 管理
+│   └── remote_gui_runtime.sh        # 远程 GUI start/stop/status 编排
 └── package-lock.json
 ```
 
@@ -168,10 +179,22 @@ cd /path/to/open_codex_web
 该脚本会：
 
 - 读取项目根目录 `config.json`。
+- 运行 `scripts/validate_start_config.sh` 校验配置；可用 `SKIP_CONFIG_SERVICE_CHECKS=1` 跳过外部服务连通性检查，或用 `SKIP_CONFIG_VALIDATE=1` 跳过全部启动前校验。
+- 运行 `scripts/install_node_deps.sh`，对 `backend` 和 `frontend` 执行 `npm install --no-audit --no-fund`，避免新增依赖后旧 `node_modules` 导致后端启动崩溃。
 - 关闭旧的 `ocw-backend*` / `ocw-frontend*` tmux 会话。
-- 释放后端端口。
+- 释放后端和前端端口。
+- 调用 `start_remote_gui_tools.sh start` 启动/确认 FreeCAD、ParaView、COMSOL 远程 GUI 和 FreeCAD RPC。
 - 在 tmux 中启动后端 `npm run dev`。
 - 在 tmux 中启动前端 `npm run dev:https`。
+
+`start_open_codex_web.sh` 只保留入口编排，具体逻辑拆到：
+
+| 脚本 | 职责 |
+|------|------|
+| `scripts/validate_start_config.sh` | 配置校验入口 |
+| `scripts/install_node_deps.sh` | npm 依赖检查/安装 |
+| `scripts/restart_web_services.sh` | 服务停止、端口释放、远程 GUI 和 Web 服务启动 |
+| `scripts/start_common.sh` | 配置读取、端口和 tmux 公共函数 |
 
 当前脚本输出形如：
 
@@ -425,7 +448,14 @@ curl "http://localhost:${BACKEND_PORT}/api/workspace/files/text?workspaceDir=${W
 
 ## 远程 GUI 工具
 
-远程 GUI 工具由 `start_remote_gui_tools.sh`、`tools.remoteDesktopLauncher` 和各工具 `launcher` 管理。DISPLAY、VNC、noVNC 和 launcher 都来自 `config.json`：
+远程 GUI 工具由 `start_remote_gui_tools.sh`、`tools.remoteDesktopLauncher` 和各工具 `launcher` 管理。DISPLAY、VNC、noVNC 和 launcher 都来自 `config.json`。`start_remote_gui_tools.sh` 保持为外部入口，内部已拆到 `scripts/remote_gui_*.sh`：
+
+| 脚本 | 职责 |
+|------|------|
+| `scripts/remote_gui_common.sh` | 读取 `config.json`，加载 DISPLAY/VNC/noVNC/RPC 配置和公共函数 |
+| `scripts/remote_gui_desktop.sh` | 管理 Xvfb、openbox、x11vnc、noVNC |
+| `scripts/remote_gui_freecad_rpc.sh` | 管理 FreeCAD RPC、端口归属检查和 FreeCAD 启动 |
+| `scripts/remote_gui_runtime.sh` | 编排 `start`、`stop`、`restart`、`status` |
 
 | 工具 | DISPLAY | VNC | noVNC | 用途 |
 |------|---------|-----|-------|------|
@@ -439,6 +469,7 @@ curl "http://localhost:${BACKEND_PORT}/api/workspace/files/text?workspaceDir=${W
 ./start_remote_gui_tools.sh start
 ./start_remote_gui_tools.sh status
 ./start_remote_gui_tools.sh restart
+./start_remote_gui_tools.sh stop
 ```
 
 Agent 工具面板只负责 iframe 嵌入这些 noVNC 页面；远程桌面进程是否启动由后端系统接口和外部脚本保证。

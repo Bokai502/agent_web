@@ -53,6 +53,14 @@ cp config.example.json config.json
 
 ## 安装依赖
 
+推荐直接使用根目录启动脚本，它会在启动前自动检查并安装前后端 npm 依赖：
+
+```bash
+./start_open_codex_web.sh
+```
+
+也可以手动安装：
+
 ```bash
 cd /path/to/open_codex_web/backend
 npm install
@@ -77,7 +85,16 @@ cd /path/to/open_codex_web
 ./start_open_codex_web.sh
 ```
 
-脚本会先运行 `scripts/validate_config.mjs --config config.json` 校验真实配置文件，集中提示占位值、字段类型、路径/可执行文件以及模型、FunASR、CosyVoice、数据库等外部服务连接问题。校验通过后，脚本会关闭旧的 `ocw-backend*` 和 `ocw-frontend*` tmux 会话，释放后端端口，然后分别启动后端和前端。
+脚本会先运行 `scripts/validate_config.mjs --config config.json` 校验真实配置文件，集中提示占位值、字段类型、路径/可执行文件以及模型、FunASR、CosyVoice、数据库等外部服务连接问题。校验通过后，脚本会检查 npm 依赖、关闭旧的 `ocw-backend*` 和 `ocw-frontend*` tmux 会话、释放配置端口、启动远程 GUI 工具，然后分别启动后端和前端。
+
+`start_open_codex_web.sh` 是薄入口，实际步骤拆在 `scripts/` 下：
+
+| 脚本 | 作用 |
+| --- | --- |
+| `scripts/validate_start_config.sh` | 启动前校验 `config.json`。 |
+| `scripts/install_node_deps.sh` | 对 `backend` 和 `frontend` 执行 `npm install --no-audit --no-fund`。 |
+| `scripts/restart_web_services.sh` | 停旧 tmux、释放端口、启动远程 GUI、重启前后端服务。 |
+| `scripts/start_common.sh` | 上述脚本共享的配置读取、端口和 tmux 工具函数。 |
 
 也可以手动只做配置校验：
 
@@ -117,6 +134,28 @@ npm run dev:https -- --host "$(node -p "require('../config.json').frontend.host"
 ```
 
 前端 Vite 代理会读取同一个 `config.json` 的 `server.port`。如果手动用 `BACKEND_PORT` 覆盖后端端口，也要给前端启动命令传入相同的 `BACKEND_PORT`。
+
+## 远程 GUI 工具
+
+远程 GUI 仍通过根目录入口调用：
+
+```bash
+./start_remote_gui_tools.sh start
+./start_remote_gui_tools.sh status
+./start_remote_gui_tools.sh restart
+./start_remote_gui_tools.sh stop
+```
+
+`start_remote_gui_tools.sh` 也是薄入口，实际逻辑拆在 `scripts/` 下：
+
+| 脚本 | 作用 |
+| --- | --- |
+| `scripts/remote_gui_common.sh` | 读取 `config.json`，加载 DISPLAY/VNC/noVNC/RPC 配置和公共函数。 |
+| `scripts/remote_gui_desktop.sh` | 管理 Xvfb、openbox、x11vnc、noVNC。 |
+| `scripts/remote_gui_freecad_rpc.sh` | 管理 FreeCAD RPC、端口占用检查和 FreeCAD 启动。 |
+| `scripts/remote_gui_runtime.sh` | 编排 `start`、`stop`、`restart`、`status`。 |
+
+这些脚本仍读取 `tools.cad/paraview/comsol.*`、`workspace.rpcHost` 和 `workspace.rpcPort`，对外命令不变。
 
 ## Agent CLI 模块
 

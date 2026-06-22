@@ -53,6 +53,14 @@ Common fields:
 
 ## Install Dependencies
 
+The recommended startup script checks and installs frontend/backend npm dependencies before starting services:
+
+```bash
+./start_open_codex_web.sh
+```
+
+You can also install them manually:
+
 ```bash
 cd /path/to/open_codex_web/backend
 npm install
@@ -77,7 +85,16 @@ cd /path/to/open_codex_web
 ./start_open_codex_web.sh
 ```
 
-The script first runs `scripts/validate_config.mjs --config config.json` against the real config file. It reports placeholder values, invalid field types, missing paths/executables, and external service connectivity problems for the model APIs, FunASR, CosyVoice, database, and related services. After validation passes, it stops old `ocw-backend*` and `ocw-frontend*` tmux sessions, frees the backend port, then starts the backend and frontend separately.
+The script first runs `scripts/validate_config.mjs --config config.json` against the real config file. It reports placeholder values, invalid field types, missing paths/executables, and external service connectivity problems for the model APIs, FunASR, CosyVoice, database, and related services. After validation passes, it checks npm dependencies, stops old `ocw-backend*` and `ocw-frontend*` tmux sessions, frees the configured ports, starts the remote GUI tools, then starts the backend and frontend separately.
+
+`start_open_codex_web.sh` is a thin entry point. The actual steps live under `scripts/`:
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/validate_start_config.sh` | Validates `config.json` before startup. |
+| `scripts/install_node_deps.sh` | Runs `npm install --no-audit --no-fund` for `backend` and `frontend`. |
+| `scripts/restart_web_services.sh` | Stops old tmux sessions, frees ports, starts remote GUI tools, and restarts backend/frontend services. |
+| `scripts/start_common.sh` | Shared config, port, and tmux helper functions. |
 
 You can run validation manually:
 
@@ -117,6 +134,28 @@ npm run dev:https -- --host "$(node -p "require('../config.json').frontend.host"
 ```
 
 The Vite frontend proxy reads `server.port` from the same `config.json`. If you manually override the backend with `BACKEND_PORT`, pass the same `BACKEND_PORT` to the frontend command.
+
+## Remote GUI Tools
+
+Remote GUI tools are still controlled through the root entry point:
+
+```bash
+./start_remote_gui_tools.sh start
+./start_remote_gui_tools.sh status
+./start_remote_gui_tools.sh restart
+./start_remote_gui_tools.sh stop
+```
+
+`start_remote_gui_tools.sh` is also a thin entry point. Its implementation is split under `scripts/`:
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/remote_gui_common.sh` | Reads `config.json`, loads DISPLAY/VNC/noVNC/RPC settings, and defines shared helpers. |
+| `scripts/remote_gui_desktop.sh` | Manages Xvfb, openbox, x11vnc, and noVNC. |
+| `scripts/remote_gui_freecad_rpc.sh` | Manages FreeCAD RPC, port ownership checks, and FreeCAD startup. |
+| `scripts/remote_gui_runtime.sh` | Orchestrates `start`, `stop`, `restart`, and `status`. |
+
+These scripts still read `tools.cad/paraview/comsol.*`, `workspace.rpcHost`, and `workspace.rpcPort`; external commands are unchanged.
 
 ## Build Check
 
