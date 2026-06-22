@@ -194,7 +194,7 @@ async function withManufacturerDb<T>(config: ManufacturerDatabaseConfig, fn: (cl
   }
 }
 
-async function readManufacturerFullNameOptions(config: ManufacturerDatabaseConfig) {
+async function readManufacturerFullNameOptions(config: ManufacturerDatabaseConfig): Promise<string[]> {
   return withManufacturerDb(config, async client => {
     return readManufacturerFullNamesFromClient(client)
   })
@@ -225,14 +225,14 @@ async function addManufacturerFullName(config: ManufacturerDatabaseConfig, body:
   })
 }
 
-async function readManufacturerFullNamesFromClient(client: Client) {
+async function readManufacturerFullNamesFromClient(client: Client): Promise<string[]> {
   const result = await client.query<{ full_name: string }>(`
     select full_name::text as full_name
     from public.manufacturer
     where full_name is not null and btrim(full_name::text) <> ''
     order by full_name
   `)
-  return [...new Set(result.rows.map(row => cleanString(row.full_name)).filter(Boolean))]
+  return [...new Set(result.rows.map(row => cleanString(row.full_name)).filter(isNonEmptyString))]
     .sort(compareChinesePinyin)
 }
 
