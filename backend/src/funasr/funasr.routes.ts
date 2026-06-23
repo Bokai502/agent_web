@@ -227,6 +227,7 @@ export async function funasrRoutes(fastify: FastifyInstance, { config, logger }:
       return reply.send({
         codexResponse: managed.spokenSummary || managed.summary,
         elapsedMs: Number(elapsedMs(requestStartedAt).toFixed(2)),
+        error: "error" in managed ? managed.error : undefined,
         managedRunId: managed.managedRunId,
         routing: managed.routing,
         sessionId: managed.sessionId,

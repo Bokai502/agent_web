@@ -570,9 +570,10 @@ describe("managed run routes", () => {
       const body = dispatch.json()
 
       assert.equal(dispatch.statusCode, 200)
-      assert.equal(body.status, "partial")
-      assert.equal(body.spokenSummary, "这个问题暂时没有生成有效回答。")
-      assert.deepEqual(body.issues, ["general answer was empty"])
+      assert.equal(body.status, "failed")
+      assert.equal(body.spokenSummary, "回答生成失败：模型返回了空内容。")
+      assert.equal(body.error, "回答生成失败：模型返回了空内容。")
+      assert.deepEqual(body.issues, ["回答生成失败：模型返回了空内容。"])
 
       const events = await server.inject({
         method: "GET",
@@ -581,9 +582,9 @@ describe("managed run routes", () => {
 
       assert.equal(events.statusCode, 200)
       assert.match(events.body, /event: status/u)
-      assert.match(events.body, /"status":"partial"/u)
+      assert.match(events.body, /"status":"failed"/u)
       assert.match(events.body, /"sessionId":"session-general-dispatch"/u)
-      assert.match(events.body, /"spokenSummary":"这个问题暂时没有生成有效回答。"/u)
+      assert.match(events.body, /"spokenSummary":"回答生成失败：模型返回了空内容。"/u)
     } finally {
       await server.close()
     }
