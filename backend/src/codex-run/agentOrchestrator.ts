@@ -21,6 +21,7 @@ export type ManagedRouting = {
 
 export type ManagedRunResponse = {
   artifacts: Array<{ exists: boolean; kind: string; path: string }>
+  error?: string
   eventCounts: Record<string, number>
   issues: string[]
   managedRunId: string
@@ -228,6 +229,16 @@ async function normalizeManagedRunBody(body: RunRequestBody) {
 function getManagedRunStatusPath(managedRunId: string) {
   if (!MANAGED_RUN_ID_PATTERN.test(managedRunId)) return null
   return path.join(MANAGED_RUN_STATUS_DIR, `${managedRunId}.json`)
+}
+
+function formatManagedAnswerError(err: unknown) {
+  if (err instanceof Error && /operation timed out after \d+ms/u.test(err.message)) {
+    return "回答生成超时，请稍后重试。"
+  }
+  if (err instanceof Error && err.message.trim()) {
+    return `回答生成失败：${err.message.trim()}`
+  }
+  return "回答生成失败，请稍后重试。"
 }
 
 async function persistManagedRunStatus(status: ManagedRunStatusResponse) {
@@ -1462,6 +1473,7 @@ async function answerGeneralQuestionFromDispatch({
   const versionId = getOptionalString(body.versionId)
   const workspaceName = getOptionalString(body.workspaceName)
   let answer = ""
+  let answerError = ""
   let resolvedThreadId = threadId
   const workspaceContext = {
     versionId,
@@ -1498,11 +1510,14 @@ async function answerGeneralQuestionFromDispatch({
       .replace(/```[\s\S]*?```/gu, "")
       .replace(/\s+/gu, " ")
       .trim()
+    if (!answer) answerError = "回答生成失败：模型返回了空内容。"
   } catch (err) {
+    answerError = formatManagedAnswerError(err)
     logger.warn("managed general answer fallback", { err, managedRunId, requestId })
   }
 
-  const spokenSummary = answer || "这个问题暂时没有生成有效回答。"
+  const responseStatus: ManagedRunResponse["status"] = answer ? "completed" : "failed"
+  const spokenSummary = answer || answerError
   await persistManagedResponseTurn({
     answer,
     logger,
@@ -1519,7 +1534,8 @@ async function answerGeneralQuestionFromDispatch({
   const response: ManagedRunResponse = {
     artifacts: [],
     eventCounts: {},
-    issues: answer ? [] : ["general answer was empty"],
+    ...(answer ? {} : { error: answerError }),
+    issues: answer ? [] : [answerError],
     managedRunId,
     manifestRun: null,
     progress: null,
@@ -1527,7 +1543,7 @@ async function answerGeneralQuestionFromDispatch({
     sessionId,
     sessionTurn: null,
     spokenSummary,
-    status: answer ? "completed" : "partial",
+    status: responseStatus,
     summary: spokenSummary,
     threadId: resolvedThreadId,
     turnId,
@@ -1540,7 +1556,7 @@ async function answerGeneralQuestionFromDispatch({
     routing,
     sessionId,
     spokenSummary,
-    status: response.status,
+    status: responseStatus,
     summary: response.summary,
     threadId: resolvedThreadId,
     turnId,
@@ -1563,7 +1579,7 @@ async function answerGeneralQuestionFromDispatch({
       routing,
       sessionId,
       spokenSummary,
-      status: response.status,
+      status: responseStatus,
       summary: response.summary,
       threadId: resolvedThreadId,
       turnId,

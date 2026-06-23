@@ -266,7 +266,7 @@ describe("funasr routes", () => {
     }
   })
 
-  it("dispatches Codex text requests and returns managed fallback responses", async () => {
+  it("dispatches Codex text requests and returns managed errors", async () => {
     const server = await createTestServer()
 
     try {
@@ -278,9 +278,9 @@ describe("funasr routes", () => {
       const body = response.json()
 
       assert.equal(response.statusCode, 200)
-      assert.equal(body.codexResponse, "这个问题暂时没有生成有效回答。")
-      assert.equal(body.spokenSummary, "这个问题暂时没有生成有效回答。")
-      assert.equal(body.status, "partial")
+      assert.match(body.codexResponse, /^回答生成失败：/u)
+      assert.match(body.spokenSummary, /^回答生成失败：/u)
+      assert.equal(body.status, "failed")
       assert.equal(body.routing.skillScopes[0], "public")
       assert.match(body.managedRunId, /^managed_/u)
       assert.match(body.sessionId, /^managed_session_/u)

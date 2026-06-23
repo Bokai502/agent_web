@@ -29,6 +29,7 @@ type ManagedAgentRunOptions = {
   resetProgressDataRef: MutableRefObject<(() => void) | null>
   setBranchManifest: (manifest: WorkspaceManifestSummary | null) => void
   setProgressRefreshNonce: (updater: (value: number) => number) => void
+  showRunError: (message: string) => void
   showSpeechText: (text: string) => void
   speakText: (text: string, speechId?: string) => void | Promise<void>
   periodicSummarySpeechBusy?: boolean
@@ -56,6 +57,7 @@ export function useManagedAgentRun({
   resetProgressDataRef,
   setBranchManifest,
   setProgressRefreshNonce,
+  showRunError,
   showSpeechText,
   speakText,
   periodicSummarySpeechBusy = false,
@@ -116,9 +118,12 @@ export function useManagedAgentRun({
       setProgressRefreshNonce(value => value + 1)
       refreshWorkspaceViews()
 
-      const speechText = status.spokenSummary || status.summary || (
-        status.status === 'failed' ? '任务执行失败，请查看详情。' : '任务已完成。'
-      )
+      if (status.status === 'failed') {
+        showRunError(status.error || status.spokenSummary || status.summary || '回答生成失败，请稍后重试。')
+        return
+      }
+
+      const speechText = status.spokenSummary || status.summary || '任务已完成。'
       showSpeechText(speechText)
       void speakText(speechText, `${managedRunId}:finished:${startedTurnId}`)
     }
@@ -227,6 +232,11 @@ export function useManagedAgentRun({
       }
       setProgressRefreshNonce(value => value + 1)
       if (result.status === 'started') refreshWorkspaceViews()
+      if (result.status === 'failed') {
+        showRunError(result.error || result.spokenSummary || result.summary || '回答生成失败，请稍后重试。')
+        setManagedVoiceRunning(false)
+        return
+      }
       const speechText = result.spokenSummary || result.summary || (result.status === 'started' ? '任务已开始。' : '当前任务正在处理中。')
       showSpeechText(speechText)
       void speakText(speechText, result.managedRunId ?? result.turnId ?? transcript)
@@ -284,7 +294,7 @@ export function useManagedAgentRun({
     } finally {
       if (!backgroundRunStarted && isCurrentWorkspaceRun()) setManagedVoiceRunning(false)
     }
-  }, [activeContext, refreshWorkspaceViews, resetProgressDataRef, setBranchManifest, setProgressRefreshNonce, showSpeechText, speakText, workspaceAppState, workspaces])
+  }, [activeContext, refreshWorkspaceViews, resetProgressDataRef, setBranchManifest, setProgressRefreshNonce, showRunError, showSpeechText, speakText, workspaceAppState, workspaces])
 
   return {
     activeWorkspaceSpeechKey,

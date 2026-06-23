@@ -57,6 +57,7 @@ export default function AgentPage() {
   const [modelBackend, setModelBackend] = useState<ManagedModelBackend>('chatModel')
   const [textInput, setTextInput] = useState('')
   const [textInputDisplay, setTextInputDisplay] = useState('')
+  const [managedRunError, setManagedRunError] = useState('')
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [remoteToolPortStatus, setRemoteToolPortStatus] = useState<RemoteToolPortSummary | null>(null)
   const [remoteToolPortError, setRemoteToolPortError] = useState('')
@@ -233,6 +234,7 @@ export default function AgentPage() {
     resetProgressDataRef,
     setBranchManifest: versionState.setBranchManifest,
     setProgressRefreshNonce,
+    showRunError: setManagedRunError,
     showSpeechText,
     speakText,
     periodicSummarySpeechBusy: agentSpeechPlaying || agentSpeechState === 'synthesizing',
@@ -306,7 +308,10 @@ export default function AgentPage() {
     stopRecording,
     text,
   } = useAgentRecorder({
-    clearAgentSpeechDisplay,
+    clearAgentSpeechDisplay: () => {
+      setManagedRunError('')
+      clearAgentSpeechDisplay()
+    },
     runCodex,
     running: visibleRunning || workspaceAppState.running || managedVoiceRunning,
   })
@@ -427,6 +432,7 @@ export default function AgentPage() {
     if (agentSpeechPlaying || agentSpeechState === 'synthesizing') stopAgentSpeechPlayback()
     clearAgentSpeechDisplay()
     clearRecorderDisplay()
+    setManagedRunError('')
     setTextInputDisplay('')
     setInputMode(nextMode)
   }, [agentSpeechPlaying, agentSpeechState, cancelRecording, clearAgentSpeechDisplay, clearRecorderDisplay, inputMode, state, stopAgentSpeechPlayback])
@@ -451,6 +457,7 @@ export default function AgentPage() {
     const prompt = textInput.trim()
     if (!prompt || textComposerBusy) return
     clearAgentSpeechDisplay()
+    setManagedRunError('')
     setTextInput('')
     setTextInputDisplay(prompt)
     void runCodex(prompt, 'text')
@@ -579,7 +586,7 @@ export default function AgentPage() {
           agentSpeechState={agentSpeechState}
           busy={recordButtonBusy}
           disabled={recordButtonDisabled}
-          error={error}
+          error={error || managedRunError}
           inputMode={inputMode}
           onButtonClick={handleButtonClick}
           onTextChange={setTextInput}

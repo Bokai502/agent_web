@@ -47,6 +47,7 @@ DEFAULT_COMSOL_LAUNCHER = _tool_path("comsol", "launcher", "start-comsol-remote"
 DEFAULT_PARAVIEW_LAUNCHER = _tool_path("paraview", "launcher", "start-paraview-remote")
 PARAVIEW_DISPLAY = _tool_string("paraview", "displayNum", ":2")
 COMSOL_REMOTE_DISPLAY = _tool_string("comsol", "displayNum", ":32")
+COMSOL_BIN = Path(_tool_string("comsol", "bin", "/usr/local/bin/comsol"))
 
 
 def load_simulation_outputs_in_remote_tools(
@@ -72,11 +73,9 @@ def load_simulation_outputs_in_remote_tools(
     result: dict[str, Any] = {
         "work_mph": str(work_mph),
         "native_vtu": str(native_vtu),
-        "comsol": _launch_if_ready(
-            [str(comsol_launcher), "-open", str(work_mph)],
+        "comsol": _launch_comsol_if_ready(
+            work_mph,
             launcher=comsol_launcher,
-            data_file=work_mph,
-            before_launch=_stop_existing_comsol_gui,
         ),
         "paraview": _launch_if_ready(
             [
@@ -91,6 +90,120 @@ def load_simulation_outputs_in_remote_tools(
     }
     result["ok"] = all(item.get("status") in {"launched", "skipped"} for item in (result["comsol"], result["paraview"]))
     return result
+
+
+def _launch_comsol_if_ready(work_mph: Path, *, launcher: Path) -> dict[str, Any]:
+    """Ensure the COMSOL remote desktop exists, then open the MPH explicitly.
+
+    The remote launcher intentionally returns early when any COMSOL GUI process
+    is already running. That is correct for "ensure desktop" but wrong for
+    loading a fresh simulation result, because it can silently skip `-open`.
+    """
+    data_file = Path(work_mph)
+    if not data_file.exists():
+        return {
+            "status": "skipped",
+            "reason": "missing_data_file",
+            "launcher": str(launcher),
+            "data_file": str(data_file),
+            "command": [str(launcher), "-open", str(data_file)],
+        }
+
+    prelaunch_result = _stop_existing_comsol_gui()
+    prelaunch_status = str(prelaunch_result.get("status", ""))
+    if prelaunch_status.startswith("blocked"):
+        return {
+            "status": "failed",
+            "reason": prelaunch_status,
+            "launcher": str(launcher),
+            "data_file": str(data_file),
+            "command": [str(launcher), "-open", str(data_file)],
+            "prelaunch": prelaunch_result,
+        }
+
+    ensure_result = _ensure_comsol_remote_desktop(launcher)
+    if ensure_result.get("status") == "failed":
+        return {
+            "status": "failed",
+            "reason": "remote_desktop_failed",
+            "launcher": str(launcher),
+            "data_file": str(data_file),
+            "command": [str(launcher), "-open", str(data_file)],
+            "prelaunch": prelaunch_result,
+            "ensure_desktop": ensure_result,
+        }
+
+    comsol_bin = _resolve_comsol_bin()
+    if comsol_bin is None:
+        return {
+            "status": "skipped",
+            "reason": "missing_comsol_bin",
+            "launcher": str(launcher),
+            "data_file": str(data_file),
+            "command": [str(launcher), "-open", str(data_file)],
+            "prelaunch": prelaunch_result,
+            "ensure_desktop": ensure_result,
+        }
+
+    command = [str(comsol_bin), "-open", str(data_file)]
+    env = os.environ.copy()
+    env["DISPLAY"] = COMSOL_REMOTE_DISPLAY
+    env["LIBGL_ALWAYS_SOFTWARE"] = "1"
+    env["MESA_GL_VERSION_OVERRIDE"] = "3.3"
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        return {
+            "status": "failed",
+            "reason": exc.__class__.__name__,
+            "message": str(exc),
+            "launcher": str(launcher),
+            "data_file": str(data_file),
+            "command": command,
+            "prelaunch": prelaunch_result,
+            "ensure_desktop": ensure_result,
+        }
+    return {
+        "status": "launched",
+        "pid": process.pid,
+        "launcher": str(launcher),
+        "loader": str(comsol_bin),
+        "data_file": str(data_file),
+        "command": command,
+        "prelaunch": prelaunch_result,
+        "ensure_desktop": ensure_result,
+    }
+
+
+def _ensure_comsol_remote_desktop(launcher: Path) -> dict[str, Any]:
+    if shutil.which(str(launcher)) is None:
+        return {"status": "skipped", "reason": "missing_launcher", "launcher": str(launcher)}
+    try:
+        process = subprocess.run(
+            [str(launcher)],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        return {"status": "failed", "reason": "timeout", "launcher": str(launcher)}
+    except OSError as exc:
+        return {"status": "failed", "reason": exc.__class__.__name__, "message": str(exc), "launcher": str(launcher)}
+    return {"status": "ready" if process.returncode == 0 else "failed", "code": process.returncode, "launcher": str(launcher)}
+
+
+def _resolve_comsol_bin() -> Path | None:
+    if COMSOL_BIN.is_file() and os.access(COMSOL_BIN, os.X_OK):
+        return COMSOL_BIN
+    found = shutil.which("comsol")
+    return Path(found) if found else None
 
 
 def _launch_if_ready(
