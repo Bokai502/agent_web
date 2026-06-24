@@ -335,6 +335,7 @@ const HEATFLUX_OUTPUT_RELATIVE_DIR = path.join("00_inputs", "heatflux")
 const HEATFLUX_SELECTED_JSON_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "selected_heatflux.json")
 const HEATFLUX_CURVE_IMAGE_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "heatflux_curve.png")
 const HEATFLUX_MARKED_CURVE_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "heatflux_curve_marked.svg")
+const HEATFLUX_DATA_RELATIVE_DIR = path.join("data", "heatflux")
 const HEATFLUX_TEMPLATE_RELATIVE_DIR = path.join("00_inputs", "heatflux")
 const HEATFLUX_FACE_NAMES = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] as const
 const HEATFLUX_MU_EARTH = 3.986004418e14
@@ -805,6 +806,7 @@ async function resolveHeatfluxRoot(workspaceDir: string, config: AppConfig) {
     : workspaceDir
   const workspaceTemplateName = path.basename(workspaceRoot).replace(/^ws_/u, "")
   const candidateRoots = [
+    path.join(resolveRepoRoot(), HEATFLUX_DATA_RELATIVE_DIR),
     path.join(templateRoot, workspaceTemplateName, HEATFLUX_TEMPLATE_RELATIVE_DIR),
     path.join(templateRoot, "thermal_catch", HEATFLUX_TEMPLATE_RELATIVE_DIR),
     path.join(templateRoot, "thermal", HEATFLUX_TEMPLATE_RELATIVE_DIR),

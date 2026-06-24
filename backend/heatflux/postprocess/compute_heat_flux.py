@@ -31,7 +31,7 @@ SSO_INCLINATION_DEG = 97.79
 
 FACES = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"]
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_HEATFLUX_DATA_DIR = REPO_ROOT / "data" / "input_data" / "thermal_catch" / "00_inputs" / "heatflux"
+DEFAULT_HEATFLUX_DATA_DIR = REPO_ROOT / "data" / "heatflux"
 SEASONS = [
     ("spring", "春分", 3, 21),
     ("summer", "夏至", 6, 21),
