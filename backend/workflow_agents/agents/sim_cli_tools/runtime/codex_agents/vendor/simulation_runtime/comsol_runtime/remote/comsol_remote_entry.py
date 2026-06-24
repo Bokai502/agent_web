@@ -42,6 +42,8 @@ _DYNAMIC_SELECTION_PREFIXES = (
     'sel_f_',
     'sel_w_',
     'sel_c_',
+    'sel_env_',
+    'sel_env_box_',
     'sel_shell_',
     'fsurf_',
     'fadj_',
@@ -56,6 +58,8 @@ _DYNAMIC_SELECTION_PREFIXES = (
 _DYNAMIC_HT_PREFIXES = (
     'hs_',
     'rad_',
+    'solar_hf_',
+    'env_hf_',
     'temp_',
     'thin_',
     'tc_',
@@ -63,6 +67,23 @@ _DYNAMIC_HT_PREFIXES = (
 _DYNAMIC_PAIR_PREFIXES = (
     'pair_',
 )
+
+_SHELL_ENV_FACES = (
+    ('+X', 0, 1, 'xmax'),
+    ('-X', 0, -1, 'xmin'),
+    ('+Y', 1, 1, 'ymax'),
+    ('-Y', 1, -1, 'ymin'),
+    ('+Z', 2, 1, 'zmax'),
+    ('-Z', 2, -1, 'zmin'),
+)
+
+
+def _direction_tag(direction: str) -> str:
+    if direction.startswith('+'):
+        return f"pos_{direction[1:]}"
+    if direction.startswith('-'):
+        return f"neg_{direction[1:]}"
+    return re.sub(r'[^A-Za-z0-9_]', '_', direction)
 
 
 class RemoteComsolExecutor:
@@ -720,6 +741,159 @@ class RemoteComsolExecutor:
             'component_domain_count': len(component_tags),
         }
 
+    def _resolve_heat_flux_json_path(
+        self,
+        input_json_path: Any,
+        sample_dir: Path,
+    ) -> Path:
+        path_text = str(input_json_path or '').strip()
+        if path_text:
+            path = Path(path_text).expanduser()
+            if not path.is_absolute():
+                path = (sample_dir / path).resolve()
+            return path
+        return (sample_dir.parent.parent / '00_inputs' / 'heatflux' / 'selected_heatflux.json').resolve()
+
+    def _load_solar_heat_flux_config(
+        self,
+        solar_config: Dict[str, Any],
+        sample_dir: Path,
+    ) -> Dict[str, Any]:
+        input_path = self._resolve_heat_flux_json_path(solar_config.get('input_json_path'), sample_dir)
+        if not input_path.exists():
+            raise FileNotFoundError(f'solar heat flux json not found: {input_path}')
+        data = json.loads(input_path.read_text(encoding='utf-8'))
+        units = data.get('units') if isinstance(data.get('units'), dict) else {}
+        if units.get('heat_flux') != 'W/m^2':
+            raise ValueError(f"solar heat flux units.heat_flux must be W/m^2, got {units.get('heat_flux')!r}")
+        faces = data.get('faces') if isinstance(data.get('faces'), dict) else {}
+        missing = [direction for direction, *_ in _SHELL_ENV_FACES if direction not in faces]
+        if missing:
+            raise ValueError(f'solar heat flux faces missing directions: {missing}')
+        parsed_faces: Dict[str, float] = {}
+        for direction, *_ in _SHELL_ENV_FACES:
+            value = float(faces[direction])
+            if not value == value or value in (float('inf'), float('-inf')):
+                raise ValueError(f'solar heat flux for {direction} must be finite')
+            parsed_faces[direction] = value
+        return {
+            'path': str(input_path),
+            'input_kind': str(solar_config.get('input_kind') or 'incident'),
+            'default_absorptivity': float(solar_config.get('default_absorptivity', 0.3)),
+            'faces': parsed_faces,
+            'metadata': {
+                key: data.get(key)
+                for key in (
+                    'schema_version',
+                    'orbit_type',
+                    'season',
+                    'season_key',
+                    'requested_time',
+                    'requested_time_s',
+                    'orbit_phase_time',
+                    'orbit_phase_time_s',
+                    'matched_time',
+                    'matched_time_s',
+                    'orbit_period_s',
+                    'source',
+                    'updated_at',
+                )
+                if key in data
+            },
+        }
+
+    def _build_shell_environment_face_selections(
+        self,
+        outer_shell: Optional[Dict[str, Any]],
+        shell_boundary_selection: Optional[str],
+        *,
+        eps_mm: float = 1.0,
+    ) -> Dict[str, Any]:
+        """Create six shell-only outer face selections for external environment loads."""
+        comp_sel_root = self.model.java.component('comp1').selection()
+        bbox = (outer_shell or {}).get('outer_bbox', {}) if isinstance(outer_shell, dict) else {}
+        bmin = bbox.get('min') if isinstance(bbox, dict) else None
+        bmax = bbox.get('max') if isinstance(bbox, dict) else None
+        if not (isinstance(bmin, list) and isinstance(bmax, list) and len(bmin) == 3 and len(bmax) == 3):
+            raise ValueError('outer_shell.outer_bbox with min/max length 3 is required for shell environment faces')
+
+        bounds = [[float(bmin[i]), float(bmax[i])] for i in range(3)]
+        existing = {str(t) for t in comp_sel_root.tags()}
+        faces: Dict[str, Dict[str, Any]] = {}
+        created = 0
+        failed: List[Dict[str, str]] = []
+
+        for direction, axis, sign, face_name in _SHELL_ENV_FACES:
+            direction_tag = _direction_tag(direction)
+            box_tag = f"sel_env_box_{direction_tag}"
+            face_tag = f"sel_env_{direction_tag}"
+            plane_value = bounds[axis][1] if sign > 0 else bounds[axis][0]
+            face_bounds = [list(item) for item in bounds]
+            face_bounds[axis] = [plane_value - eps_mm, plane_value + eps_mm]
+            try:
+                if box_tag not in existing:
+                    comp_sel_root.create(box_tag, 'Box')
+                    existing.add(box_tag)
+                box_sel = self.model.java.component('comp1').selection(box_tag)
+                box_sel.label(f'env-box:{direction}')
+                box_sel.set('entitydim', '2')
+                box_sel.set('condition', 'allvertices')
+                box_sel.set('xmin', f'{face_bounds[0][0]}[mm]')
+                box_sel.set('xmax', f'{face_bounds[0][1]}[mm]')
+                box_sel.set('ymin', f'{face_bounds[1][0]}[mm]')
+                box_sel.set('ymax', f'{face_bounds[1][1]}[mm]')
+                box_sel.set('zmin', f'{face_bounds[2][0]}[mm]')
+                box_sel.set('zmax', f'{face_bounds[2][1]}[mm]')
+
+                if shell_boundary_selection:
+                    if face_tag not in existing:
+                        comp_sel_root.create(face_tag, 'Intersection')
+                        existing.add(face_tag)
+                    face_sel = self.model.java.component('comp1').selection(face_tag)
+                    face_sel.label(f'env:{direction}')
+                    face_sel.set('entitydim', '2')
+                    face_sel.set('input', [box_tag, shell_boundary_selection])
+                else:
+                    face_tag = box_tag
+
+                entities = self._selection_entity_ids(self.model.java.component('comp1').selection(face_tag))
+                if not entities:
+                    raise RuntimeError('shell environment face selection is empty')
+                created += 1
+                faces[direction] = {
+                    'direction': direction,
+                    'axis': axis,
+                    'sign': sign,
+                    'face_name': face_name,
+                    'plane_value_mm': plane_value,
+                    'selection': face_tag,
+                    'box_selection': box_tag,
+                    'boundary_count': len(entities),
+                    'boundary_ids': entities,
+                    'ok': True,
+                }
+            except Exception as exc:
+                failed.append({
+                    'direction': direction,
+                    'selection': face_tag,
+                    'error': f'{type(exc).__name__}: {exc}',
+                })
+
+        result = {
+            'ok': len(faces) == len(_SHELL_ENV_FACES) and not failed,
+            'created': created,
+            'failed': failed,
+            'faces': faces,
+            'source': {
+                'outer_shell_bbox': bbox,
+                'shell_boundary_selection': shell_boundary_selection,
+                'eps_mm': eps_mm,
+            },
+        }
+        if not result['ok']:
+            raise RuntimeError(f"shell environment face selection failed: {failed}")
+        return result
+
     def _apply_radiator_surface_to_ambient_v2(
         self,
         components_data: list,
@@ -807,26 +981,20 @@ class RemoteComsolExecutor:
 
     def _apply_shell_surface_to_ambient_v2(
         self,
-        install_faces: dict,
+        shell_environment_faces: Dict[str, Any],
         boundary_conditions: Optional[Dict[str, Any]] = None,
     ) -> dict:
-        """Apply SurfaceToAmbient radiation to outer shell faces from config."""
-        from core.selection_updater_v2 import _safe_tag
-
+        """Apply SurfaceToAmbient radiation to the six shell environment faces."""
         shell_face_bc = (boundary_conditions or {}).get('shell_faces', {})
-        bc_type = shell_face_bc.get('type', 'radiation')
         emissivity = float(shell_face_bc.get('emissivity', 0.8))
         ambient_temp_k = float(shell_face_bc.get('ambient_temp', 300.0))
         ht = self.model.java.component('comp1').physics('ht')
         applied, skipped = 0, 0
         details = []
 
-        for face_id, face in install_faces.items():
-            owner = face.get('belongs_to') or face.get('owner_id') or ''
-            if not str(owner).endswith('outer_shell') or face.get('side') != 'outer':
-                continue
-            sel_tag = f"sel_f_{_safe_tag(face_id)}"
-            rad_tag = f"rad_shell_{_safe_tag(face_id)}"
+        for direction, face in shell_environment_faces.get('faces', {}).items():
+            sel_tag = face['selection']
+            rad_tag = f"rad_shell_{_direction_tag(direction)}"
             try:
                 entities = self._selection_entity_ids(self.model.java.component('comp1').selection(sel_tag))
                 if not entities:
@@ -836,12 +1004,12 @@ class RemoteComsolExecutor:
                 if rad_tag not in ht_tags:
                     ht.create(rad_tag, 'SurfaceToAmbientRadiation', 2)
                 feat = ht.feature(rad_tag)
-                feat.label(f'rad:shell:{face_id}')
+                feat.label(f'rad:shell:{direction}')
                 feat.selection().named(sel_tag)
                 self._set_surface_to_ambient_radiation(feat, emissivity, ambient_temp_k)
                 applied += 1
                 details.append({
-                    'face_id': face_id,
+                    'direction': direction,
                     'selection': sel_tag,
                     'boundary_count': len(entities),
                     'emissivity': emissivity,
@@ -852,11 +1020,365 @@ class RemoteComsolExecutor:
                 print(f"    ✓ {rad_tag}: epsilon_rad={emissivity:.3f}, Tamb={ambient_temp_k}K")
             except Exception as e:
                 skipped += 1
-                details.append({'face_id': face_id, 'selection': sel_tag, 'ok': False, 'note': f'{type(e).__name__}: {e}'})
+                details.append({'direction': direction, 'selection': sel_tag, 'ok': False, 'note': f'{type(e).__name__}: {e}'})
                 print(f"    ✗ {rad_tag} 失败: {type(e).__name__}: {e}")
 
         print(f"  [v2] shell SurfaceToAmbientRadiation: applied={applied}, skipped={skipped}")
-        return {'applied': applied, 'skipped': skipped, 'details': details}
+        return {
+            'applied': applied,
+            'skipped': skipped,
+            'details': details,
+            'note': 'Deep-space radiation is applied only to the six cabin outer shell faces.',
+        }
+
+    def _set_heat_flux_boundary(self, feature: Any, q0_w_m2: float) -> None:
+        self._set_heat_flux_boundary_expression(feature, f'{q0_w_m2}[W/m^2]')
+
+    def _set_heat_flux_boundary_expression(self, feature: Any, q0_expr: str) -> None:
+        for key in ('HeatFluxType', 'heatFluxType'):
+            try:
+                feature.set(key, 'GeneralInwardHeatFlux')
+            except Exception:
+                pass
+        feature.set('q0', q0_expr)
+
+    def _apply_solar_heat_flux_v2(
+        self,
+        shell_environment_faces: Dict[str, Any],
+        solar_config: Optional[Dict[str, Any]],
+        sample_dir: Path,
+    ) -> dict:
+        """Apply absorbed solar heat flux to six cabin outer shell faces."""
+        solar_config = solar_config or {}
+        if not solar_config.get('enabled', False):
+            return {
+                'enabled': False,
+                'applied': 0,
+                'skipped': 0,
+                'details': [],
+                'note': 'solar_heat_flux.enabled is false',
+            }
+
+        loaded = self._load_solar_heat_flux_config(solar_config, sample_dir)
+        ht = self.model.java.component('comp1').physics('ht')
+        ht_tags = {str(t) for t in ht.feature().tags()}
+        applied, skipped = 0, 0
+        details = []
+
+        for direction, face in shell_environment_faces.get('faces', {}).items():
+            sel_tag = face['selection']
+            hf_tag = f"solar_hf_{_direction_tag(direction)}"
+            incident_w_m2 = float(loaded['faces'][direction])
+            absorptivity = float(face.get('absorptivity', loaded['default_absorptivity']))
+            absorbed_w_m2 = absorptivity * incident_w_m2
+            try:
+                entities = self._selection_entity_ids(self.model.java.component('comp1').selection(sel_tag))
+                if not entities:
+                    raise RuntimeError('shell solar heat flux face selection is empty')
+                if hf_tag not in ht_tags:
+                    created = False
+                    last_error: Optional[Exception] = None
+                    for feature_type in ('HeatFluxBoundary', 'HeatFlux'):
+                        try:
+                            ht.create(hf_tag, feature_type, 2)
+                            created = True
+                            break
+                        except Exception as exc:
+                            last_error = exc
+                    if not created:
+                        raise RuntimeError(f'failed to create COMSOL heat flux feature: {last_error}')
+                    ht_tags.add(hf_tag)
+                feat = ht.feature(hf_tag)
+                feat.label(f'solar heat flux:{direction}')
+                feat.selection().named(sel_tag)
+                self._set_heat_flux_boundary(feat, absorbed_w_m2)
+                applied += 1
+                details.append({
+                    'direction': direction,
+                    'selection': sel_tag,
+                    'boundary_count': len(entities),
+                    'incident_W_m2': incident_w_m2,
+                    'absorptivity': absorptivity,
+                    'absorbed_W_m2': absorbed_w_m2,
+                    'feature': hf_tag,
+                    'ok': True,
+                })
+                print(f"    ✓ {hf_tag}: q_incident={incident_w_m2:.6g} W/m^2, alpha={absorptivity:.3f}, q0={absorbed_w_m2:.6g} W/m^2")
+            except Exception as e:
+                skipped += 1
+                details.append({'direction': direction, 'selection': sel_tag, 'ok': False, 'note': f'{type(e).__name__}: {e}'})
+                print(f"    ✗ {hf_tag} 失败: {type(e).__name__}: {e}")
+
+        return {
+            'enabled': True,
+            'applied': applied,
+            'skipped': skipped,
+            'input_json_path': loaded['path'],
+            'input_kind': loaded['input_kind'],
+            'default_absorptivity': loaded['default_absorptivity'],
+            'metadata': loaded['metadata'],
+            'details': details,
+            'note': 'Incident solar heat flux is multiplied by absorptivity and applied only to the six cabin outer shell faces.',
+        }
+
+    def _apply_linearized_shell_environment_heat_flux_v2(
+        self,
+        shell_environment_faces: Dict[str, Any],
+        boundary_conditions: Optional[Dict[str, Any]],
+        sample_dir: Path,
+    ) -> dict:
+        """Apply absorbed solar plus linearized deep-space radiation as Heat Flux features."""
+        boundary_conditions = boundary_conditions or {}
+        shell_face_bc = boundary_conditions.get('shell_faces', {})
+        solar_config = boundary_conditions.get('solar_heat_flux', {})
+        emissivity = float(shell_face_bc.get('emissivity', 0.8))
+        ambient_temp_k = float(shell_face_bc.get('ambient_temp', 3.0))
+        reference_temp_k = float(
+            shell_face_bc.get(
+                'linearization_temperature',
+                shell_face_bc.get('reference_temperature', 300.0),
+            )
+        )
+        if reference_temp_k <= 0.0:
+            raise ValueError('shell_faces.linearization_temperature must be > 0 K')
+
+        sigma = 5.670374419e-8
+        h_rad = 4.0 * emissivity * sigma * reference_temp_k ** 3
+        q_rad_at_ref = emissivity * sigma * (ambient_temp_k ** 4 - reference_temp_k ** 4)
+        # q_rad ~= h_rad * (t_eq - T), equivalent to first-order expansion at T_ref.
+        t_eq = reference_temp_k + q_rad_at_ref / h_rad if h_rad > 0.0 else ambient_temp_k
+
+        loaded: Optional[Dict[str, Any]] = None
+        if solar_config.get('enabled', False):
+            loaded = self._load_solar_heat_flux_config(solar_config, sample_dir)
+
+        ht = self.model.java.component('comp1').physics('ht')
+        ht_tags = {str(t) for t in ht.feature().tags()}
+        applied, skipped = 0, 0
+        details = []
+
+        for direction, face in shell_environment_faces.get('faces', {}).items():
+            sel_tag = face['selection']
+            hf_tag = f"env_hf_{_direction_tag(direction)}"
+            incident_w_m2 = float(loaded['faces'][direction]) if loaded else 0.0
+            absorptivity = float(face.get('absorptivity', loaded['default_absorptivity'] if loaded else solar_config.get('default_absorptivity', 0.3)))
+            absorbed_w_m2 = absorptivity * incident_w_m2
+            q0_expr = (
+                f'{absorbed_w_m2:.12g}[W/m^2]'
+                f' + {h_rad:.12g}[W/(m^2*K)]*({t_eq:.12g}[K]-T)'
+            )
+            try:
+                entities = self._selection_entity_ids(self.model.java.component('comp1').selection(sel_tag))
+                if not entities:
+                    raise RuntimeError('shell environment heat flux face selection is empty')
+                if hf_tag not in ht_tags:
+                    created = False
+                    last_error: Optional[Exception] = None
+                    for feature_type in ('HeatFluxBoundary', 'HeatFlux'):
+                        try:
+                            ht.create(hf_tag, feature_type, 2)
+                            created = True
+                            break
+                        except Exception as exc:
+                            last_error = exc
+                    if not created:
+                        raise RuntimeError(f'failed to create COMSOL heat flux feature: {last_error}')
+                    ht_tags.add(hf_tag)
+                feat = ht.feature(hf_tag)
+                feat.label(f'linearized shell environment:{direction}')
+                feat.selection().named(sel_tag)
+                self._set_heat_flux_boundary_expression(feat, q0_expr)
+                applied += 1
+                details.append({
+                    'direction': direction,
+                    'selection': sel_tag,
+                    'boundary_count': len(entities),
+                    'incident_W_m2': incident_w_m2,
+                    'absorptivity': absorptivity,
+                    'absorbed_W_m2': absorbed_w_m2,
+                    'emissivity': emissivity,
+                    'ambient_temp_K': ambient_temp_k,
+                    'linearization_temperature_K': reference_temp_k,
+                    'linearized_radiation_h_W_m2K': h_rad,
+                    'linearized_radiation_equivalent_temperature_K': t_eq,
+                    'radiation_q_at_reference_W_m2': q_rad_at_ref,
+                    'q0_expression': q0_expr,
+                    'feature': hf_tag,
+                    'ok': True,
+                })
+                print(f"    ✓ {hf_tag}: q_solar={absorbed_w_m2:.6g} W/m^2, h_rad={h_rad:.6g} W/(m^2*K), Teq={t_eq:.6g} K")
+            except Exception as e:
+                skipped += 1
+                details.append({'direction': direction, 'selection': sel_tag, 'ok': False, 'note': f'{type(e).__name__}: {e}'})
+                print(f"    ✗ {hf_tag} 失败: {type(e).__name__}: {e}")
+
+        return {
+            'enabled': True,
+            'mode': 'linearized_heat_flux',
+            'applied': applied,
+            'skipped': skipped,
+            'input_json_path': loaded['path'] if loaded else '',
+            'input_kind': loaded['input_kind'] if loaded else solar_config.get('input_kind', ''),
+            'default_absorptivity': loaded['default_absorptivity'] if loaded else solar_config.get('default_absorptivity', 0.3),
+            'metadata': loaded['metadata'] if loaded else {},
+            'emissivity': emissivity,
+            'ambient_temp_K': ambient_temp_k,
+            'linearization_temperature_K': reference_temp_k,
+            'linearized_radiation_h_W_m2K': h_rad,
+            'linearized_radiation_equivalent_temperature_K': t_eq,
+            'details': details,
+            'note': 'Absorbed solar input and first-order linearized deep-space radiation are applied as Heat Flux features on the six cabin outer shell faces.',
+        }
+
+    def _set_thin_layer_conduction(
+        self,
+        feature: Any,
+        thickness_mm: float,
+        conductivity_w_mk: float,
+        density_kg_m3: float,
+        heat_capacity_j_kgk: float,
+    ) -> Dict[str, Any]:
+        """Best-effort Thin Layer setup across COMSOL versions."""
+        attempted: List[Dict[str, Any]] = []
+
+        def set_many(keys: List[str], value: Any) -> None:
+            for key in keys:
+                try:
+                    feature.set(key, value)
+                    attempted.append({'key': key, 'value': value, 'ok': True})
+                    return
+                except Exception as exc:
+                    attempted.append({'key': key, 'value': value, 'ok': False, 'error': f'{type(exc).__name__}: {exc}'})
+
+        set_many(['LayerType', 'layerType', 'layertype'], 'Conductive')
+        set_many(['ds', 'd', 'thickness', 'Lth'], f'{thickness_mm}[mm]')
+        set_many(['ks', 'k', 'k_mat', 'thermalconductivity'], [f'{conductivity_w_mk}[W/(m*K)]'])
+        set_many(['rho', 'density'], f'{density_kg_m3}[kg/m^3]')
+        set_many(['Cp', 'C', 'heatcapacity'], f'{heat_capacity_j_kgk}[J/(kg*K)]')
+        return {'attempted': attempted}
+
+    def _apply_wall_conduction_v2(
+        self,
+        cabin_walls: List[Dict[str, Any]],
+        boundary_conditions: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Apply boundary Thin Layer conduction for walls modeled as conductive boundaries."""
+        from core.selection_updater_v2 import _safe_tag
+
+        wall_cfg = (boundary_conditions or {}).get('wall_conduction', {})
+        if wall_cfg.get('enabled', True) is False:
+            return {
+                'enabled': False,
+                'applied': 0,
+                'skipped': 0,
+                'details': [],
+                'note': 'wall_conduction.enabled is false',
+            }
+
+        conductivity = float(wall_cfg.get('thermalconductivity', wall_cfg.get('conductivity_W_mK', 167.0)))
+        density = float(wall_cfg.get('density', 2700.0))
+        heat_capacity = float(wall_cfg.get('heatcapacity', wall_cfg.get('heat_capacity_J_kgK', 896.0)))
+        inflate_mm = float(wall_cfg.get('selection_inflate_mm', 0.2))
+        comp = self.model.java.component('comp1')
+        sel_root = comp.selection()
+        ht = comp.physics('ht')
+        existing_selections = {str(t) for t in sel_root.tags()}
+        existing_features = {str(t) for t in ht.feature().tags()}
+        applied, skipped = 0, 0
+        details: List[Dict[str, Any]] = []
+
+        for wall in cabin_walls:
+            wall_id = str(wall.get('id') or wall.get('wall_id') or wall.get('component_id') or '')
+            modeling = str(wall.get('modeling') or wall.get('entity_model') or '').lower()
+            if not wall_id or modeling not in {'conductive_boundary', 'boundary'}:
+                skipped += 1
+                details.append({'wall_id': wall_id, 'ok': False, 'note': f'skipped modeling={modeling!r}'})
+                continue
+
+            bbox = wall.get('bbox') if isinstance(wall.get('bbox'), dict) else {}
+            bmin = bbox.get('min') if isinstance(bbox.get('min'), list) else None
+            bmax = bbox.get('max') if isinstance(bbox.get('max'), list) else None
+            thickness = wall.get('thickness_mm', wall.get('thickness'))
+            if not (isinstance(bmin, list) and isinstance(bmax, list) and len(bmin) == 3 and len(bmax) == 3 and thickness):
+                skipped += 1
+                details.append({'wall_id': wall_id, 'ok': False, 'note': 'missing bbox or thickness'})
+                continue
+
+            tag_suffix = _safe_tag(wall_id)
+            sel_tag = f"sel_w_{tag_suffix}"
+            thin_tag = f"thin_wall_{tag_suffix}"
+            bmin_f = [float(v) - inflate_mm for v in bmin]
+            bmax_f = [float(v) + inflate_mm for v in bmax]
+            thickness_mm = float(thickness)
+            try:
+                if sel_tag not in existing_selections:
+                    sel_root.create(sel_tag, 'Box')
+                    existing_selections.add(sel_tag)
+                selection = comp.selection(sel_tag)
+                selection.label(f'wall-boundary:{wall_id}')
+                selection.set('entitydim', '2')
+                selection.set('condition', 'allvertices')
+                selection.set('xmin', f'{bmin_f[0]}[mm]')
+                selection.set('xmax', f'{bmax_f[0]}[mm]')
+                selection.set('ymin', f'{bmin_f[1]}[mm]')
+                selection.set('ymax', f'{bmax_f[1]}[mm]')
+                selection.set('zmin', f'{bmin_f[2]}[mm]')
+                selection.set('zmax', f'{bmax_f[2]}[mm]')
+                entities = self._selection_entity_ids(selection)
+                if not entities:
+                    raise RuntimeError('wall boundary selection is empty')
+
+                if thin_tag not in existing_features:
+                    ht.create(thin_tag, 'ThinLayer', 2)
+                    existing_features.add(thin_tag)
+                feature = ht.feature(thin_tag)
+                feature.label(f'thin wall conduction:{wall_id}')
+                feature.selection().named(sel_tag)
+                property_result = self._set_thin_layer_conduction(
+                    feature,
+                    thickness_mm,
+                    conductivity,
+                    density,
+                    heat_capacity,
+                )
+                applied += 1
+                details.append({
+                    'wall_id': wall_id,
+                    'selection': sel_tag,
+                    'feature': thin_tag,
+                    'feature_type': 'ThinLayer',
+                    'boundary_count': len(entities),
+                    'boundary_ids': entities,
+                    'thickness_mm': thickness_mm,
+                    'thermalconductivity_W_mK': conductivity,
+                    'surface_conductance_W_m2K': conductivity / (thickness_mm / 1000.0),
+                    'density_kg_m3': density,
+                    'heatcapacity_J_kgK': heat_capacity,
+                    'property_setup': property_result,
+                    'ok': True,
+                })
+                print(f"    ✓ {thin_tag}: wall={wall_id}, boundary_count={len(entities)}, k={conductivity:g} W/(m*K), d={thickness_mm:g} mm")
+            except Exception as exc:
+                skipped += 1
+                details.append({
+                    'wall_id': wall_id,
+                    'selection': sel_tag,
+                    'feature': thin_tag,
+                    'ok': False,
+                    'note': f'{type(exc).__name__}: {exc}',
+                })
+                print(f"    ✗ {thin_tag} 失败: {type(exc).__name__}: {exc}")
+
+        return {
+            'enabled': True,
+            'applied': applied,
+            'skipped': skipped,
+            'thermalconductivity_W_mK': conductivity,
+            'density_kg_m3': density,
+            'heatcapacity_J_kgK': heat_capacity,
+            'details': details,
+            'note': 'Conductive-boundary walls are represented by COMSOL ThinLayer boundary features.',
+        }
 
     def _set_surface_to_ambient_radiation(self, feature: Any, emissivity: float, ambient_temp_k: float) -> None:
         """Set SurfaceToAmbientRadiation to explicit emissivity instead of material lookup."""
@@ -872,8 +1394,8 @@ class RemoteComsolExecutor:
         self,
         boundary_conditions: Optional[Dict[str, Any]] = None,
     ) -> dict:
-        shell_face_bc = (boundary_conditions or {}).get('shell_faces', {})
-        initial_temp_k = float(shell_face_bc.get('ambient_temp', 300.0))
+        initial_temp_cfg = (boundary_conditions or {}).get('initial_temperature', {})
+        initial_temp_k = float(initial_temp_cfg.get('temperature', 100.0))
         ht = self.model.java.component('comp1').physics('ht')
         try:
             init = ht.feature('init1')
@@ -1281,7 +1803,7 @@ class RemoteComsolExecutor:
             'cleanup_template': 25.0,
             'update_selections': 35.0,
             'update_sources': 45.0,
-            'apply_radiator_bc': 52.0,
+            'apply_environment_bc': 52.0,
             'apply_contact_resistance': 58.0,
             'prepare_mesh': 65.0,
             'solve': 80.0,
@@ -1443,6 +1965,14 @@ class RemoteComsolExecutor:
                 self._write_sample_status(status_json, status)
                 if not material_result['ok']:
                     raise RuntimeError(f"材料设置失败: {material_result.get('error')}")
+                wall_conduction_result = self._apply_wall_conduction_v2(
+                    meta_v2.get('cabin_walls') or [],
+                    boundary_conditions,
+                )
+                status['checks']['wall_conduction'] = wall_conduction_result
+                self._write_sample_status(status_json, status)
+                if wall_conduction_result.get('enabled') and wall_conduction_result.get('skipped', 0):
+                    raise RuntimeError(f"边界导热设置失败: {wall_conduction_result}")
 
             set_stage('update_sources')
             removed_count = self._clear_existing_heat_sources()
@@ -1467,17 +1997,55 @@ class RemoteComsolExecutor:
 
             # v2: 散热面 SurfaceToAmbient BC + 组件级接触热阻
             if schema_version.startswith('2'):
-                set_stage('apply_radiator_bc')
+                set_stage('apply_environment_bc')
                 status['checks']['radiators'] = {
                     'applied': 0,
                     'skipped': 0,
                     'details': [],
-                    'note': 'external component surface radiation disabled; only large outer shell faces are radiating to ambient',
+                    'note': 'external/radiator component environment boundaries are disabled; only the six cabin shell faces receive external heat environment BCs',
                 }
-                shell_rad_result = self._apply_shell_surface_to_ambient_v2(
-                    meta_v2['install_faces'], boundary_conditions
+                shell_boundary_result = self._build_non_component_boundary_selection(
+                    meta_v2['components'], meta_v2.get('outer_shell')
                 )
-                status['checks']['shell_radiation'] = shell_rad_result
+                shell_environment_faces = self._build_shell_environment_face_selections(
+                    meta_v2.get('outer_shell'),
+                    shell_boundary_result.get('boundary_selection'),
+                    eps_mm=1.0,
+                )
+                status['checks']['shell_environment_faces'] = shell_environment_faces
+                shell_face_bc = (boundary_conditions or {}).get('shell_faces', {})
+                env_mode = str(shell_face_bc.get('type', 'radiation')).lower()
+                if env_mode in {'linearized_heat_flux', 'linearized_net_heat_flux', 'net_heat_flux_linearized'}:
+                    env_hf_result = self._apply_linearized_shell_environment_heat_flux_v2(
+                        shell_environment_faces,
+                        boundary_conditions,
+                        sample_dir,
+                    )
+                    status['checks']['shell_radiation'] = {
+                        'applied': 0,
+                        'skipped': 6,
+                        'details': [],
+                        'note': 'SurfaceToAmbientRadiation skipped because shell_faces.type uses linearized Heat Flux.',
+                    }
+                    status['checks']['solar_heat_flux'] = {
+                        'enabled': bool((boundary_conditions or {}).get('solar_heat_flux', {}).get('enabled', False)),
+                        'applied': 0,
+                        'skipped': 6,
+                        'details': [],
+                        'note': 'Standalone solar Heat Flux skipped because solar input is included in shell_environment_heat_flux.',
+                    }
+                    status['checks']['shell_environment_heat_flux'] = env_hf_result
+                else:
+                    shell_rad_result = self._apply_shell_surface_to_ambient_v2(
+                        shell_environment_faces, boundary_conditions
+                    )
+                    status['checks']['shell_radiation'] = shell_rad_result
+                    solar_result = self._apply_solar_heat_flux_v2(
+                        shell_environment_faces,
+                        (boundary_conditions or {}).get('solar_heat_flux', {}),
+                        sample_dir,
+                    )
+                    status['checks']['solar_heat_flux'] = solar_result
                 self._write_sample_status(status_json, status)
                 set_stage('apply_contact_resistance')
                 cr_result = self._apply_contact_resistance_v2(

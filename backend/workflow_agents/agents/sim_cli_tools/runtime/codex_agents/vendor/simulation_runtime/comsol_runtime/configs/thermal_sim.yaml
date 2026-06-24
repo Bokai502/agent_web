@@ -42,7 +42,14 @@ thermal_sim:
     shell_faces:
       type: "radiation"
       emissivity: 0.8
-      ambient_temp: 100  # K
+      ambient_temp: 3  # K, deep space sink
+    initial_temperature:
+      temperature: 100  # K
+    solar_heat_flux:
+      enabled: false
+      input_json_path: ""
+      input_kind: "incident"
+      default_absorptivity: 0.3
 
 # 数据集路径配置
 dataset:

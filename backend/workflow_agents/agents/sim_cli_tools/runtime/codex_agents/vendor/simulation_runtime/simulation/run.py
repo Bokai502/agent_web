@@ -223,6 +223,12 @@ def _run_comsol_local(
     export_volum_tags = thermal_cfg["thermal_sim"].get("export_volum_tags", [])
     mesh = thermal_cfg["thermal_sim"].get("mesh", {})
     boundary_conditions = thermal_cfg["thermal_sim"].get("boundary_conditions", {})
+    solar_heat_flux = thermal_cfg["thermal_sim"].get("solar_heat_flux", {})
+    if solar_heat_flux and "solar_heat_flux" not in boundary_conditions:
+        boundary_conditions = {
+            **boundary_conditions,
+            "solar_heat_flux": solar_heat_flux,
+        }
     configured_port = int(config.get("mph_port", connection_cfg["comsol"]["connection"].get("local_mph_port", 2036)) or 2036)
     mph_port = _select_mph_port(configured_port, prefer_private=True)
     payload = {
