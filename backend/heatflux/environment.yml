@@ -1,0 +1,10 @@
+name: heatflux-catch02
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - matplotlib
+  - scipy
+  - pip

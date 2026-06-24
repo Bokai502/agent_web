@@ -1,0 +1,38 @@
+% CATCH02 600 km Sun-synchronous heat-flux propagation skeleton.
+% This script is documentation-grade because GMAT is not installed on the
+% current Linux server. Fill RAAN values for each season/LTAN case before use.
+
+Create Spacecraft CATCH02;
+GMAT CATCH02.DateFormat = UTCGregorian;
+GMAT CATCH02.Epoch = '21 Mar 2026 00:00:00.000';
+GMAT CATCH02.CoordinateSystem = EarthMJ2000Eq;
+GMAT CATCH02.DisplayStateType = Keplerian;
+GMAT CATCH02.SMA = 6978.137;
+GMAT CATCH02.ECC = 0.0;
+GMAT CATCH02.INC = 97.79;
+GMAT CATCH02.RAAN = 0.0;
+GMAT CATCH02.AOP = 0.0;
+GMAT CATCH02.TA = 0.0;
+
+Create ForceModel EarthPointMass;
+GMAT EarthPointMass.CentralBody = Earth;
+GMAT EarthPointMass.PrimaryBodies = {Earth};
+
+Create Propagator Prop;
+GMAT Prop.FM = EarthPointMass;
+GMAT Prop.Type = PrinceDormand78;
+GMAT Prop.InitialStepSize = 30;
+GMAT Prop.Accuracy = 1e-12;
+GMAT Prop.MinStep = 0.1;
+GMAT Prop.MaxStep = 30;
+
+Create ReportFile OrbitReport;
+GMAT OrbitReport.Filename = '../exported_data/catch02_orbit_report.csv';
+GMAT OrbitReport.Precision = 16;
+GMAT OrbitReport.Add = {CATCH02.ElapsedSecs, CATCH02.EarthMJ2000Eq.X,
+   CATCH02.EarthMJ2000Eq.Y, CATCH02.EarthMJ2000Eq.Z,
+   CATCH02.EarthMJ2000Eq.VX, CATCH02.EarthMJ2000Eq.VY,
+   CATCH02.EarthMJ2000Eq.VZ};
+
+BeginMissionSequence;
+Propagate Prop(CATCH02) {CATCH02.ElapsedSecs = 5800};

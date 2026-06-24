@@ -233,7 +233,7 @@ type ModuleInsight = {
   }
   manufacturer: {
     catalogInRate: number
-    unmatchedCount: number
+    domesticCatalogInRate: number
     originShare: PercentItem[]
   }
   reliability: {
@@ -398,8 +398,8 @@ function stricterCount(rows: JsonRow[]) {
   return rows.filter(row => hasIssue(row, /更严格|规定降额因子小于/u)).length
 }
 
-function getResultValue(row: JsonRow, key: string) {
-  if (key === "序号") return row["序号"] ?? row["excel_row"]
+function getResultValue(row: JsonRow, key: string, rowIndex = 0) {
+  if (key === "序号") return row["序号"] ?? row.index ?? rowIndex + 1
   if (key === "AI分类") return asText(row["AI分类"]) || [row["元器件大类"], row["元器件子类"]].map(asText).filter(Boolean).join("-")
   if (key === "I级降额公式") return asText(row["I级降额公式"]) || asText(row["标准I级降额"])
   if (key === "允许值判定组合") return asText(row["允许值判定组合"]) || [resultField(row, "参数值_允许"), row["允许值判定"]].map(asText).filter(Boolean).join(" ▸ ")
@@ -469,7 +469,7 @@ function isNegativeJudgement(value: string) {
 }
 
 function writeResultValue(row: JsonRow, key: string, value: string) {
-  if (key === "序号") return { ...row, excel_row: value }
+  if (key === "序号") return { ...row, 序号: value }
   if (key === "AI分类") return { ...row, AI分类: value }
   if (key === "I级降额公式") return { ...row, I级降额公式: value }
   if (key === "允许值判定组合") return { ...row, 允许值判定组合: value }
@@ -683,7 +683,8 @@ function isJsonRecord(value: unknown): value is JsonRow {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function getComplianceValue(row: JsonRow, key: string) {
+function getComplianceValue(row: JsonRow, key: string, rowIndex = 0) {
+  if (key === "index") return row.index ?? row["序号"] ?? row.excel_row ?? rowIndex + 1
   if (key === "catalog_model") {
     const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
     const bestCandidate = bestCatalogCandidate(row)
@@ -916,11 +917,11 @@ function buildModuleInsights(missingRows: JsonRow[], resultRows: JsonRow[], comp
     },
     manufacturer: {
       catalogInRate: percent(manufacturerRows.filter(row => /目录内/u.test(asText(row["目录内或外"] ?? row.status))).length, manufacturerRows.length),
+      domesticCatalogInRate: percent(
+        manufacturerRows.filter(row => asText(row["国产/进口"] ?? row.origin) === "国产" && /目录内/u.test(asText(row["目录内或外"] ?? row.status))).length,
+        manufacturerRows.filter(row => asText(row["国产/进口"] ?? row.origin) === "国产").length,
+      ),
       originShare: percentItems(countBy(manufacturerRows, row => asText(row["国产/进口"] ?? row.origin)), [KPI_TEAL, KPI_ORANGE, KPI_BLUE], 3),
-      unmatchedCount: manufacturerRows.filter(row => {
-        const status = asText(row["目录内或外"] ?? row.status)
-        return status && !/目录内/u.test(status)
-      }).length,
     },
     reliability: {
       cleanCount: Math.max(0, reliabilityRows.length - reliabilityHitCount),
@@ -1627,10 +1628,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
         <main style={viewerContentStyle}>
           {activeTab === "dashboard" ? (
           <ComplianceCheckReportDashboard
-            onConfirm={confirmAndGenerateFinal}
-            onDownload={downloadFinalCsv}
             progress={dashboardProgress}
-            saving={savingResults}
             selectedFilter={dashboardFilter}
             setActiveTab={setActiveTab}
             summary={dashboardSummary}
@@ -1718,10 +1716,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
 }
 
 function ComplianceCheckReportDashboard({
-  onConfirm,
-  onDownload,
   progress,
-  saving,
   selectedFilter,
   setActiveTab,
   summary,
@@ -1730,10 +1725,7 @@ function ComplianceCheckReportDashboard({
   workspaceDir,
   workspaceId,
 }: {
-  onConfirm: () => void
-  onDownload: () => void
   progress: DashboardProgress
-  saving: boolean
   selectedFilter: string
   setActiveTab: (tab: ActiveTabKey) => void
   summary: ReturnType<typeof buildDashboardSummary>
@@ -1765,7 +1757,6 @@ function ComplianceCheckReportDashboard({
         },
         ...summary.recommendations,
       ].slice(0, 4)
-  const canFinalize = summary.issue === 0 && summary.completedModules === summary.moduleCount
 
   return (
     <section style={dashboardStyle}>
@@ -1773,18 +1764,6 @@ function ComplianceCheckReportDashboard({
         <div style={dashboardTitleGroupStyle}>
           <strong style={dashboardTitleStyle}>合规报告总览</strong>
           <span style={dashboardSubtitleStyle}>任务进度 {progress.percentage}% · {progress.statusLabel}</span>
-        </div>
-        <div style={dashboardActionGroupStyle}>
-          <button type="button" onClick={onDownload} disabled={summary.totalRows === 0} style={toolbarButtonStyle}>导出总表</button>
-          <button
-            title={canFinalize ? "确认生成总表" : `仍有 ${summary.issue} 项待确认，建议处理后再生成`}
-            type="button"
-            onClick={onConfirm}
-            disabled={summary.totalRows === 0 || saving}
-            style={canFinalize ? primaryButtonStyle : secondaryPrimaryButtonStyle}
-          >
-            {saving ? "生成中" : "确认生成总表"}
-          </button>
         </div>
       </div>
 
@@ -1857,8 +1836,12 @@ function ComplianceCheckReportDashboard({
         <ModuleInsightCard title="厂商匹配">
           <PercentDonut items={summary.moduleInsights.manufacturer.originShare} centerLabel="来源" />
           <div style={moduleMetricPairStyle}>
-            <DashboardSignal label="目录内占比" value={`${summary.moduleInsights.manufacturer.catalogInRate}%`} tone={summary.moduleInsights.manufacturer.catalogInRate >= 90 ? "ok" : "warn"} />
-            <DashboardSignal label="未匹配数量" value={`${summary.moduleInsights.manufacturer.unmatchedCount}`} tone={summary.moduleInsights.manufacturer.unmatchedCount > 0 ? "bad" : "ok"} />
+            <DashboardSignal
+              label="国产厂商目录内占比"
+              value={`${summary.moduleInsights.manufacturer.domesticCatalogInRate}%`}
+              tone={summary.moduleInsights.manufacturer.domesticCatalogInRate >= 90 ? "ok" : "warn"}
+            />
+            <DashboardSignal label="进口厂商目录内占比" value="暂无数据" tone="neutral" />
           </div>
         </ModuleInsightCard>
 
@@ -2159,10 +2142,10 @@ function tabForDashboardModule(module: string): ActiveTabKey {
 function tableToCsv(
   columns: readonly { key: string; label: string; width: number }[],
   rows: JsonRow[],
-  getValue: (row: JsonRow, key: string) => unknown = (row, key) => row[key],
+  getValue: (row: JsonRow, key: string, rowIndex: number) => unknown = (row, key) => row[key],
 ) {
   const header = columns.map(column => column.label).join(",")
-  const csvRows = rows.map(row => columns.map(column => csvEscape(getValue(row, column.key))).join(","))
+  const csvRows = rows.map((row, rowIndex) => columns.map(column => csvEscape(getValue(row, column.key, rowIndex))).join(","))
   return [header, ...csvRows].join("\n")
 }
 
@@ -2178,7 +2161,7 @@ function EditableTable({
 }: {
   columns: readonly { key: string; label: string; width: number }[]
   emptyText: string
-  getValue: (row: JsonRow, key: string) => unknown
+  getValue: (row: JsonRow, key: string, rowIndex: number) => unknown
   onChange?: (rowIndex: number, key: string, value: string) => void
   readOnly?: boolean
   rows: JsonRow[]
@@ -2208,7 +2191,7 @@ function EditableTable({
           {rows.map((row, rowIndex) => (
             <tr key={`${asText(row["元器件名称"])}-${rowIndex}`}>
               {columns.map(column => {
-                const value = asText(getValue(row, column.key))
+                const value = asText(getValue(row, column.key, rowIndex))
                 const isWarning = column.key.includes("判定") || column.key === "missing_standard_parameters"
                 const valueColor = isWarning && value ? optionToneColor(column.key, value) : HUD_TEXT
                 const comparison = getComparisonValue(row, column.key)
@@ -3037,11 +3020,6 @@ const primaryButtonStyle = {
   color: HUD_PRIMARY_TEXT,
 } satisfies CSSProperties
 
-const secondaryPrimaryButtonStyle = {
-  ...primaryButtonStyle,
-  opacity: 0.78,
-} satisfies CSSProperties
-
 const dashboardStyle = {
   background: HUD_PANEL,
   border: `1px solid ${HUD_LINE}`,
@@ -3077,12 +3055,6 @@ const dashboardSubtitleStyle = {
   color: HUD_MUTED,
   fontSize: 12,
   fontWeight: 700,
-} satisfies CSSProperties
-
-const dashboardActionGroupStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 8,
 } satisfies CSSProperties
 
 const dashboardKpiGridStyle = {
