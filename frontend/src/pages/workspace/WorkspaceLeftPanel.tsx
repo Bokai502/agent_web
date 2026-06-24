@@ -13,7 +13,6 @@ type WorkspaceLeftPanelProps = {
   apiBase?: string
   currentEvents: ThreadEvent[]
   currentPrompt: string
-  layoutVariant?: "default" | "gnc"
   logEntries: RunLogEntry[]
   onSelectLog: (entry: RunLogEntry) => void
   onStopAskUser: () => void
@@ -35,7 +34,6 @@ export function WorkspaceLeftPanel({
   apiBase,
   currentEvents,
   currentPrompt,
-  layoutVariant = "default",
   logEntries,
   onSelectLog,
   onStopAskUser,
@@ -50,7 +48,7 @@ export function WorkspaceLeftPanel({
   visibleRunning,
 }: WorkspaceLeftPanelProps) {
   return (
-    <aside className={`wa-panel wa-chat wa-left-stack${layoutVariant === "gnc" ? " gnc-left-layout" : ""}`}>
+    <aside className="wa-panel wa-chat wa-left-stack">
       {topContent}
       <section className="wa-left-section wa-left-input">
         <div className="wa-left-section-header">

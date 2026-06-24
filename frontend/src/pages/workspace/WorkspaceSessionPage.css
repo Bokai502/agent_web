@@ -554,28 +554,6 @@ button.wa-status-pill:disabled { cursor: default; opacity: 0.72; }
   gap: 12px;
   padding: 12px;
 }
-.wa-left-stack.gnc-left-layout {
-  grid-template-rows: auto minmax(132px, auto) minmax(0, 1fr);
-}
-.gnc-left-layout > .wa-info-card {
-  margin-bottom: 0;
-  border-radius: 20px;
-}
-.gnc-left-layout .wa-left-section::before {
-  display: none;
-}
-.gnc-left-layout .wa-left-section:nth-of-type(1) {
-  border-color: rgba(0, 113, 227, 0.16);
-  box-shadow:
-    0 18px 46px rgba(0, 113, 227, 0.11),
-    inset 0 1px 0 rgba(255, 255, 255, 0.96);
-}
-.gnc-left-layout .wa-left-section:nth-of-type(2) {
-  border-color: rgba(15, 127, 86, 0.15);
-  box-shadow:
-    0 18px 46px rgba(15, 127, 86, 0.09),
-    inset 0 1px 0 rgba(255, 255, 255, 0.96);
-}
 .wa-left-section {
   position: relative;
   display: flex;

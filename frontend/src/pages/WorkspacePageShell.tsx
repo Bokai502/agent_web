@@ -11,7 +11,6 @@ import { useAgentSpeech } from "./agent/useAgentSpeech"
 import { BomInspectorCard } from "./workspace/BomInspectorCard"
 import { CurrentWorkspaceCard } from "./workspace/CurrentWorkspaceCard"
 import { DeleteSessionDialog } from "./workspace/DeleteSessionDialog"
-import { GeneratedFilesTreeCard } from "./workspace/GeneratedFilesTreeCard"
 import { ProgressCard } from "./workspace/ProgressCard"
 import { RunLogPanel } from "./workspace/RunLogPanel"
 import { WorkspaceLeftPanel } from "./workspace/WorkspaceLeftPanel"
@@ -32,7 +31,7 @@ import "./workspace/WorkspaceSessionPage.css"
 
 const WORKSPACE_HOME_PATH = "/workspace"
 const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = "01_cad/geometry_after.glb"
-const WORKSPACE_PANEL_PARAM_VALUES = ["bom", "log", "model", "cad", "paraview", "comsol", "gnc-config"] as const
+const WORKSPACE_PANEL_PARAM_VALUES = ["bom", "log", "model", "cad", "paraview", "comsol"] as const
 
 type ViewerComponentMessage = {
   componentId?: unknown
@@ -40,7 +39,7 @@ type ViewerComponentMessage = {
   type?: unknown
 }
 
-type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
+type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol"
 
 function getInitialWorkspacePanel(showModel: boolean): ActivePanel {
   if (typeof window === "undefined") return showModel ? "model" : "log"
@@ -66,7 +65,6 @@ function isComplianceCheckWorkspaceContext(context: {
 
 export interface WorkspacePageShellProps {
   apiBase?: string
-  enableGncConfig?: boolean
   homePath?: string
   inspectorExtra?: ReactNode
   modelViewerUrl?: string
@@ -78,7 +76,6 @@ export interface WorkspacePageShellProps {
 
 interface WorkspaceAppleContentProps {
   apiBase?: string
-  enableGncConfig?: boolean
   inspectorExtra?: ReactNode
   modelViewerUrl?: string
   progressVariant?: WorkflowProgressVariant
@@ -88,7 +85,7 @@ interface WorkspaceAppleContentProps {
   state: ReturnType<typeof useWorkspaceAppState>
 }
 
-export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true, state }: WorkspaceAppleContentProps) {
+export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true, state }: WorkspaceAppleContentProps) {
   const { i18n, t } = useTranslation()
   const {
     activeSessionId,
@@ -454,7 +451,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   }, [activePanel, effectiveShowModel])
 
   useEffect(() => {
-    if (!showTools && (activePanel === "cad" || activePanel === "paraview" || activePanel === "comsol" || activePanel === "gnc-config")) setActivePanel("log")
+    if (!showTools && (activePanel === "cad" || activePanel === "paraview" || activePanel === "comsol")) setActivePanel("log")
   }, [activePanel, showTools])
 
   useEffect(() => {
@@ -477,8 +474,6 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       ? t("workspace.stage.bomTitle")
       : visibleActivePanel === "log"
         ? t("workspace.stage.logTitle")
-      : visibleActivePanel === "gnc-config"
-        ? "GNC Config"
         : activeTool?.title ?? t("workspace.stage.toolTitle")
   const stageSubtitle = visibleActivePanel === "model"
     ? hasModelPreview ? t("workspace.stage.currentModel") : t("workspace.stage.waitingModel")
@@ -486,8 +481,6 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       ? bomLoading ? t("workspace.stage.loadingBom") : t("workspace.stage.components", { count: bomInfo.totalRecords })
       : visibleActivePanel === "log"
         ? selectedLog ? selectedLog.title : t("workspace.stage.waitingLog")
-      : visibleActivePanel === "gnc-config"
-        ? "Read and update 42 config files in workspaceDir/00_inputs"
         : activeTool?.subtitle ?? t("workspace.stage.remoteTool")
 
   return (
@@ -495,7 +488,6 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
       <WorkspaceTopbar
         activePanel={visibleActivePanel}
         activeSessionMatchesWorkspace={activeSessionMatchesWorkspace}
-        enableGncConfig={enableGncConfig}
         onStopAndSummarize={activeSessionId ? handleStopAndSummarize : undefined}
         onReturnHome={handleReturnHome}
         onSelectPanel={setActivePanel}
@@ -538,7 +530,6 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
           apiBase={apiBase}
           currentEvents={visibleCurrentEvents}
           currentPrompt={visibleCurrentPrompt}
-          layoutVariant={enableGncConfig ? "gnc" : "default"}
           logEntries={logEntries}
           onSelectLog={handleSelectLog}
           onStopAskUser={handleStopAskUser}
@@ -603,12 +594,6 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
                 t={t}
               />
             )}
-            {enableGncConfig && (
-              <GeneratedFilesTreeCard
-                activeContext={activeContext}
-                apiBase={apiBase}
-              />
-            )}
             {inspectorExtra}
 
           </div>
@@ -618,13 +603,12 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
   )
 }
 
-export default function WorkspacePageShell({ apiBase, enableGncConfig = false, homePath = WORKSPACE_HOME_PATH, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true }: WorkspacePageShellProps) {
+export default function WorkspacePageShell({ apiBase, homePath = WORKSPACE_HOME_PATH, inspectorExtra, modelViewerUrl, progressVariant = "thermal", showBom = true, showModel = true, showTools = true }: WorkspacePageShellProps) {
   const state = useWorkspaceAppState({ apiBase, homePath })
   return (
     <WorkspaceAppleContent
       key={`${apiBase ?? ""}:${homePath}`}
       apiBase={apiBase}
-      enableGncConfig={enableGncConfig}
       inspectorExtra={inspectorExtra}
       modelViewerUrl={modelViewerUrl}
       progressVariant={progressVariant}

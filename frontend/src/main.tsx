@@ -11,7 +11,6 @@ const ModelViewerPage = lazy(() => import('./pages/ModelViewerPage.tsx'))
 const EarthPage = lazy(() => import('./pages/EarthPage.tsx'))
 const HomePage = lazy(() => import('./pages/HomePage.tsx'))
 const WorkspaceSessionPage = lazy(() => import('./pages/WorkspaceSessionPage.tsx'))
-const GncWorkspacePage = lazy(() => import('./pages/GncWorkspacePage.tsx'))
 const RegionWorkspacePage = lazy(() => import('./pages/RegionWorkspacePage.tsx'))
 const SplineBotPage = lazy(() => import('./pages/SplineBotPage.tsx'))
 const AgentPage = lazy(() => import('./pages/AgentPage.tsx'))
@@ -34,7 +33,6 @@ function Router() {
   const isEarth = pathname === '/earth'
   const isHome = pathname === '/' || pathname === '/home'
   const isWorkspace = pathname === '/workspace' || pathname.startsWith('/workspace/')
-  const isGncWorkspace = pathname === '/gnc-workspace' || pathname.startsWith('/gnc-workspace/')
   const isRegionWorkspace = pathname === '/region-workspace' || pathname.startsWith('/region-workspace/')
   const isSplineBot = pathname === '/spline'
   const isAgent = pathname === '/agent' || pathname.startsWith('/agent/')
@@ -68,14 +66,6 @@ function Router() {
     return (
       <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
         <WorkspaceSessionPage homePath="/workspace" />
-      </Suspense>
-    )
-  }
-
-  if (isGncWorkspace) {
-    return (
-      <Suspense fallback={<div style={{ background: '#f5f5f7', width: '100vw', height: '100vh' }} />}>
-        <GncWorkspacePage />
       </Suspense>
     )
   }
