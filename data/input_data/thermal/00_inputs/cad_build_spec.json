@@ -147,8 +147,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -232,8 +233,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -317,7 +319,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/battery_modules/018_battery_pack__inst001.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/018_battery_pack__inst001.step",
         "fallback_shape": "box"
       }
     },
@@ -402,7 +404,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/battery_modules/019_battery_pack__inst002.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/019_battery_pack__inst002.step",
         "fallback_shape": "box"
       }
     },
@@ -462,11 +464,11 @@
       ],
       "mount": {
         "install_face_id": "template_outer_shell.zmax_outer",
-        "component_face_id": "P005.local_zmin",
-        "component_face_index": 4,
+        "component_face_id": "P005.local_zmax",
+        "component_face_index": 5,
         "contact_plane_axis": 2,
         "contact_plane_value": 472.28669349999996,
-        "normal_sign": -1,
+        "normal_sign": 1,
         "footprint_bbox_2d": [
           [
             -535.002225,
@@ -487,7 +489,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/cameras_preflip_y180/022_camera_assembly__360_degree_camera_v4_1__inst001__preflip_y180.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/022_camera_assembly__360_degree_camera_v4_1__inst001__preflip_y180.step",
         "fallback_shape": "box"
       }
     },
@@ -547,11 +549,11 @@
       ],
       "mount": {
         "install_face_id": "template_outer_shell.zmax_outer",
-        "component_face_id": "P006.local_zmin",
-        "component_face_index": 4,
+        "component_face_id": "P006.local_zmax",
+        "component_face_index": 5,
         "contact_plane_axis": 2,
         "contact_plane_value": 472.28669349999996,
-        "normal_sign": -1,
+        "normal_sign": 1,
         "footprint_bbox_2d": [
           [
             -535.002225,
@@ -572,7 +574,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/cameras_preflip_y180/023_camera_assembly__360_degree_camera_v4_4__inst002__preflip_y180.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/023_camera_assembly__360_degree_camera_v4_4__inst002__preflip_y180.step",
         "fallback_shape": "box"
       }
     },
@@ -632,11 +634,11 @@
       ],
       "mount": {
         "install_face_id": "template_outer_shell.zmax_outer",
-        "component_face_id": "P007.local_zmin",
-        "component_face_index": 4,
+        "component_face_id": "P007.local_zmax",
+        "component_face_index": 5,
         "contact_plane_axis": 2,
         "contact_plane_value": 472.28669349999996,
-        "normal_sign": -1,
+        "normal_sign": 1,
         "footprint_bbox_2d": [
           [
             364.99777400000005,
@@ -657,7 +659,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/cameras_preflip_y180/024_camera_assembly__360_degree_camera_v4_3__inst003__preflip_y180.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/024_camera_assembly__360_degree_camera_v4_3__inst003__preflip_y180.step",
         "fallback_shape": "box"
       }
     },
@@ -717,11 +719,11 @@
       ],
       "mount": {
         "install_face_id": "template_outer_shell.zmax_outer",
-        "component_face_id": "P008.local_zmin",
-        "component_face_index": 4,
+        "component_face_id": "P008.local_zmax",
+        "component_face_index": 5,
         "contact_plane_axis": 2,
         "contact_plane_value": 472.28669349999996,
-        "normal_sign": -1,
+        "normal_sign": 1,
         "footprint_bbox_2d": [
           [
             364.99777400000005,
@@ -742,7 +744,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/cameras_preflip_y180/025_camera_assembly__360_degree_camera_v4_2__inst004__preflip_y180.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/025_camera_assembly__360_degree_camera_v4_2__inst004__preflip_y180.step",
         "fallback_shape": "box"
       }
     },
@@ -827,7 +829,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/computer_systems_simplified_boxes/090_computer_system_simplified_box_260x220x240.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/090_computer_system_simplified_box_260x220x240.step",
         "fallback_shape": "box"
       }
     },
@@ -912,7 +914,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/computer_systems_simplified_boxes/091_computer_system_simplified_box_260x220x240.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/091_computer_system_simplified_box_260x220x240.step",
         "fallback_shape": "box"
       }
     },
@@ -997,7 +999,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/cubesat_payloads/092_cubesat_payload_box__inst001.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/092_cubesat_payload_box__inst001.step",
         "fallback_shape": "box"
       }
     },
@@ -1082,7 +1084,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/cubesat_payloads/093_cubesat_payload_box__inst002.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/093_cubesat_payload_box__inst002.step",
         "fallback_shape": "box"
       }
     },
@@ -1167,7 +1169,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/drive_train/123_drive_train_frame__inst001.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/123_drive_train_frame__inst001.step",
         "fallback_shape": "box"
       }
     },
@@ -1252,7 +1254,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/drive_train/124_drive_train_frame__inst002.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/124_drive_train_frame__inst002.step",
         "fallback_shape": "box"
       }
     },
@@ -1337,7 +1339,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/drive_train/125_drive_train_frame__inst003.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/125_drive_train_frame__inst003.step",
         "fallback_shape": "box"
       }
     },
@@ -1422,7 +1424,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/drive_train/126_drive_train_frame__inst004.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/126_drive_train_frame__inst004.step",
         "fallback_shape": "box"
       }
     },
@@ -1507,7 +1509,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/drive_train/130_drive_train_mounted_device__inst004.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/130_drive_train_mounted_device__inst004.step",
         "fallback_shape": "box"
       }
     },
@@ -1592,7 +1594,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/fuel_tanks/172_fuel_tank__fuel_tank_cold_gas_v3_1__inst001.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/172_fuel_tank__fuel_tank_cold_gas_v3_1__inst001.step",
         "fallback_shape": "box"
       }
     },
@@ -1677,7 +1679,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/fuel_tanks/173_fuel_tank__fuel_tank_cold_gas_v3_2__inst002.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/173_fuel_tank__fuel_tank_cold_gas_v3_2__inst002.step",
         "fallback_shape": "box"
       }
     },
@@ -1762,7 +1764,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/174_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst001.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/174_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst001.step",
         "fallback_shape": "box"
       }
     },
@@ -1847,7 +1849,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/175_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst002.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/175_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst002.step",
         "fallback_shape": "box"
       }
     },
@@ -1932,7 +1934,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/176_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst003.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/176_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst003.step",
         "fallback_shape": "box"
       }
     },
@@ -2017,7 +2019,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/177_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst004.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/177_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst004.step",
         "fallback_shape": "box"
       }
     },
@@ -2102,7 +2104,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/178_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst005.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/178_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst005.step",
         "fallback_shape": "box"
       }
     },
@@ -2187,7 +2189,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/179_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst006.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/179_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst006.step",
         "fallback_shape": "box"
       }
     },
@@ -2272,7 +2274,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/180_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst007.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/180_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst007.step",
         "fallback_shape": "box"
       }
     },
@@ -2357,7 +2359,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/181_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst008.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/181_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst008.step",
         "fallback_shape": "box"
       }
     },
@@ -2442,7 +2444,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/182_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst009.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/182_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst009.step",
         "fallback_shape": "box"
       }
     },
@@ -2527,7 +2529,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/pocketqube_launchers/183_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst010.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/183_pocketqube_launcher__alba_orbital_pocketqube_launch_mechanism_v__inst010.step",
         "fallback_shape": "box"
       }
     },
@@ -2612,7 +2614,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/reaction_wheels/184_reaction_wheel__reaction_wheel_v7_1__inst001.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/184_reaction_wheel__reaction_wheel_v7_1__inst001.step",
         "fallback_shape": "box"
       }
     },
@@ -2697,7 +2699,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/reaction_wheels/185_reaction_wheel__reaction_wheel_v7_2__inst002.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/185_reaction_wheel__reaction_wheel_v7_2__inst002.step",
         "fallback_shape": "box"
       }
     },
@@ -2782,7 +2784,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/reaction_wheels/186_reaction_wheel__reaction_wheel_v7_3__inst003.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/186_reaction_wheel__reaction_wheel_v7_3__inst003.step",
         "fallback_shape": "box"
       }
     },
@@ -2867,7 +2869,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/reaction_wheels/187_reaction_wheel__reaction_wheel_v7_6__inst004.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/187_reaction_wheel__reaction_wheel_v7_6__inst004.step",
         "fallback_shape": "box"
       }
     },
@@ -2952,7 +2954,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/reaction_wheels/188_reaction_wheel__reaction_wheel_v7_4__inst005.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/188_reaction_wheel__reaction_wheel_v7_4__inst005.step",
         "fallback_shape": "box"
       }
     },
@@ -3037,7 +3039,7 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "refined_coordinate_steps/reaction_wheels/189_reaction_wheel__reaction_wheel_v7_5__inst006.step",
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/189_reaction_wheel__reaction_wheel_v7_5__inst006.step",
         "fallback_shape": "box"
       }
     },
@@ -3122,8 +3124,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3207,8 +3210,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3292,8 +3296,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3377,8 +3382,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3462,8 +3468,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3547,8 +3554,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3632,8 +3640,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3717,8 +3726,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3802,8 +3812,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3887,8 +3898,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -3972,8 +3984,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -4057,8 +4070,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -4142,8 +4156,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     },
     {
@@ -4227,8 +4242,9 @@
       },
       "real_cad": {
         "source_kind": "step",
-        "step_path": "cad_rotated/DawnAerospace_B1_Thruster_rotated.STEP",
-        "fallback_shape": "box"
+        "step_path": "/data/zxk/CAD_MAJOR_STEP/Motor Final Assembly v001DawnAerospace_B20_Thruster v022.step",
+        "fallback_shape": "box",
+        "cad_local_mount_face": "-Y"
       }
     }
   ],
@@ -4237,7 +4253,8 @@
     "simulation_step": "01_cad/geometry_after_power_filtered.step",
     "real_cad_glb": "01_cad/geometry_after_real_cad.glb",
     "simulation_input": "01_cad/simulation_input.json",
-    "cad_agent_output": "01_cad/cad_agent_output.json"
+    "cad_agent_output": "01_cad/cad_agent_output.json",
+    "real_cad_step_count": 49
   },
   "summary": {
     "component_count": 49,
