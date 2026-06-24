@@ -189,16 +189,24 @@
   left: 50%;
   display: inline-flex;
   flex: 0 0 auto;
+  max-width: min(620px, calc(100% - 420px));
+  overflow-x: auto;
   transform: translateX(-50%);
   gap: 6px;
   border: 1px solid var(--hud-line);
   border-radius: 8px;
   background: rgba(2, 8, 16, 0.72);
   padding: 4px;
+  scrollbar-width: none;
+}
+
+.agent-tool-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .agent-tool-tabs button {
   height: 30px;
+  flex: 0 0 auto;
   min-width: 58px;
   border: 0;
   border-radius: 6px;
