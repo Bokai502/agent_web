@@ -8,6 +8,7 @@ function normalizeSpeechText(text: string) {
 
 const TASK_ACCEPTED_SPEECH_TEXT = '当前任务已接收，正在分析。'
 const TASK_ACCEPTED_AUDIO_PATH = '/agent/audio/task-accepted'
+const AGENT_RESPONSE_VISIBLE_DURATION_MS = 60_000
 
 export function useAgentSpeech({ onError }: { onError?: (message: string) => void } = {}) {
   const [visibleAgentResponse, setVisibleAgentResponse] = useState('')
@@ -39,6 +40,16 @@ export function useAgentSpeech({ onError }: { onError?: (message: string) => voi
   }, [])
 
   useEffect(() => releaseAudio, [releaseAudio])
+
+  useEffect(() => {
+    if (!visibleAgentResponse && !agentSpeechError) return
+    const timeoutId = window.setTimeout(() => {
+      setVisibleAgentResponse('')
+      setAgentSpeechError('')
+      if (agentSpeechState !== 'synthesizing') setAgentSpeechState('idle')
+    }, AGENT_RESPONSE_VISIBLE_DURATION_MS)
+    return () => window.clearTimeout(timeoutId)
+  }, [agentSpeechError, agentSpeechState, visibleAgentResponse])
 
   const clearAgentSpeechDisplay = useCallback(() => {
     activeSpeechIdRef.current = ''
