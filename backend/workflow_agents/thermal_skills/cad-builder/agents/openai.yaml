@@ -1,0 +1,4 @@
+interface:
+  display_name: "CAD Builder"
+  short_description: "Build and validate CAD artifacts"
+  default_prompt: "Use $cad-builder to build or validate CAD artifacts from 00_inputs/cad_build_spec.json in the selected workspace."

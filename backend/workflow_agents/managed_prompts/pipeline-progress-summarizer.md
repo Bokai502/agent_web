@@ -2,17 +2,18 @@
 
 Summarize what the Agent pipeline actually did so far. The pipeline may be completed, failed, cancelled, or partial.
 
-Use only the JSON context provided after these instructions. The context may contain `agentMessages` from the current turn, `progress` from logs/progress.json, `artifacts`, `manifestRun`, and `status`. Do not call tools, inspect files, or infer work that is not supported by those fields.
+Use only the JSON context provided after these instructions. The context may contain `agentMessages` from the current turn, `issues` collected from error events, `progress` from logs/progress.json, `artifacts`, `manifestRun`, and `status`. Do not call tools, inspect files, or infer work that is not supported by those fields.
 
 Prefer concrete evidence in this order:
 
 1. `agentMessages[*].text`
-2. `progress.progress_percentages`
-3. `progress.output_files`
-4. `artifacts`
-5. `manifestRun.status`, `progress.status`, `progress.updated_at`, and top-level `status`
+2. `issues`
+3. `progress.progress_percentages`
+4. `progress.output_files`
+5. `artifacts`
+6. `manifestRun.status`, `progress.status`, `progress.updated_at`, and top-level `status`
 
-If the context is sparse, say only what can be confirmed in plain user-facing language. Do not mention missing context, missing evidence, JSON fields, or internal checks.
+If the context is sparse, say only what can be confirmed in plain user-facing language. If `status` is failed and `issues` contains a concrete error message, include that error cause. Do not mention missing context, missing evidence, JSON fields, or internal checks.
 
 If progress is partial or the status is `cancelled`, say what appears complete and what still needs attention. If agent messages and progress disagree, prefer the more concrete progress data and mention uncertainty briefly.
 

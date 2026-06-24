@@ -628,8 +628,12 @@ export function buildCompletionFallbackSummary({
   progress: unknown
   status: ManagedRunResponse["status"]
 }) {
+  if (issues.length > 0) {
+    const issue = compactIssueForSummary(issues[0])
+    if (status === "failed") return issue ? `任务执行失败：${issue}` : "任务执行失败，请查看详情。"
+    return issue ? `任务已结束，但有问题需要查看：${issue}` : "任务已结束，但有问题需要查看。"
+  }
   if (status === "failed") return "任务执行失败，请查看详情。"
-  if (issues.length > 0) return "任务已结束，但有问题需要查看。"
 
   const runStatus = manifestRun && typeof manifestRun === "object" ? (manifestRun as { status?: unknown }).status : null
   const skillNames = manifestRun && typeof manifestRun === "object" && Array.isArray((manifestRun as { skillNames?: unknown }).skillNames)
@@ -649,6 +653,17 @@ export function buildCompletionFallbackSummary({
     return skillNames.length > 0 ? `任务已完成，执行了${skillNames.slice(0, 2).join("、")}。` : "任务已完成。"
   }
   return "任务已结束，详情已更新。"
+}
+
+function compactIssueForSummary(text: string) {
+  return text
+    .replace(/```[\s\S]*?```/gu, "")
+    .replace(/`([^`]+)`/gu, "$1")
+    .replace(/\[[^\]]*?\]\([^)]*?\)/gu, "")
+    .replace(/[#*_>]/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, 180)
 }
 
 function compactForSpeech(text: string) {
@@ -994,6 +1009,7 @@ async function summarizePipelineCompletion({
     JSON.stringify({
       agentMessages: getAgentMessages(sessionEvents),
       artifacts,
+      issues,
       manifestRun: getManifestRunDigest(manifestRun),
       progress: getProgressDigest(progress),
       status,

@@ -211,7 +211,15 @@ describe("agent orchestrator managed status helpers", () => {
       manifestRun: null,
       progress: null,
       status: "partial",
-    }), "任务已结束，但有问题需要查看。")
+    }), "任务已结束，但有问题需要查看：boom")
+    assert.equal(buildCompletionFallbackSummary({
+      artifacts: [],
+      issues: ["Reconnecting... 1/5 (We're currently experiencing high demand, which may cause temporary errors.)"],
+      latestMessage: "",
+      manifestRun: null,
+      progress: null,
+      status: "failed",
+    }), "任务执行失败：Reconnecting... 1/5 (We're currently experiencing high demand, which may cause temporary errors.)")
     assert.equal(buildCompletionFallbackSummary({
       artifacts: [],
       issues: [],
