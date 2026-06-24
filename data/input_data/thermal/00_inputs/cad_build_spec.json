@@ -48,7 +48,7 @@
       1206.222706,
       913.571164
     ],
-    "shell_thickness": 2,
+    "shell_thickness": 2.0,
     "display": {
       "mode": "wireframe",
       "color": [
@@ -142,7 +142,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -228,7 +228,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -255,9 +255,9 @@
         101.715529
       ],
       "dims": [
-        152,
-        305,
-        686
+        152.0,
+        305.0,
+        686.0
       ],
       "rotation_rows": [
         [
@@ -314,7 +314,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 5,
+        "power_W": 5.0,
         "mass_kg": 3.498326,
         "material_id": "battery_cells_aluminum_case",
         "contact_resistance": 0.001
@@ -340,9 +340,9 @@
         -264.71330650000004
       ],
       "dims": [
-        152,
-        305,
-        686
+        152.0,
+        305.0,
+        686.0
       ],
       "rotation_rows": [
         [
@@ -399,7 +399,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 5,
+        "power_W": 5.0,
         "mass_kg": 3.498326,
         "material_id": "battery_cells_aluminum_case",
         "contact_resistance": 0.001
@@ -484,7 +484,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 3,
+        "power_W": 3.0,
         "mass_kg": 0.321993,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -569,7 +569,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 3,
+        "power_W": 3.0,
         "mass_kg": 0.321993,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -654,7 +654,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 3,
+        "power_W": 3.0,
         "mass_kg": 0.321993,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -739,7 +739,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 3,
+        "power_W": 3.0,
         "mass_kg": 0.321993,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -760,14 +760,14 @@
       "category": "avionics",
       "shape": "box",
       "position": [
-        -170,
-        -590,
+        -170.0,
+        -590.0,
         -200.2844705
       ],
       "dims": [
-        260,
-        220,
-        240
+        260.0,
+        220.0,
+        240.0
       ],
       "rotation_rows": [
         [
@@ -788,13 +788,13 @@
       ],
       "bbox": {
         "min": [
-          -430,
-          -590,
+          -430.0,
+          -590.0,
           -440.2844705
         ],
         "max": [
-          -170,
-          -370,
+          -170.0,
+          -370.0,
           -200.2844705
         ]
       },
@@ -813,18 +813,18 @@
         "normal_sign": 1,
         "footprint_bbox_2d": [
           [
-            -430,
-            -590
+            -430.0,
+            -590.0
           ],
           [
-            -170,
-            -370
+            -170.0,
+            -370.0
           ]
         ]
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 15,
+        "power_W": 15.0,
         "mass_kg": 1.7,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -845,14 +845,14 @@
       "category": "avionics",
       "shape": "box",
       "position": [
-        430,
-        370,
+        430.0,
+        370.0,
         -200.2844705
       ],
       "dims": [
-        260,
-        220,
-        240
+        260.0,
+        220.0,
+        240.0
       ],
       "rotation_rows": [
         [
@@ -873,13 +873,13 @@
       ],
       "bbox": {
         "min": [
-          170,
-          370,
+          170.0,
+          370.0,
           -440.2844705
         ],
         "max": [
-          430,
-          590,
+          430.0,
+          590.0,
           -200.2844705
         ]
       },
@@ -898,18 +898,18 @@
         "normal_sign": 1,
         "footprint_bbox_2d": [
           [
-            170,
-            370
+            170.0,
+            370.0
           ],
           [
-            430,
-            590
+            430.0,
+            590.0
           ]
         ]
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 15,
+        "power_W": 15.0,
         "mass_kg": 1.7,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -936,7 +936,7 @@
       ],
       "dims": [
         252.000003,
-        222,
+        222.0,
         262.000003
       ],
       "rotation_rows": [
@@ -994,7 +994,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0,
+        "power_W": 0.0,
         "mass_kg": 0.293147,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1021,7 +1021,7 @@
       ],
       "dims": [
         252.000003,
-        222,
+        222.0,
         262.000003
       ],
       "rotation_rows": [
@@ -1079,7 +1079,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0,
+        "power_W": 0.0,
         "mass_kg": 0.293147,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1164,7 +1164,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0,
+        "power_W": 0.0,
         "mass_kg": 1.366253,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -1249,7 +1249,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0,
+        "power_W": 0.0,
         "mass_kg": 1.366253,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -1334,7 +1334,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0,
+        "power_W": 0.0,
         "mass_kg": 1.366253,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -1419,7 +1419,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0,
+        "power_W": 0.0,
         "mass_kg": 1.366253,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -1504,7 +1504,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 4,
+        "power_W": 4.0,
         "mass_kg": 1.707552,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -1525,14 +1525,14 @@
       "category": "propulsion",
       "shape": "box",
       "position": [
-        -375,
-        275,
+        -375.0,
+        275.0,
         359.7155295
       ],
       "dims": [
-        200,
-        200,
-        800
+        200.0,
+        200.0,
+        800.0
       ],
       "rotation_rows": [
         [
@@ -1553,13 +1553,13 @@
       ],
       "bbox": {
         "min": [
-          -575,
-          275,
+          -575.0,
+          275.0,
           -440.2844705
         ],
         "max": [
-          -375,
-          475,
+          -375.0,
+          475.0,
           359.7155295
         ]
       },
@@ -1578,18 +1578,18 @@
         "normal_sign": 1,
         "footprint_bbox_2d": [
           [
-            -575,
-            275
+            -575.0,
+            275.0
           ],
           [
-            -375,
-            475
+            -375.0,
+            475.0
           ]
         ]
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0,
+        "power_W": 0.0,
         "mass_kg": 1.6,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1610,14 +1610,14 @@
       "category": "propulsion",
       "shape": "box",
       "position": [
-        575,
-        -475,
+        575.0,
+        -475.0,
         359.7155295
       ],
       "dims": [
-        200,
-        200,
-        800
+        200.0,
+        200.0,
+        800.0
       ],
       "rotation_rows": [
         [
@@ -1638,13 +1638,13 @@
       ],
       "bbox": {
         "min": [
-          375,
-          -475,
+          375.0,
+          -475.0,
           -440.2844705
         ],
         "max": [
-          575,
-          -275,
+          575.0,
+          -275.0,
           359.7155295
         ]
       },
@@ -1663,18 +1663,18 @@
         "normal_sign": 1,
         "footprint_bbox_2d": [
           [
-            375,
-            -475
+            375.0,
+            -475.0
           ],
           [
-            575,
-            -275
+            575.0,
+            -275.0
           ]
         ]
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0,
+        "power_W": 0.0,
         "mass_kg": 1.6,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1700,9 +1700,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -1785,9 +1785,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -1870,9 +1870,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -1955,9 +1955,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -2040,9 +2040,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -2125,9 +2125,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -2210,9 +2210,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -2295,9 +2295,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -2380,9 +2380,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -2465,9 +2465,9 @@
         120.28669349999996
       ],
       "dims": [
-        70,
-        70,
-        350
+        70.0,
+        70.0,
+        350.0
       ],
       "rotation_rows": [
         [
@@ -2550,9 +2550,9 @@
         -440.2844705
       ],
       "dims": [
-        150,
-        150,
-        60
+        150.0,
+        150.0,
+        60.0
       ],
       "rotation_rows": [
         [
@@ -2609,7 +2609,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 8,
+        "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -2635,9 +2635,9 @@
         121.33865949999995
       ],
       "dims": [
-        60,
-        150,
-        150
+        60.0,
+        150.0,
+        150.0
       ],
       "rotation_rows": [
         [
@@ -2694,7 +2694,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 8,
+        "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -2720,9 +2720,9 @@
         196.33865949999995
       ],
       "dims": [
-        150,
-        60,
-        150
+        150.0,
+        60.0,
+        150.0
       ],
       "rotation_rows": [
         [
@@ -2779,7 +2779,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 8,
+        "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -2805,9 +2805,9 @@
         -440.2844705
       ],
       "dims": [
-        150,
-        150,
-        60
+        150.0,
+        150.0,
+        60.0
       ],
       "rotation_rows": [
         [
@@ -2864,7 +2864,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 8,
+        "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -2890,9 +2890,9 @@
         121.33865949999995
       ],
       "dims": [
-        60,
-        150,
-        150
+        60.0,
+        150.0,
+        150.0
       ],
       "rotation_rows": [
         [
@@ -2949,7 +2949,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 8,
+        "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -2975,9 +2975,9 @@
         196.33865949999995
       ],
       "dims": [
-        150,
-        60,
-        150
+        150.0,
+        60.0,
+        150.0
       ],
       "rotation_rows": [
         [
@@ -3034,7 +3034,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 8,
+        "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3119,7 +3119,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3205,7 +3205,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3291,7 +3291,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3377,7 +3377,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3463,7 +3463,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3549,7 +3549,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3635,7 +3635,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3721,7 +3721,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3807,7 +3807,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3893,7 +3893,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -3979,7 +3979,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -4065,7 +4065,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -4151,7 +4151,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -4237,7 +4237,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12,
+        "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001

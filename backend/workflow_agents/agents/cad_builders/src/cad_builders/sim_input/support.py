@@ -254,6 +254,30 @@ def build_simulation_input(spec: dict[str, Any], *, step_filename: str = "geomet
     walls = []
     for wall in spec.get("walls") or []:
         wall_id = wall.get("id")
+        thermal = wall.get("thermal") if isinstance(wall.get("thermal"), dict) else {}
+        simulation = wall.get("simulation") if isinstance(wall.get("simulation"), dict) else {}
+        material_id = (
+            thermal.get("material_id")
+            or simulation.get("material_id")
+            or wall.get("material_id")
+            or "aluminum_6061"
+        )
+        thermalconductivity = float(
+            thermal.get(
+                "thermalconductivity",
+                thermal.get(
+                    "conductivity_W_mK",
+                    simulation.get("thermalconductivity", simulation.get("conductivity_W_mK", 167.0)),
+                ),
+            )
+        )
+        density = float(thermal.get("density", simulation.get("density", 2700.0)))
+        heatcapacity = float(
+            thermal.get(
+                "heatcapacity",
+                thermal.get("heat_capacity_J_kgK", simulation.get("heatcapacity", simulation.get("heat_capacity_J_kgK", 896.0))),
+            )
+        )
         bbox = wall.get("bbox") if isinstance(wall.get("bbox"), dict) else {}
         bbox_min = bbox.get("min") if isinstance(bbox.get("min"), list) else None
         bbox_max = bbox.get("max") if isinstance(bbox.get("max"), list) else None
@@ -270,6 +294,12 @@ def build_simulation_input(spec: dict[str, Any], *, step_filename: str = "geomet
             "thickness_mm": thickness,
             "is_heat_source": False,
             "power_W": 0.0,
+            "material_id": material_id,
+            "thermalconductivity": thermalconductivity,
+            "conductivity_W_mK": thermalconductivity,
+            "density": density,
+            "heatcapacity": heatcapacity,
+            "heat_capacity_J_kgK": heatcapacity,
             "selection_role": "internal_partition",
         })
     return {

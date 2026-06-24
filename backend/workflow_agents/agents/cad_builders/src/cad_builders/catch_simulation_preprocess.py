@@ -33,6 +33,8 @@ class Placement:
     cabin_side: str
     plane: float
     wall_mounted: bool = False
+    target_id: str = "cabin"
+    component_side: int = 0
 
 
 def _bbox3(value: Any) -> dict[str, list[float]] | None:
@@ -112,8 +114,35 @@ def face_id(axis: int, side: int, cabin_side: str) -> str:
     return f"cabin.{direction}_{cabin_side}"
 
 
+def target_face_id(target_id: str, axis: int, side: int, cabin_side: str) -> str:
+    direction = ("x", "y", "z")[axis] + ("min" if side < 0 else "max")
+    owner = target_id or "cabin"
+    return f"{owner}.{direction}_{cabin_side}"
+
+
 def component_face_id(component_id: str, axis: int, side: int) -> str:
     return f"{component_id}.local_{('x', 'y', 'z')[axis]}{'min' if side < 0 else 'max'}"
+
+
+def _parse_face_axis_side(face_id_value: Any) -> tuple[int | None, int | None, str]:
+    token = str(face_id_value or "").split(".")[-1].replace("local_", "")
+    direction, suffix = token.split("_", 1) if "_" in token else (token, "")
+    axis = {"x": 0, "y": 1, "z": 2}.get(direction[:1])
+    if axis is None:
+        return None, None, suffix
+    if direction.endswith("min"):
+        return axis, -1, suffix
+    if direction.endswith("max"):
+        return axis, 1, suffix
+    return axis, None, suffix
+
+
+def _target_bbox_side_from_plane(target_bbox: dict[str, list[float]], axis: int, plane: float | None, fallback_side: int) -> int:
+    if plane is None:
+        return fallback_side
+    min_gap = abs(float(plane) - float(target_bbox["min"][axis]))
+    max_gap = abs(float(plane) - float(target_bbox["max"][axis]))
+    return -1 if min_gap <= max_gap else 1
 
 
 def normalize_component_geometry(component: dict[str, Any], bbox: dict[str, list[float]]) -> None:
@@ -133,12 +162,8 @@ def normalize_component_geometry(component: dict[str, Any], bbox: dict[str, list
 def refresh_mount(component: dict[str, Any], placement: Placement) -> None:
     bbox = component_bbox(component)
     axis = placement.axis
-    if placement.cabin_side == "inner":
-        component_side = placement.side
-        normal_sign = placement.side
-    else:
-        component_side = -placement.side
-        normal_sign = component_side
+    component_side = placement.component_side or (placement.side if placement.cabin_side == "inner" else -placement.side)
+    normal_sign = component_side
     plane = float(bbox["min"][axis] if component_side < 0 else bbox["max"][axis])
     axes = [item for item in (0, 1, 2) if item != axis]
     mount = component.get("mount")
@@ -146,7 +171,7 @@ def refresh_mount(component: dict[str, Any], placement: Placement) -> None:
         mount = {}
         component["mount"] = mount
     component_id = _component_id(component)
-    mount["install_face_id"] = face_id(axis, placement.side, placement.cabin_side)
+    mount["install_face_id"] = target_face_id(placement.target_id, axis, placement.side, placement.cabin_side)
     mount["component_face_id"] = component_face_id(component_id, axis, component_side)
     mount["contact_plane_axis"] = axis
     mount["contact_plane_value"] = plane
@@ -161,7 +186,10 @@ def placement_from_mount(component: dict[str, Any], envelope: dict[str, Any], wa
     bbox = component_bbox(component)
     kind = str(component.get("kind") or "")
     mount = component.get("mount") if isinstance(component.get("mount"), dict) else {}
-    if mount.get("contact_plane_axis") is not None:
+    component_axis, component_side, _ = _parse_face_axis_side(mount.get("component_face_id"))
+    if component_axis is not None:
+        axis = component_axis
+    elif mount.get("contact_plane_axis") is not None:
         axis = int(mount["contact_plane_axis"])
     else:
         axis = max(range(3), key=lambda item: bbox_dims(bbox)[item])
@@ -170,10 +198,15 @@ def placement_from_mount(component: dict[str, Any], envelope: dict[str, Any], wa
     wall_mounted = owner_id in (wall_ids or set())
     cabin_side = "inner" if "_inner" in install_face_id or kind == "internal" or wall_mounted else "outer"
     cabin_bbox = envelope["inner_bbox"] if cabin_side == "inner" else envelope["outer_bbox"]
-    if ".xmax_" in install_face_id or ".ymax_" in install_face_id or ".zmax_" in install_face_id:
-        side = 1
-    elif ".xmin_" in install_face_id or ".ymin_" in install_face_id or ".zmin_" in install_face_id:
-        side = -1
+    target_axis, target_side, _ = _parse_face_axis_side(install_face_id)
+    plane = float(mount["contact_plane_value"]) if mount.get("contact_plane_value") is not None else None
+    if component_side is not None:
+        face_plane = float(bbox["min"][axis] if component_side < 0 else bbox["max"][axis])
+        if plane is None:
+            plane = face_plane
+        side = _target_bbox_side_from_plane(cabin_bbox, axis, plane, target_side or component_side)
+    elif target_axis == axis and target_side is not None:
+        side = target_side
     else:
         plane_min = float(cabin_bbox["min"][axis])
         plane_max = float(cabin_bbox["max"][axis])
@@ -181,8 +214,20 @@ def placement_from_mount(component: dict[str, Any], envelope: dict[str, Any], wa
             side = -1 if abs(float(bbox["min"][axis]) - plane_min) <= abs(float(bbox["max"][axis]) - plane_max) else 1
         else:
             side = -1 if abs(float(bbox["max"][axis]) - plane_min) <= abs(float(bbox["min"][axis]) - plane_max) else 1
-    plane = float(mount["contact_plane_value"]) if mount.get("contact_plane_value") is not None else float(cabin_bbox["min"][axis] if side < 0 else cabin_bbox["max"][axis])
-    return Placement(axis=axis, side=side, cabin_bbox=cabin_bbox, cabin_side=cabin_side, plane=plane, wall_mounted=wall_mounted)
+    if plane is None:
+        plane = float(cabin_bbox["min"][axis] if side < 0 else cabin_bbox["max"][axis])
+    if component_side is None:
+        component_side = side if cabin_side == "inner" else -side
+    return Placement(
+        axis=axis,
+        side=side,
+        cabin_bbox=cabin_bbox,
+        cabin_side=cabin_side,
+        plane=plane,
+        wall_mounted=wall_mounted,
+        target_id=owner_id if wall_mounted else "cabin",
+        component_side=component_side,
+    )
 
 
 def bbox_union_overlap_ratio(bbox: dict[str, list[float]], obstacles: list[dict[str, Any]]) -> tuple[float, dict[str, Any] | None]:
@@ -212,10 +257,8 @@ def nudge_to_mount_face(bbox: dict[str, list[float]], placement: Placement) -> t
     result = copy.deepcopy(bbox)
     delta = [0.0, 0.0, 0.0]
     axis = placement.axis
-    if placement.cabin_side == "inner":
-        face = float(result["min"][axis] if placement.side < 0 else result["max"][axis])
-    else:
-        face = float(result["max"][axis] if placement.side < 0 else result["min"][axis])
+    component_side = placement.component_side or (placement.side if placement.cabin_side == "inner" else -placement.side)
+    face = float(result["min"][axis] if component_side < 0 else result["max"][axis])
     move = placement.plane - face
     result["min"][axis] = float(result["min"][axis]) + move
     result["max"][axis] = float(result["max"][axis]) + move
@@ -225,10 +268,8 @@ def nudge_to_mount_face(bbox: dict[str, list[float]], placement: Placement) -> t
 
 def original_mount_gap(bbox: dict[str, list[float]], placement: Placement) -> float:
     axis = placement.axis
-    if placement.cabin_side == "inner":
-        face = float(bbox["min"][axis] if placement.side < 0 else bbox["max"][axis])
-    else:
-        face = float(bbox["max"][axis] if placement.side < 0 else bbox["min"][axis])
+    component_side = placement.component_side or (placement.side if placement.cabin_side == "inner" else -placement.side)
+    face = float(bbox["min"][axis] if component_side < 0 else bbox["max"][axis])
     return placement.plane - face
 
 
@@ -331,7 +372,7 @@ def crop_against_obstacle_refined(
         if overlap <= TOL:
             continue
         if axis == mount_axis:
-            component_mount_side = placement.side if placement.cabin_side == "inner" else -placement.side
+            component_mount_side = placement.component_side or (placement.side if placement.cabin_side == "inner" else -placement.side)
             allowed_sides = [1 if component_mount_side < 0 else -1]
         else:
             allowed_sides = [-1, 1]
@@ -458,6 +499,104 @@ def mount_contact_ok(component: dict[str, Any]) -> bool:
     return area > TOL
 
 
+def _mount_target_bbox(component: dict[str, Any], spec: dict[str, Any]) -> dict[str, list[float]] | None:
+    mount = component.get("mount") if isinstance(component.get("mount"), dict) else {}
+    install_face_id = str(mount.get("install_face_id") or "")
+    owner_id = install_face_id.split(".", 1)[0]
+    if owner_id and owner_id not in {"cabin", "outer_shell"}:
+        for wall in spec.get("walls") or []:
+            if isinstance(wall, dict) and _wall_id(wall) == owner_id:
+                return _bbox3(wall.get("bbox"))
+    envelope = spec.get("envelope") if isinstance(spec.get("envelope"), dict) else {}
+    _, _, face_kind = _parse_face_axis_side(install_face_id)
+    if face_kind == "outer":
+        return _bbox3(envelope.get("outer_bbox"))
+    if face_kind == "inner":
+        return _bbox3(envelope.get("inner_bbox"))
+    kind = str(component.get("kind") or "")
+    return _bbox3(envelope.get("inner_bbox" if kind == "internal" else "outer_bbox"))
+
+
+def validate_mount_faces(spec: dict[str, Any]) -> dict[str, Any]:
+    issues: list[dict[str, Any]] = []
+    for component in spec.get("components") or []:
+        if not isinstance(component, dict):
+            continue
+        component_id = _component_id(component)
+        bbox = component_bbox(component)
+        mount = component.get("mount") if isinstance(component.get("mount"), dict) else {}
+        component_axis, component_side, _ = _parse_face_axis_side(mount.get("component_face_id"))
+        install_axis, install_side, install_kind = _parse_face_axis_side(mount.get("install_face_id"))
+        if component_axis is None or component_side is None:
+            issues.append({"code": "invalid_component_face_id", "component_id": component_id, "component_face_id": mount.get("component_face_id")})
+            continue
+        if install_axis is None or install_side is None:
+            issues.append({"code": "invalid_install_face_id", "component_id": component_id, "install_face_id": mount.get("install_face_id")})
+            continue
+        if component_axis != install_axis:
+            issues.append({
+                "code": "mount_axis_mismatch",
+                "component_id": component_id,
+                "component_face_id": mount.get("component_face_id"),
+                "install_face_id": mount.get("install_face_id"),
+            })
+            continue
+        component_plane = float(bbox["min"][component_axis] if component_side < 0 else bbox["max"][component_axis])
+        target_bbox = _mount_target_bbox(component, spec)
+        if target_bbox is None:
+            issues.append({"code": "missing_mount_target_bbox", "component_id": component_id, "install_face_id": mount.get("install_face_id")})
+            continue
+        target_plane = float(target_bbox["min"][install_axis] if install_side < 0 else target_bbox["max"][install_axis])
+        if abs(component_plane - target_plane) > 1e-4:
+            issues.append({
+                "code": "mount_plane_mismatch",
+                "component_id": component_id,
+                "install_face_id": mount.get("install_face_id"),
+                "component_face_id": mount.get("component_face_id"),
+                "install_kind": install_kind,
+                "component_plane": component_plane,
+                "target_plane": target_plane,
+                "gap_mm": component_plane - target_plane,
+            })
+        if mount.get("contact_plane_axis") != component_axis:
+            issues.append({
+                "code": "contact_axis_mismatch",
+                "component_id": component_id,
+                "contact_plane_axis": mount.get("contact_plane_axis"),
+                "expected_axis": component_axis,
+            })
+        if mount.get("contact_plane_value") is None or abs(float(mount["contact_plane_value"]) - component_plane) > 1e-4:
+            issues.append({
+                "code": "contact_plane_value_mismatch",
+                "component_id": component_id,
+                "contact_plane_value": mount.get("contact_plane_value"),
+                "expected_plane": component_plane,
+            })
+        axes = [axis for axis in (0, 1, 2) if axis != component_axis]
+        expected_footprint = [
+            [float(bbox["min"][axes[0]]), float(bbox["min"][axes[1]])],
+            [float(bbox["max"][axes[0]]), float(bbox["max"][axes[1]])],
+        ]
+        footprint = mount.get("footprint_bbox_2d")
+        if not (
+            isinstance(footprint, list)
+            and len(footprint) == 2
+            and all(isinstance(row, list) and len(row) == 2 for row in footprint)
+            and all(abs(float(footprint[row][col]) - expected_footprint[row][col]) <= 1e-4 for row in range(2) for col in range(2))
+        ):
+            issues.append({
+                "code": "footprint_mismatch",
+                "component_id": component_id,
+                "footprint_bbox_2d": footprint,
+                "expected_footprint_bbox_2d": expected_footprint,
+            })
+    return {
+        "success": not issues,
+        "issue_count": len(issues),
+        "issues": issues,
+    }
+
+
 def validate_repaired(spec: dict[str, Any]) -> dict[str, Any]:
     components = list(spec.get("components") or [])
     walls = [wall.get("bbox") for wall in spec.get("walls") or [] if isinstance(wall.get("bbox"), dict)]
@@ -491,7 +630,8 @@ def validate_repaired(spec: dict[str, Any]) -> dict[str, Any]:
         if not mount_contact_ok(component):
             unmounted_component_count += 1
             details.append({"code": "unmounted", "component_id": _component_id(component)})
-    success = not any((component_overlap_count, wall_overlap_count, cabin_solid_overlap_count, unmounted_component_count, invalid_component_count))
+    mount_face_validation = validate_mount_faces(spec)
+    success = not any((component_overlap_count, wall_overlap_count, cabin_solid_overlap_count, unmounted_component_count, invalid_component_count)) and mount_face_validation["success"]
     return {
         "success": success,
         "component_count": len(components),
@@ -500,6 +640,8 @@ def validate_repaired(spec: dict[str, Any]) -> dict[str, Any]:
         "cabin_solid_overlap_count": cabin_solid_overlap_count,
         "unmounted_component_count": unmounted_component_count,
         "invalid_component_count": invalid_component_count,
+        "mount_face_issue_count": mount_face_validation["issue_count"],
+        "mount_face_validation": mount_face_validation,
         "details": details,
     }
 
@@ -795,6 +937,12 @@ def preprocess_catch_simulation_spec(
     }
     if isinstance(processed.get("envelope"), dict):
         processed["envelope"]["_wall_refs"] = copy.deepcopy(processed.get("walls") or [])
+    final_validation = validate_repaired(processed)
+    report["final_validation"] = final_validation
+    report["mount_face_validation"] = final_validation.get("mount_face_validation")
+    if not final_validation.get("success"):
+        report["reason"] = "final_validation_failed"
+        raise RuntimeError(json.dumps(report, ensure_ascii=False))
     report["changes"] = report["component_changes"] + report["deleted_components"] + report["wall_changes"]
     report["applied"] = bool(report["changes"])
     if not report["applied"]:

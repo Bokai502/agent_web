@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .after_state import build_geom, build_registry, parse_grid_shape, write_grid_inputs
-from .catch_simulation_preprocess import preprocess_catch_simulation_spec
+from cad_builders.catch_simulation_preprocess import preprocess_catch_simulation_spec
 from .support import (
     build_simulation_input,
     default_cad_dir,

@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from .catch_simulation_preprocess import preprocess_catch_simulation_spec
+from cad_builders.catch_simulation_preprocess import preprocess_catch_simulation_spec
 
 
 def parse_grid_shape(value: str) -> tuple[int, int, int]:
@@ -177,8 +177,14 @@ def build_geom(layout: dict[str, Any], simulation_input: dict[str, Any]) -> dict
             "kind": component.get("kind"),
         }
     walls = {}
+    simulation_walls = {
+        str(item.get("wall_id") or item.get("component_id") or item.get("id")): item
+        for item in simulation_input.get("walls") or []
+        if isinstance(item, dict) and (item.get("wall_id") or item.get("component_id") or item.get("id"))
+    }
     for wall in layout.get("walls") or []:
         wall_id = str(wall.get("id") or wall.get("wall_id") or wall.get("name") or f"wall_{len(walls) + 1}")
+        sim_wall = simulation_walls.get(wall_id, {})
         bbox = wall.get("bbox")
         bbox_min = bbox.get("min") if isinstance(bbox, dict) and isinstance(bbox.get("min"), list) else None
         bbox_max = bbox.get("max") if isinstance(bbox, dict) and isinstance(bbox.get("max"), list) else None
@@ -194,6 +200,12 @@ def build_geom(layout: dict[str, Any], simulation_input: dict[str, Any]) -> dict
             "bbox": bbox,
             "thickness": thickness,
             "thickness_mm": thickness,
+            "material_id": sim_wall.get("material_id", "aluminum_6061"),
+            "thermalconductivity": sim_wall.get("thermalconductivity", sim_wall.get("conductivity_W_mK", 167.0)),
+            "conductivity_W_mK": sim_wall.get("conductivity_W_mK", sim_wall.get("thermalconductivity", 167.0)),
+            "density": sim_wall.get("density", 2700.0),
+            "heatcapacity": sim_wall.get("heatcapacity", sim_wall.get("heat_capacity_J_kgK", 896.0)),
+            "heat_capacity_J_kgK": sim_wall.get("heat_capacity_J_kgK", sim_wall.get("heatcapacity", 896.0)),
         }
     outer_bbox = envelope.get("outer_bbox")
     inner_bbox = envelope.get("inner_bbox")

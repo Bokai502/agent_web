@@ -259,6 +259,7 @@ def _run_comsol_local(
             "postprocess": thermal_cfg["thermal_sim"].get("postprocess", {}),
             "mesh": mesh,
             "boundary_conditions": boundary_conditions,
+            "solver": thermal_cfg["thermal_sim"].get("solver", {}),
         },
     }
     canonical_payload = build_payload(simulation_input, simulation_input_path, geometry_step_path)
