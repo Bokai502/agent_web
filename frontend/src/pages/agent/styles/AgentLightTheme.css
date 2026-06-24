@@ -681,6 +681,88 @@
   color: #24292f;
 }
 
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor {
+  color: #1f2933;
+  --brand: #1677ff;
+  --brand-strong: #0958d9;
+  --line: #d8dee8;
+  --panel: #ffffff;
+  --panel-soft: #f7f9fc;
+  --text-soft: #667085;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .app-shell {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 160px),
+    #eef2f7;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .topbar,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .palette-panel,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .property-panel {
+  border-color: #d8dee8;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1f2933;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .canvas-shell {
+  background: #f7f9fc;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .topbar h1,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .panel-heading span,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .form-stack label,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .logic-section-heading span,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .logic-note,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .empty-state strong {
+  color: #1f2933;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .topbar p,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .panel-heading small,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .empty-state span,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .logic-section-heading small,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .field-note {
+  color: #667085;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .toolbar button,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .property-panel button,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .palette-item {
+  border-color: #cfd7e2;
+  background: #ffffff;
+  color: #344054;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .toolbar .primary-action {
+  border-color: #1677ff;
+  background: #1677ff;
+  color: #ffffff;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor input,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor textarea,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor select {
+  border-color: #cfd7e2;
+  background: #ffffff;
+  color: #1f2933;
+  color-scheme: light;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .logic-table-card,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .logic-note,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .empty-state {
+  border-color: #d8dee8;
+  background: #f7f9fc;
+}
+
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .status-panel,
+.agent-page.is-light-theme .agent-workspace-body .gnc-flow-editor .notice-panel {
+  border-color: rgba(22, 119, 255, 0.18);
+  background: rgba(255, 255, 255, 0.94);
+  color: #344054;
+}
+
 .agent-page.is-light-theme .derating-config-shell {
   color: var(--light-text);
   background: linear-gradient(180deg, rgba(246, 248, 251, 0.74), rgba(255, 255, 255, 0.28));

@@ -186,6 +186,50 @@
   background: rgba(2, 12, 24, 0.66);
 }
 
+.agent-workspace-body .agent-gnc-config-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agent-workspace-body .agent-gnc-config-panel > .gnc-flow-editor {
+  width: 100%;
+  height: 100%;
+}
+
+.agent-workspace-body .gnc-flow-editor .app-shell {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(0, 168, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(5, 17, 31, 0.92), rgba(3, 8, 15, 0.9));
+}
+
+.agent-workspace-body .gnc-flow-editor .topbar,
+.agent-workspace-body .gnc-flow-editor .palette-panel,
+.agent-workspace-body .gnc-flow-editor .property-panel {
+  border-color: rgba(0, 168, 255, 0.2);
+  background: rgba(2, 12, 24, 0.82);
+}
+
+.agent-workspace-body .gnc-flow-editor .topbar h1,
+.agent-workspace-body .gnc-flow-editor .panel-heading span,
+.agent-workspace-body .gnc-flow-editor .form-stack label,
+.agent-workspace-body .gnc-flow-editor .logic-section-heading span,
+.agent-workspace-body .gnc-flow-editor .logic-note {
+  color: #f4fbff;
+}
+
+.agent-workspace-body .gnc-flow-editor .topbar p,
+.agent-workspace-body .gnc-flow-editor .panel-heading small,
+.agent-workspace-body .gnc-flow-editor .empty-state span,
+.agent-workspace-body .gnc-flow-editor .logic-section-heading small {
+  color: rgba(234, 247, 255, 0.62);
+}
+
+.agent-workspace-body .gnc-flow-editor .canvas-shell {
+  background: rgba(2, 8, 16, 0.62);
+}
+
 .agent-workspace-body .derating-config-shell {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
