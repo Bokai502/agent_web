@@ -91,7 +91,7 @@ load_remote_gui_config() {
   FREECAD_LAUNCHER="${FREECAD_LAUNCHER:-$(require_config tools.cad.launcher)}"
   PARAVIEW_LAUNCHER="${PARAVIEW_LAUNCHER:-$(require_config tools.paraview.launcher)}"
   COMSOL_LAUNCHER="${COMSOL_LAUNCHER:-$(require_config tools.comsol.launcher)}"
-  COMSOL_SUDO="${COMSOL_SUDO:-$(read_config tools.comsol.sudo sudo)}"
+  COMSOL_SUDO="${COMSOL_SUDO-$(read_config tools.comsol.sudo)}"
 
   FREECAD_DISPLAY="$(require_config tools.cad.displayNum)"
   FREECAD_VNC_PORT="$(require_config tools.cad.vncPort)"

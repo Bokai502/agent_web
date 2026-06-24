@@ -4,6 +4,9 @@ import { promisify } from "node:util"
 import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
+import { getObject } from "../shared/request.js"
+import { replyWithWorkspaceQueryError, resolveQueryWorkspaceContext } from "../workspaces/workspaceQuery.js"
+import { loadSimulationGuiData } from "./simulationGuiLoader.js"
 
 const REMOTE_DESKTOP_TOOLS = ["freecad", "paraview", "comsol"] as const
 const INTERFACE_CHECK_CACHE_MS = 0
@@ -227,5 +230,39 @@ export async function remoteToolsRoutes(
 
     const ok = results.every(result => result.ok)
     return reply.status(ok ? 200 : 503).send({ ok, results })
+  })
+
+  fastify.post("/api/remote-tools/load-simulation-data", async (req, reply) => {
+    const body = getObject(req.body) ?? {}
+    try {
+      const context = await resolveQueryWorkspaceContext({
+        workspaceDir: typeof body.workspaceDir === "string" ? body.workspaceDir : undefined,
+        workspaceId: typeof body.workspaceId === "string" ? body.workspaceId : undefined,
+        versionId: typeof body.versionId === "string" ? body.versionId : undefined,
+      })
+      const result = await loadSimulationGuiData(context.workspaceDir, config)
+      if (result.ok) {
+        logger.info("simulation GUI data loaded", {
+          workspaceDir: result.workspaceDir,
+          nativeVtu: result.nativeVtu,
+          workMph: result.workMph,
+          comsolPid: result.comsol.pid,
+          comsolSkipped: result.comsol.skipped,
+        })
+      } else {
+        logger.warn("simulation GUI data load failed", {
+          workspaceDir: result.workspaceDir,
+          paraviewOk: result.paraview.ok,
+          comsolDesktopOk: result.comsolDesktop.ok,
+          comsol: result.comsol,
+        })
+      }
+      return reply.status(result.ok ? 200 : 503).send(result)
+    } catch (error) {
+      if (error instanceof Error && "statusCode" in error) {
+        return reply.status((error as Error & { statusCode: number }).statusCode).send({ error: error.message })
+      }
+      return replyWithWorkspaceQueryError(reply, error, "failed to load simulation GUI data")
+    }
   })
 }

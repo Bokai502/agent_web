@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react'
+import { useState, type ComponentProps } from 'react'
 import type { TFunction } from 'i18next'
 import { GncConfigEditor } from '../../../gnc_config/GncConfigEditor'
 import { ExecutionFlow } from '../../components/execution-flow/ExecutionFlow'
@@ -12,6 +12,7 @@ import { ComplianceCheckInputConfigEditor } from './ComplianceCheckInputConfigEd
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
+import { useLoadSimulationGuiData } from '../workspace/useLoadSimulationGuiData'
 
 type CurrentWorkspaceCardProps = ComponentProps<typeof CurrentWorkspaceCard>
 type BomStagePanelProps = ComponentProps<typeof BomStagePanel>
@@ -114,11 +115,14 @@ export function AgentWorkspacePanel({
   workspaceItems,
   workspaceRefreshNonce = 0,
 }: AgentWorkspacePanelProps) {
+  const [thermalConfigTab, setThermalConfigTab] = useState<'catch-table' | 'execution-flow'>('catch-table')
+  const simulationLoad = useLoadSimulationGuiData(apiBase, activeContext)
   const panelClassName = [
     'agent-workspace-panel',
     activeView ? 'is-open' : 'is-collapsed',
     activeView ? `is-${activeView}-view` : '',
   ].filter(Boolean).join(' ')
+  const showThermalConfigTabs = activeView === 'bom' && !showComplianceCheckConfig && !showGncConfig
   const toolTabs: AgentToolView[] = showGncConfig
     ? ['gnc-dashboard', 'gnc']
     : ['cad', 'paraview', 'comsol']
@@ -144,6 +148,18 @@ export function AgentWorkspacePanel({
       t={t}
     />
   )
+  const executionFlowContent = (
+    <ExecutionFlow
+      className="execution-flow-embedded"
+      height="100%"
+      showThemeSwitch={false}
+      theme={theme}
+      versionId={activeContext.versionId ?? undefined}
+      workspaceDir={activeContext.versionDir ?? undefined}
+      workspaceId={activeContext.workspaceId ?? undefined}
+    />
+  )
+  const canLoadSimulationData = activeView === 'tools' && (activeTool === 'paraview' || activeTool === 'comsol')
 
   return (
     <section className={panelClassName}>
@@ -180,6 +196,24 @@ export function AgentWorkspacePanel({
           <strong>{getWorkspacePanelTitle(activeView, showComplianceCheckConfig, showGncConfig)}</strong>
           <span>{activeView ? `${getWorkspaceDisplayName(activeContext.workspaceName)}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : '选择左侧模块展开当前任务'}</span>
         </div>
+        {showThermalConfigTabs && (
+          <div className="agent-tool-tabs">
+            <button
+              type="button"
+              className={thermalConfigTab === 'catch-table' ? 'active' : undefined}
+              onClick={() => setThermalConfigTab('catch-table')}
+            >
+              整星配套表
+            </button>
+            <button
+              type="button"
+              className={thermalConfigTab === 'execution-flow' ? 'active' : undefined}
+              onClick={() => setThermalConfigTab('execution-flow')}
+            >
+              智能体执行流程
+            </button>
+          </div>
+        )}
         {activeView === 'tools' && (
           <div className="agent-tool-tabs">
             {toolTabs.map(tool => (
@@ -192,6 +226,20 @@ export function AgentWorkspacePanel({
                 {toolLabel(tool)}
               </button>
             ))}
+          </div>
+        )}
+        {canLoadSimulationData && (
+          <div className="agent-tool-actions">
+            <button
+              type="button"
+              className="agent-tool-load-button"
+              disabled={simulationLoad.pending || !activeContext.versionDir}
+              title={simulationLoad.status || '加载当前版本 native.vtu 和 work.mph 到 ParaView/COMSOL'}
+              onClick={simulationLoad.load}
+            >
+              {simulationLoad.pending ? '加载中' : '加载数据'}
+            </button>
+            {simulationLoad.status && <span>{simulationLoad.status}</span>}
           </div>
         )}
       </div>
@@ -224,18 +272,9 @@ export function AgentWorkspacePanel({
           <GncConfigEditor activeContext={activeContext} />
         ) : activeView === 'bom' ? (
           <div className="agent-thermal-config">
-            <section className="agent-thermal-flow-panel">
-              <ExecutionFlow
-                className="execution-flow-embedded"
-                height={360}
-                showThemeSwitch={false}
-                theme={theme}
-                versionId={activeContext.versionId ?? undefined}
-                workspaceDir={activeContext.versionDir ?? undefined}
-                workspaceId={activeContext.workspaceId ?? undefined}
-              />
-            </section>
-            {thermalConfigContent}
+            <div className="agent-thermal-tab-panel">
+              {thermalConfigTab === 'catch-table' ? thermalConfigContent : executionFlowContent}
+            </div>
           </div>
         ) : activeView === 'model' && showModelPreview ? (
           activeContext.versionDir ? (

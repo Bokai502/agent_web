@@ -4,6 +4,7 @@ import type { BomComponent, BomInfo } from "../../components/bomData"
 import { BomStagePanel } from "./BomStagePanel"
 import { CatchSupportingTableEditor } from "./CatchSupportingTableEditor"
 import { LogStagePanel } from "./LogStagePanel"
+import { useLoadSimulationGuiData } from "./useLoadSimulationGuiData"
 import type { RunLogEntry } from "./runLogUtils"
 import { type WorkspaceVersionContext, usesCatchSupportingTable } from "./workspaceVersion"
 
@@ -67,6 +68,9 @@ export function WorkspaceStagePanel({
   visibleRunning,
   visibleTurnsCount,
 }: WorkspaceStagePanelProps) {
+  const simulationLoad = useLoadSimulationGuiData(apiBase, activeContext)
+  const canLoadSimulationData = showTools && (activePanel === "paraview" || activePanel === "comsol")
+
   return (
     <section className="wa-panel wa-stage">
       <div className="wa-panel-header">
@@ -78,6 +82,20 @@ export function WorkspaceStagePanel({
       <div className="wa-stage-body">
         {((showTools && activeTool) || (showModel && activePanel === "model" && hasModelPreview)) && (
           <div className="wa-stage-toolbar">
+            {canLoadSimulationData && (
+              <>
+                <button
+                  type="button"
+                  className="wa-status-pill"
+                  disabled={simulationLoad.pending || !activeContext.versionDir}
+                  title={simulationLoad.status || "加载当前版本 native.vtu 和 work.mph 到 ParaView/COMSOL"}
+                  onClick={simulationLoad.load}
+                >
+                  {simulationLoad.pending ? "加载中" : "加载数据"}
+                </button>
+                {simulationLoad.status && <span className="wa-tool-load-status">{simulationLoad.status}</span>}
+              </>
+            )}
             <button
               type="button"
               className="wa-status-pill"

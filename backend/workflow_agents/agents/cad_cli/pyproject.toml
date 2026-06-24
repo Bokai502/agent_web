@@ -14,7 +14,7 @@ dependencies = ["numpy"]
 cad_cli = "cad_cli.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cad_cli"]
+packages = ["src/cad_cli", "src/cad_cli/box"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/cad_cli/rpc_scripts/*.py" = ["E402", "F821"]

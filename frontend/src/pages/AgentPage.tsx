@@ -387,7 +387,7 @@ export default function AgentPage() {
 
   useEffect(() => {
     if (progressVariant === 'check' && activeTool !== 'cad') setActiveTool('cad')
-    if (showGncConfig && (activeTool === 'cad' || activeTool === 'paraview' || activeTool === 'comsol')) setActiveTool('gnc-dashboard')
+    if (showGncConfig && activeTool !== 'gnc' && activeTool !== 'gnc-dashboard') setActiveTool('gnc-dashboard')
     if (!showGncConfig && (activeTool === 'gnc' || activeTool === 'gnc-dashboard')) setActiveTool('cad')
   }, [activeTool, progressVariant, showGncConfig])
 

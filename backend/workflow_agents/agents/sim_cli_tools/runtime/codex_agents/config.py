@@ -27,8 +27,6 @@ class BomExternalToolsPipelineConfig:
     comsol_connection_config: Path = vendor_path("simulation_runtime", "comsol_runtime", "configs", "comsol_connection_local.yaml")
     comsol_runtime_root: Path = vendor_path("simulation_runtime", "comsol_runtime")
     mph_port: int | None = None
-    open_external_tools: bool = False
-    open_external_tools_async: bool = False
     paraview_render: Path = vendor_path("paraview_runtime", "paraview_renderer", "render_temperature.py")
     skip_postprocess: bool = False
 
@@ -53,8 +51,6 @@ class BomExternalToolsPipelineConfig:
             comsol_connection_config=Path(getattr(args, "comsol_connection_config", cls.comsol_connection_config)),
             comsol_runtime_root=Path(getattr(args, "comsol_runtime_root", cls.comsol_runtime_root)),
             mph_port=getattr(args, "mph_port", cls.mph_port),
-            open_external_tools=bool(getattr(args, "open_external_tools", cls.open_external_tools)),
-            open_external_tools_async=bool(getattr(args, "open_external_tools_async", cls.open_external_tools_async)),
             paraview_render=Path(getattr(args, "paraview_render", cls.paraview_render)),
             skip_postprocess=bool(getattr(args, "skip_postprocess", cls.skip_postprocess)),
         )

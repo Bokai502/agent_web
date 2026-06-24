@@ -202,7 +202,6 @@ describe("thermal workflow skills", () => {
       assert.match(runHelp, /--workspace-dir/u)
       assert.match(runHelp, /comsol_local/u)
       assert.match(runHelp, /mock_contract/u)
-      assert.match(runHelp, /--async-open-tools/u)
       assert.equal(doctor.ok, false)
       assert.equal(doctor.paths.workspace_dir, workspaceDir)
       assert.deepEqual(doctor.outputs, {

@@ -33,10 +33,6 @@ The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes 
   `01_cad/geometry_after_real_cad.glb` remain display/review artifacts.
 - Real COMSOL runs always start a private mphserver. Reusing an existing mphserver is not supported by this tool.
 - Use `comsol_local` for real thermal simulation.
-- For normal simulation runs, always pass `--async-open-tools` so COMSOL and
-  ParaView GUI loaders open through the detached remote-tool flow after the run
-  succeeds.
-- Never call the COMSOL remote launcher directly to open `work.mph`. Use the simulation CLI's built-in loader, which reads `tools.comsol.*` and `tools.paraview.*` from the project root `config.json`, or open the file on the configured shared COMSOL noVNC session.
 - Do not delete or recreate the workspace unless the user explicitly asks.
 
 ## Commands
@@ -66,8 +62,7 @@ python -m sim_cli_tools.cli.main \
   --simulation-backend comsol_local \
   --mph-port 32036 \
   --force \
-  --quiet \
-  --async-open-tools
+  --quiet
 ```
 
 ## Outputs To Inspect
