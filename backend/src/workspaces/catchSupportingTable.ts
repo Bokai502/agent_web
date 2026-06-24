@@ -26,7 +26,6 @@ type LoadedTableRow = {
   dims_mm: number[] | null
   mass_kg: number
   name: string
-  operating_temperature: string | null
   peak_power_W: number | null
   power_W: number
   row: number
@@ -575,7 +574,6 @@ async function loadTableRows(xlsxPath: string): Promise<LoadedTableRow[]> {
     const size = dims(getCellByHeader(row, headers, "包络尺寸（mm）"))
     const avgPower = power(getCellByHeader(row, headers, "稳态功耗（W）"))
     const peakPower = power(getCellByHeader(row, headers, "峰值功耗（W）"))
-    const operatingTemperature = asString(getCellByHeader(row, headers, "工作温度（℃）")).trim()
     if (SUBSYSTEM_KIND.has(name)) {
       subsystem = name
       continue
@@ -589,7 +587,6 @@ async function loadTableRows(xlsxPath: string): Promise<LoadedTableRow[]> {
       mass_kg: mass ?? 0,
       dims_mm: size,
       power_W: avgPower ?? 0,
-      operating_temperature: operatingTemperature || null,
       peak_power_W: peakPower,
       subsystem,
       category,
@@ -619,7 +616,6 @@ function createSpecComponent(row: LoadedTableRow, numericId: number): JsonRecord
   const dimsMm = markFloatArray(row.dims_mm ?? [50, 50, 50])
   const position = markFloatArray([0, 0, 0])
   const bboxMax = markFloatArray(dimsMm.map(value => value))
-  const operatingTemperatureRange = temperatureRange(row.operating_temperature)
   return {
     id: componentId,
     geometry_id: `CATCH-G${String(numericId).padStart(3, "0")}`,
@@ -646,11 +642,6 @@ function createSpecComponent(row: LoadedTableRow, numericId: number): JsonRecord
       include_in_simulation: row.power_W > 0,
       power_W: row.power_W,
       mass_kg: row.mass_kg,
-      ...(row.operating_temperature ? { operating_temperature: row.operating_temperature } : {}),
-      ...(operatingTemperatureRange ? {
-        operating_temperature_min_C: operatingTemperatureRange[0],
-        operating_temperature_max_C: operatingTemperatureRange[1],
-      } : {}),
       material_id: "aluminum_6061",
       contact_resistance: 0.001,
     },
@@ -681,14 +672,10 @@ function updateSpecComponentFromRow(component: JsonRecord, row: LoadedTableRow) 
   thermal.mass_kg = row.mass_kg
   thermal.power_W = row.power_W
   thermal.include_in_simulation = row.power_W > 0
-  if (row.operating_temperature) thermal.operating_temperature = row.operating_temperature
-  const range = temperatureRange(row.operating_temperature)
-  if (range) {
-    thermal.operating_temperature_min_C = range[0]
-    thermal.operating_temperature_max_C = range[1]
-    markFloat(thermal, "operating_temperature_min_C")
-    markFloat(thermal, "operating_temperature_max_C")
-  }
+  delete thermal.operating_temperature
+  delete thermal.operating_temperature_min_C
+  delete thermal.operating_temperature_max_C
+  delete thermal.operating_temperature_source
   component.thermal = thermal
 
   markFloatArray(dimsMm)
