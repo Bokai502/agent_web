@@ -432,8 +432,11 @@ class RemoteComsolExecutor:
         therefore owned by COMSOL's mesh builder; if Sweep cannot be applied to a
         component domain, the global FreeTet node remains the fallback.
         """
+        from core.selection_updater_v2 import _safe_tag
+
         mode2 = mesh_config.get('mesh_mode2') or {}
         sweep_kinds = set(mode2.get('sweep_component_kinds') or ['internal'])
+        sweep_component_ids = {str(item) for item in (mode2.get('sweep_component_ids') or [])}
         hauto = int(mesh_config.get('v2_hauto', 3))
         mesh = self.model.java.component('comp1').mesh('mesh1')
         removed = self._clear_mesh_features(mesh)
@@ -449,6 +452,7 @@ class RemoteComsolExecutor:
                 'skipped': 0,
                 'failed': [],
                 'sweep_component_kinds': sorted(sweep_kinds),
+                'sweep_component_ids': sorted(sweep_component_ids),
                 'attempted_by_kind': {},
                 'created_by_kind': {},
                 'skipped_by_kind': {},
@@ -471,10 +475,11 @@ class RemoteComsolExecutor:
         swept_domain_ids: set[int] = set()
         for comp in components:
             kind = comp.get('kind') or 'unknown'
-            if kind not in sweep_kinds:
-                continue
             name = comp['name']
-            sweep_tag = f"swe_{name}"
+            if kind not in sweep_kinds and name not in sweep_component_ids:
+                continue
+            safe_name = _safe_tag(name)
+            sweep_tag = f"swe_{safe_name}"
             domain_ids = self._selection_entity_ids(self.model.java.component('comp1').selection(name))
             record: Dict[str, Any] = {
                 'component': name,
@@ -751,10 +756,10 @@ class RemoteComsolExecutor:
                 details.append({'name': name, 'ok': False, 'note': 'missing emissivity, mount_face_id/install_face, or bbox'})
                 continue
 
-            rad_tag = f'rad_{name}'
+            rad_tag = f'rad_{safe_name}'
             comp_bnd_sel_tag = self._build_component_boundary_selection(name, pos_mm, dims_mm)
             mount_bnd_sel_tag = self._build_component_mount_boundary_selection(name, pos_mm, dims_mm, mount_face)
-            exposed_sel_tag = f'radexp_{name}'
+            exposed_sel_tag = f'radexp_{safe_name}'
             try:
                 existing_sel_tags = {str(t) for t in comp_sel_root.tags()}
                 if exposed_sel_tag not in existing_sel_tags:
@@ -809,7 +814,7 @@ class RemoteComsolExecutor:
         from core.selection_updater_v2 import _safe_tag
 
         shell_face_bc = (boundary_conditions or {}).get('shell_faces', {})
-        bc_type = 'radiation'
+        bc_type = shell_face_bc.get('type', 'radiation')
         emissivity = float(shell_face_bc.get('emissivity', 0.8))
         ambient_temp_k = float(shell_face_bc.get('ambient_temp', 300.0))
         ht = self.model.java.component('comp1').physics('ht')
@@ -933,6 +938,7 @@ class RemoteComsolExecutor:
 
         for comp in components_data:
             name = comp['name']
+            safe_name = _safe_tag(name)
             record: Dict[str, Any] = {
                 'name': name,
                 'R': None,
@@ -962,8 +968,8 @@ class RemoteComsolExecutor:
             comp_mount_bnd_sel_tag = self._build_component_mount_boundary_selection(
                 name, pos_mm, dims_mm, mount_face, component_mount_face
             )
-            pair_tag = f"pair_{name}"
-            adj_tag = f"adj_{name}"
+            pair_tag = f"pair_{safe_name}"
+            adj_tag = f"adj_{safe_name}"
 
             try:
                 existing_tags = {str(t) for t in comp_sel_root.tags()}
@@ -972,14 +978,14 @@ class RemoteComsolExecutor:
                 adj_sel = self.model.java.component('comp1').selection(adj_tag)
                 adj_sel.label(f"adj:{name}")
                 adj_sel.set('entitydim', '2')
-                adj_sel.set('input', [comp_mount_bnd_sel_tag, shell_boundary_sel_tag])
+                adj_sel.set('input', [comp_mount_bnd_sel_tag, face_sel_tag])
                 adj_entities = self._selection_entity_ids(adj_sel)
 
                 comp_mount_entities = self._selection_entity_ids(
                     self.model.java.component('comp1').selection(comp_mount_bnd_sel_tag)
                 )
                 plate_face_entities = self._selection_entity_ids(
-                    self.model.java.component('comp1').selection(shell_boundary_sel_tag)
+                    self.model.java.component('comp1').selection(face_sel_tag)
                 )
                 if not comp_mount_entities or not plate_face_entities:
                     raise RuntimeError('contact pair source/destination selection is empty')
@@ -992,7 +998,7 @@ class RemoteComsolExecutor:
                     pair_root.create(pair_tag, 'Identity', 'geom1')
                 pair = self.model.java.component('comp1').pair(pair_tag)
                 pair.label(f'pair:{name}')
-                pair.source().named(shell_boundary_sel_tag)
+                pair.source().named(face_sel_tag)
                 pair.destination().named(comp_mount_bnd_sel_tag)
                 try:
                     pair.searchMethod('direct')
@@ -1009,7 +1015,8 @@ class RemoteComsolExecutor:
                 record['pair'] = pair_tag
                 record['pair_type'] = 'Identity'
                 record['contact_mode'] = 'identity_pair_shell_boundary_source'
-                record['source_selection'] = shell_boundary_sel_tag
+                record['source_selection'] = face_sel_tag
+                record['global_shell_boundary_selection'] = shell_boundary_sel_tag
                 record['raw_plate_selection'] = face_sel_tag
                 record['destination_selection'] = comp_mount_bnd_sel_tag
                 record['source_boundary_count'] = len(plate_face_entities)
@@ -1029,7 +1036,7 @@ class RemoteComsolExecutor:
                 )
                 applied += 1
                 contact_pairs.append(pair_tag)
-                print(f"    ✓ {name}: IdentityPair {pair_tag}: {shell_boundary_sel_tag} -> {comp_mount_bnd_sel_tag}")
+                print(f"    ✓ {name}: IdentityPair {pair_tag}: {face_sel_tag} -> {comp_mount_bnd_sel_tag}")
 
             except Exception as e:
                 record['note'] = f'skipped: {type(e).__name__}: {e}'
