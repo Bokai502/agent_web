@@ -71,100 +71,26 @@ def envelope_payload(spec: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def install_face_index_from_id(install_face_id: Any, contact_axis: Any, normal_sign: Any) -> int:
-    """Map cad_build_spec install_face_id to hybrid-link face ids.
-
-    Outer shell faces use the external ids (6-11). The hybrid builder then
-    aligns the component contact face to the opposite world-facing normal, so a
-    component +Z face can be seated against a +Z outer shell by flipping it.
-    """
-    text = str(install_face_id or "")
-    token = text.split(".")[-1] if text else ""
-    direction, side = token.split("_", 1) if "_" in token else (token, "")
-    direction_to_face = {
-        "xmin": 6 if side == "outer" else 0,
-        "xmax": 7 if side == "outer" else 1,
-        "ymin": 8 if side == "outer" else 2,
-        "ymax": 9 if side == "outer" else 3,
-        "zmin": 10 if side == "outer" else 4,
-        "zmax": 11 if side == "outer" else 5,
-    }
-    face_id = direction_to_face.get(direction)
-    if face_id is not None:
-        return face_id
-
-    # Legacy fallback for specs that predate install_face_id tokens.
-    for candidate, (_label, axis, direction_sign) in FACE_DEFINITIONS.items():
-        if int(axis) == int(contact_axis) and int(direction_sign) == int(normal_sign):
-            return int(candidate)
-    raise ValueError(f"cannot map install_face_id={install_face_id!r} to a hybrid-link face id")
-
-
-def local_face_index_from_value(value: Any) -> int | None:
-    if value is None:
-        return None
-    if isinstance(value, int):
-        return value
-
-    text = str(value).strip().lower()
-    if not text:
-        return None
-    token = text.split(".")[-1].replace(" ", "").replace("_", "")
-    token_to_face = {
-        "-x": 0,
-        "x-": 0,
-        "xmin": 0,
-        "localxmin": 0,
-        "+x": 1,
-        "x+": 1,
-        "xmax": 1,
-        "localxmax": 1,
-        "-y": 2,
-        "y-": 2,
-        "ymin": 2,
-        "localymin": 2,
-        "+y": 3,
-        "y+": 3,
-        "ymax": 3,
-        "localymax": 3,
-        "-z": 4,
-        "z-": 4,
-        "zmin": 4,
-        "localzmin": 4,
-        "+z": 5,
-        "z+": 5,
-        "zmax": 5,
-        "localzmax": 5,
-    }
-    return token_to_face.get(token)
-
-
 def placement_payload(component: dict[str, Any]) -> dict[str, Any]:
     mount = component.get("mount") if isinstance(component.get("mount"), dict) else {}
-    real_cad = component.get("real_cad") if isinstance(component.get("real_cad"), dict) else {}
     install_face_id = mount.get("install_face_id")
     component_face_id = mount.get("component_face_id")
     component_local_face = mount.get("component_face_index")
-    cad_local_mount_face = (
-        real_cad.get("cad_local_mount_face")
-        or real_cad.get("local_mount_face")
-        or real_cad.get("cad_local_mount_face_id")
-    )
     contact_axis = mount.get("contact_plane_axis")
     normal_sign = mount.get("normal_sign")
-
-    cad_component_local_face = local_face_index_from_value(cad_local_mount_face)
-    if cad_local_mount_face is not None and cad_component_local_face is None:
-        raise ValueError(f"{component.get('id')} real_cad.cad_local_mount_face is invalid: {cad_local_mount_face!r}")
-    if cad_component_local_face is not None:
-        component_local_face = cad_component_local_face
 
     if component_local_face is None:
         component_local_face = 4
     if contact_axis is None or normal_sign is None:
         raise ValueError(f"{component.get('id')} mount.contact_plane_axis and normal_sign are required for hybrid-link")
 
-    install_face = install_face_index_from_id(install_face_id, contact_axis, normal_sign)
+    install_face = None
+    for face_id, (_label, axis, direction) in FACE_DEFINITIONS.items():
+        if int(axis) == int(contact_axis) and int(direction) == int(normal_sign):
+            install_face = face_id
+            break
+    if install_face is None:
+        raise ValueError(f"{component.get('id')} cannot map mount face axis/sign to hybrid-link face id")
     _label, mount_axis, mount_direction = FACE_DEFINITIONS[int(install_face)]
 
     return {
@@ -173,7 +99,6 @@ def placement_payload(component: dict[str, Any]) -> dict[str, Any]:
         "alignment": {},
         "install_face": int(install_face),
         "component_local_face": int(component_local_face),
-        "cad_component_mount_face": cad_local_mount_face,
         "mount_axis": int(mount_axis),
         "mount_direction": int(mount_direction),
         "external": bool(is_external_face(int(install_face))),
