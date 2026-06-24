@@ -593,6 +593,23 @@ def sample_document(sample_id: str, seed: int, simulation_input: dict[str, Any],
             "alignment": component.get("alignment", {}),
             "thermal_interface": {"contact_resistance": contact_resistance},
         }
+    for wall in cabin_walls_from_simulation_input(simulation_input):
+        wall_id = str(wall.get("id") or wall.get("wall_id") or "")
+        if not wall_id:
+            continue
+        components[wall_id] = {
+            "bbox": wall.get("bbox"),
+            "power": 0.0,
+            "category": "internal_partition",
+            "kind": "wall",
+            "material_id": wall.get("material_id", "aluminum_6061"),
+            "thermalconductivity": wall.get("thermalconductivity", wall.get("conductivity_W_mK", 167.0)),
+            "conductivity_W_mK": wall.get("conductivity_W_mK", wall.get("thermalconductivity", 167.0)),
+            "density": wall.get("density", 2700.0),
+            "heatcapacity": wall.get("heatcapacity", wall.get("heat_capacity_J_kgK", 896.0)),
+            "heat_capacity_J_kgK": wall.get("heat_capacity_J_kgK", wall.get("heatcapacity", 896.0)),
+            "thermal_interface": {"contact_resistance": 0.0},
+        }
     outer_shell = dict(geom.get("outer_shell", {}) or {})
     if "thickness" not in outer_shell:
         outer_shell["thickness"] = outer_shell.get("thickness_mm", outer_shell.get("shell_thickness", 0.0))
@@ -625,6 +642,8 @@ def cabin_walls_from_simulation_input(simulation_input: dict[str, Any]) -> list[
         thickness = wall.get("thickness")
         if thickness is None and bbox_min is not None and bbox_max is not None and len(bbox_min) == 3 and len(bbox_max) == 3:
             thickness = min(abs(float(bbox_max[index]) - float(bbox_min[index])) for index in range(3))
+        thermalconductivity = float(wall.get("thermalconductivity", wall.get("conductivity_W_mK", 167.0)))
+        heatcapacity = float(wall.get("heatcapacity", wall.get("heat_capacity_J_kgK", 896.0)))
         walls.append(
             {
                 "id": wall_id,
@@ -637,9 +656,15 @@ def cabin_walls_from_simulation_input(simulation_input: dict[str, Any]) -> list[
                 "between": wall.get("separates") or [],
                 "adjacent_cabins": wall.get("adjacent_cabins") or {},
                 "install_face_ids": wall.get("install_face_ids") or [],
-                "modeling": "conductive_boundary",
-                "entity_model": "boundary",
+                "modeling": str(wall.get("modeling") or "solid"),
+                "entity_model": str(wall.get("entity_model") or "solid"),
                 "power_W": 0.0,
+                "material_id": str(wall.get("material_id") or "aluminum_6061"),
+                "thermalconductivity": thermalconductivity,
+                "conductivity_W_mK": thermalconductivity,
+                "density": float(wall.get("density", 2700.0)),
+                "heatcapacity": heatcapacity,
+                "heat_capacity_J_kgK": heatcapacity,
             }
         )
     return walls

@@ -92,6 +92,44 @@ class RemoteComsolExecutor:
         self.client = None
         self.model = None
 
+    def _thermal_solver_config(self) -> Dict[str, Any]:
+        thermal_sim = self.payload.get('thermal_sim') or {}
+        if not isinstance(thermal_sim, dict):
+            return {}
+        solver_cfg = thermal_sim.get('solver') or {}
+        if not solver_cfg:
+            extra = self.payload.get('extra') or {}
+            if isinstance(extra, dict):
+                solver_cfg = extra.get('solver') or {}
+        return solver_cfg if isinstance(solver_cfg, dict) else {}
+
+    def _load_scale_parameter_name(self) -> Optional[str]:
+        solver_cfg = self._thermal_solver_config()
+        load_scale_cfg = solver_cfg.get('load_scale') or {}
+        if not isinstance(load_scale_cfg, dict) or not load_scale_cfg.get('enabled', False):
+            return None
+        return str(load_scale_cfg.get('parameter', 'load_scale'))
+
+    def _ensure_solver_parameters(self) -> Dict[str, Any]:
+        load_scale = self._load_scale_parameter_name()
+        if not load_scale:
+            return {'load_scale': {'enabled': False}}
+
+        solver_cfg = self._thermal_solver_config()
+        load_scale_cfg = solver_cfg.get('load_scale') or {}
+        values = load_scale_cfg.get('values') or [1.0]
+        final_value = float(values[-1] if isinstance(values, list) and values else values)
+        self.model.parameter(load_scale, str(final_value))
+        return {
+            'load_scale': {
+                'enabled': True,
+                'parameter': load_scale,
+                'values': values,
+                'active_value': final_value,
+                'note': 'Thermal loads reference this parameter; current run solves the final load value directly.',
+            }
+        }
+
     def smoke_test(self) -> Dict[str, Any]:
         return {
             'message': 'remote mph is available',
@@ -400,12 +438,17 @@ class RemoteComsolExecutor:
 
         vol_m3 = (dims_mm[0] * dims_mm[1] * dims_mm[2]) * 1e-9
         q0 = power_w / vol_m3 if vol_m3 > 0 else 0.0
-        hs.set('Q0', f'{q0}[W/m^3]')
+        load_scale = self._load_scale_parameter_name()
+        q0_expr = f'{q0}[W/m^3]'
+        if load_scale:
+            q0_expr = f'{load_scale}*({q0_expr})'
+        hs.set('Q0', q0_expr)
         return {
             'tag': feature_tag,
             'component_name': component_name,
             'power_W': power_w,
             'Q0': q0,
+            'Q0_expression': q0_expr,
         }
 
     def _prepare_mesh_for_v2(self, hauto: int = 3) -> dict:
@@ -1069,9 +1112,13 @@ class RemoteComsolExecutor:
             sel_tag = face['selection']
             hf_tag = f"solar_hf_{_direction_tag(direction)}"
             incident_w_m2 = float(loaded['faces'][direction])
-            absorptivity = float(face.get('absorptivity', loaded['default_absorptivity']))
-            absorbed_w_m2 = absorptivity * incident_w_m2
             try:
+                absorptivity = float(face.get('absorptivity', loaded['default_absorptivity']))
+                absorbed_w_m2 = absorptivity * incident_w_m2
+                q0_expr = f'{absorbed_w_m2:.12g}[W/m^2]'
+                load_scale = self._load_scale_parameter_name()
+                if load_scale:
+                    q0_expr = f'{load_scale}*({q0_expr})'
                 entities = self._selection_entity_ids(self.model.java.component('comp1').selection(sel_tag))
                 if not entities:
                     raise RuntimeError('shell solar heat flux face selection is empty')
@@ -1091,7 +1138,7 @@ class RemoteComsolExecutor:
                 feat = ht.feature(hf_tag)
                 feat.label(f'solar heat flux:{direction}')
                 feat.selection().named(sel_tag)
-                self._set_heat_flux_boundary(feat, absorbed_w_m2)
+                self._set_heat_flux_boundary_expression(feat, q0_expr)
                 applied += 1
                 details.append({
                     'direction': direction,
@@ -1100,6 +1147,7 @@ class RemoteComsolExecutor:
                     'incident_W_m2': incident_w_m2,
                     'absorptivity': absorptivity,
                     'absorbed_W_m2': absorbed_w_m2,
+                    'q0_expression': q0_expr,
                     'feature': hf_tag,
                     'ok': True,
                 })
@@ -1167,6 +1215,12 @@ class RemoteComsolExecutor:
                 f'{absorbed_w_m2:.12g}[W/m^2]'
                 f' + {h_rad:.12g}[W/(m^2*K)]*({t_eq:.12g}[K]-T)'
             )
+            load_scale = self._load_scale_parameter_name()
+            if load_scale:
+                q0_expr = (
+                    f'{load_scale}*({absorbed_w_m2:.12g}[W/m^2])'
+                    f' + {h_rad:.12g}[W/(m^2*K)]*({t_eq:.12g}[K]-T)'
+                )
             try:
                 entities = self._selection_entity_ids(self.model.java.component('comp1').selection(sel_tag))
                 if not entities:
@@ -1257,6 +1311,37 @@ class RemoteComsolExecutor:
         set_many(['Cp', 'C', 'heatcapacity'], f'{heat_capacity_j_kgk}[J/(kg*K)]')
         return {'attempted': attempted}
 
+    def _set_thin_layer_resistance(
+        self,
+        feature: Any,
+        resistance_k_m2_w: float,
+        equivalent_thickness_mm: float = 1.0,
+    ) -> Dict[str, Any]:
+        """Represent contact resistance as a conductive thin layer with k=d/R."""
+        attempted: List[Dict[str, Any]] = []
+
+        def set_many(keys: List[str], value: Any) -> None:
+            for key in keys:
+                try:
+                    feature.set(key, value)
+                    attempted.append({'key': key, 'value': value, 'ok': True})
+                    return
+                except Exception as exc:
+                    attempted.append({'key': key, 'value': value, 'ok': False, 'error': f'{type(exc).__name__}: {exc}'})
+
+        thickness_m = equivalent_thickness_mm * 1e-3
+        conductivity = thickness_m / resistance_k_m2_w if resistance_k_m2_w > 0.0 else 0.0
+        conductance = 1.0 / resistance_k_m2_w if resistance_k_m2_w > 0.0 else 0.0
+        set_many(['LayerType', 'layerType', 'layertype'], 'Conductive')
+        set_many(['ds', 'd', 'thickness', 'Lth'], f'{equivalent_thickness_mm}[mm]')
+        set_many(['ks', 'k', 'k_mat', 'thermalconductivity'], [f'{conductivity}[W/(m*K)]'])
+        return {
+            'attempted': attempted,
+            'equivalent_thickness_mm': equivalent_thickness_mm,
+            'equivalent_thermalconductivity_W_mK': conductivity,
+            'equivalent_conductance_W_m2K': conductance,
+        }
+
     def _apply_wall_conduction_v2(
         self,
         cabin_walls: List[Dict[str, Any]],
@@ -1310,6 +1395,9 @@ class RemoteComsolExecutor:
             bmin_f = [float(v) - inflate_mm for v in bmin]
             bmax_f = [float(v) + inflate_mm for v in bmax]
             thickness_mm = float(thickness)
+            wall_conductivity = float(wall.get('thermalconductivity', wall.get('conductivity_W_mK', conductivity)))
+            wall_density = float(wall.get('density', density))
+            wall_heat_capacity = float(wall.get('heatcapacity', wall.get('heat_capacity_J_kgK', heat_capacity)))
             try:
                 if sel_tag not in existing_selections:
                     sel_root.create(sel_tag, 'Box')
@@ -1337,9 +1425,9 @@ class RemoteComsolExecutor:
                 property_result = self._set_thin_layer_conduction(
                     feature,
                     thickness_mm,
-                    conductivity,
-                    density,
-                    heat_capacity,
+                    wall_conductivity,
+                    wall_density,
+                    wall_heat_capacity,
                 )
                 applied += 1
                 details.append({
@@ -1350,14 +1438,15 @@ class RemoteComsolExecutor:
                     'boundary_count': len(entities),
                     'boundary_ids': entities,
                     'thickness_mm': thickness_mm,
-                    'thermalconductivity_W_mK': conductivity,
-                    'surface_conductance_W_m2K': conductivity / (thickness_mm / 1000.0),
-                    'density_kg_m3': density,
-                    'heatcapacity_J_kgK': heat_capacity,
+                    'material_id': wall.get('material_id', 'aluminum_6061'),
+                    'thermalconductivity_W_mK': wall_conductivity,
+                    'surface_conductance_W_m2K': wall_conductivity / (thickness_mm / 1000.0),
+                    'density_kg_m3': wall_density,
+                    'heatcapacity_J_kgK': wall_heat_capacity,
                     'property_setup': property_result,
                     'ok': True,
                 })
-                print(f"    ✓ {thin_tag}: wall={wall_id}, boundary_count={len(entities)}, k={conductivity:g} W/(m*K), d={thickness_mm:g} mm")
+                print(f"    ✓ {thin_tag}: wall={wall_id}, boundary_count={len(entities)}, k={wall_conductivity:g} W/(m*K), d={thickness_mm:g} mm")
             except Exception as exc:
                 skipped += 1
                 details.append({
@@ -1440,6 +1529,7 @@ class RemoteComsolExecutor:
         components_data: list,
         install_faces: dict,
         outer_shell: Optional[Dict[str, Any]] = None,
+        boundary_conditions: Optional[Dict[str, Any]] = None,
     ) -> dict:
         """为每个 v2 组件添加组件底面热接触.
 
@@ -1455,6 +1545,14 @@ class RemoteComsolExecutor:
         applied, skipped = 0, 0
         details = []
         contact_pairs: List[str] = []
+        contact_cfg = (boundary_conditions or {}).get('contact_resistance', {})
+        contact_mode = str(contact_cfg.get('mode', 'identity_pair')).lower()
+        use_shared_boundary = contact_mode in {
+            'shared_boundary',
+            'shared_boundary_thin_layer',
+            'internal_boundary',
+            'thin_layer',
+        }
         shell_boundary = self._build_non_component_boundary_selection(components_data, outer_shell)
         shell_boundary_sel_tag = shell_boundary['boundary_selection']
 
@@ -1513,6 +1611,47 @@ class RemoteComsolExecutor:
                     raise RuntimeError('contact pair source/destination selection is empty')
                 overlap_entities = sorted(set(plate_face_entities) & set(comp_mount_entities))
                 source_destination_same = sorted(plate_face_entities) == sorted(comp_mount_entities)
+
+                if use_shared_boundary and overlap_entities:
+                    contact_tag = f"thin_contact_{safe_name}"
+                    if contact_tag not in ht.feature().tags():
+                        ht.create(contact_tag, 'ThinLayer', 2)
+                    contact = ht.feature(contact_tag)
+                    contact.label(f'thin contact:{name}')
+                    contact_entities = overlap_entities
+                    contact.selection().set(contact_entities)
+                    property_result = self._set_thin_layer_resistance(contact, R)
+
+                    record['ok'] = True
+                    record['selection'] = adj_tag
+                    record['pair'] = None
+                    record['pair_type'] = None
+                    record['contact_mode'] = 'shared_boundary_thin_layer'
+                    record['source_selection'] = face_sel_tag
+                    record['global_shell_boundary_selection'] = shell_boundary_sel_tag
+                    record['raw_plate_selection'] = face_sel_tag
+                    record['destination_selection'] = comp_mount_bnd_sel_tag
+                    record['source_boundary_count'] = len(plate_face_entities)
+                    record['destination_boundary_count'] = len(comp_mount_entities)
+                    record['source_boundary_ids'] = plate_face_entities
+                    record['destination_boundary_ids'] = comp_mount_entities
+                    record['source_destination_overlap_ids'] = overlap_entities
+                    record['source_destination_same_entities'] = source_destination_same
+                    record['feature'] = contact_tag
+                    record['feature_type'] = 'ThinLayer'
+                    record['boundary_count'] = len(contact_entities)
+                    record['pair_selection'] = None
+                    record['Req'] = R
+                    record['layer_conductance_W_m2K'] = 1.0 / R
+                    record['property_setup'] = property_result
+                    record['note'] = (
+                        f'Equivalent ThinLayer contact; '
+                        f'Req={R:.4g} K*m^2/W'
+                    )
+                    applied += 1
+                    print(f"    ✓ {name}: ThinLayer {contact_tag}: boundaries={contact_entities}")
+                    details.append(record)
+                    continue
 
                 pair_root = self.model.java.component('comp1').pair()
                 pair_tags = {str(t) for t in pair_root.tags()}
@@ -1930,11 +2069,13 @@ class RemoteComsolExecutor:
                     'validation': sel_check,
                 }
                 status['checks']['wall_modeling'] = {
-                    'mode': 'conductive_boundary',
+                    'mode': 'solid' if wall_sel_result.get('created', 0) else 'conductive_boundary',
                     'wall_count': len(meta_v2.get('cabin_walls') or []),
+                    'solid_selection_count': wall_sel_result.get('created', 0),
+                    'solid_selection_tags': wall_sel_result.get('tags', []),
                     'boundary_mode_count': wall_sel_result.get('boundary_mode_count', 0),
                     'boundary_mode_tags': wall_sel_result.get('boundary_mode_tags', []),
-                    'note': 'Walls are represented as conductive-boundary metadata and are not meshed as solid domains.',
+                    'note': 'Solid-mode walls are imported STEP domains and use the normal material path; boundary-mode walls use ThinLayer features.',
                 }
             else:
                 # ---- v1 原路径 ----
@@ -1960,13 +2101,23 @@ class RemoteComsolExecutor:
                 raise RuntimeError(f"Selection检查失败: {sel_check['message']}")
 
             if schema_version.startswith('2'):
+                solver_parameter_result = self._ensure_solver_parameters()
+                status['checks']['solver_parameters'] = solver_parameter_result
+                self._write_sample_status(status_json, status)
                 material_result = self._ensure_v2_fallback_material()
                 status['checks']['materials'] = material_result
                 self._write_sample_status(status_json, status)
                 if not material_result['ok']:
                     raise RuntimeError(f"材料设置失败: {material_result.get('error')}")
+                boundary_walls = [
+                    wall for wall in (meta_v2.get('cabin_walls') or [])
+                    if str(wall.get('modeling') or wall.get('entity_model') or '').lower() in {
+                        'conductive_boundary',
+                        'boundary',
+                    }
+                ]
                 wall_conduction_result = self._apply_wall_conduction_v2(
-                    meta_v2.get('cabin_walls') or [],
+                    boundary_walls,
                     boundary_conditions,
                 )
                 status['checks']['wall_conduction'] = wall_conduction_result
@@ -2049,7 +2200,10 @@ class RemoteComsolExecutor:
                 self._write_sample_status(status_json, status)
                 set_stage('apply_contact_resistance')
                 cr_result = self._apply_contact_resistance_v2(
-                    meta_v2['components'], meta_v2['install_faces'], meta_v2.get('outer_shell')
+                    meta_v2['components'],
+                    meta_v2['install_faces'],
+                    meta_v2.get('outer_shell'),
+                    boundary_conditions,
                 )
                 status['checks']['contact_resistance'] = cr_result
                 init_result = self._set_heat_transfer_initial_temperature_v2(boundary_conditions)
