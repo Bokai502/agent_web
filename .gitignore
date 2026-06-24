@@ -3,6 +3,7 @@ dist/
 .env
 *.local
 config.json
+test/
 backend/sessions.json
 backend/config.json
 backend/logs/
@@ -10,7 +11,6 @@ backend/dist/
 backend/node_modules/
 backend/skills.json
 backend/config.json
-
 frontend/dist/
 frontend/node_modules/
 

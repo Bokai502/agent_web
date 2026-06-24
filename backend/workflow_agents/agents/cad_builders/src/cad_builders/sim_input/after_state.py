@@ -8,6 +8,8 @@ from typing import Any
 
 import numpy as np
 
+from .catch_simulation_preprocess import preprocess_catch_simulation_spec
+
 
 def parse_grid_shape(value: str) -> tuple[int, int, int]:
     parts = [part.strip() for part in value.split(",")]

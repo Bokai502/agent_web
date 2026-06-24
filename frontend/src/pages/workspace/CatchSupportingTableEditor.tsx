@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { joinApiPath } from "../../app/apiBase"
 import "./CatchSupportingTableEditor.css"
+import { HeatfluxSelector } from "./HeatfluxSelector"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 
 const COLUMNS = ["产品名称", "重量（Kg）", "包络尺寸（mm）", "稳态功耗（W）", "峰值功耗（W）", "工作温度（℃）", "配套单位"] as const
+const RESULT_COLUMNS = ["热仿真温度（℃）"] as const
 const TARGET_MASS_KG = 44
 
 type CatchTableColumn = typeof COLUMNS[number]
+type CatchResultColumn = typeof RESULT_COLUMNS[number]
 type CatchTableRow = {
   id?: string
   row?: number
-} & Partial<Record<CatchTableColumn, string | number | null>>
+} & Partial<Record<CatchTableColumn, string | number | null>> & Partial<Record<CatchResultColumn, string | number | null>> & {
+  "热仿真温度平均（℃）"?: number | null
+  "热仿真温度最低（℃）"?: number | null
+  "热仿真温度最高（℃）"?: number | null
+  "热仿真温度状态"?: "in_range" | "high" | "low" | "missing" | "no_range"
+  "热仿真温度组件ID"?: string | null
+  "热仿真温度样本数"?: number | null
+}
 
 type CatchTableResponse = {
   generation?: {
@@ -50,12 +60,20 @@ function buildQuery(activeContext: WorkspaceVersionContext) {
 }
 
 function normalizeRows(rows: CatchTableRow[]) {
-  return rows.map((row, index) => ({ ...row, id: row.id ?? `r${row.row ?? index + 1}` }))
+  return rows
+    .filter(row => !isSummaryRow(row))
+    .map((row, index) => ({ ...row, id: row.id ?? `r${row.row ?? index + 1}` }))
 }
 
 function isSubsystemRow(row: CatchTableRow) {
   const name = String(row["产品名称"] ?? "")
-  return name.endsWith("分系统") && row["重量（Kg）"] == null && row["稳态功耗（W）"] == null
+  return name.endsWith("分系统")
+}
+
+function isSummaryRow(row: CatchTableRow) {
+  const name = String(row["产品名称"] ?? "").trim()
+  const size = String(row["包络尺寸（mm）"] ?? "").trim()
+  return name === "整星质量" || name === "整星" || (!name && size === "整星") || (name === "整星质量" && size === "平台")
 }
 
 function rowSearchText(row: CatchTableRow) {
@@ -72,6 +90,11 @@ function toNumber(value: unknown) {
 function cellValue(row: CatchTableRow | undefined, column: CatchTableColumn) {
   const value = row?.[column]
   return value == null ? "" : String(value)
+}
+
+function resultCellValue(row: CatchTableRow | undefined, column: CatchResultColumn) {
+  const value = row?.[column]
+  return value == null || value === "" ? "无结果" : String(value)
 }
 
 function isCellChanged(row: CatchTableRow, baseline: CatchTableRow | undefined, column: CatchTableColumn) {
@@ -106,10 +129,14 @@ function findInsertIndex(rowViews: RowView[], subsystem: string) {
   return insertIndex
 }
 
+function temperatureCellClass(row: CatchTableRow) {
+  const status = row["热仿真温度状态"] ?? "missing"
+  return `catch-temperature-cell is-${status}`
+}
+
 export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: CatchSupportingTableEditorProps) {
   const [rows, setRows] = useState<CatchTableRow[]>([])
   const [baselineRows, setBaselineRows] = useState<CatchTableRow[]>([])
-  const [sourcePath, setSourcePath] = useState("")
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState("准备读取 CATCH 整星配套表")
@@ -133,7 +160,6 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
         const nextRows = normalizeRows(data.rows ?? [])
         setRows(nextRows)
         setBaselineRows(nextRows)
-        setSourcePath(data.source_path ?? "")
         setStatus("配套表已加载")
       })
       .catch(error => setStatus(error instanceof Error ? error.message : "读取 CATCH 配套表失败"))
@@ -206,6 +232,7 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
       "峰值功耗（W）": 0,
       "工作温度（℃）": "",
       "配套单位": "CATCH",
+      "热仿真温度状态": "missing",
     }
     const insertIndex = findInsertIndex(rowViews, subsystem)
     setRows(previous => [
@@ -216,10 +243,6 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
     if (search) setSearch("")
     if (changedOnly) setChangedOnly(false)
     setStatus("已新增一行")
-  }
-
-  const addRow = () => {
-    addRowToSubsystem(subsystemFilter)
   }
 
   const deleteRow = (rowIndex: number) => {
@@ -234,7 +257,7 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
     fetch(`${joinApiPath(apiBase, "/workspace/catch-supporting-table")}${query}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows }),
+      body: JSON.stringify({ rows: rows.filter(row => !isSummaryRow(row)) }),
     })
       .then(async response => {
         if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? "保存 CATCH 配套表失败")
@@ -244,7 +267,6 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
         const nextRows = normalizeRows(data.table?.rows ?? data.rows ?? rows)
         setRows(nextRows)
         setBaselineRows(nextRows)
-        setSourcePath(data.source_path ?? sourcePath)
         const componentCount = data.generation?.component_count
         setStatus(componentCount == null
           ? "已刷新当前工作区 00_inputs"
@@ -269,16 +291,16 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
         <div className="catch-config-title">
           <span>CATCH 热仿真输入</span>
           <strong>整星配套表</strong>
-          <small>{sourcePath || "workspaceDir/00_inputs/CATCH整星配套表.xlsx"}</small>
         </div>
         <div className="catch-config-actions">
-          <button type="button" onClick={addRow} disabled={saving}>新增行</button>
           <button type="button" onClick={loadTable} disabled={loading || saving}>重新读取</button>
           <button type="button" className="primary" onClick={save} disabled={loading || saving || rows.length === 0}>
             {saving ? "刷新中" : dirty ? "保存并刷新" : "重新生成 00_inputs"}
           </button>
         </div>
       </div>
+
+      <HeatfluxSelector activeContext={activeContext} apiBase={apiBase} />
 
       <div className="catch-config-summary">
         <div className="catch-config-stat">
@@ -340,29 +362,38 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
                 <tr>
                   <th>分系统</th>
                   {COLUMNS.map(column => <th key={column}>{column}</th>)}
+                  {RESULT_COLUMNS.map(column => <th key={column}>{column}</th>)}
                   <th>操作</th>
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map(view => {
                   const rowClassName = [view.subsystemRow ? "is-subsystem" : "", view.changed ? "is-changed" : ""].filter(Boolean).join(" ")
+                  const subsystemLabel = view.subsystemRow ? view.subsystem : view.subsystem.replace(/分系统$/u, "")
                   return (
                     <tr key={`${view.row.id ?? view.index}-${view.index}`} className={rowClassName}>
-                      <td className="catch-subsystem-cell">{view.subsystemRow ? "分组" : view.subsystem.replace(/分系统$/u, "")}</td>
+                      <td className="catch-subsystem-cell">{subsystemLabel}</td>
                       {view.subsystemRow ? (
-                        <td className="catch-subsystem-title-cell" colSpan={COLUMNS.length}>
-                          <strong>{cellValue(view.row, "产品名称")}</strong>
-                        </td>
+                        <td className="catch-subsystem-spacer-cell" colSpan={COLUMNS.length + RESULT_COLUMNS.length} aria-label={subsystemLabel} />
                       ) : (
-                        COLUMNS.map(column => (
-                          <td key={column} className={isCellChanged(view.row, view.baseline, column) ? "is-cell-changed" : undefined}>
-                            <input
-                              value={cellValue(view.row, column)}
-                              onChange={event => updateCell(view.index, column, event.target.value)}
-                              aria-label={`${column}-${view.index + 1}`}
-                            />
-                          </td>
-                        ))
+                        <>
+                          {COLUMNS.map(column => (
+                            <td key={column} className={isCellChanged(view.row, view.baseline, column) ? "is-cell-changed" : undefined}>
+                              <input
+                                value={cellValue(view.row, column)}
+                                onChange={event => updateCell(view.index, column, event.target.value)}
+                                aria-label={`${column}-${view.index + 1}`}
+                              />
+                            </td>
+                          ))}
+                          {RESULT_COLUMNS.map(column => (
+                            <td key={column} className={temperatureCellClass(view.row)}>
+                              <span title={`组件 ${view.row["热仿真温度组件ID"] ?? "-"}，样本 ${view.row["热仿真温度样本数"] ?? 0}`}>
+                                {resultCellValue(view.row, column)}
+                              </span>
+                            </td>
+                          ))}
+                        </>
                       )}
                       <td>
                         {view.subsystemRow ? (
@@ -383,7 +414,7 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
                 })}
                 {visibleRows.length === 0 ? (
                   <tr>
-                    <td className="catch-table-empty" colSpan={COLUMNS.length + 2}>没有匹配的行</td>
+                    <td className="catch-table-empty" colSpan={COLUMNS.length + RESULT_COLUMNS.length + 2}>没有匹配的行</td>
                   </tr>
                 ) : null}
               </tbody>

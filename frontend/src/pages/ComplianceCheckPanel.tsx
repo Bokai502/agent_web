@@ -501,6 +501,23 @@ function updateManufacturerConfirmationRow(row: JsonRow, key: string, value: str
   return next
 }
 
+function keyPartDisplayValue(value: unknown) {
+  const text = asText(value).trim()
+  if (/^(true|是|关键|yes|y|1)$/iu.test(text)) return "是"
+  if (/^(false|否|非关键|no|n|0)$/iu.test(text)) return "否"
+  return text || "否"
+}
+
+function updateKeyUnitConfirmationRow(row: JsonRow, key: string, value: string) {
+  if (key !== "is_key_part" && key !== "关键部位" && key !== "关键器件") return { ...row, [key]: value }
+  const nextValue = keyPartDisplayValue(value)
+  return {
+    ...row,
+    is_key_part: nextValue,
+    "关键部位": nextValue,
+  }
+}
+
 function fullNamesFromPayload(value: unknown) {
   return isJsonRecord(value) && Array.isArray(value.full_names)
     ? previousUnique(value.full_names.map(asText))
@@ -685,6 +702,7 @@ function isJsonRecord(value: unknown): value is JsonRow {
 
 function getComplianceValue(row: JsonRow, key: string, rowIndex = 0) {
   if (key === "index") return row.index ?? row["序号"] ?? row.excel_row ?? rowIndex + 1
+  if (key === "is_key_part") return keyPartDisplayValue(row.is_key_part ?? row["关键部位"] ?? row["关键器件"])
   if (key === "catalog_model") {
     const selectedCandidate = isJsonRecord(row.selected_candidate) ? row.selected_candidate : null
     const bestCandidate = bestCatalogCandidate(row)
@@ -803,6 +821,10 @@ function catalogCandidateSummary(candidate: JsonRow | null) {
 
 function complianceStatusCounts(rows: JsonRow[]) {
   const issue = rows.filter(row => {
+    const hasKeyPartFlag = row.is_key_part !== undefined || row["关键部位"] !== undefined || row["关键器件"] !== undefined
+    if (hasKeyPartFlag && row.status === undefined && row["目录内或外"] === undefined && row.is_in_catalog === undefined && row["是否满足要求"] === undefined) {
+      return false
+    }
     const status = asText(row.status ?? row["目录内或外"] ?? row.is_in_catalog ?? row["是否满足要求"])
     return status && !isPositiveJudgement(status)
   }).length
@@ -844,8 +866,7 @@ function isKnownCatalogGroup(group: string) {
 }
 
 function keyUnitFlag(row: JsonRow) {
-  const value = asText(row.is_key_part ?? row["关键器件"] ?? row.status)
-  return /^(true|是|关键|yes|1)$/iu.test(value)
+  return keyPartDisplayValue(row.is_key_part ?? row["关键部位"] ?? row["关键器件"] ?? row.status) === "是"
 }
 
 function reliabilityHitCounts(row: JsonRow) {
@@ -1448,6 +1469,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
       ...previous,
       [tabKey]: (previous[tabKey] ?? []).map((row, index) => {
         if (index !== rowIndex) return row
+        if (tabKey === "key-units") return updateKeyUnitConfirmationRow(row, key, value)
         if (tabKey !== "manufacturer") return { ...row, [key]: value }
         return updateManufacturerConfirmationRow(row, key, value)
       }),
@@ -1594,7 +1616,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
                   "是否满足要求": ["满足", "需关注", "不满足", "无法确认"],
                   "质量等级": ["CAST A", "CAST B", "CAST C", "GJB", "军品级", "工业级", "民品级", "商业级", "未填写"],
                   "最低要求": ["CAST A", "CAST B", "CAST C", "GJB", "军品级", "工业级"],
-                  is_key_part: ["true", "false"],
+                  is_key_part: ["是", "否"],
                   is_in_catalog: ["目录内", "目录外", "未提供目录", "无"],
                   status: ["符合", "不符合", "需确认"],
                 }}
@@ -2113,6 +2135,10 @@ function priorityToneColor(priority: DashboardRiskRow["priority"]) {
 
 function optionToneColor(key: string, value: string) {
   const text = value.trim()
+  if (key === "is_key_part" || key === "关键部位" || key === "关键器件") {
+    if (keyPartDisplayValue(text) === "是") return KPI_PINK
+    return HUD_MUTED
+  }
   if (key === "国产/进口") {
     if (text === "国产") return KPI_TEAL
     if (text === "进口") return KPI_ORANGE

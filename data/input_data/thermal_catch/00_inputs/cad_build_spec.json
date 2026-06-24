@@ -46,7 +46,7 @@
       549.9997430734873,
       309.9113022255524
     ],
-    "shell_thickness": 10.0,
+    "shell_thickness": 10,
     "display": {
       "mode": "wireframe",
       "color": [
@@ -161,7 +161,7 @@
       ],
       "simulation": {
         "include": true,
-        "power_W": 0.0,
+        "power_W": 0,
         "selection_role": "internal_partition"
       }
     },
@@ -200,7 +200,7 @@
       ],
       "simulation": {
         "include": true,
-        "power_W": 0.0,
+        "power_W": 0,
         "selection_role": "internal_partition"
       }
     }
@@ -244,7 +244,7 @@
       ],
       "bbox": {
         "min": [
-          50.0,
+          50,
           -274.999871536742,
           49.98546911126984
         ],
@@ -269,7 +269,7 @@
         "normal_sign": -1,
         "footprint_bbox_2d": [
           [
-            50.0,
+            50,
             49.98546911126984
           ],
           [
@@ -280,7 +280,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 8.0,
+        "power_W": 8,
         "mass_kg": 0.101567,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -365,7 +365,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 8.0,
+        "power_W": 8,
         "mass_kg": 0.101567,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -450,7 +450,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 3.0,
+        "power_W": 3,
         "mass_kg": 0.113434,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -535,7 +535,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 3.0,
+        "power_W": 3,
         "mass_kg": 0.113434,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -620,7 +620,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 12.0,
+        "power_W": 12,
         "mass_kg": 1.444314,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -705,7 +705,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 6.0,
+        "power_W": 6,
         "mass_kg": 0.758749,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -790,7 +790,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 3.0,
+        "power_W": 3,
         "mass_kg": 0.113434,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -875,7 +875,7 @@
       },
       "thermal": {
         "include_in_simulation": true,
-        "power_W": 3.0,
+        "power_W": 3,
         "mass_kg": 0.249458,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -960,7 +960,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 1.370495,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1045,7 +1045,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1130,7 +1130,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1215,7 +1215,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.396942,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1300,7 +1300,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.115733,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1385,7 +1385,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.237027,
         "material_id": "battery_cells_aluminum_case",
         "contact_resistance": 0.001
@@ -1470,7 +1470,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1555,7 +1555,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.136299,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1640,7 +1640,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.292465,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1725,7 +1725,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.293779,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1810,7 +1810,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.387591,
         "material_id": "stainless_steel",
         "contact_resistance": 0.001
@@ -1895,7 +1895,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -1980,7 +1980,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2065,7 +2065,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 3.354686,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2150,7 +2150,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.236935,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2235,7 +2235,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2320,7 +2320,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2405,7 +2405,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2490,7 +2490,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2575,7 +2575,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2660,7 +2660,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 6.686288,
         "material_id": "battery_cells_aluminum_case",
         "contact_resistance": 0.001
@@ -2745,7 +2745,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001
@@ -2830,7 +2830,7 @@
       },
       "thermal": {
         "include_in_simulation": false,
-        "power_W": 0.0,
+        "power_W": 0,
         "mass_kg": 0.05,
         "material_id": "aluminum_6061",
         "contact_resistance": 0.001

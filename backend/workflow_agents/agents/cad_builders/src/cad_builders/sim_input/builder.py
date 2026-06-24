@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .after_state import build_geom, build_registry, parse_grid_shape, write_grid_inputs
+from .catch_simulation_preprocess import preprocess_catch_simulation_spec
 from .support import (
     build_simulation_input,
     default_cad_dir,
@@ -36,17 +37,7 @@ def simulation_components(data):
     raw_components = data.get("components") or []
     if isinstance(raw_components, dict):
         raw_components = list(raw_components.values())
-    result = []
-    for component in raw_components:
-        thermal = component.get("thermal") if isinstance(component.get("thermal"), dict) else {}
-        power = thermal.get("power_W")
-        try:
-            include = bool(thermal.get("include_in_simulation")) and power is not None and float(power) > 0.0
-        except Exception:
-            include = False
-        if include:
-            result.append(component)
-    return result
+    return [component for component in raw_components if isinstance(component, dict)]
 ''',
     body=r'''
 try:
@@ -66,6 +57,12 @@ try:
             component.get("dims", [1,1,1]),
             placement.get("rotation_matrix") or component.get("rotation_rows"),
         ))
+    wall_objects = []
+    for wall in data.get("walls") or []:
+        wall_obj = build_wall(doc, wall)
+        if wall_obj:
+            wall_objects.append(wall_obj)
+            objects.append(wall_obj)
     doc.recompute()
     Import.export(objects, str(STEP_PATH))
     fit_active_view(doc)
@@ -75,7 +72,7 @@ try:
         "save_path": str(STEP_PATH),
         "component_count": len(components),
         "wall_count": len(data.get("walls") or []),
-        "wall_solid_count": 0,
+        "wall_solid_count": len(wall_objects),
         "envelope": bool(envelope),
         "export_object_count": len(objects),
     }))
@@ -104,13 +101,21 @@ class CadSimInputBuilder:
         workspace_dir, spec_path, output_dir, spec = self.resolve_paths(request)
         step_path = output_dir / "geometry_after_power_filtered.step"
         simulation_input_path = output_dir / "simulation_input.json"
-        write_json(simulation_input_path, build_simulation_input(spec, step_filename=step_path.name))
+        simulation_spec, preprocess_report = preprocess_catch_simulation_spec(spec)
+        preprocessed_spec_path = output_dir / "cad_build_spec.simulation_preprocessed.json"
+        preprocess_report_path = output_dir / "cad_build_spec.simulation_preprocess_report.json"
+        write_json(preprocessed_spec_path, simulation_spec)
+        write_json(preprocess_report_path, preprocess_report)
+        write_json(simulation_input_path, build_simulation_input(simulation_spec, step_filename=step_path.name))
         doc_name = request.doc_name or default_doc_name(workspace_dir, "simulation")
         host, port = freecad_rpc_settings(request.host, request.port)
-        payload = execute_freecad_code(host, port, self.render_script(spec_path, step_path, doc_name))
+        payload = execute_freecad_code(host, port, self.render_script(preprocessed_spec_path, step_path, doc_name))
         return {
             "success": bool(payload.get("success")) and step_path.exists() and simulation_input_path.exists(),
             "spec_path": str(spec_path),
+            "preprocessed_spec_path": str(preprocessed_spec_path),
+            "preprocess_report_path": str(preprocess_report_path),
+            "preprocess": preprocess_report,
             "document": payload.get("document"),
             "step_path": str(step_path) if step_path.exists() else None,
             "simulation_input_path": str(simulation_input_path),
@@ -165,7 +170,16 @@ class CadAfterStatePreparer:
         )
         grid_shape = parse_grid_shape(request.grid_shape)
         simulation_input_path = cad_dir / "simulation_input.json"
-        layout = spec_to_layout_data(read_json(spec_path), simulation_only=True, include_walls=True)
+        preprocessed_spec_path = cad_dir / "cad_build_spec.simulation_preprocessed.json"
+        preprocess_report_path = cad_dir / "cad_build_spec.simulation_preprocess_report.json"
+        if preprocessed_spec_path.exists():
+            simulation_spec = read_json(preprocessed_spec_path)
+            preprocess_report = read_json(preprocess_report_path) if preprocess_report_path.exists() else {}
+        else:
+            simulation_spec, preprocess_report = preprocess_catch_simulation_spec(read_json(spec_path))
+            write_json(preprocessed_spec_path, simulation_spec)
+            write_json(preprocess_report_path, preprocess_report)
+        layout = spec_to_layout_data(simulation_spec, simulation_only=True, include_walls=True)
         simulation_input = read_json(simulation_input_path)
         geom = build_geom(layout, simulation_input)
         registry = build_registry(geom, simulation_input)
@@ -194,6 +208,8 @@ class CadAfterStatePreparer:
                 "geometry_after_geom": str(after_geom_path),
                 "geometry_after_layout_topology": str(after_layout_path),
                 "geometry_after_registry": str(registry_path),
+                "preprocessed_spec": str(preprocessed_spec_path),
+                "preprocess_report": str(preprocess_report_path),
                 "coord": str(coord_path),
                 "channels_input": str(channels_path),
             },

@@ -573,6 +573,129 @@ describe("workspace data routes", () => {
     }
   })
 
+  it("allows the Three.js temperature surface preview to exceed the generic text limit", async () => {
+    const surfacePath = path.join(versionDir(), "02_sim", "postprocess", "temperature_surface_threejs.json")
+    await fs.mkdir(path.dirname(surfacePath), { recursive: true })
+    await fs.writeFile(surfacePath, JSON.stringify({
+      attributes: {
+        color_rgb: [1, 0, 0],
+        index: [0, 0, 0],
+        position: [0, 0, 0],
+        temperature_K: [300],
+      },
+      padding: "x".repeat((8 * 1024 * 1024) + 1),
+      temperature_range_K: { max: 300, min: 300 },
+    }), "utf-8")
+    const server = await createTestServer({
+      config: createTestConfig({
+        workspace: {
+          textFileMaxBytes: 8 * 1024 * 1024,
+        },
+      }),
+    })
+    const workspaceDir = encodeURIComponent(versionDir())
+
+    try {
+      const response = await server.inject({
+        method: "GET",
+        url: `/api/workspace/files/text?workspaceDir=${workspaceDir}&relativePath=${encodeURIComponent("02_sim/postprocess/temperature_surface_threejs.json")}&maxBytes=${64 * 1024 * 1024}`,
+      })
+      const body = response.json()
+
+      assert.equal(response.statusCode, 200)
+      assert.equal(body.relativePath, "02_sim/postprocess/temperature_surface_threejs.json")
+      assert.equal(body.mimeType, "application/json")
+      assert.ok(typeof body.content === "string" && body.content.length > 8 * 1024 * 1024)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("resolves CAD component display names from cad_build_spec.json", async () => {
+    await writeJson(path.join(versionDir(), "00_inputs", "cad_build_spec.json"), {
+      components: [
+        {
+          id: "P027",
+          display_name: "测控天线",
+          dims: [50, 68.771897, 50],
+          kind: "equipment",
+          model: "ANT-27",
+          semantic_name: "antenna-27",
+          subsystem: "通信",
+        },
+      ],
+      schema_version: "cad_build_spec/1.0",
+    })
+    const server = await createTestServer()
+
+    try {
+      const response = await server.inject({
+        method: "GET",
+        url: `/api/workspace/cad-component-display-names?workspaceDir=${encodeURIComponent(versionDir())}`,
+      })
+      const body = response.json()
+
+      assert.equal(response.statusCode, 200)
+      assert.equal(body.schema_version, "cad_build_spec/1.0")
+      assert.match(body.source_path, /cad_build_spec\.json$/u)
+      assert.deepEqual(body.components[0], {
+        component_id: "P027",
+        dimensions: "50 x 68.772 x 50",
+        display_name: "测控天线",
+        kind: "equipment",
+        model_name: "ANT-27",
+        semantic_name: "antenna-27",
+        subsystem: "通信",
+      })
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("falls back to real_bom.json for CAD component display names", async () => {
+    await fs.rm(path.join(versionDir(), "00_inputs", "cad_build_spec.json"), { force: true })
+    await writeJson(path.join(versionDir(), "00_inputs", "real_bom.json"), {
+      items: [
+        {
+          component_id: "P027",
+          component_subtype: "antenna",
+          kind: "external",
+          semantic_name: "catch_catch_p027_测控_数传_短报文天线候选_FY",
+          size_mm: [50.0000002, 68.771897045299, 50.0000002],
+          source_ref: {
+            display_name: "测控/数传/短报文天线候选 FY",
+            template_model: "catch_catch_p027_测控_数传_短报文天线候选_FY",
+          },
+        },
+      ],
+      schema_version: "real-bom/1.0",
+    })
+    const server = await createTestServer()
+
+    try {
+      const response = await server.inject({
+        method: "GET",
+        url: `/api/workspace/cad-component-display-names?workspaceDir=${encodeURIComponent(versionDir())}`,
+      })
+      const body = response.json()
+
+      assert.equal(response.statusCode, 200)
+      assert.equal(body.schema_version, "real-bom/1.0")
+      assert.match(body.source_path, /real_bom\.json$/u)
+      assert.deepEqual(body.components[0], {
+        component_id: "P027",
+        dimensions: "50 x 68.772 x 50",
+        display_name: "测控/数传/短报文天线候选 FY",
+        kind: "external",
+        model_name: "catch_catch_p027_测控_数传_短报文天线候选_FY",
+        semantic_name: "catch_catch_p027_测控_数传_短报文天线候选_FY",
+        subsystem: "",
+      })
+    } finally {
+      await server.close()
+    }
+  })
+
   it("enriches real BOM items that use direct template model fields", async () => {
     await fs.rm(path.join(versionDir(), "00_inputs", "bom_component_info.json"))
     await writeJson(path.join(versionDir(), "00_inputs", "real_bom.json"), {
@@ -753,10 +876,59 @@ describe("workspace data routes", () => {
         "包络尺寸（mm）": "100x100x60",
         "稳态功耗（W）": 7.7,
         "峰值功耗（W）": 45,
-        "工作温度（℃）": "",
+        "工作温度（℃）": "-20 ~ 50℃",
         "配套单位": "用户",
       },
+      {
+        id: "r4",
+        row: 4,
+        "产品名称": "整星质量",
+        "重量（Kg）": 9.9,
+        "包络尺寸（mm）": "平台",
+        "稳态功耗（W）": 7.7,
+        "峰值功耗（W）": 45,
+        "工作温度（℃）": null,
+        "配套单位": "CATCH",
+      },
+      {
+        id: "r5",
+        row: 5,
+        "产品名称": null,
+        "重量（Kg）": null,
+        "包络尺寸（mm）": "整星",
+        "稳态功耗（W）": 7.7,
+        "峰值功耗（W）": 45,
+        "工作温度（℃）": null,
+        "配套单位": "CATCH",
+      },
     ]
+    await writeJson(path.join(versionDir(), "00_inputs", "cad_build_spec.json"), {
+      schema_version: "cad_build_spec/1.0",
+      units: { length: "mm", power: "W" },
+      source_files: { cad_build_spec: "cad_build_spec.json" },
+      components: [{
+        id: "P001",
+        geometry_id: "CATCH-G001",
+        thermal_id: "CATCH-T001",
+        semantic_name: "旧飞轮",
+        display_name: "旧飞轮",
+        kind: "internal",
+        category: "adcs",
+        shape: "box",
+        position: [1, 2, 3],
+        dims: [10, 20, 30],
+        bbox: { min: [1, 2, 3], max: [11, 22, 33] },
+        mount: { install_face_id: "panel.local_zmax" },
+        thermal: {
+          include_in_simulation: false,
+          mass_kg: 1.1,
+          power_W: 0,
+        },
+        real_cad: { step_path: "/tmp/existing.step" },
+      }],
+      walls: [{ id: "wall-1" }],
+      summary: {},
+    })
 
     try {
       const getResponse = await server.inject({
@@ -776,21 +948,162 @@ describe("workspace data routes", () => {
       assert.equal(response.statusCode, 200)
       assert.equal(body.generation.component_count, 1)
       assert.equal(body.table.rows[1]["产品名称"], "自定义反作用飞轮X")
+      assert.equal(body.table.rows.some((row: Record<string, unknown>) => row["产品名称"] === "整星质量"), false)
+      assert.equal(body.table.rows.some((row: Record<string, unknown>) => row["包络尺寸（mm）"] === "整星"), false)
       assert.match(body.source_path, /CATCH整星配套表\.xlsx$/u)
 
-      const realBom = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "real_bom.json"), "utf-8"))
-      const geom = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "geom.json"), "utf-8"))
-      const layout = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "layout_topology.json"), "utf-8"))
-      const report = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "match_report.json"), "utf-8"))
+      const cadBuildSpec = JSON.parse(await fs.readFile(path.join(versionDir(), "00_inputs", "cad_build_spec.json"), "utf-8"))
+      assert.equal(cadBuildSpec.components.length, 1)
+      assert.equal(cadBuildSpec.components[0].display_name, "自定义反作用飞轮X")
+      assert.equal(cadBuildSpec.components[0].semantic_name, "自定义反作用飞轮X")
+      assert.equal(cadBuildSpec.components[0].category, "adcs")
+      assert.deepEqual(cadBuildSpec.components[0].dims, [100.0, 100.0, 60.0])
+      assert.deepEqual(cadBuildSpec.components[0].position, [1.0, 2.0, 3.0])
+      assert.deepEqual(cadBuildSpec.components[0].bbox, { min: [1.0, 2.0, 3.0], max: [101.0, 102.0, 63.0] })
+      assert.equal(cadBuildSpec.components[0].thermal.mass_kg, 9.9)
+      assert.equal(cadBuildSpec.components[0].thermal.power_W, 7.7)
+      assert.equal(cadBuildSpec.components[0].thermal.include_in_simulation, true)
+      assert.equal("operating_temperature" in cadBuildSpec.components[0].thermal, false)
+      assert.equal("operating_temperature_min_C" in cadBuildSpec.components[0].thermal, false)
+      assert.equal("operating_temperature_max_C" in cadBuildSpec.components[0].thermal, false)
+      assert.equal(cadBuildSpec.components[0].real_cad.step_path, "/tmp/existing.step")
+      assert.equal(cadBuildSpec.summary.component_count, 1)
+      assert.equal(cadBuildSpec.summary.wall_count, 1)
+      assert.equal(cadBuildSpec.summary.simulation_component_count, 1)
+      assert.equal(cadBuildSpec.summary.real_cad_step_count, 1)
+      assert.equal(cadBuildSpec.summary.total_mass_kg, 9.9)
+      assert.equal(cadBuildSpec.summary.total_power_W, 7.7)
+    } finally {
+      await server.close()
+    }
+  })
 
-      assert.equal(realBom.items.length, 1)
-      assert.equal(realBom.items[0].semantic_name, "自定义反作用飞轮X")
-      assert.equal(realBom.items[0].mass_kg, 9.9)
-      assert.deepEqual(realBom.items[0].size_mm, [100, 100, 60])
-      assert.equal(Object.keys(geom.components).length, 1)
-      assert.equal(layout.placements.length, 1)
-      assert.equal(report.component_count, 1)
-      assert.equal(report.matches[0].match_mode, "similar_kind_size")
+  it("adds component simulation temperatures to CATCH supporting table rows", async () => {
+    const server = await createTestServer()
+    const workspaceDir = encodeURIComponent(versionDir())
+
+    await fs.mkdir(path.join(versionDir(), "02_sim", "simulation"), { recursive: true })
+    await writeJson(path.join(versionDir(), "02_sim", "simulation", "component_face_temperature.json"), {
+      schema_version: "1.0",
+      components: [{
+        component_id: "P030",
+        semantic_name: "reaction_wheel_v7",
+        faces: {
+          xmin: {
+            sample_count: 2,
+            average_temperature_K: 293.15,
+            min_temperature_K: 292.15,
+            max_temperature_K: 294.15,
+          },
+          xmax: {
+            sample_count: 2,
+            average_temperature_K: 295.15,
+            min_temperature_K: 294.15,
+            max_temperature_K: 296.15,
+          },
+        },
+      }, {
+        component_id: "P031",
+        semantic_name: "high_component",
+        faces: {
+          xmin: {
+            sample_count: 1,
+            average_temperature_K: 323.15,
+            min_temperature_K: 323.15,
+            max_temperature_K: 323.15,
+          },
+        },
+      }, {
+        component_id: "P032",
+        semantic_name: "low_component",
+        faces: {
+          xmin: {
+            sample_count: 1,
+            average_temperature_K: 253.15,
+            min_temperature_K: 253.15,
+            max_temperature_K: 253.15,
+          },
+        },
+      }],
+    })
+    await writeJson(path.join(versionDir(), "00_inputs", "cad_build_spec.json"), {
+      schema_version: "cad_build_spec/1.0",
+      components: [],
+      walls: [],
+      summary: {},
+    })
+    const rows = [
+      {
+        id: "r2",
+        row: 2,
+        "产品名称": "姿轨控分系统",
+        "重量（Kg）": null,
+        "包络尺寸（mm）": null,
+        "稳态功耗（W）": null,
+        "峰值功耗（W）": null,
+        "工作温度（℃）": null,
+        "配套单位": null,
+      },
+      {
+        id: "r3",
+        row: 3,
+        "产品名称": "反作用轮 V7 1（P030）",
+        "重量（Kg）": 0.027,
+        "包络尺寸（mm）": "150x150x60",
+        "稳态功耗（W）": 8,
+        "峰值功耗（W）": null,
+        "工作温度（℃）": "-10 ~ 30℃",
+        "配套单位": "立方星JSON",
+      },
+      {
+        id: "r4",
+        row: 4,
+        "产品名称": "高温组件（P031）",
+        "重量（Kg）": 1,
+        "包络尺寸（mm）": "10x10x10",
+        "稳态功耗（W）": 1,
+        "峰值功耗（W）": null,
+        "工作温度（℃）": "-10 ~ 30℃",
+        "配套单位": "立方星JSON",
+      },
+      {
+        id: "r5",
+        row: 5,
+        "产品名称": "低温组件（P032）",
+        "重量（Kg）": 1,
+        "包络尺寸（mm）": "10x10x10",
+        "稳态功耗（W）": 1,
+        "峰值功耗（W）": null,
+        "工作温度（℃）": "-10 ~ 30℃",
+        "配套单位": "立方星JSON",
+      },
+    ]
+
+    try {
+      await server.inject({
+        method: "PUT",
+        url: `/api/workspace/catch-supporting-table?workspaceDir=${workspaceDir}`,
+        payload: { rows },
+      })
+      const response = await server.inject({
+        method: "GET",
+        url: `/api/workspace/catch-supporting-table?workspaceDir=${workspaceDir}`,
+      })
+      const body = response.json()
+      const rowByName = new Map(body.rows.map((row: Record<string, unknown>) => [row["产品名称"], row]))
+      const inRange = rowByName.get("反作用轮 V7 1（P030）") as Record<string, unknown>
+      const high = rowByName.get("高温组件（P031）") as Record<string, unknown>
+      const low = rowByName.get("低温组件（P032）") as Record<string, unknown>
+
+      assert.equal(response.statusCode, 200)
+      assert.equal(inRange["热仿真温度状态"], "in_range")
+      assert.equal(inRange["热仿真温度平均（℃）"], 21)
+      assert.equal(inRange["热仿真温度最低（℃）"], 19)
+      assert.equal(inRange["热仿真温度最高（℃）"], 23)
+      assert.equal(inRange["热仿真温度样本数"], 4)
+      assert.equal(high["热仿真温度状态"], "high")
+      assert.equal(low["热仿真温度状态"], "low")
+      assert.match(body.temperature_source_path, /component_face_temperature\.json$/u)
     } finally {
       await server.close()
     }

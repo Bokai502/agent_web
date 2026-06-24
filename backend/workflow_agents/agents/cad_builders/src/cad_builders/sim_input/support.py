@@ -41,15 +41,15 @@ def vector3(value: Any, field_name: str) -> list[float]:
     return [float(item) for item in value]
 
 
-def positive_number(value: Any) -> float | None:
+def non_negative_number(value: Any, *, default: float | None = None) -> float | None:
     if value is None or isinstance(value, bool):
-        return None
+        return default
     try:
         parsed = float(value)
     except (TypeError, ValueError):
-        return None
-    if math.isnan(parsed) or math.isinf(parsed) or parsed <= 0:
-        return None
+        return default
+    if math.isnan(parsed) or math.isinf(parsed) or parsed < 0:
+        return default
     return parsed
 
 
@@ -68,8 +68,7 @@ def spec_to_layout_data(spec: dict[str, Any], *, simulation_only: bool = False, 
     components: dict[str, Any] = {}
     for component in spec.get("components") or []:
         thermal = component.get("thermal") if isinstance(component.get("thermal"), dict) else {}
-        if simulation_only and not bool(thermal.get("include_in_simulation")):
-            continue
+        power = non_negative_number(thermal.get("power_W"), default=0.0)
         component_id = str(component.get("id") or component.get("component_id"))
         components[component_id] = {
             "id": component_id,
@@ -78,7 +77,7 @@ def spec_to_layout_data(spec: dict[str, Any], *, simulation_only: bool = False, 
             "dims": vector3(component.get("dims"), f"{component_id}.dims"),
             "color": component.get("color"),
             "mass": thermal.get("mass_kg"),
-            "power": thermal.get("power_W"),
+            "power": power,
             "kind": component.get("kind"),
             "category": component.get("category"),
             "semantic_name": component.get("semantic_name"),
@@ -227,10 +226,7 @@ def build_simulation_input(spec: dict[str, Any], *, step_filename: str = "geomet
         component_id = str(component.get("id") or component.get("component_id"))
         thermal = component.get("thermal") if isinstance(component.get("thermal"), dict) else {}
         mount = component.get("mount") if isinstance(component.get("mount"), dict) else {}
-        power = positive_number(thermal.get("power_W"))
-        if not bool(thermal.get("include_in_simulation")) or power is None:
-            skipped.append({"component_id": component_id, "reason": "not included in simulation", "power_W": thermal.get("power_W")})
-            continue
+        power = non_negative_number(thermal.get("power_W"), default=0.0)
         component_mount_face_id = mount.get("component_face_id")
         mount_face_id = mount.get("install_face_id")
         if mount_face_id and mount_face_id not in install_face_ids:
@@ -248,7 +244,7 @@ def build_simulation_input(spec: dict[str, Any], *, step_filename: str = "geomet
             "component_mount_face": component_mount_face(component_mount_face_id),
             "mount_face_id": mount_face_id,
             "alignment": default_alignment(component, mount),
-            "is_heat_source": True,
+            "is_heat_source": power > 0.0,
             "power_W": power,
             "mass_kg": float(thermal.get("mass_kg") or 0),
             "material_id": thermal.get("material_id") or "aluminum_6061",
