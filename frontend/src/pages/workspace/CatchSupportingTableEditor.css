@@ -1,6 +1,6 @@
 .catch-config-shell {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 12px;
   width: 100%;
   height: 100%;
@@ -108,6 +108,204 @@
 .catch-row-delete:disabled {
   cursor: wait;
   opacity: 0.58;
+}
+
+.heatflux-selector-card {
+  grid-template-rows: auto auto minmax(0, auto);
+}
+
+.heatflux-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.heatflux-status {
+  max-width: 360px;
+  color: rgba(220, 238, 248, 0.76);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.heatflux-collapse-button {
+  flex: 0 0 auto;
+  height: 30px;
+  border: 1px solid rgba(23, 231, 255, 0.24);
+  border-radius: 6px;
+  background: rgba(23, 231, 255, 0.08);
+  color: rgba(238, 248, 255, 0.9);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 0 12px;
+}
+
+.heatflux-status.is-ok {
+  color: #aef7d9;
+}
+
+.heatflux-status.is-bad {
+  color: #ffb3b3;
+}
+
+.heatflux-controls {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.55fr) minmax(360px, 1.45fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.heatflux-controls label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.heatflux-time-picker {
+  display: grid;
+  grid-template-columns: minmax(78px, 0.7fr) minmax(78px, 0.7fr) minmax(78px, 0.7fr) minmax(120px, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.heatflux-controls label > span,
+.heatflux-mini-title span,
+.heatflux-face-strip span {
+  color: rgba(190, 218, 232, 0.68);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.heatflux-controls select,
+.heatflux-controls input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid rgba(23, 231, 255, 0.18);
+  border-radius: 6px;
+  background: rgba(2, 8, 16, 0.72);
+  color: #eef8ff;
+  color-scheme: dark;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 760;
+  outline: none;
+  padding: 0 9px;
+}
+
+.heatflux-controls select:focus,
+.heatflux-controls input:focus {
+  border-color: rgba(56, 248, 183, 0.46);
+  box-shadow: 0 0 0 2px rgba(56, 248, 183, 0.12);
+}
+
+.heatflux-controls button {
+  height: 34px;
+  border: 1px solid rgba(56, 248, 183, 0.28);
+  border-radius: 6px;
+  background: rgba(56, 248, 183, 0.16);
+  color: #edfff8;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.heatflux-controls button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.heatflux-result-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.44fr) minmax(360px, 0.56fr);
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.heatflux-json-panel,
+.heatflux-image-panel,
+.heatflux-face-strip {
+  min-width: 0;
+  border: 1px solid rgba(23, 231, 255, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.heatflux-mini-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  border-bottom: 1px solid rgba(23, 231, 255, 0.1);
+  padding: 8px 10px;
+}
+
+.heatflux-mini-title strong {
+  color: #f7fcff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.heatflux-mini-title span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.heatflux-json-panel pre {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  color: rgba(238, 248, 255, 0.92);
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 10px;
+  scrollbar-width: thin;
+}
+
+.heatflux-image-panel img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  padding: 10px;
+}
+
+.heatflux-face-strip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.heatflux-face-strip div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-right: 1px solid rgba(23, 231, 255, 0.08);
+  padding: 9px 10px;
+}
+
+.heatflux-face-strip div:last-child {
+  border-right: 0;
+}
+
+.heatflux-face-strip strong {
+  color: #f4fbff;
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .catch-config-summary {
@@ -277,7 +475,7 @@
 
 .catch-grid-table {
   width: 100%;
-  min-width: 1220px;
+  min-width: 1380px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -322,6 +520,7 @@
 .catch-grid-table th:nth-child(4) { width: 170px; }
 .catch-grid-table th:nth-child(7) { width: 150px; }
 .catch-grid-table th:nth-child(8) { width: 130px; }
+.catch-grid-table th:nth-child(9) { width: 150px; }
 .catch-grid-table th:last-child { width: 82px; }
 
 .catch-grid-table input {
@@ -334,6 +533,46 @@
   background: rgba(2, 8, 16, 0.96);
 }
 
+.catch-temperature-cell span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.1);
+  color: rgba(226, 232, 240, 0.86);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+  padding: 0 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.catch-temperature-cell.is-in_range span {
+  border-color: rgba(56, 248, 183, 0.28);
+  background: rgba(56, 248, 183, 0.13);
+  color: #c8ffeb;
+}
+
+.catch-temperature-cell.is-high span {
+  border-color: rgba(255, 111, 145, 0.3);
+  background: rgba(255, 111, 145, 0.14);
+  color: #ffdce4;
+}
+
+.catch-temperature-cell.is-low span {
+  border-color: rgba(96, 165, 250, 0.32);
+  background: rgba(96, 165, 250, 0.16);
+  color: #dbeafe;
+}
+
+.catch-temperature-cell.is-no_range span,
+.catch-temperature-cell.is-missing span {
+  color: rgba(226, 232, 240, 0.62);
+}
+
 .catch-subsystem-cell {
   color: rgba(220, 238, 248, 0.72);
   font-size: 11px;
@@ -343,21 +582,19 @@
   white-space: nowrap;
 }
 
-.catch-subsystem-title-cell strong {
-  display: block;
-  color: #f7fcff;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 30px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .catch-grid-table tr.is-subsystem td,
 .catch-grid-table tr.is-subsystem input {
-  background: rgba(23, 231, 255, 0.08);
+  background: rgba(207, 232, 255, 0.74);
+  color: #24425c;
   font-weight: 900;
+}
+
+.catch-grid-table tr.is-subsystem .catch-subsystem-cell {
+  color: #24425c;
+}
+
+.catch-subsystem-spacer-cell {
+  height: 42px;
 }
 
 .catch-grid-table tr.is-subsystem.is-changed td {
@@ -403,6 +640,20 @@
 
   .catch-config-summary {
     display: grid;
+  }
+
+  .heatflux-controls,
+  .heatflux-result-grid,
+  .heatflux-face-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .heatflux-time-picker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .heatflux-time-picker input {
+    grid-column: 1 / -1;
   }
 }
 
@@ -456,82 +707,126 @@
 .workspace-apple .catch-config-card-head span,
 .workspace-apple .catch-filter-grid label > span,
 .workspace-apple .catch-toggle-row span,
+.workspace-apple .heatflux-controls label > span,
+.workspace-apple .heatflux-mini-title span,
+.workspace-apple .heatflux-face-strip span,
 .workspace-page-shell .catch-config-title span,
 .workspace-page-shell .catch-config-title small,
 .workspace-page-shell .catch-config-stat span,
 .workspace-page-shell .catch-config-card-head span,
 .workspace-page-shell .catch-filter-grid label > span,
 .workspace-page-shell .catch-toggle-row span,
+.workspace-page-shell .heatflux-controls label > span,
+.workspace-page-shell .heatflux-mini-title span,
+.workspace-page-shell .heatflux-face-strip span,
 .agent-page.is-light-theme .catch-config-title span,
 .agent-page.is-light-theme .catch-config-title small,
 .agent-page.is-light-theme .catch-config-stat span,
 .agent-page.is-light-theme .catch-config-card-head span,
 .agent-page.is-light-theme .catch-filter-grid label > span,
 .agent-page.is-light-theme .catch-toggle-row span,
+.agent-page.is-light-theme .heatflux-controls label > span,
+.agent-page.is-light-theme .heatflux-mini-title span,
+.agent-page.is-light-theme .heatflux-face-strip span,
 .wa-stage-main .catch-config-title span,
 .wa-stage-main .catch-config-title small,
 .wa-stage-main .catch-config-stat span,
 .wa-stage-main .catch-config-card-head span,
 .wa-stage-main .catch-filter-grid label > span,
-.wa-stage-main .catch-toggle-row span {
+.wa-stage-main .catch-toggle-row span,
+.wa-stage-main .heatflux-controls label > span,
+.wa-stage-main .heatflux-mini-title span,
+.wa-stage-main .heatflux-face-strip span {
   color: #6e6e73;
 }
 
 .workspace-apple .catch-config-stat,
 .workspace-apple .catch-config-status,
 .workspace-apple .catch-toggle-row,
+.workspace-apple .heatflux-json-panel,
+.workspace-apple .heatflux-image-panel,
+.workspace-apple .heatflux-face-strip,
 .workspace-page-shell .catch-config-stat,
 .workspace-page-shell .catch-config-status,
 .workspace-page-shell .catch-toggle-row,
+.workspace-page-shell .heatflux-json-panel,
+.workspace-page-shell .heatflux-image-panel,
+.workspace-page-shell .heatflux-face-strip,
 .agent-page.is-light-theme .catch-config-stat,
 .agent-page.is-light-theme .catch-config-status,
 .agent-page.is-light-theme .catch-toggle-row,
+.agent-page.is-light-theme .heatflux-json-panel,
+.agent-page.is-light-theme .heatflux-image-panel,
+.agent-page.is-light-theme .heatflux-face-strip,
 .wa-stage-main .catch-config-stat,
 .wa-stage-main .catch-config-status,
-.wa-stage-main .catch-toggle-row {
+.wa-stage-main .catch-toggle-row,
+.wa-stage-main .heatflux-json-panel,
+.wa-stage-main .heatflux-image-panel,
+.wa-stage-main .heatflux-face-strip {
   background: rgba(255, 255, 255, 0.58);
 }
 
 .workspace-apple .catch-config-card-head,
 .workspace-apple .catch-config-status,
+.workspace-apple .heatflux-mini-title,
 .workspace-page-shell .catch-config-card-head,
 .workspace-page-shell .catch-config-status,
+.workspace-page-shell .heatflux-mini-title,
 .agent-page.is-light-theme .catch-config-card-head,
 .agent-page.is-light-theme .catch-config-status,
+.agent-page.is-light-theme .heatflux-mini-title,
 .wa-stage-main .catch-config-card-head,
-.wa-stage-main .catch-config-status {
+.wa-stage-main .catch-config-status,
+.wa-stage-main .heatflux-mini-title {
   border-color: rgba(0, 0, 0, 0.08);
 }
 
 .workspace-apple .catch-config-status,
+.workspace-apple .heatflux-status,
 .workspace-page-shell .catch-config-status,
+.workspace-page-shell .heatflux-status,
 .agent-page.is-light-theme .catch-config-status,
-.wa-stage-main .catch-config-status {
+.agent-page.is-light-theme .heatflux-status,
+.wa-stage-main .catch-config-status,
+.wa-stage-main .heatflux-status {
   color: #6e6e73;
 }
 
 .workspace-apple .catch-config-status.is-ok,
+.workspace-apple .heatflux-status.is-ok,
 .workspace-page-shell .catch-config-status.is-ok,
+.workspace-page-shell .heatflux-status.is-ok,
 .agent-page.is-light-theme .catch-config-status.is-ok,
-.wa-stage-main .catch-config-status.is-ok {
+.agent-page.is-light-theme .heatflux-status.is-ok,
+.wa-stage-main .catch-config-status.is-ok,
+.wa-stage-main .heatflux-status.is-ok {
   color: #0b6f48;
 }
 
 .workspace-apple .catch-config-status.is-bad,
 .workspace-apple .catch-config-empty.is-bad,
+.workspace-apple .heatflux-status.is-bad,
 .workspace-page-shell .catch-config-status.is-bad,
 .workspace-page-shell .catch-config-empty.is-bad,
+.workspace-page-shell .heatflux-status.is-bad,
 .agent-page.is-light-theme .catch-config-status.is-bad,
 .agent-page.is-light-theme .catch-config-empty.is-bad,
+.agent-page.is-light-theme .heatflux-status.is-bad,
 .wa-stage-main .catch-config-status.is-bad,
-.wa-stage-main .catch-config-empty.is-bad {
+.wa-stage-main .catch-config-empty.is-bad,
+.wa-stage-main .heatflux-status.is-bad {
   color: #b42318;
 }
 
 .workspace-apple .catch-config-actions button,
+.workspace-apple .heatflux-collapse-button,
 .workspace-page-shell .catch-config-actions button,
+.workspace-page-shell .heatflux-collapse-button,
 .agent-page.is-light-theme .catch-config-actions button,
-.wa-stage-main .catch-config-actions button {
+.agent-page.is-light-theme .heatflux-collapse-button,
+.wa-stage-main .catch-config-actions button,
+.wa-stage-main .heatflux-collapse-button {
   border-color: rgba(0, 113, 227, 0.18);
   background: rgba(0, 113, 227, 0.08);
   color: #0057b8;
@@ -550,22 +845,54 @@
 .workspace-apple .catch-filter-grid input:not([type]),
 .workspace-apple .catch-filter-grid select,
 .workspace-apple .catch-grid-table input,
+.workspace-apple .heatflux-controls select,
+.workspace-apple .heatflux-controls input,
 .workspace-page-shell .catch-filter-grid input[type="text"],
 .workspace-page-shell .catch-filter-grid input:not([type]),
 .workspace-page-shell .catch-filter-grid select,
 .workspace-page-shell .catch-grid-table input,
+.workspace-page-shell .heatflux-controls select,
+.workspace-page-shell .heatflux-controls input,
 .agent-page.is-light-theme .catch-filter-grid input[type="text"],
 .agent-page.is-light-theme .catch-filter-grid input:not([type]),
 .agent-page.is-light-theme .catch-filter-grid select,
 .agent-page.is-light-theme .catch-grid-table input,
+.agent-page.is-light-theme .heatflux-controls select,
+.agent-page.is-light-theme .heatflux-controls input,
 .wa-stage-main .catch-filter-grid input[type="text"],
 .wa-stage-main .catch-filter-grid input:not([type]),
 .wa-stage-main .catch-filter-grid select,
-.wa-stage-main .catch-grid-table input {
+.wa-stage-main .catch-grid-table input,
+.wa-stage-main .heatflux-controls select,
+.wa-stage-main .heatflux-controls input {
   border-color: rgba(0, 0, 0, 0.12);
   background: rgba(255, 255, 255, 0.94);
   color: #1d1d1f;
   color-scheme: light;
+}
+
+.workspace-apple .heatflux-mini-title strong,
+.workspace-apple .heatflux-face-strip strong,
+.workspace-apple .heatflux-json-panel pre,
+.workspace-page-shell .heatflux-mini-title strong,
+.workspace-page-shell .heatflux-face-strip strong,
+.workspace-page-shell .heatflux-json-panel pre,
+.agent-page.is-light-theme .heatflux-mini-title strong,
+.agent-page.is-light-theme .heatflux-face-strip strong,
+.agent-page.is-light-theme .heatflux-json-panel pre,
+.wa-stage-main .heatflux-mini-title strong,
+.wa-stage-main .heatflux-face-strip strong,
+.wa-stage-main .heatflux-json-panel pre {
+  color: #1d1d1f;
+}
+
+.workspace-apple .heatflux-controls button,
+.workspace-page-shell .heatflux-controls button,
+.agent-page.is-light-theme .heatflux-controls button,
+.wa-stage-main .heatflux-controls button {
+  border-color: transparent;
+  background: #0a84ff;
+  color: #fff;
 }
 
 .workspace-apple .catch-grid-table th,
@@ -622,6 +949,42 @@
 .wa-stage-main .catch-grid-table td.is-cell-changed input {
   border-color: rgba(245, 158, 11, 0.32);
   background: #fff7e6;
+}
+
+.workspace-apple .catch-temperature-cell span,
+.workspace-page-shell .catch-temperature-cell span,
+.agent-page.is-light-theme .catch-temperature-cell span,
+.wa-stage-main .catch-temperature-cell span {
+  border-color: rgba(100, 116, 139, 0.18);
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.workspace-apple .catch-temperature-cell.is-in_range span,
+.workspace-page-shell .catch-temperature-cell.is-in_range span,
+.agent-page.is-light-theme .catch-temperature-cell.is-in_range span,
+.wa-stage-main .catch-temperature-cell.is-in_range span {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: #ecfdf3;
+  color: #087443;
+}
+
+.workspace-apple .catch-temperature-cell.is-high span,
+.workspace-page-shell .catch-temperature-cell.is-high span,
+.agent-page.is-light-theme .catch-temperature-cell.is-high span,
+.wa-stage-main .catch-temperature-cell.is-high span {
+  border-color: rgba(220, 38, 38, 0.2);
+  background: #fef2f2;
+  color: #b42318;
+}
+
+.workspace-apple .catch-temperature-cell.is-low span,
+.workspace-page-shell .catch-temperature-cell.is-low span,
+.agent-page.is-light-theme .catch-temperature-cell.is-low span,
+.wa-stage-main .catch-temperature-cell.is-low span {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #eff6ff;
+  color: #175cd3;
 }
 
 .workspace-apple .catch-row-delete,

@@ -1,6 +1,7 @@
 import fs from "fs/promises"
 import path from "path"
 import ExcelJS from "exceljs"
+import JSZip from "jszip"
 
 type JsonRecord = Record<string, unknown>
 type NumberKind = "float" | "int"
@@ -8,7 +9,15 @@ type NumberKind = "float" | "int"
 export type CatchSupportingTableRow = {
   id?: string
   row?: number
-} & Partial<Record<CatchSupportingTableColumn, string | number | null>>
+} & Partial<Record<CatchSupportingTableColumn, string | number | null>> & {
+  "热仿真温度（℃）"?: string | number | null
+  "热仿真温度平均（℃）"?: number | null
+  "热仿真温度最低（℃）"?: number | null
+  "热仿真温度最高（℃）"?: number | null
+  "热仿真温度状态"?: "in_range" | "high" | "low" | "missing" | "no_range"
+  "热仿真温度组件ID"?: string | null
+  "热仿真温度样本数"?: number | null
+}
 
 type CatchSupportingTableColumn = typeof HEADERS[number]
 
@@ -24,24 +33,9 @@ type LoadedTableRow = {
   subtype: string
 }
 
-type DbRow = {
-  category: string
-  dims_mm: number[] | null
-  index: number
-  is_catch: boolean
-  names: string[]
-  norm_names: string[]
-  record: JsonRecord
-  sheet: unknown
-  subtype: string
-}
-
-type MatchRow = {
-  item: JsonRecord
-  geom: JsonRecord
-}
-
 const HEADERS = ["产品名称", "重量（Kg）", "包络尺寸（mm）", "稳态功耗（W）", "峰值功耗（W）", "工作温度（℃）", "配套单位"] as const
+const SUMMARY_ROW_NAMES = new Set(["整星质量", "整星"])
+const COMPONENT_FACE_TEMPERATURE_RELATIVE_PATH = path.join("02_sim", "simulation", "component_face_temperature.json")
 
 const KIND_WORDS: Array<[string, string, string]> = [
   ["星箭分离", "mechanism", "separation_device"],
@@ -130,27 +124,6 @@ function getNumberKind(parent: unknown, key: PropertyKey | null) {
 function markFloatArray(values: number[]) {
   values.forEach((_, index) => markFloat(values, index))
   return values
-}
-
-function cloneJson<T>(value: T): T {
-  if (Array.isArray(value)) {
-    const next = value.map(item => cloneJson(item)) as T
-    const sourceKinds = numberKinds.get(value)
-    if (sourceKinds) {
-      for (const [key, kind] of sourceKinds) markNumberKind(next, key, kind)
-    }
-    return next
-  }
-  if (isRecord(value)) {
-    const next: JsonRecord = {}
-    for (const [key, item] of Object.entries(value)) next[key] = cloneJson(item)
-    const sourceKinds = numberKinds.get(value)
-    if (sourceKinds) {
-      for (const [key, kind] of sourceKinds) markNumberKind(next, key, kind)
-    }
-    return next as T
-  }
-  return value
 }
 
 function skipJsonWhitespace(text: string, cursor: { index: number }) {
@@ -295,12 +268,6 @@ function num(value: unknown): number | null {
   return /\bmw\b/iu.test(text) ? parsed / 1000 : parsed
 }
 
-function numericValue(value: number, kind: NumberKind = "float") {
-  const boxed = new Number(value)
-  markNumberKind(boxed, "value", kind)
-  return value
-}
-
 function power(value: unknown): number | null {
   if (typeof value === "string" && value.includes("=")) {
     const values = Array.from(value.matchAll(/[-+]?\d+(?:\.\d+)?/gu), match => Number.parseFloat(match[0]))
@@ -315,12 +282,23 @@ function dims(value: unknown): number[] | null {
   return values.length >= 3 && values.slice(0, 3).every(item => item > 0) ? markFloatArray(values.slice(0, 3)) : null
 }
 
-function recordDims(record: JsonRecord): number[] | null {
-  const values = ["长 mm", "宽 mm", "高 mm"].map(key => num(record[key]))
-  if (values.every(value => value !== null && value > 0)) return markFloatArray(values as number[])
-  const stepValues = ["STEP长", "STEP宽", "STEP高"].map(key => num(record[key]))
-  if (stepValues.every(value => value !== null && value > 0)) return markFloatArray(stepValues as number[])
-  return dims(record["尺寸"])
+function temperatureRange(value: string | null): [number, number] | null {
+  if (!value) return null
+  const values = Array.from(value.replace(/,/gu, "").matchAll(/[-+]?\d+(?:\.\d+)?/gu), match => Number.parseFloat(match[0]))
+  return values.length >= 2 && values.slice(0, 2).every(Number.isFinite) ? [values[0], values[1]] : null
+}
+
+function componentIdFromName(value: unknown) {
+  const match = asString(value).match(/\bP\d{1,4}\b/iu)
+  return match ? match[0].toUpperCase() : null
+}
+
+function temperatureStatus(valueC: number | null, range: [number, number] | null): CatchSupportingTableRow["热仿真温度状态"] {
+  if (valueC === null) return "missing"
+  if (!range) return "no_range"
+  if (valueC < range[0]) return "low"
+  if (valueC > range[1]) return "high"
+  return "in_range"
 }
 
 function inferKind(name: string, subsystem?: string | null, dbKind?: string | null): [string, string] {
@@ -334,7 +312,11 @@ function inferKind(name: string, subsystem?: string | null, dbKind?: string | nu
 
 async function readWorksheetRows(xlsxPath: string): Promise<unknown[][]> {
   const workbook = new ExcelJS.Workbook()
-  await workbook.xlsx.readFile(xlsxPath)
+  try {
+    await workbook.xlsx.readFile(xlsxPath)
+  } catch (err) {
+    return readWorksheetRowsFromXml(xlsxPath)
+  }
   const worksheet = workbook.worksheets[0]
   if (!worksheet) return []
   const rows: unknown[][] = []
@@ -343,10 +325,79 @@ async function readWorksheetRows(xlsxPath: string): Promise<unknown[][]> {
     rows[rowNumber - 1] = values.map(value => {
       if (isRecord(value) && "result" in value) return value.result
       if (isRecord(value) && "text" in value) return value.text
+      if (isRecord(value) && "formula" in value) return null
       if (value instanceof Date) return value.toISOString()
       return value ?? null
     })
   })
+  return rows
+}
+
+function columnIndexFromCellRef(ref: string) {
+  const letters = ref.replace(/[0-9]/gu, "").toUpperCase()
+  let index = 0
+  for (const letter of letters) index = index * 26 + letter.charCodeAt(0) - 64
+  return index - 1
+}
+
+function rowIndexFromCellRef(ref: string) {
+  const match = ref.match(/\d+/u)
+  return match ? Number.parseInt(match[0], 10) - 1 : 0
+}
+
+function xmlUnescape(value: string) {
+  return value
+    .replace(/&lt;/gu, "<")
+    .replace(/&gt;/gu, ">")
+    .replace(/&quot;/gu, "\"")
+    .replace(/&apos;/gu, "'")
+    .replace(/&amp;/gu, "&")
+}
+
+function xmlTexts(xml: string, tagName: string) {
+  return Array.from(xml.matchAll(new RegExp(`<${tagName}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tagName}>`, "gu")), match => xmlUnescape(match[1] ?? ""))
+}
+
+function xmlCellValue(cellXml: string, sharedStrings: string[]) {
+  const type = cellXml.match(/\st="([^"]+)"/u)?.[1] ?? ""
+  if (type === "inlineStr") return xmlTexts(cellXml, "t").join("")
+  const raw = cellXml.match(/<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/u)?.[1]
+  if (raw == null || raw === "") return null
+  if (type === "s") return sharedStrings[Number.parseInt(raw, 10)] ?? null
+  if (type === "str") return xmlUnescape(raw)
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) ? parsed : xmlUnescape(raw)
+}
+
+async function readWorksheetRowsFromXml(xlsxPath: string): Promise<unknown[][]> {
+  const zip = await JSZip.loadAsync(await fs.readFile(xlsxPath))
+  const sharedStringsXml = await zip.file("xl/sharedStrings.xml")?.async("string")
+  const sharedStrings = sharedStringsXml
+    ? Array.from(sharedStringsXml.matchAll(/<si(?:\s[^>]*)?>([\s\S]*?)<\/si>/gu), match => xmlTexts(match[1] ?? "", "t").join(""))
+    : []
+  const worksheetXml = await zip.file("xl/worksheets/sheet1.xml")?.async("string")
+  if (!worksheetXml) return []
+  const rows: unknown[][] = []
+  const rowPattern = /<row\b((?:(?!\/>)[^>])*)>([\s\S]*?)<\/row>|<row\b([^>]*)\/>/gu
+  const cellPattern = /<c\b((?:(?!\/>)[^>])*)>([\s\S]*?)<\/c>|<c\b([^>]*)\/>/gu
+  let fallbackRowIndex = 0
+  for (const rowMatch of worksheetXml.matchAll(rowPattern)) {
+    const rowAttrs = rowMatch[1] ?? rowMatch[3] ?? ""
+    const rowNumber = rowAttrs.match(/\br="(\d+)"/u)?.[1]
+    const rowIndex = rowNumber ? Number.parseInt(rowNumber, 10) - 1 : fallbackRowIndex
+    fallbackRowIndex = rowIndex + 1
+    const rowXml = rowMatch[2] ?? ""
+    const row = rows[rowIndex] ?? []
+    let fallbackColumnIndex = 0
+    for (const cellMatch of rowXml.matchAll(cellPattern)) {
+      const attrs = cellMatch[1] ?? cellMatch[3] ?? ""
+      const ref = attrs.match(/\br="([^"]+)"/u)?.[1]
+      const columnIndex = ref ? columnIndexFromCellRef(ref) : fallbackColumnIndex
+      fallbackColumnIndex = columnIndex + 1
+      row[columnIndex] = cellMatch[2] ? xmlCellValue(`<c ${attrs}>${cellMatch[2]}</c>`, sharedStrings) : null
+    }
+    rows[rowIndex] = row
+  }
   return rows
 }
 
@@ -355,13 +406,114 @@ function getCellByHeader(row: unknown[] | undefined, headers: Map<string, number
   return index == null ? null : row?.[index] ?? null
 }
 
-export async function readCatchSupportingTable(xlsxPath: string) {
+function isSummaryWorksheetRow(values: unknown[]) {
+  const name = asString(values[0]).trim()
+  const size = asString(values[2]).trim()
+  return SUMMARY_ROW_NAMES.has(name) || (!name && size === "整星") || (name === "整星质量" && size === "平台")
+}
+
+function isSummaryJsonRow(row: JsonRecord) {
+  const name = asString(row["产品名称"]).trim()
+  const size = asString(row["包络尺寸（mm）"]).trim()
+  return SUMMARY_ROW_NAMES.has(name) || (!name && size === "整星") || (name === "整星质量" && size === "平台")
+}
+
+type ComponentTemperatureSummary = {
+  averageC: number | null
+  componentId: string | null
+  maxC: number | null
+  minC: number | null
+  sampleCount: number
+}
+
+type ComponentTemperatureIndex = {
+  byId: Map<string, ComponentTemperatureSummary>
+  byName: Map<string, ComponentTemperatureSummary[]>
+  sourcePath: string
+}
+
+function temperatureSummaryFromComponent(component: JsonRecord): ComponentTemperatureSummary | null {
+  const averageK: number[] = []
+  const minK: number[] = []
+  const maxK: number[] = []
+  let sampleCount = 0
+  for (const stats of Object.values(asRecord(component.faces))) {
+    const face = asRecord(stats)
+    const faceSamples = num(face.sample_count) ?? 0
+    sampleCount += faceSamples
+    const average = num(face.average_temperature_K)
+    const min = num(face.min_temperature_K)
+    const max = num(face.max_temperature_K)
+    if (average !== null) averageK.push(average)
+    if (min !== null) minK.push(min)
+    if (max !== null) maxK.push(max)
+  }
+  if (!averageK.length && !minK.length && !maxK.length) return null
+  const componentId = asString(component.component_id || component.id).trim() || null
+  return {
+    averageC: averageK.length ? averageK.reduce((sum, value) => sum + value, 0) / averageK.length - 273.15 : null,
+    componentId,
+    maxC: maxK.length ? Math.max(...maxK) - 273.15 : null,
+    minC: minK.length ? Math.min(...minK) - 273.15 : null,
+    sampleCount,
+  }
+}
+
+async function readComponentTemperatureIndex(workspaceDir?: string): Promise<ComponentTemperatureIndex | null> {
+  if (!workspaceDir) return null
+  const sourcePath = path.join(workspaceDir, COMPONENT_FACE_TEMPERATURE_RELATIVE_PATH)
+  let payload: JsonRecord
+  try {
+    payload = asRecord(await readJson(sourcePath))
+  } catch {
+    return null
+  }
+  const byId = new Map<string, ComponentTemperatureSummary>()
+  const byName = new Map<string, ComponentTemperatureSummary[]>()
+  for (const component of asRecordArray(payload.components)) {
+    const summary = temperatureSummaryFromComponent(component)
+    if (!summary) continue
+    const componentId = asString(component.component_id || component.id || summary.componentId).trim().toUpperCase()
+    if (componentId) byId.set(componentId, { ...summary, componentId })
+    for (const key of [component.semantic_name, component.display_name, component.name].map(norm).filter(Boolean)) {
+      const bucket = byName.get(key) ?? []
+      bucket.push(summary)
+      byName.set(key, bucket)
+    }
+  }
+  return { byId, byName, sourcePath }
+}
+
+function findComponentTemperature(rowName: unknown, index: ComponentTemperatureIndex | null) {
+  if (!index) return null
+  const componentId = componentIdFromName(rowName)
+  if (componentId) {
+    const match = index.byId.get(componentId)
+    if (match) return match
+  }
+  const nameKey = norm(rowName)
+  const byName = nameKey ? index.byName.get(nameKey)?.[0] : null
+  return byName ?? null
+}
+
+function formatTemperatureSummary(summary: ComponentTemperatureSummary | null) {
+  if (!summary || summary.averageC === null) return null
+  const average = summary.averageC.toFixed(1)
+  if (summary.minC === null || summary.maxC === null) return `${average}℃`
+  return `${average}℃ (${summary.minC.toFixed(1)}~${summary.maxC.toFixed(1)}℃)`
+}
+
+export async function readCatchSupportingTable(xlsxPath: string, options: { workspaceDir?: string } = {}) {
   const sheetRows = await readWorksheetRows(xlsxPath)
+  const temperatureIndex = await readComponentTemperatureIndex(options.workspaceDir)
   const rows: CatchSupportingTableRow[] = []
   for (let index = 1; index < sheetRows.length; index += 1) {
     const values = (sheetRows[index] ?? []).slice(0, HEADERS.length)
     if (!values.some(value => value !== null && value !== undefined && String(value).trim())) continue
+    if (isSummaryWorksheetRow(values)) continue
     const rowIndex = index + 1
+    const temperature = findComponentTemperature(values[0], temperatureIndex)
+    const operatingRange = temperatureRange(asString(values[5]).trim())
     rows.push({
       id: `r${rowIndex}`,
       row: rowIndex,
@@ -372,9 +524,22 @@ export async function readCatchSupportingTable(xlsxPath: string) {
       "峰值功耗（W）": values[4] as string | number | null,
       "工作温度（℃）": values[5] as string | number | null,
       "配套单位": values[6] as string | number | null,
+      "热仿真温度（℃）": formatTemperatureSummary(temperature),
+      "热仿真温度平均（℃）": temperature?.averageC ?? null,
+      "热仿真温度最低（℃）": temperature?.minC ?? null,
+      "热仿真温度最高（℃）": temperature?.maxC ?? null,
+      "热仿真温度状态": temperatureStatus(temperature?.averageC ?? null, operatingRange),
+      "热仿真温度组件ID": temperature?.componentId ?? componentIdFromName(values[0]),
+      "热仿真温度样本数": temperature?.sampleCount ?? null,
     })
   }
-  return { headers: HEADERS, rows, source_path: xlsxPath }
+  return {
+    headers: HEADERS,
+    result_headers: ["热仿真温度（℃）"],
+    rows,
+    source_path: xlsxPath,
+    temperature_source_path: temperatureIndex?.sourcePath ?? null,
+  }
 }
 
 export async function writeCatchSupportingTable(xlsxPath: string, rows: JsonRecord[]) {
@@ -382,6 +547,7 @@ export async function writeCatchSupportingTable(xlsxPath: string, rows: JsonReco
   const worksheet = workbook.addWorksheet("CATCH整星配套表")
   worksheet.addRow([...HEADERS])
   for (const row of rows) {
+    if (isSummaryJsonRow(row)) continue
     worksheet.addRow(HEADERS.map(header => row[header] ?? null))
   }
   ;[32, 14, 22, 14, 14, 18, 16].forEach((width, index) => {
@@ -412,7 +578,7 @@ async function loadTableRows(xlsxPath: string): Promise<LoadedTableRow[]> {
       subsystem = name
       continue
     }
-    if (name === "整星质量") continue
+    if (isSummaryWorksheetRow(row)) continue
     if (mass === null && size === null && avgPower === null && peakPower === null) continue
     const [category, subtype] = inferKind(name, subsystem)
     rows.push({
@@ -430,307 +596,153 @@ async function loadTableRows(xlsxPath: string): Promise<LoadedTableRow[]> {
   return rows
 }
 
-function loadDbRows(db: unknown): DbRow[] {
-  const out: DbRow[] = []
-  for (const sheet of asRecordArray(asRecord(db).sheets)) {
-    const records = asRecordArray(sheet.records)
-    records.forEach((record, index) => {
-      if (index === 0 && record["器件型号"] === "model") return
-      const names = ["器件型号", "器件名称", "器件名称(中文)", "器件ID"]
-        .map(key => record[key])
-        .filter(value => value != null && String(value).trim())
-        .map(value => String(value).trim())
-      if (!names.length) return
-      const [category, subtype] = inferKind(
-        names.join(" "),
-        asString(record["所属分系统"]),
-        asString(record["器件种类"]),
-      )
-      const source = asString(record["器件来源"])
-      out.push({
-        record,
-        sheet: sheet.name,
-        index,
-        names,
-        norm_names: names.map(norm),
-        dims_mm: recordDims(record),
-        is_catch: source.toUpperCase() === "CATCH" || source.toLowerCase().startsWith("catch"),
-        category,
-        subtype,
-      })
-    })
-  }
-  return out
+function componentNameKeys(component: JsonRecord) {
+  return [
+    component.display_name,
+    component.semantic_name,
+    component.id,
+  ]
+    .map(value => norm(value))
+    .filter(Boolean)
 }
 
-function dimScore(left: number[] | null, right: number[] | null) {
-  if (!left || !right) return 99
-  const sortedRight = [...right].sort((a, b) => a - b)
-  return [...left].sort((a, b) => a - b)
-    .reduce((sum, value, index) => {
-      const other = sortedRight[index]
-      return sum + Math.abs(value - other) / Math.max(value, other, 1)
-    }, 0)
+function componentNumericId(component: JsonRecord) {
+  const match = asString(component.id).match(/\d+/u)
+  return match ? Number.parseInt(match[0], 10) : 0
 }
 
-function matchRow(row: LoadedTableRow, dbRows: DbRow[]): [DbRow, string, number] {
-  const rowName = norm(row.name)
-  const catchHits = dbRows
-    .filter(candidate => candidate.is_catch && candidate.norm_names.some(name => name && (rowName.includes(name) || name.includes(rowName))))
-    .map(candidate => [dimScore(row.dims_mm, candidate.dims_mm), candidate] as const)
-  if (catchHits.length) {
-    const [score, candidate] = catchHits.sort((left, right) => left[0] - right[0])[0]
-    return [candidate, "catch_name", score]
-  }
-
-  const pool = dbRows.filter(candidate => candidate.subtype === row.subtype || candidate.category === row.category)
-  const scored = (pool.length ? pool : dbRows).map(candidate => [dimScore(row.dims_mm, candidate.dims_mm), candidate] as const)
-  const [score, candidate] = scored.sort((left, right) => left[0] - right[0])[0]
-  return [candidate, "similar_kind_size", score]
-}
-
-function templateMaps(realBom: JsonRecord, geom: JsonRecord): Map<string, MatchRow> {
-  const geomByComponent = new Map<string, JsonRecord>()
-  for (const comp of Object.values(asRecord(geom.components)).filter(isRecord)) {
-    if (comp.component_id) geomByComponent.set(String(comp.component_id), comp)
-  }
-  const byName = new Map<string, MatchRow>()
-  for (const item of asRecordArray(realBom.items)) {
-    const compId = item.component_id
-    const comp = compId == null ? null : geomByComponent.get(String(compId))
-    if (!comp) continue
-    for (const value of [item.semantic_name, asRecord(item.source_ref).display_name]) {
-      if (value) byName.set(norm(value), { item, geom: comp })
-    }
-  }
-  return byName
-}
-
-function axesFromFace(faceId: string): [string, number, number, number, number] {
-  const local = faceId.includes(".local_") ? faceId.split(".local_").at(-1) || "zmax" : "zmax"
-  const axisRaw = "xyz".indexOf(local[0] ?? "z")
-  const axis = axisRaw >= 0 ? axisRaw : 2
-  const sign = local.endsWith("max") ? 1 : -1
-  const axes = [0, 1, 2].filter(value => value !== axis)
-  return [local, axis, sign, axes[0], axes[1]]
-}
-
-function firstFace(layout: JsonRecord): JsonRecord {
-  const faces = asRecordArray(layout.install_faces)
-  const outer = faces.filter(face => face.side === "outer")
-  return (outer[0] ?? faces[0] ?? {}) as JsonRecord
-}
-
-function syntheticBox(face: JsonRecord, size: number[], index: number) {
-  const axis = Number(face.plane_axis ?? 2)
-  const sign = Number(face.normal_sign ?? 1)
-  const axes = [0, 1, 2].filter(value => value !== axis)
-  const [u, v] = axes
-  const col = index % 5
-  const row = Math.floor(index / 5)
-  const center = [0, 0, 0]
-  center[u] = -120 + col * 60
-  center[v] = -120 + (row % 5) * 60
-  const plane = Number(face.plane_value ?? 0)
-  const min = center.map((value, itemIndex) => value - size[itemIndex] / 2)
-  const max = center.map((value, itemIndex) => value + size[itemIndex] / 2)
-  if (sign >= 0) {
-    min[axis] = plane + 1
-    max[axis] = plane + 1 + size[axis]
-  } else {
-    min[axis] = plane - 1 - size[axis]
-    max[axis] = plane - 1
-  }
-  return { min: markFloatArray(min), max: markFloatArray(max) }
-}
-
-export async function generateCatch00InputsFromSupportingTable(options: {
-  dbPath: string
-  outputDir: string
-  templateDir: string
-  xlsxPath: string
-}) {
-  const rows = await loadTableRows(options.xlsxPath)
-  const dbRows = loadDbRows(await readJson(options.dbPath))
-  if (rows.length > 0 && dbRows.length === 0) {
-    throw new Error("thermal database has no usable records")
-  }
-  const realBom = cloneJson(asRecord(await readJson(path.join(options.templateDir, "real_bom.json"))))
-  const geom = cloneJson(asRecord(await readJson(path.join(options.templateDir, "geom.json"))))
-  const layout = cloneJson(asRecord(await readJson(path.join(options.templateDir, "layout_topology.json"))))
-  const templates = templateMaps(realBom, geom)
-
-  realBom.items = []
-  geom.components = {}
-  layout.placements = []
-  const realBomItems = realBom.items as unknown[]
-  const geomComponents = geom.components as JsonRecord
-  const layoutPlacements = layout.placements as unknown[]
-
-  const report: JsonRecord[] = []
-  const defaultFace = firstFace(layout)
-
-  rows.forEach((row, index) => {
-    const [match, mode, score] = matchRow(row, dbRows)
-    const record = match.record
-    const size = row.dims_mm ?? match.dims_mm ?? [50, 50, 50]
-    markFloatArray(size)
-    const compId = `P${String(index + 1).padStart(3, "0")}`
-    const geomId = `G${String(index + 1).padStart(3, "0")}`
-    const thermalId = `T${String(index + 1).padStart(3, "0")}`
-
-    const template = templates.get(norm(row.name))
-    let comp: JsonRecord
-    let faceId: string
-    let bbox: { min: number[]; max: number[] }
-    let mountFaceId: unknown
-    let kind: unknown
-    if (template) {
-      comp = cloneJson(template.geom)
-      faceId = asString(comp.component_mount_face_id || `${compId}.local_zmax`)
-      const oldId = asString(comp.component_id)
-      if (oldId && faceId.startsWith(`${oldId}.`)) faceId = compId + faceId.slice(oldId.length)
-      const bboxRecord = asRecord(comp.bbox)
-      const bboxMin = (Array.isArray(bboxRecord.min) ? bboxRecord.min : Array.isArray(comp.position) ? comp.position : [0, 0, 0]).map(Number)
-      bbox = { min: markFloatArray(bboxMin), max: markFloatArray(bboxMin.map((value, itemIndex) => value + size[itemIndex])) }
-      mountFaceId = comp.mount_face_id
-      kind = comp.kind ?? "external"
-    } else {
-      comp = {}
-      faceId = `${compId}.local_zmax`
-      bbox = syntheticBox(defaultFace, size, index)
-      mountFaceId = defaultFace.id
-      kind = "external"
-    }
-
-    const geomKey = `${geomId}_${compId}`
-    const thermalSurface = comp.thermal_surface ?? { absorptivity: 0.3, emissivity: num(record["辐射率"]) ?? 0.8 }
-    const thermalInterface = comp.thermal_interface ?? { contact_resistance: num(record["接触热阻K/W"]) ?? 0.001 }
-    markFloat(thermalSurface, "absorptivity")
-    markFloat(thermalSurface, "emissivity")
-    markFloat(thermalInterface, "contact_resistance")
-
-    Object.assign(comp, {
-      id: geomKey,
-      component_id: compId,
-      semantic_name: row.name,
-      kind,
-      category: row.category,
-      component_subtype: row.subtype,
-      dims: size,
-      mass: row.mass_kg,
-      power: row.power_W,
-      shape: record["外形"] ?? comp.shape ?? "box",
-      bbox,
-      position: bbox.min,
-      mount_face_id: mountFaceId,
-      component_mount_face_id: faceId,
-      thermal_surface: thermalSurface,
-      thermal_interface: thermalInterface,
-    })
-    markFloat(comp, "mass")
-    markFloat(comp, "power")
-    geomComponents[geomKey] = comp
-
-    const [local, axis, sign, uAxis, vAxis] = axesFromFace(faceId)
-    const realBomItem = {
-      component_id: compId,
-      semantic_name: row.name,
-      kind,
-      category: row.category,
-      size_mm: size,
-      mass_kg: row.mass_kg,
+function createSpecComponent(row: LoadedTableRow, numericId: number): JsonRecord {
+  const componentId = `P${String(numericId).padStart(3, "0")}`
+  const dimsMm = markFloatArray(row.dims_mm ?? [50, 50, 50])
+  const position = markFloatArray([0, 0, 0])
+  const bboxMax = markFloatArray(dimsMm.map(value => value))
+  return {
+    id: componentId,
+    geometry_id: `CATCH-G${String(numericId).padStart(3, "0")}`,
+    thermal_id: `CATCH-T${String(numericId).padStart(3, "0")}`,
+    semantic_name: row.name,
+    display_name: row.name,
+    kind: "internal",
+    category: row.category,
+    shape: "box",
+    position,
+    dims: dimsMm,
+    rotation_rows: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    bbox: {
+      min: position,
+      max: bboxMax,
+    },
+    color: [96, 165, 250, 255],
+    mount: {
+      install_face_id: null,
+      component_face_id: `${componentId}.local_zmin`,
+      component_face_index: 4,
+    },
+    thermal: {
+      include_in_simulation: row.power_W > 0,
       power_W: row.power_W,
-      peak_power_W: row.peak_power_W,
+      mass_kg: row.mass_kg,
       material_id: "aluminum_6061",
-      mounting: {
-        default_component_mount_face_id: faceId,
-        mount_faces: [{
-          component_mount_face_id: faceId,
-          local_face: local,
-          normal_axis: axis,
-          normal_sign: sign,
-          u_axis: uAxis,
-          v_axis: vAxis,
-        }],
-      },
-      quantity: 1,
-      source_ref: {
-        supporting_table_row: row.row,
-        matched_sheet: match.sheet,
-        matched_row_index: match.index,
-        matched_model: record["器件型号"],
-        matched_name: record["器件名称"],
-        matched_name_cn: record["器件名称(中文)"],
-        matched_source: record["器件来源"],
-        cad_path: record["CAD路径"],
-        cad_rotated_path: record["CAD_rotated_path"] ?? record["Rotated CAD Path"],
-        cad_major_path: record["CAD_MAJOR_PATH"],
-      },
+      contact_resistance: 0.001,
+    },
+    real_cad: {
+      source_kind: "box",
+      fallback_shape: "box",
+    },
+  }
+}
+
+function updateSpecComponentFromRow(component: JsonRecord, row: LoadedTableRow) {
+  const dimsMm = markFloatArray(row.dims_mm ?? (Array.isArray(component.dims) ? component.dims.map(Number) : [50, 50, 50]))
+  const bboxRecord = asRecord(component.bbox)
+  const bboxMin = Array.isArray(bboxRecord.min)
+    ? markFloatArray(bboxRecord.min.map(Number))
+    : Array.isArray(component.position)
+      ? markFloatArray(component.position.map(Number))
+      : markFloatArray([0, 0, 0])
+  const bboxMax = markFloatArray(bboxMin.map((value, index) => value + dimsMm[index]))
+  const thermal = asRecord(component.thermal)
+
+  component.display_name = row.name
+  component.semantic_name = row.name
+  component.category = row.category
+  component.dims = dimsMm
+  component.position = bboxMin
+  component.bbox = { ...bboxRecord, min: bboxMin, max: bboxMax }
+  thermal.mass_kg = row.mass_kg
+  thermal.power_W = row.power_W
+  thermal.include_in_simulation = row.power_W > 0
+  delete thermal.operating_temperature
+  delete thermal.operating_temperature_min_C
+  delete thermal.operating_temperature_max_C
+  delete thermal.operating_temperature_source
+  component.thermal = thermal
+
+  markFloatArray(dimsMm)
+  markFloatArray(bboxMin)
+  markFloatArray(bboxMax)
+  markFloat(thermal, "mass_kg")
+  markFloat(thermal, "power_W")
+}
+
+async function refreshCadBuildSpecFromSupportingTable(outputDir: string, xlsxPath: string) {
+  const rows = await loadTableRows(xlsxPath)
+  const cadBuildSpecPath = path.join(outputDir, "cad_build_spec.json")
+  const spec = asRecord(await readJson(cadBuildSpecPath))
+  const existingComponents = asRecordArray(spec.components)
+  const componentsByName = new Map<string, JsonRecord[]>()
+  for (const component of existingComponents) {
+    for (const key of componentNameKeys(component)) {
+      const bucket = componentsByName.get(key) ?? []
+      bucket.push(component)
+      componentsByName.set(key, bucket)
     }
-    markFloat(realBomItem, "mass_kg")
-    markFloat(realBomItem, "power_W")
-    realBomItems.push(realBomItem)
+  }
 
-    const alignment = { normal_alignment: "opposite", in_plane_rotation_deg: 0 }
-    markFloat(alignment, "in_plane_rotation_deg")
-    layoutPlacements.push({
-      component_id: compId,
-      semantic_name: row.name,
-      kind,
-      cabin_id: null,
-      component_mount_face_id: faceId,
-      mount_face_id: mountFaceId,
-      alignment,
-      geometry_id: geomId,
-      thermal_id: thermalId,
-      category: row.category,
-    })
-    const reportItem = {
-      row: row.row,
-      name: row.name,
-      component_id: compId,
-      match_mode: mode,
-      match_score: Math.round(score * 1_000_000) / 1_000_000,
-      matched_model: record["器件型号"],
-      matched_name_cn: record["器件名称(中文)"],
-      matched_source: record["器件来源"],
-      mass_kg: row.mass_kg,
-      power_W: row.power_W,
-      peak_power_W: row.peak_power_W,
-      size_mm: size,
-    }
-    markFloat(reportItem, "match_score")
-    markFloat(reportItem, "mass_kg")
-    markFloat(reportItem, "power_W")
-    report.push(reportItem)
-  })
+  let nextNumericId = existingComponents.reduce((maxId, component) => Math.max(maxId, componentNumericId(component)), 0) + 1
+  const nextComponents: JsonRecord[] = []
+  for (const [index, row] of rows.entries()) {
+    const rowKey = norm(row.name)
+    const candidates = componentsByName.get(rowKey) ?? []
+    const component = candidates.shift() ?? existingComponents[index] ?? createSpecComponent(row, nextNumericId++)
+    updateSpecComponentFromRow(component, row)
+    nextComponents.push(component)
+  }
 
-  realBom.bom_id = `${path.basename(options.xlsxPath, path.extname(options.xlsxPath))}_generated_bom`
-  realBom.source = { type: "supporting_table", xlsx: options.xlsxPath, database: options.dbPath }
-  geom.meta = { ...asRecord(geom.meta), source_supporting_table: options.xlsxPath }
-  layout.layout_id = `${path.basename(options.xlsxPath, path.extname(options.xlsxPath))}_generated_layout`
-  layout.source_design_id = "supporting_table"
+  spec.components = nextComponents
+  const summary = {
+    ...asRecord(spec.summary),
+    component_count: nextComponents.length,
+    wall_count: asRecordArray(spec.walls).length,
+    simulation_component_count: nextComponents.filter(component => Boolean(asRecord(component.thermal).include_in_simulation)).length,
+    real_cad_step_count: nextComponents.filter(component => asString(asRecord(component.real_cad).step_path)).length,
+    total_mass_kg: nextComponents.reduce((sum, component) => sum + (num(asRecord(component.thermal).mass_kg) ?? 0), 0),
+    total_power_W: nextComponents.reduce((sum, component) => sum + (num(asRecord(component.thermal).power_W) ?? 0), 0),
+  }
+  markFloat(summary, "total_mass_kg")
+  markFloat(summary, "total_power_W")
+  spec.summary = summary
+  spec.source_files = { ...asRecord(spec.source_files), supporting_table: path.basename(xlsxPath) }
 
-  await writeJson(path.join(options.outputDir, "real_bom.json"), realBom)
-  await writeJson(path.join(options.outputDir, "geom.json"), geom)
-  await writeJson(path.join(options.outputDir, "layout_topology.json"), layout)
-  await writeJson(path.join(options.outputDir, "match_report.json"), { component_count: rows.length, matches: report })
-  return { output_dir: options.outputDir, component_count: rows.length }
+  await writeJson(cadBuildSpecPath, spec)
+  return {
+    cad_build_spec_path: cadBuildSpecPath,
+    component_count: rows.length,
+    output_dir: outputDir,
+  }
 }
 
 export async function writeAndRefreshCatchSupportingTable(options: {
-  dbPath: string
   outputDir: string
   rows: JsonRecord[]
-  templateDir: string
+  workspaceDir?: string
   xlsxPath: string
 }) {
   await fs.mkdir(path.dirname(options.xlsxPath), { recursive: true })
   await writeCatchSupportingTable(options.xlsxPath, options.rows)
-  const generation = await generateCatch00InputsFromSupportingTable(options)
+  const generation = await refreshCadBuildSpecFromSupportingTable(options.outputDir, options.xlsxPath)
   return {
-    table: await readCatchSupportingTable(options.xlsxPath),
+    table: await readCatchSupportingTable(options.xlsxPath, { workspaceDir: options.workspaceDir }),
     generation,
   }
 }

@@ -72,11 +72,14 @@ def _merge_rows(
         return fresh_rows
 
     merged: list[Any] = []
+    seen_keys: set[str] = set()
     for row in fresh_rows:
         if not isinstance(row, dict):
             merged.append(row)
             continue
         key = _row_key(stage, row)
+        if key:
+            seen_keys.add(key)
         confirmed = confirmed_by_key.get(key)
         if confirmed:
             merged.append(
@@ -88,6 +91,16 @@ def _merge_rows(
             )
         else:
             merged.append(row)
+    if stage == "key_units_check":
+        for row in confirmed_rows:
+            key = _row_key(stage, row)
+            if key and key not in seen_keys and not _is_key_part(row):
+                merged.append(
+                    {
+                        **row,
+                        "confirmation_source": "confirmed_results.json",
+                    }
+                )
     return merged
 
 
@@ -145,6 +158,11 @@ def _value(row: dict[str, Any], *keys: str) -> str:
         if value is not None and str(value).strip():
             return str(value)
     return ""
+
+
+def _is_key_part(row: dict[str, Any]) -> bool:
+    text = _value(row, "is_key_part", "关键部位", "关键器件", "status").strip().lower()
+    return text in {"true", "是", "关键", "yes", "y", "1"}
 
 
 def _join(*parts: str) -> str:
