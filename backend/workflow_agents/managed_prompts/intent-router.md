@@ -28,10 +28,7 @@ Allowed `skillScopes`:
 
 Allowed `selectedSkills` values are skill names from the selected scope. Return an empty array for `progress-summarizer` and general tasks. Prefer the smallest set of skills that can handle the request:
 
-- Thermal planning or full workflow without report output: `planner`, then `workflow-diagram-writer`; include `cad-builder` when the request will build, refresh, assemble, export, prepare, or validate CAD artifacts
-- Thermal CAD-only execution or validation: `cad-builder`
-- Thermal simulation execution after CAD artifacts exist: `simulation-skill`; include `cad-builder` first when CAD simulation inputs are missing, stale, or explicitly requested
-- Thermal report/review from existing artifacts: `cad-sim-report-agent`
+- Thermal planning or full workflow without report output: `planner`, then `workflow-diagram-writer`
 - AIGNC full workflow: `aignc-42-orchestrator`
 - AIGNC scenario clarification: `aignc-scenario-brainstorm`
 - AIGNC capability check: `42-capability-auditor`
