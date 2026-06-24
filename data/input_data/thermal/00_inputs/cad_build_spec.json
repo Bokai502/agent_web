@@ -5,7 +5,9 @@
     "power": "W"
   },
   "source_files": {
-    "cad_build_spec": "cad_build_spec.json"
+    "cad_build_spec": "cad_build_spec.json",
+    "thermal_database": "热仿真数据库.xlsx",
+    "supporting_table_temperature_fill": "热仿真数据库.xlsx exact/refined power + same-kind operating-temperature fallback"
   },
   "document": {
     "name": "template_airbus_no_structure_no_replace",
@@ -143,7 +145,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -229,7 +235,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -315,7 +325,11 @@
         "power_W": 5.0,
         "mass_kg": 3.498326,
         "material_id": "battery_cells_aluminum_case",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:EXA BA0x BAD1/D (同类 CubeSat 锂电池温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -400,7 +414,11 @@
         "power_W": 5.0,
         "mass_kg": 3.498326,
         "material_id": "battery_cells_aluminum_case",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:EXA BA0x BAD1/D (同类 CubeSat 锂电池温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -485,7 +503,11 @@
         "power_W": 3.0,
         "mass_kg": 0.321993,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:PL-90MM-CAMERA (同类载荷相机温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -570,7 +592,11 @@
         "power_W": 3.0,
         "mass_kg": 0.321993,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:PL-90MM-CAMERA (同类载荷相机温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -655,7 +681,11 @@
         "power_W": 3.0,
         "mass_kg": 0.321993,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:PL-90MM-CAMERA (同类载荷相机温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -740,7 +770,11 @@
         "power_W": 3.0,
         "mass_kg": 0.321993,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:PL-90MM-CAMERA (同类载荷相机温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -825,7 +859,11 @@
         "power_W": 15.0,
         "mass_kg": 1.7,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 85℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 85.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:DARA OBC (同类星务计算机温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -910,7 +948,11 @@
         "power_W": 15.0,
         "mass_kg": 1.7,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 85℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 85.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:DARA OBC (同类星务计算机温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -995,7 +1037,11 @@
         "power_W": 0.0,
         "mass_kg": 0.293147,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类被动载荷/机构件温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1080,7 +1126,11 @@
         "power_W": 0.0,
         "mass_kg": 0.293147,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类被动载荷/机构件温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1165,7 +1215,11 @@
         "power_W": 0.0,
         "mass_kg": 1.366253,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类机构件温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1250,7 +1304,11 @@
         "power_W": 0.0,
         "mass_kg": 1.366253,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类机构件温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1335,7 +1393,11 @@
         "power_W": 0.0,
         "mass_kg": 1.366253,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类机构件温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1420,7 +1482,11 @@
         "power_W": 0.0,
         "mass_kg": 1.366253,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类机构件温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1505,7 +1571,11 @@
         "power_W": 4.0,
         "mass_kg": 1.707552,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类机构件温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1590,7 +1660,11 @@
         "power_W": 0.0,
         "mass_kg": 1.6,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-30 ~ 60℃",
+        "operating_temperature_min_C": -30.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Steam TunaCan Thruster (同推进系统温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1675,7 +1749,11 @@
         "power_W": 0.0,
         "mass_kg": 1.6,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-30 ~ 60℃",
+        "operating_temperature_min_C": -30.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Steam TunaCan Thruster (同推进系统温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1760,7 +1838,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1845,7 +1927,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -1930,7 +2016,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2015,7 +2105,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2100,7 +2194,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2185,7 +2283,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2270,7 +2372,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2355,7 +2461,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2440,7 +2550,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2525,7 +2639,11 @@
         "power_W": 0.5,
         "mass_kg": 0.0343,
         "material_id": "aluminum_6061",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-100 ~ 90℃",
+        "operating_temperature_min_C": -100.0,
+        "operating_temperature_max_C": 90.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:HTC01 (同类释放/舱门机构温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2610,7 +2728,11 @@
         "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:ADCS-RW400-CUBESAT-REACTION-WHEELS (同类 CubeSat 反作用飞轮温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2695,7 +2817,11 @@
         "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:ADCS-RW400-CUBESAT-REACTION-WHEELS (同类 CubeSat 反作用飞轮温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2780,7 +2906,11 @@
         "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:ADCS-RW400-CUBESAT-REACTION-WHEELS (同类 CubeSat 反作用飞轮温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2865,7 +2995,11 @@
         "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:ADCS-RW400-CUBESAT-REACTION-WHEELS (同类 CubeSat 反作用飞轮温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -2950,7 +3084,11 @@
         "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:ADCS-RW400-CUBESAT-REACTION-WHEELS (同类 CubeSat 反作用飞轮温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3035,7 +3173,11 @@
         "power_W": 8.0,
         "mass_kg": 0.027,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-40 ~ 60℃",
+        "operating_temperature_min_C": -40.0,
+        "operating_temperature_max_C": 60.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:ADCS-RW400-CUBESAT-REACTION-WHEELS (同类 CubeSat 反作用飞轮温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3120,7 +3262,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3206,7 +3352,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3292,7 +3442,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3378,7 +3532,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3464,7 +3622,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3550,7 +3712,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3636,7 +3802,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3722,7 +3892,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3808,7 +3982,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3894,7 +4072,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -3980,7 +4162,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -4066,7 +4252,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -4152,7 +4342,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
@@ -4238,7 +4432,11 @@
         "power_W": 12.0,
         "mass_kg": 0.01858,
         "material_id": "stainless_steel",
-        "contact_resistance": 0.001
+        "contact_resistance": 0.001,
+        "operating_temperature": "-5 ~ 30℃",
+        "operating_temperature_min_C": -5.0,
+        "operating_temperature_max_C": 30.0,
+        "operating_temperature_source": "热仿真数据库.xlsx:Dawn B1 (同厂家/同功耗推进器温度兜底)"
       },
       "real_cad": {
         "source_kind": "step",
