@@ -1230,6 +1230,20 @@ button.wa-run-card.selected {
   right: 18px;
   top: 18px;
   z-index: 2;
+  display: inline-flex;
+  max-width: min(520px, calc(100% - 36px));
+  align-items: center;
+  gap: 8px;
+}
+.wa-tool-load-status {
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  color: #6e6e73;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .wa-stage-footer {
   display: grid;

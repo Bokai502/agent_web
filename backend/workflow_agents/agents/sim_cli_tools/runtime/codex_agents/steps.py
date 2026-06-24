@@ -5,7 +5,6 @@ from pathlib import Path
 from codex_agents import dependencies
 from codex_agents.config import BomExternalToolsPipelineConfig
 from codex_agents.context import BomExternalToolsPipelineContext
-from codex_agents.external_tool_launchers import load_simulation_outputs_in_remote_tools
 from codex_agents.logging_utils import ensure_file_logging, get_logger, redirect_output_to_logger
 from codex_agents.results import StageExecution
 from codex_agents.stage_adapters import select_geometry_step
@@ -28,28 +27,6 @@ class SimulationStep:
                 ctx.paths["simulation"],
                 self.simulation_config(ctx.config, ctx.paths, geometry_step_path),
             )
-        if result.status == "completed" and ctx.config.open_external_tools:
-            loader_result = load_simulation_outputs_in_remote_tools(
-                ctx.paths["simulation"],
-                async_launch=ctx.config.open_external_tools_async,
-            )
-            if not hasattr(result, "checks"):
-                result.checks = {}
-            if not hasattr(result, "warnings"):
-                result.warnings = []
-            result.checks["external_tool_loaders"] = loader_result
-            for tool_name in ("comsol", "paraview"):
-                tool_result = loader_result.get(tool_name, {})
-                logger.info(
-                    "%s loader status=%s data_file=%s",
-                    tool_name,
-                    tool_result.get("status"),
-                    tool_result.get("data_file"),
-                )
-                if tool_result.get("status") == "failed":
-                    result.warnings.append(
-                        f"{tool_name} remote loader failed: {tool_result.get('message') or tool_result.get('reason')}"
-                    )
         return stage_result_execution(
             ctx,
             result,

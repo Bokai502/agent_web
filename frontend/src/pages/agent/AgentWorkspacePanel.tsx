@@ -12,6 +12,7 @@ import { ComplianceCheckInputConfigEditor } from './ComplianceCheckInputConfigEd
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
+import { useLoadSimulationGuiData } from '../workspace/useLoadSimulationGuiData'
 
 type CurrentWorkspaceCardProps = ComponentProps<typeof CurrentWorkspaceCard>
 type BomStagePanelProps = ComponentProps<typeof BomStagePanel>
@@ -115,6 +116,7 @@ export function AgentWorkspacePanel({
   workspaceRefreshNonce = 0,
 }: AgentWorkspacePanelProps) {
   const [thermalConfigTab, setThermalConfigTab] = useState<'catch-table' | 'execution-flow'>('catch-table')
+  const simulationLoad = useLoadSimulationGuiData(apiBase, activeContext)
   const panelClassName = [
     'agent-workspace-panel',
     activeView ? 'is-open' : 'is-collapsed',
@@ -157,6 +159,7 @@ export function AgentWorkspacePanel({
       workspaceId={activeContext.workspaceId ?? undefined}
     />
   )
+  const canLoadSimulationData = activeView === 'tools' && (activeTool === 'paraview' || activeTool === 'comsol')
 
   return (
     <section className={panelClassName}>
@@ -223,6 +226,20 @@ export function AgentWorkspacePanel({
                 {toolLabel(tool)}
               </button>
             ))}
+          </div>
+        )}
+        {canLoadSimulationData && (
+          <div className="agent-tool-actions">
+            <button
+              type="button"
+              className="agent-tool-load-button"
+              disabled={simulationLoad.pending || !activeContext.versionDir}
+              title={simulationLoad.status || '加载当前版本 native.vtu 和 work.mph 到 ParaView/COMSOL'}
+              onClick={simulationLoad.load}
+            >
+              {simulationLoad.pending ? '加载中' : '加载数据'}
+            </button>
+            {simulationLoad.status && <span>{simulationLoad.status}</span>}
           </div>
         )}
       </div>
