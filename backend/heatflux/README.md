@@ -53,10 +53,16 @@ focus on the dawn-dusk/noon SSO heat-flux tables and dawn-dusk transient plots.
   for a script skeleton and `gmat/scripts/README.md`.
 - Orekit: Java is available, but no local Orekit data directory or Orekit
   runtime was present. The repeatable baseline is implemented with Python in
-  `postprocess/compute_heat_flux.py` and exports data to `orekit/exported_data/`.
+  `postprocess/compute_heat_flux.py` and exports data to
+  `data/input_data/thermal_catch/00_inputs/heatflux/orekit/exported_data/`.
 
 ## Outputs
 
+Baseline data is stored under
+`data/input_data/thermal_catch/00_inputs/heatflux/` so backend workspace APIs
+can use it as template input data.
+
+- `orekit/exported_data/*_timeseries.csv`
 - `results/table_5_6_reproduced.csv`
 - `results/table_5_7_reproduced.csv`
 - `results/table_5_6_reproduced.md`

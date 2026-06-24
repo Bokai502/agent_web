@@ -30,6 +30,8 @@ EPSILON = 0.80
 SSO_INCLINATION_DEG = 97.79
 
 FACES = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"]
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_HEATFLUX_DATA_DIR = REPO_ROOT / "data" / "input_data" / "thermal_catch" / "00_inputs" / "heatflux"
 SEASONS = [
     ("spring", "春分", 3, 21),
     ("summer", "夏至", 6, 21),
@@ -251,7 +253,7 @@ def write_comparison(dawn: pd.DataFrame, noon: pd.DataFrame, results_dir: Path) 
         "",
         "## 瞬态曲线趋势",
         "",
-        "晨昏轨道四季瞬态图已输出至 `results/fig_5_5` 至 `fig_5_8`。曲线包含直射、反照和红外叠加后的六面总吸收热流，能够体现随轨道相位变化的周期性；由于报告原图数据点不可得，只做趋势级复现。",
+        "晨昏轨道四季瞬态图已输出至热流基准库 `results/fig_5_5` 至 `fig_5_8`。曲线包含直射、反照和红外叠加后的六面总吸收热流，能够体现随轨道相位变化的周期性；由于报告原图数据点不可得，只做趋势级复现。",
         "",
     ]
     (results_dir / "comparison_summary.md").write_text("\n".join(lines), encoding="utf-8")
@@ -260,8 +262,8 @@ def write_comparison(dawn: pd.DataFrame, noon: pd.DataFrame, results_dir: Path) 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--year", type=int, default=2026)
-    parser.add_argument("--results-dir", type=Path, default=Path("results"))
-    parser.add_argument("--export-dir", type=Path, default=Path("orekit/exported_data"))
+    parser.add_argument("--results-dir", type=Path, default=DEFAULT_HEATFLUX_DATA_DIR / "results")
+    parser.add_argument("--export-dir", type=Path, default=DEFAULT_HEATFLUX_DATA_DIR / "orekit" / "exported_data")
     args = parser.parse_args()
 
     args.results_dir.mkdir(parents=True, exist_ok=True)

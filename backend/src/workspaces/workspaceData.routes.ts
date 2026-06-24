@@ -335,6 +335,7 @@ const HEATFLUX_OUTPUT_RELATIVE_DIR = path.join("00_inputs", "heatflux")
 const HEATFLUX_SELECTED_JSON_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "selected_heatflux.json")
 const HEATFLUX_CURVE_IMAGE_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "heatflux_curve.png")
 const HEATFLUX_MARKED_CURVE_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "heatflux_curve_marked.svg")
+const HEATFLUX_TEMPLATE_RELATIVE_DIR = path.join("00_inputs", "heatflux")
 const HEATFLUX_FACE_NAMES = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] as const
 const HEATFLUX_MU_EARTH = 3.986004418e14
 const HEATFLUX_R_EARTH = 6378137.0
@@ -797,8 +798,28 @@ function parseCsvLine(line: string) {
   return cells
 }
 
-function resolveHeatfluxRoot() {
-  return path.join(resolveRepoRoot(), "backend", "heatflux")
+async function resolveHeatfluxRoot(workspaceDir: string, config: AppConfig) {
+  const templateRoot = resolveWorkspaceTemplateRoot(config)
+  const workspaceRoot = path.basename(path.dirname(workspaceDir)) === "versions"
+    ? path.dirname(path.dirname(workspaceDir))
+    : workspaceDir
+  const workspaceTemplateName = path.basename(workspaceRoot).replace(/^ws_/u, "")
+  const candidateRoots = [
+    path.join(templateRoot, workspaceTemplateName, HEATFLUX_TEMPLATE_RELATIVE_DIR),
+    path.join(templateRoot, "thermal_catch", HEATFLUX_TEMPLATE_RELATIVE_DIR),
+    path.join(templateRoot, "thermal", HEATFLUX_TEMPLATE_RELATIVE_DIR),
+    path.join(resolveRepoRoot(), "data", "input_data", workspaceTemplateName, HEATFLUX_TEMPLATE_RELATIVE_DIR),
+    path.join(resolveRepoRoot(), "data", "input_data", "thermal_catch", HEATFLUX_TEMPLATE_RELATIVE_DIR),
+    path.join(resolveRepoRoot(), "data", "input_data", "thermal", HEATFLUX_TEMPLATE_RELATIVE_DIR),
+    path.join(resolveRepoRoot(), "backend", "heatflux"),
+  ]
+
+  for (const candidateRoot of candidateRoots) {
+    const stat = await fs.stat(candidateRoot).catch(() => null)
+    if (stat?.isDirectory()) return candidateRoot
+  }
+
+  return candidateRoots[0]
 }
 
 function normalizeHeatfluxSeason(value: unknown) {
@@ -886,8 +907,13 @@ function buildHeatfluxMarkedSvg({
 `
 }
 
-async function readHeatfluxNearestRow(season: keyof typeof HEATFLUX_SEASON_OPTIONS, requestedTimeS: number) {
-  const heatfluxRoot = resolveHeatfluxRoot()
+async function readHeatfluxNearestRow(
+  workspaceDir: string,
+  config: AppConfig,
+  season: keyof typeof HEATFLUX_SEASON_OPTIONS,
+  requestedTimeS: number,
+) {
+  const heatfluxRoot = await resolveHeatfluxRoot(workspaceDir, config)
   const option = HEATFLUX_SEASON_OPTIONS[season]
   const csvPath = path.join(heatfluxRoot, option.seriesRelativePath)
   const raw = await fs.readFile(csvPath, "utf-8").catch(() => null)
@@ -944,16 +970,17 @@ async function readHeatfluxNearestRow(season: keyof typeof HEATFLUX_SEASON_OPTIO
   }
 }
 
-async function writeHeatfluxSelection(workspaceDir: string, body: HeatfluxSelectionBody) {
+async function writeHeatfluxSelection(workspaceDir: string, config: AppConfig, body: HeatfluxSelectionBody) {
   const season = normalizeHeatfluxSeason(body.season)
   const requestedTimeS = parseHeatfluxTimeSeconds(body.time)
   const option = HEATFLUX_SEASON_OPTIONS[season]
-  const selected = await readHeatfluxNearestRow(season, requestedTimeS)
+  const selected = await readHeatfluxNearestRow(workspaceDir, config, season, requestedTimeS)
   const outputDir = path.join(workspaceDir, HEATFLUX_OUTPUT_RELATIVE_DIR)
   const selectedJsonPath = path.join(workspaceDir, HEATFLUX_SELECTED_JSON_RELATIVE_PATH)
   const imagePath = path.join(workspaceDir, HEATFLUX_CURVE_IMAGE_RELATIVE_PATH)
   const markedImagePath = path.join(workspaceDir, HEATFLUX_MARKED_CURVE_RELATIVE_PATH)
-  const sourceImagePath = path.join(resolveHeatfluxRoot(), option.figureRelativePath)
+  const heatfluxRoot = await resolveHeatfluxRoot(workspaceDir, config)
+  const sourceImagePath = path.join(heatfluxRoot, option.figureRelativePath)
   const sourceImageStat = await fs.stat(sourceImagePath).catch(() => null)
   if (!sourceImageStat?.isFile()) {
     throw new WorkspaceQueryError("heatflux curve image not found", 404)
@@ -2196,7 +2223,7 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       reply.header("Cache-Control", "no-cache")
-      return reply.send(await writeHeatfluxSelection(workspaceDir, req.body ?? {}))
+      return reply.send(await writeHeatfluxSelection(workspaceDir, config, req.body ?? {}))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to save heatflux selection")
     }

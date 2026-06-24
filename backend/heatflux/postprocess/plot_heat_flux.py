@@ -11,6 +11,8 @@ import pandas as pd
 
 
 FACES = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"]
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_HEATFLUX_DATA_DIR = REPO_ROOT / "data" / "input_data" / "thermal_catch" / "00_inputs" / "heatflux"
 FIG_MAP = {
     "spring": ("fig_5_5_dawn_dusk_spring.png", "Fig. 5-5 Dawn-dusk Spring Heat Flux"),
     "summer": ("fig_5_6_dawn_dusk_summer.png", "Fig. 5-6 Dawn-dusk Summer Heat Flux"),
@@ -21,8 +23,8 @@ FIG_MAP = {
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--export-dir", type=Path, default=Path("orekit/exported_data"))
-    parser.add_argument("--results-dir", type=Path, default=Path("results"))
+    parser.add_argument("--export-dir", type=Path, default=DEFAULT_HEATFLUX_DATA_DIR / "orekit" / "exported_data")
+    parser.add_argument("--results-dir", type=Path, default=DEFAULT_HEATFLUX_DATA_DIR / "results")
     args = parser.parse_args()
     args.results_dir.mkdir(parents=True, exist_ok=True)
 
