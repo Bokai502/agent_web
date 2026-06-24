@@ -9,7 +9,7 @@ minimum these must exist:
 If required after-state or COMSOL input files are missing, prepare the required
 derived files before `simulation-skill run`.
 
-`cad-box-builder` and `cad-real-assembly-builder` are box/review outputs. They
+The `cad-builder` box and real-assembly operations produce review outputs. They
 are required for a full CAD review workflow, but they are not blockers for
 thermal simulation unless the user explicitly asks to regenerate review GLBs.
 

@@ -31,13 +31,9 @@ commands, run simulation commands, or write final report artifacts.
 ## Main Handoffs
 
 - `config-editor` applies required `00_inputs` configuration changes.
-- `cad-box-builder` builds the placeholder box GLB:
-  `01_cad/geometry_after.glb`.
-- `cad-real-assembly-builder` builds the supplemental real assembly GLB:
-  `01_cad/geometry_after_real_cad.glb`.
-- `cad-sim-input-builder` builds thermal simulation CAD artifacts:
-  `01_cad/geometry_after_power_filtered.step` and
-  `01_cad/simulation_input.json`.
+- `cad-builder` builds and validates CAD artifacts, including placeholder box
+  GLB, supplemental real assembly GLB, simulation STEP/input files, after-state
+  metadata, and CAD output validation.
 - `simulation-skill` runs thermal simulation and postprocess validation.
 - `cad-sim-report-agent` reviews existing artifacts and writes final reports.
 - `workflow-diagram-writer` writes
@@ -52,11 +48,9 @@ For a full CAD plus thermal workflow, plan this sequence:
 
 1. `workflow-diagram-writer`.
 2. `config-editor` if `00_inputs/cad_build_spec.json` must change.
-3. `cad-box-builder`.
-4. `cad-real-assembly-builder`.
-5. `cad-sim-input-builder`.
-6. `simulation-skill run`.
-7. `cad-sim-report-agent` only when the user asks for reporting or review.
+3. `cad-builder`.
+4. `simulation-skill run`.
+5. `cad-sim-report-agent` only when the user asks for reporting or review.
 
 If the goal is already a direct execution request with no ambiguity, produce a
 short plan and hand off to the needed specialist skill only after applying the

@@ -1,4 +1,0 @@
-interface:
-  display_name: "CAD Box Builder"
-  short_description: "Build placeholder box GLB"
-  default_prompt: "Use $cad-box-builder to build only the placeholder box GLB from 00_inputs/cad_build_spec.json in the selected workspace."

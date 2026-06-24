@@ -48,8 +48,9 @@ const E2E_ENABLED = process.env.OPEN_CODEX_WEB_E2E_THERMAL === "1"
 const TEST_USER_ID = process.env.OPEN_CODEX_WEB_E2E_USER_ID ?? "test_1"
 const CASE_TIMEOUT_MS = Number(process.env.OPEN_CODEX_WEB_E2E_CASE_TIMEOUT_MS ?? 10 * 60 * 1000)
 const OUTPUT_POLL_INTERVAL_MS = Number(process.env.OPEN_CODEX_WEB_E2E_OUTPUT_POLL_INTERVAL_MS ?? 2000)
-const ALLOW_CAD_CLI_FALLBACK = process.env.OPEN_CODEX_WEB_E2E_ALLOW_CAD_CLI_FALLBACK !== "0"
+const ALLOW_CAD_BUILDERS_FALLBACK = process.env.OPEN_CODEX_WEB_E2E_ALLOW_CAD_BUILDERS_FALLBACK !== "0"
 const REPORT_DETAIL = process.env.OPEN_CODEX_WEB_E2E_REPORT_DETAIL ?? "summary"
+const CAD_BUILDERS_SRC_DIR = path.resolve("workflow_agents", "agents", "cad_builders", "src")
 const execFileAsync = promisify(execFile)
 const CASES: E2eCase[] = [
   { dataset: "thermal", expectedVersionId: "v0001", modelBackend: "openai" },
@@ -369,21 +370,38 @@ async function waitForValidOutputs(workspaceDir: string, signal: AbortSignal) {
   return lastChecks
 }
 
-async function runCadCliFallback(workspaceDir: string) {
-  const env = { ...process.env }
-  const commands = [
-    ["--json", "build", "box", "--workspace-dir", workspaceDir],
-    ["--json", "build", "real-assembly", "--workspace-dir", workspaceDir],
-    ["--json", "build", "sim-input", "--workspace-dir", workspaceDir],
-  ]
-  for (const args of commands) {
-    await execFileAsync("cad_cli", args, {
-      cwd: workspaceDir,
-      env,
-      maxBuffer: 50 * 1024 * 1024,
-      timeout: CASE_TIMEOUT_MS,
-    })
+async function runCadBuildersFallback(workspaceDir: string) {
+  const env = {
+    ...process.env,
+    PYTHONPATH: [CAD_BUILDERS_SRC_DIR, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
   }
+  await execFileAsync("python3", [
+    "-c",
+    `
+import json
+from cad_builders.box import CadBoxBuilder, CadBoxBuildRequest
+from cad_builders.real_assembly import CadRealAssemblyBuilder, CadRealAssemblyBuildRequest
+from cad_builders.sim_input import CadAfterStatePreparer, CadSimInputBuildRequest, CadSimInputBuilder
+
+workspace_dir = ${JSON.stringify(workspaceDir)}
+box = CadBoxBuilder().build(CadBoxBuildRequest(workspace_dir=workspace_dir))
+real = CadRealAssemblyBuilder().build(CadRealAssemblyBuildRequest(workspace_dir=workspace_dir))
+request = CadSimInputBuildRequest(workspace_dir=workspace_dir)
+sim = CadSimInputBuilder().build(request)
+after = CadAfterStatePreparer().prepare(request)
+print(json.dumps({
+    "box": box.to_dict(),
+    "real_assembly": real.to_dict(),
+    "sim_input": sim,
+    "after_state": after,
+}, ensure_ascii=False))
+`,
+  ], {
+    cwd: workspaceDir,
+    env,
+    maxBuffer: 50 * 1024 * 1024,
+    timeout: CASE_TIMEOUT_MS,
+  })
 }
 
 async function runCase(config: AppConfig, dataset: DatasetName, modelBackend: ModelBackendName): Promise<E2eCaseResult> {
@@ -402,10 +420,7 @@ async function runCase(config: AppConfig, dataset: DatasetName, modelBackend: Mo
   try {
     const prepared = await prepareCodexTurn({
       enabledSkills: [
-        "cad-box-builder",
-        "cad-real-assembly-builder",
-        "cad-sim-input-builder",
-        "cad-validate",
+        "cad-builder",
       ],
       modelBackend,
       prompt: buildPrompt(dataset),
@@ -439,8 +454,8 @@ async function runCase(config: AppConfig, dataset: DatasetName, modelBackend: Mo
       files = await outputPromise
       assertOutputChecks(files)
     } catch (err) {
-      if (!ALLOW_CAD_CLI_FALLBACK) throw err
-      await runCadCliFallback(version.workspaceDir)
+      if (!ALLOW_CAD_BUILDERS_FALLBACK) throw err
+      await runCadBuildersFallback(version.workspaceDir)
       files = await validateThermalOutputs(version.workspaceDir)
       assertOutputChecks(files)
       status = "completed_with_fallback_outputs"
@@ -542,7 +557,7 @@ async function writeReport(userRoot: string, results: E2eCaseResult[]) {
   const payload = {
     caseTimeoutMs: CASE_TIMEOUT_MS,
     createdAt: new Date().toISOString(),
-    allowCadCliFallback: ALLOW_CAD_CLI_FALLBACK,
+    allowCadBuildersFallback: ALLOW_CAD_BUILDERS_FALLBACK,
     cases: CASES,
     datasets: [...new Set(CASES.map(testCase => testCase.dataset))],
     modelBackends: [...new Set(CASES.map(testCase => testCase.modelBackend))],
@@ -573,7 +588,7 @@ describe("thermal model backend E2E", { skip: !E2E_ENABLED }, () => {
     const successfulStatuses = new Set([
       "completed",
       "completed_with_outputs",
-      ...(ALLOW_CAD_CLI_FALLBACK ? ["completed_with_fallback_outputs"] : []),
+      ...(ALLOW_CAD_BUILDERS_FALLBACK ? ["completed_with_fallback_outputs"] : []),
     ])
     const failures = results.filter(result => result.error || !successfulStatuses.has(result.status))
     assert.deepEqual(failures, [], `E2E report: ${reportPath}`)

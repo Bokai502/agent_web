@@ -9,12 +9,9 @@ import { promisify } from "node:util"
 const execFileAsync = promisify(execFile)
 const BACKEND_ROOT = process.cwd()
 const THERMAL_SKILLS_DIR = path.join(BACKEND_ROOT, "workflow_agents", "thermal_skills")
-const FREECAD_CLI_SRC_DIR = path.join(BACKEND_ROOT, "workflow_agents", "agents", "freecad_cli_tools", "src")
+const CAD_BUILDERS_SRC_DIR = path.join(BACKEND_ROOT, "workflow_agents", "agents", "cad_builders", "src")
 const SIM_CLI_SRC_DIR = path.join(BACKEND_ROOT, "workflow_agents", "agents", "sim_cli_tools", "src")
 const SIM_RUNTIME_DIR = path.join(BACKEND_ROOT, "workflow_agents", "agents", "sim_cli_tools", "runtime")
-const CAD_BUILD_DISPLAY_SCRIPT = path.join(THERMAL_SKILLS_DIR, "cad-box-builder", "scripts", "build_box.py")
-const CAD_BUILD_REAL_CAD_SCRIPT = path.join(THERMAL_SKILLS_DIR, "cad-real-assembly-builder", "scripts", "build_real_assembly.py")
-const CAD_BUILD_SIMULATION_SCRIPT = path.join(THERMAL_SKILLS_DIR, "cad-sim-input-builder", "scripts", "build_sim_input.py")
 
 async function listFiles(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true })
@@ -53,32 +50,16 @@ describe("thermal workflow skills", () => {
       "config-editor/references/热仿真数据库.json",
       "config-editor/references/热仿真数据库_headers.md",
       "config-editor/templates/config_editor_report_template.md",
-      "cad-box-builder/SKILL.md",
-      "cad-box-builder/agents/openai.yaml",
-      "cad-box-builder/scripts/build_box.py",
-      "cad-box-builder/scripts/spec_common.py",
-      "cad-real-assembly-builder/SKILL.md",
-      "cad-real-assembly-builder/agents/openai.yaml",
-      "cad-real-assembly-builder/scripts/build_real_assembly.py",
-      "cad-real-assembly-builder/scripts/freecad_glb_exporter.py",
-      "cad-real-assembly-builder/scripts/local_freecad_helpers.py",
-      "cad-real-assembly-builder/scripts/rpc_scripts/build_real_assembly_hybrid.py",
-      "cad-real-assembly-builder/scripts/spec_common.py",
-      "cad-sim-input-builder/SKILL.md",
-      "cad-sim-input-builder/agents/openai.yaml",
-      "cad-sim-input-builder/scripts/build_sim_input.py",
-      "cad-sim-input-builder/scripts/prepare_simulation_after_state.py",
-      "cad-sim-input-builder/scripts/spec_common.py",
+      "cad-builder/SKILL.md",
+      "cad-builder/agents/openai.yaml",
+      "cad-builder/references/box-builder.md",
+      "cad-builder/references/real-assembly-builder.md",
+      "cad-builder/references/sim-input-builder.md",
+      "cad-builder/references/validate.md",
       "workflow-diagram-writer/SKILL.md",
       "workflow-diagram-writer/agents/openai.yaml",
       "workflow-diagram-writer/assets/thermal_execution_flow_template.json",
       "workflow-diagram-writer/scripts/write_execution_flow.py",
-      "freecad/SKILL.md",
-      "freecad/agents/openai.yaml",
-      "freecad/guides/cad-build-workflow.md",
-      "freecad/guides/cad-validate-workflow.md",
-      "freecad/guides/create-assembly-from-component-info.md",
-      "freecad/guides/safe-move-workflow.md",
       "planner/SKILL.md",
       "simulation-skill/SKILL.md",
       "simulation-skill/agents/openai.yaml",
@@ -115,53 +96,20 @@ describe("thermal workflow skills", () => {
     try {
       const env = {
         ...process.env,
-        PYTHONPATH: pythonPath(FREECAD_CLI_SRC_DIR, process.env.PYTHONPATH ?? ""),
+        PYTHONPATH: pythonPath(CAD_BUILDERS_SRC_DIR, process.env.PYTHONPATH ?? ""),
       }
-      const { stdout: freecadRootHelp } = await execFileAsync("python3", [
-        "-m",
-        "freecad_cli_tools.cli.main",
-        "--help",
+      const { stdout: cadBuildersSmoke } = await execFileAsync("python3", [
+        "-c",
+        [
+          "from cad_builders.box import CadBoxBuilder, CadBoxBuildRequest",
+          "from cad_builders.real_assembly import CadRealAssemblyBuilder, CadRealAssemblyBuildRequest",
+          "from cad_builders.sim_input import CadAfterStatePreparer, CadSimInputBuildRequest, CadSimInputBuilder",
+          "from cad_builders.validate import CadValidateRequest, CadValidateRunner",
+          "print('cad_builders ok')",
+        ].join("; "),
       ], { env })
-      const { stdout: displayHelp } = await execFileAsync("python3", [
-        CAD_BUILD_DISPLAY_SCRIPT,
-        "--help",
-      ], { env })
-      const { stdout: realCadHelp } = await execFileAsync("python3", [
-        CAD_BUILD_REAL_CAD_SCRIPT,
-        "--help",
-      ], { env })
-      const { stdout: simulationHelp } = await execFileAsync("python3", [
-        CAD_BUILD_SIMULATION_SCRIPT,
-        "--help",
-      ], { env })
-      const { stdout: configStdout } = await execFileAsync("python3", [
-        "-m",
-        "freecad_cli_tools.cli.main",
-        "config",
-        "show",
-        "--workspace-dir",
-        workspaceDir,
-      ], { env })
-      const config = JSON.parse(configStdout)
 
-      assert.match(freecadRootHelp, /cad build/u)
-      assert.match(freecadRootHelp, /cad validate/u)
-      assert.match(freecadRootHelp, /progress update/u)
-      assert.match(displayHelp, /Build box GLB from cad_build_spec\.json/u)
-      assert.match(displayHelp, /--workspace-dir/u)
-      assert.match(realCadHelp, /Build supplemental real assembly GLB from cad_build_spec\.json/u)
-      assert.match(realCadHelp, /--workspace-dir/u)
-      assert.match(simulationHelp, /Build power-filtered simulation STEP from cad_build_spec\.json/u)
-      assert.match(simulationHelp, /--workspace-dir/u)
-      assert.equal(config.workspace_dir, workspaceDir)
-      assert.equal(config.real_bom_path, path.join(workspaceDir, "00_inputs", "real_bom.json"))
-      assert.equal(config.layout_topology_path, path.join(workspaceDir, "00_inputs", "layout_topology.json"))
-      assert.equal(config.geom_path, path.join(workspaceDir, "00_inputs", "geom.json"))
-      assert.equal(config.cad_output_dir, path.join(workspaceDir, "01_cad"))
-      assert.equal(config.geometry_after_step_path, path.join(workspaceDir, "01_cad", "geometry_after.step"))
-      assert.equal(config.geometry_after_layout_topology_path, path.join(workspaceDir, "01_cad", "geometry_after.layout_topology.json"))
-      assert.equal(config.geometry_after_geom_path, path.join(workspaceDir, "01_cad", "geometry_after.geom.json"))
-      assert.equal(config.artifact_registry_dir, path.join(workspaceDir, "logs", "registry"))
+      assert.match(cadBuildersSmoke, /cad_builders ok/u)
     } finally {
       await fs.rm(workspaceDir, { force: true, recursive: true })
     }

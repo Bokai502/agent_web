@@ -8,9 +8,7 @@ const THERMAL_WORKFLOW_SKILLS = [
   "planner",
   "workflow-diagram-writer",
   "config-editor",
-  "cad-box-builder",
-  "cad-real-assembly-builder",
-  "cad-sim-input-builder",
+  "cad-builder",
   "simulation-skill",
 ]
 

@@ -1,5 +1,4 @@
 import type { TFunction } from "i18next"
-import { GncConfigEditor } from "../../../gnc_config/GncConfigEditor"
 import type { BomComponent, BomInfo } from "../../components/bomData"
 import { BomStagePanel } from "./BomStagePanel"
 import { CatchSupportingTableEditor } from "./CatchSupportingTableEditor"
@@ -8,7 +7,7 @@ import { useLoadSimulationGuiData } from "./useLoadSimulationGuiData"
 import type { RunLogEntry } from "./runLogUtils"
 import { type WorkspaceVersionContext, usesCatchSupportingTable } from "./workspaceVersion"
 
-type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol" | "gnc-config"
+type ActivePanel = "bom" | "log" | "model" | "cad" | "paraview" | "comsol"
 
 type ActiveTool = {
   label: string
@@ -108,9 +107,7 @@ export function WorkspaceStagePanel({
             </button>
           </div>
         )}
-        {activePanel === "gnc-config" && showTools ? (
-          <GncConfigEditor activeContext={activeContext} apiBase={apiBase} />
-        ) : showModel && activePanel === "model" ? (
+        {showModel && activePanel === "model" ? (
           hasModelPreview ? (
             <iframe className="wa-viewer" title={t("workspace.stage.modelTitle")} src={viewerHref} />
           ) : (

@@ -1,4 +1,0 @@
-interface:
-  display_name: "CAD Real Assembly Builder"
-  short_description: "Build real assembly GLB"
-  default_prompt: "Use $cad-real-assembly-builder to build only geometry_after_real_cad.glb from real_cad.step_path entries in 00_inputs/cad_build_spec.json."
