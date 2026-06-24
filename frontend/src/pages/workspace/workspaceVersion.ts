@@ -90,7 +90,7 @@ export function isThermalCadWorkspace(context: WorkspaceIdentity) {
     context.versionDir,
   ].flatMap(getWorkspaceIdentitySegments)
 
-  return segments.some(segment => segment === "thermal" || segment === "thermal_catch")
+  return segments.some(segment => segment === "thermal" || segment === "thermal_catch" || segment === "catch_thermal")
 }
 
 export function usesCatchSupportingTable(context: WorkspaceIdentity) {
@@ -104,7 +104,7 @@ export function usesCatchSupportingTable(context: WorkspaceIdentity) {
     context.versionDir,
   ].flatMap(getWorkspaceIdentitySegments)
 
-  return segments.some(segment => segment === "thermal" || segment === "thermal_catch")
+  return segments.some(segment => segment === "thermal" || segment === "thermal_catch" || segment === "catch_thermal")
 }
 
 export function resolveWorkspaceVersionContext({

@@ -102,14 +102,6 @@ const DEFAULT_REAL_BOM_RELATIVE_PATH = path.join("00_inputs", "real_bom.json")
 const DEFAULT_CAD_BUILD_SPEC_RELATIVE_PATH = path.join("00_inputs", "cad_build_spec.json")
 const CATCH_SUPPORTING_TABLE_RELATIVE_PATH = path.join("00_inputs", "CATCH整星配套表.xlsx")
 const LEGACY_CATCH_SUPPORTING_TABLE_TEMPLATE_RELATIVE_PATH = path.join("catch_task", "CATCH整星配套表.xlsx")
-const CATCH_SUPPORTING_THERMAL_DB_RELATIVE_PATH = path.join(
-  "backend",
-  "workflow_agents",
-  "thermal_skills",
-  "config-editor",
-  "references",
-  "热仿真数据库.json",
-)
 const CATCH_SUPPORTING_TEMPLATE_RELATIVE_PATH = path.join("data", "input_data", "thermal_catch", "00_inputs")
 const DEFAULT_PROGRESS_RELATIVE_PATH = path.join("logs", "progress.json")
 const AIGNC_PROGRESS_RELATIVE_PATH = path.join("AIGNC_Workflow", "loop_progress.json")
@@ -149,6 +141,8 @@ const THERMAL_DB_JSON_RELATIVE_PATH = path.join(
   "热仿真数据库.json",
 )
 const MAX_FILE_TREE_ENTRIES = 500
+const TEMPERATURE_SURFACE_THREEJS_RELATIVE_PATH = "02_sim/postprocess/temperature_surface_threejs.json"
+const TEMPERATURE_SURFACE_THREEJS_MAX_BYTES = 64 * 1024 * 1024
 
 let workspaceFileLimits = {
   filePreviewMaxBytes: 1024 * 1024,
@@ -310,12 +304,71 @@ type ThermalDbIndex = {
   sourcePath: string
 }
 
+type CadComponentDisplayNamePayload = {
+  components: Array<{
+    component_id: string
+    dimensions?: string
+    display_name: string
+    kind?: string
+    model_name?: string
+    semantic_name?: string
+    subsystem?: string
+  }>
+  schema_version: string
+  source_path: string
+  source_version: string
+}
+
 const WORKSPACE_DATA_ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url))
 const APP_ROOT_DIR = path.resolve(WORKSPACE_DATA_ROUTES_DIR, "..", "..", "..")
 
 type CatchSupportingTableBody = {
   rows?: unknown
 }
+
+type HeatfluxSelectionBody = {
+  season?: unknown
+  time?: unknown
+}
+
+const HEATFLUX_OUTPUT_RELATIVE_DIR = path.join("00_inputs", "heatflux")
+const HEATFLUX_SELECTED_JSON_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "selected_heatflux.json")
+const HEATFLUX_CURVE_IMAGE_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "heatflux_curve.png")
+const HEATFLUX_MARKED_CURVE_RELATIVE_PATH = path.join(HEATFLUX_OUTPUT_RELATIVE_DIR, "heatflux_curve_marked.svg")
+const HEATFLUX_FACE_NAMES = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] as const
+const HEATFLUX_MU_EARTH = 3.986004418e14
+const HEATFLUX_R_EARTH = 6378137.0
+const HEATFLUX_ALTITUDE = 600_000.0
+const HEATFLUX_FACE_COLORS: Record<typeof HEATFLUX_FACE_NAMES[number], string> = {
+  "+X": "#1f77b4",
+  "-X": "#ff7f0e",
+  "+Y": "#2ca02c",
+  "-Y": "#d62728",
+  "+Z": "#9467bd",
+  "-Z": "#8c564b",
+}
+const HEATFLUX_SEASON_OPTIONS = {
+  "春分": {
+    figureRelativePath: path.join("results", "fig_5_5_dawn_dusk_spring.png"),
+    key: "spring",
+    seriesRelativePath: path.join("orekit", "exported_data", "dawn_dusk_spring_timeseries.csv"),
+  },
+  "夏至": {
+    figureRelativePath: path.join("results", "fig_5_6_dawn_dusk_summer.png"),
+    key: "summer",
+    seriesRelativePath: path.join("orekit", "exported_data", "dawn_dusk_summer_timeseries.csv"),
+  },
+  "秋分": {
+    figureRelativePath: path.join("results", "fig_5_7_dawn_dusk_autumn.png"),
+    key: "autumn",
+    seriesRelativePath: path.join("orekit", "exported_data", "dawn_dusk_autumn_timeseries.csv"),
+  },
+  "冬至": {
+    figureRelativePath: path.join("results", "fig_5_8_dawn_dusk_winter.png"),
+    key: "winter",
+    seriesRelativePath: path.join("orekit", "exported_data", "dawn_dusk_winter_timeseries.csv"),
+  },
+} as const
 
 let thermalDbIndexPromise: Promise<ThermalDbIndex | null> | null = null
 
@@ -525,9 +578,12 @@ async function readWorkspaceTextFile(workspaceDir: string, relativePath: unknown
   }
 
   const requestedMaxBytes = Number.parseInt(String(maxBytesValue ?? ""), 10)
-  const maxBytes = Number.isFinite(requestedMaxBytes) && requestedMaxBytes > 0
-    ? Math.min(requestedMaxBytes, workspaceFileLimits.textFileMaxBytes)
+  const configuredMaxBytes = normalizedRelativePath === TEMPERATURE_SURFACE_THREEJS_RELATIVE_PATH
+    ? Math.max(workspaceFileLimits.textFileMaxBytes, TEMPERATURE_SURFACE_THREEJS_MAX_BYTES)
     : workspaceFileLimits.textFileMaxBytes
+  const maxBytes = Number.isFinite(requestedMaxBytes) && requestedMaxBytes > 0
+    ? Math.min(requestedMaxBytes, configuredMaxBytes)
+    : configuredMaxBytes
   if (stat.size > maxBytes) {
     throw new WorkspaceQueryError(`file too large for text read; size=${stat.size}, maxBytes=${maxBytes}`, 413)
   }
@@ -691,6 +747,273 @@ function normalizeCatchSupportingRows(value: unknown) {
   })
 }
 
+function parseHeatfluxTimeSeconds(value: unknown) {
+  const text = cleanString(value)
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/u)
+  if (!match) {
+    throw new WorkspaceQueryError("time must use HH:mm or HH:mm:ss", 400)
+  }
+
+  const hours = Number.parseInt(match[1], 10)
+  const minutes = Number.parseInt(match[2], 10)
+  const seconds = Number.parseInt(match[3] ?? "0", 10)
+  if (hours < 0 || hours > 23 || minutes > 59 || seconds > 59) {
+    throw new WorkspaceQueryError("time is out of range", 400)
+  }
+  return hours * 3600 + minutes * 60 + seconds
+}
+
+function formatHeatfluxTime(secondsValue: number) {
+  const seconds = Math.max(0, Math.round(secondsValue))
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+  return [hours, minutes, remainingSeconds]
+    .map(value => String(value).padStart(2, "0"))
+    .join(":")
+}
+
+function parseCsvLine(line: string) {
+  const cells: string[] = []
+  let current = ""
+  let quoted = false
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    if (char === '"') {
+      if (quoted && line[index + 1] === '"') {
+        current += '"'
+        index += 1
+      } else {
+        quoted = !quoted
+      }
+    } else if (char === "," && !quoted) {
+      cells.push(current)
+      current = ""
+    } else {
+      current += char
+    }
+  }
+  cells.push(current)
+  return cells
+}
+
+function resolveHeatfluxRoot() {
+  return path.join(resolveRepoRoot(), "backend", "heatflux")
+}
+
+function normalizeHeatfluxSeason(value: unknown) {
+  const season = cleanString(value)
+  if (!Object.prototype.hasOwnProperty.call(HEATFLUX_SEASON_OPTIONS, season)) {
+    throw new WorkspaceQueryError("season must be one of 春分, 夏至, 秋分, 冬至", 400)
+  }
+  return season as keyof typeof HEATFLUX_SEASON_OPTIONS
+}
+
+function heatfluxOrbitPeriodSeconds() {
+  const radius = HEATFLUX_R_EARTH + HEATFLUX_ALTITUDE
+  return 2.0 * Math.PI * Math.sqrt(radius ** 3 / HEATFLUX_MU_EARTH)
+}
+
+function escapeSvgText(value: string) {
+  return value
+    .replace(/&/gu, "&amp;")
+    .replace(/</gu, "&lt;")
+    .replace(/>/gu, "&gt;")
+    .replace(/"/gu, "&quot;")
+}
+
+function buildHeatfluxMarkedSvg({
+  dataRows,
+  matchedTimeS,
+  phaseTimeS,
+  season,
+}: {
+  dataRows: Array<{ faces: Record<typeof HEATFLUX_FACE_NAMES[number], number>; timeS: number }>
+  matchedTimeS: number
+  phaseTimeS: number
+  season: string
+}) {
+  const width = 1080
+  const height = 560
+  const margin = { bottom: 64, left: 76, right: 150, top: 44 }
+  const plotWidth = width - margin.left - margin.right
+  const plotHeight = height - margin.top - margin.bottom
+  const maxTimeS = Math.max(...dataRows.map(row => row.timeS))
+  const maxFlux = Math.max(1, ...dataRows.flatMap(row => HEATFLUX_FACE_NAMES.map(face => row.faces[face])))
+  const yMax = Math.ceil(maxFlux / 50) * 50
+  const xScale = (timeS: number) => margin.left + (timeS / maxTimeS) * plotWidth
+  const yScale = (value: number) => margin.top + plotHeight - (value / yMax) * plotHeight
+  const yTicks = Array.from({ length: Math.floor(yMax / 50) + 1 }, (_, index) => index * 50)
+  const xTicks = Array.from({ length: 6 }, (_, index) => index * 20)
+  const linePath = (face: typeof HEATFLUX_FACE_NAMES[number]) => dataRows
+    .map((row, index) => `${index === 0 ? "M" : "L"} ${xScale(row.timeS).toFixed(2)} ${yScale(row.faces[face]).toFixed(2)}`)
+    .join(" ")
+  const markerX = xScale(Math.max(0, Math.min(maxTimeS, matchedTimeS)))
+  const markerLabel = `${formatHeatfluxTime(phaseTimeS)} / ${formatHeatfluxTime(matchedTimeS)}`
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Heat flux curve with selected time marker">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <text x="${width / 2}" y="22" text-anchor="middle" fill="#111827" font-family="Arial, sans-serif" font-size="15" font-weight="700">Dawn-dusk ${escapeSvgText(season)} Heat Flux</text>
+  <g font-family="Arial, sans-serif" font-size="12" fill="#4b5563">
+    ${yTicks.map(tick => `<line x1="${margin.left}" x2="${width - margin.right}" y1="${yScale(tick).toFixed(2)}" y2="${yScale(tick).toFixed(2)}" stroke="#e5e7eb"/><text x="${margin.left - 12}" y="${(yScale(tick) + 4).toFixed(2)}" text-anchor="end">${tick}</text>`).join("\n    ")}
+    ${xTicks.map(minute => {
+      const x = xScale(minute * 60)
+      return `<line x1="${x.toFixed(2)}" x2="${x.toFixed(2)}" y1="${margin.top}" y2="${height - margin.bottom}" stroke="#f1f5f9"/><text x="${x.toFixed(2)}" y="${height - margin.bottom + 24}" text-anchor="middle">${minute}</text>`
+    }).join("\n    ")}
+  </g>
+  <rect x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}" fill="none" stroke="#111827"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    ${HEATFLUX_FACE_NAMES.map(face => `<path d="${linePath(face)}" stroke="${HEATFLUX_FACE_COLORS[face]}" stroke-width="2.4"/>`).join("\n    ")}
+  </g>
+  <line x1="${markerX.toFixed(2)}" x2="${markerX.toFixed(2)}" y1="${margin.top}" y2="${height - margin.bottom}" stroke="#ef4444" stroke-width="2.6" stroke-dasharray="8 6"/>
+  <circle cx="${markerX.toFixed(2)}" cy="${yScale(0).toFixed(2)}" r="4" fill="#ef4444"/>
+  <g font-family="Arial, sans-serif">
+    <rect x="${Math.min(markerX + 8, width - margin.right - 186).toFixed(2)}" y="${margin.top + 8}" width="178" height="42" rx="6" fill="#ffffff" stroke="#ef4444" opacity="0.96"/>
+    <text x="${Math.min(markerX + 18, width - margin.right - 176).toFixed(2)}" y="${margin.top + 26}" fill="#991b1b" font-size="12" font-weight="700">selected phase</text>
+    <text x="${Math.min(markerX + 18, width - margin.right - 176).toFixed(2)}" y="${margin.top + 43}" fill="#991b1b" font-size="12">${escapeSvgText(markerLabel)}</text>
+  </g>
+  <text x="${margin.left + plotWidth / 2}" y="${height - 20}" text-anchor="middle" fill="#374151" font-family="Arial, sans-serif" font-size="13">Orbit time / min</text>
+  <text transform="translate(22 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle" fill="#374151" font-family="Arial, sans-serif" font-size="13">Absorbed heat flux / W m^-2</text>
+  <g font-family="Arial, sans-serif" font-size="12">
+    ${HEATFLUX_FACE_NAMES.map((face, index) => {
+      const x = width - margin.right + 28
+      const y = margin.top + 18 + index * 24
+      return `<line x1="${x}" x2="${x + 22}" y1="${y}" y2="${y}" stroke="${HEATFLUX_FACE_COLORS[face]}" stroke-width="3"/><text x="${x + 30}" y="${y + 4}" fill="#111827">${face}</text>`
+    }).join("\n    ")}
+  </g>
+</svg>
+`
+}
+
+async function readHeatfluxNearestRow(season: keyof typeof HEATFLUX_SEASON_OPTIONS, requestedTimeS: number) {
+  const heatfluxRoot = resolveHeatfluxRoot()
+  const option = HEATFLUX_SEASON_OPTIONS[season]
+  const csvPath = path.join(heatfluxRoot, option.seriesRelativePath)
+  const raw = await fs.readFile(csvPath, "utf-8").catch(() => null)
+  if (raw === null) {
+    throw new WorkspaceQueryError("heatflux timeseries CSV not found", 404)
+  }
+
+  const lines = raw.split(/\r?\n/u).filter(line => line.trim())
+  const headers = lines[0] ? parseCsvLine(lines[0]) : []
+  const timeIndex = headers.indexOf("time_s")
+  const faceIndexes = Object.fromEntries(HEATFLUX_FACE_NAMES.map(face => [face, headers.indexOf(face)])) as Record<typeof HEATFLUX_FACE_NAMES[number], number>
+  if (timeIndex < 0 || HEATFLUX_FACE_NAMES.some(face => faceIndexes[face] < 0)) {
+    throw new WorkspaceQueryError("heatflux timeseries CSV has invalid columns", 500)
+  }
+
+  const dataRows = lines.slice(1)
+    .map(line => {
+      const cells = parseCsvLine(line)
+      const timeS = Number.parseFloat(cells[timeIndex] ?? "")
+      if (!Number.isFinite(timeS)) return null
+      const faces = Object.fromEntries(HEATFLUX_FACE_NAMES.map(face => {
+        const value = Number.parseFloat(cells[faceIndexes[face]] ?? "")
+        return [face, Number.isFinite(value) ? value : 0]
+      })) as Record<typeof HEATFLUX_FACE_NAMES[number], number>
+      return { cells, faces, timeS }
+    })
+    .filter((row): row is { cells: string[]; faces: Record<typeof HEATFLUX_FACE_NAMES[number], number>; timeS: number } => row !== null)
+  if (dataRows.length === 0) {
+    throw new WorkspaceQueryError("heatflux timeseries CSV has no usable rows", 500)
+  }
+
+  const orbitPeriodS = heatfluxOrbitPeriodSeconds()
+  const phaseTimeS = orbitPeriodS > 0
+    ? ((requestedTimeS % orbitPeriodS) + orbitPeriodS) % orbitPeriodS
+    : requestedTimeS
+
+  let best: { cells: string[]; faces: Record<typeof HEATFLUX_FACE_NAMES[number], number>; timeS: number } | null = null
+  for (const row of dataRows) {
+    if (!best || Math.abs(row.timeS - phaseTimeS) < Math.abs(best.timeS - phaseTimeS)) {
+      best = row
+    }
+  }
+  if (!best) {
+    throw new WorkspaceQueryError("heatflux timeseries CSV has no usable rows", 500)
+  }
+
+  return {
+    csvPath,
+    dataRows,
+    faces: best.faces,
+    matchedTimeS: best.timeS,
+    orbitPeriodS,
+    phaseTimeS,
+  }
+}
+
+async function writeHeatfluxSelection(workspaceDir: string, body: HeatfluxSelectionBody) {
+  const season = normalizeHeatfluxSeason(body.season)
+  const requestedTimeS = parseHeatfluxTimeSeconds(body.time)
+  const option = HEATFLUX_SEASON_OPTIONS[season]
+  const selected = await readHeatfluxNearestRow(season, requestedTimeS)
+  const outputDir = path.join(workspaceDir, HEATFLUX_OUTPUT_RELATIVE_DIR)
+  const selectedJsonPath = path.join(workspaceDir, HEATFLUX_SELECTED_JSON_RELATIVE_PATH)
+  const imagePath = path.join(workspaceDir, HEATFLUX_CURVE_IMAGE_RELATIVE_PATH)
+  const markedImagePath = path.join(workspaceDir, HEATFLUX_MARKED_CURVE_RELATIVE_PATH)
+  const sourceImagePath = path.join(resolveHeatfluxRoot(), option.figureRelativePath)
+  const sourceImageStat = await fs.stat(sourceImagePath).catch(() => null)
+  if (!sourceImageStat?.isFile()) {
+    throw new WorkspaceQueryError("heatflux curve image not found", 404)
+  }
+
+  await fs.mkdir(outputDir, { recursive: true })
+  await fs.copyFile(sourceImagePath, imagePath)
+  await fs.writeFile(markedImagePath, buildHeatfluxMarkedSvg({
+    dataRows: selected.dataRows,
+    matchedTimeS: selected.matchedTimeS,
+    phaseTimeS: selected.phaseTimeS,
+    season,
+  }), "utf-8")
+  const updatedAt = new Date().toISOString()
+  const payload = {
+    schema_version: "1.0",
+    orbit_type: "dawn_dusk",
+    season,
+    season_key: option.key,
+    requested_time: formatHeatfluxTime(requestedTimeS),
+    requested_time_s: requestedTimeS,
+    orbit_phase_time: formatHeatfluxTime(selected.phaseTimeS),
+    orbit_phase_time_s: selected.phaseTimeS,
+    matched_time: formatHeatfluxTime(selected.matchedTimeS),
+    matched_time_s: selected.matchedTimeS,
+    orbit_period_s: selected.orbitPeriodS,
+    units: {
+      heat_flux: "W/m^2",
+      time: "s",
+    },
+    faces: selected.faces,
+    source: {
+      csv_path: selected.csvPath,
+      figure_path: sourceImagePath,
+    },
+    output: {
+      image_relative_path: HEATFLUX_CURVE_IMAGE_RELATIVE_PATH.split(path.sep).join("/"),
+      marked_image_relative_path: HEATFLUX_MARKED_CURVE_RELATIVE_PATH.split(path.sep).join("/"),
+      json_relative_path: HEATFLUX_SELECTED_JSON_RELATIVE_PATH.split(path.sep).join("/"),
+    },
+    updated_at: updatedAt,
+  }
+  await fs.writeFile(selectedJsonPath, `${JSON.stringify(payload, null, 2)}\n`, "utf-8")
+  const stat = await fs.stat(selectedJsonPath)
+
+  return {
+    ...payload,
+    image_relative_path: HEATFLUX_MARKED_CURVE_RELATIVE_PATH.split(path.sep).join("/"),
+    image_path: markedImagePath,
+    image_url: `/api/image?path=${encodeURIComponent(markedImagePath)}`,
+    json_relative_path: HEATFLUX_SELECTED_JSON_RELATIVE_PATH.split(path.sep).join("/"),
+    original_image_relative_path: HEATFLUX_CURVE_IMAGE_RELATIVE_PATH.split(path.sep).join("/"),
+    original_image_path: imagePath,
+    json_path: selectedJsonPath,
+    source_path: selectedJsonPath,
+    source_version: [selectedJsonPath, stat.mtimeMs, stat.size].join(":"),
+    workspace_dir: workspaceDir,
+  }
+}
+
 async function firstExistingFile(paths: string[]) {
   for (const filePath of paths) {
     const stat = await fs.stat(filePath).catch(() => null)
@@ -726,14 +1049,6 @@ async function ensureCatchSupportingTable(workspaceDir: string, config: AppConfi
   await fs.mkdir(path.dirname(tablePath), { recursive: true })
   await fs.copyFile(sourcePath, tablePath)
   return tablePath
-}
-
-function resolveCatchSupportingThermalDbPath() {
-  return path.join(resolveRepoRoot(), CATCH_SUPPORTING_THERMAL_DB_RELATIVE_PATH)
-}
-
-function resolveCatchSupportingTemplateDir() {
-  return path.join(resolveRepoRoot(), CATCH_SUPPORTING_TEMPLATE_RELATIVE_PATH)
 }
 
 function normalizeComplianceCheckCompletenessPayload(value: unknown) {
@@ -1240,6 +1555,105 @@ function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : ""
 }
 
+function cleanNumberArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is number => typeof item === "number" && Number.isFinite(item))
+    : []
+}
+
+function formatDimensionValue(value: unknown) {
+  if (typeof value === "string" && value.trim()) return value.trim()
+  const values = cleanNumberArray(value)
+  if (values.length === 0) return ""
+  return values.map(item => Number.isInteger(item) ? String(item) : item.toFixed(3).replace(/\.?0+$/u, "")).join(" x ")
+}
+
+function pickCleanString(...values: unknown[]) {
+  for (const value of values) {
+    const text = cleanString(value)
+    if (text) return text
+  }
+  return ""
+}
+
+async function readCadComponentDisplayNamesFromSpec(specPath: string): Promise<CadComponentDisplayNamePayload | null> {
+  const raw = await fs.readFile(specPath, "utf-8").catch(() => null)
+  if (raw === null) return null
+
+  const stat = await fs.stat(specPath)
+  const payload = JSON.parse(raw) as unknown
+  const components = isRecord(payload) && Array.isArray(payload.components)
+    ? payload.components
+      .filter(isRecord)
+      .map((component) => {
+        const componentId = pickCleanString(component.id, component.component_id)
+        const displayName = pickCleanString(component.display_name, component.semantic_name, componentId)
+        return {
+          component_id: componentId,
+          dimensions: formatDimensionValue(component.dims ?? component.dimensions ?? component.size_mm),
+          display_name: displayName,
+          kind: pickCleanString(component.kind, component.type, component.component_type, component.component_subtype),
+          model_name: pickCleanString(component.model, component.model_name, component.template_model),
+          semantic_name: pickCleanString(component.semantic_name, componentId),
+          subsystem: pickCleanString(component.subsystem, component.system, component.sub_system),
+        }
+      })
+      .filter(component => component.component_id && component.display_name)
+    : []
+
+  return {
+    components,
+    schema_version: isRecord(payload) ? cleanString(payload.schema_version) || "1.0" : "1.0",
+    source_path: specPath,
+    source_version: [specPath, stat.mtimeMs, stat.size].join(":"),
+  }
+}
+
+async function readCadComponentDisplayNamesFromRealBom(realBomPath: string): Promise<CadComponentDisplayNamePayload | null> {
+  const raw = await fs.readFile(realBomPath, "utf-8").catch(() => null)
+  if (raw === null) return null
+
+  const stat = await fs.stat(realBomPath)
+  const payload = JSON.parse(raw) as unknown
+  const items = isRecord(payload) && Array.isArray(payload.items) ? payload.items.filter(isRecord) : []
+  const components = items
+    .map((item) => {
+      const sourceRef = isRecord(item.source_ref) ? item.source_ref : {}
+      const displayInfo = isRecord(item.display_info) ? item.display_info : {}
+      const excelAndCad = isRecord(item.excel_and_cad) ? item.excel_and_cad : {}
+      const componentId = pickCleanString(item.component_id, item.id)
+      const displayName = pickCleanString(
+        displayInfo.name_cn,
+        displayInfo.name,
+        sourceRef.display_name,
+        sourceRef.selected_name,
+        sourceRef.template_name,
+        excelAndCad.excel_name_cn,
+        excelAndCad.excel_name,
+        item.name,
+        item.semantic_name,
+        componentId,
+      )
+      return {
+        component_id: componentId,
+        dimensions: formatDimensionValue(displayInfo.dimensions ?? excelAndCad.excel_dimensions ?? item.size_mm),
+        display_name: displayName,
+        kind: pickCleanString(displayInfo.kind, excelAndCad.excel_kind, sourceRef.selected_kind, sourceRef.template_kind, item.kind, item.component_subtype, item.category),
+        model_name: pickCleanString(displayInfo.model, excelAndCad.excel_model, sourceRef.selected_model, sourceRef.template_model, sourceRef.template_csv_model, item.model),
+        semantic_name: pickCleanString(displayInfo.semantic_name, item.semantic_name, componentId),
+        subsystem: pickCleanString(displayInfo.subsystem, excelAndCad.excel_subsystem, item.subsystem),
+      }
+    })
+    .filter(component => component.component_id && component.display_name)
+
+  return {
+    components,
+    schema_version: isRecord(payload) ? cleanString(payload.schema_version) || "1.0" : "1.0",
+    source_path: realBomPath,
+    source_version: [realBomPath, stat.mtimeMs, stat.size].join(":"),
+  }
+}
+
 function setUniqueModel(index: Map<string, ThermalDbRecord | null>, key: string, value: ThermalDbRecord) {
   if (!key) return
   if (index.has(key)) {
@@ -1364,6 +1778,7 @@ function displayInfoFromThermalRecord(match: ThermalDbRecord) {
     operating_voltage: record["工作电压"] ?? null,
     material: record["核心材料"] ?? null,
     mount_face: record["安装面"] ?? null,
+    cad_local_mount_face: record["CAD_LOCAL_MOUNT_FACE"] ?? null,
     thermal: {
       conductivity_W_mK: record["导热率W/(m·K)"] ?? null,
       emissivity: record["辐射率"] ?? null,
@@ -1402,6 +1817,7 @@ function excelAndCadFromThermalRecord(match: ThermalDbRecord) {
     excel_dimensions: record["尺寸"] ?? null,
     excel_material: record["核心材料"] ?? null,
     excel_mount_face: record["安装面"] ?? null,
+    cad_local_mount_face: record["CAD_LOCAL_MOUNT_FACE"] ?? null,
     ...displayInfo.assets,
   }
 }
@@ -1714,9 +2130,12 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       const specPath = path.join(workspaceDir, DEFAULT_CAD_BUILD_SPEC_RELATIVE_PATH)
-      const raw = await fs.readFile(specPath, "utf-8").catch(() => null)
+      const realBomPath = path.join(workspaceDir, DEFAULT_REAL_BOM_RELATIVE_PATH)
+      const payload =
+        await readCadComponentDisplayNamesFromSpec(specPath) ??
+        await readCadComponentDisplayNamesFromRealBom(realBomPath)
 
-      if (raw === null) {
+      if (!payload) {
         reply.header("Cache-Control", "no-cache")
         return reply.send({
           components: [],
@@ -1726,25 +2145,8 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
         })
       }
 
-      const stat = await fs.stat(specPath)
-      const payload = JSON.parse(raw) as unknown
-      const components = isRecord(payload) && Array.isArray(payload.components)
-        ? payload.components
-          .filter(isRecord)
-          .map((component) => ({
-            component_id: cleanString(component.id),
-            display_name: cleanString(component.display_name),
-          }))
-          .filter(component => component.component_id && component.display_name)
-        : []
-
       reply.header("Cache-Control", "no-cache")
-      return reply.send({
-        components,
-        schema_version: isRecord(payload) ? cleanString(payload.schema_version) || "1.0" : "1.0",
-        source_path: specPath,
-        source_version: [specPath, stat.mtimeMs, stat.size].join(":"),
-      })
+      return reply.send(payload)
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to resolve CAD component display names")
     }
@@ -1754,7 +2156,7 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
     try {
       const workspaceDir = await resolveQueryWorkspaceDir(req.query)
       const tablePath = await ensureCatchSupportingTable(workspaceDir, config)
-      const payload = await readCatchSupportingTable(tablePath)
+      const payload = await readCatchSupportingTable(tablePath, { workspaceDir })
       const stat = await fs.stat(tablePath)
       reply.header("Cache-Control", "no-cache")
       return reply.send({
@@ -1773,10 +2175,9 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
       const rows = normalizeCatchSupportingRows(req.body?.rows)
       const tablePath = await ensureCatchSupportingTable(workspaceDir, config)
       const payload = await writeAndRefreshCatchSupportingTable({
-        dbPath: resolveCatchSupportingThermalDbPath(),
         outputDir: path.join(workspaceDir, "00_inputs"),
         rows,
-        templateDir: resolveCatchSupportingTemplateDir(),
+        workspaceDir,
         xlsxPath: tablePath,
       })
       const stat = await fs.stat(tablePath)
@@ -1788,6 +2189,16 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
       })
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to save CATCH supporting table")
+    }
+  })
+
+  fastify.post<{ Body: HeatfluxSelectionBody; Querystring: WorkspaceQuery }>("/api/workspace/heatflux/selection", async (req, reply) => {
+    try {
+      const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await writeHeatfluxSelection(workspaceDir, req.body ?? {}))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to save heatflux selection")
     }
   })
 
