@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { joinApiPath } from "../../app/apiBase"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 
 const SEASONS = ["春分", "夏至", "秋分", "冬至"] as const
+const DEFAULT_SEASON = "春分"
+const DEFAULT_TIME = "04:00:00"
+const HEATFLUX_SELECTION_STORAGE_PREFIX = "heatflux-selection:"
 const HOURS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"))
 const MINUTES = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"))
 const SECONDS = MINUTES
@@ -25,6 +28,13 @@ type HeatfluxSelectorProps = {
   activeContext: WorkspaceVersionContext
   apiBase?: string
 }
+
+type HeatfluxSelection = {
+  season: typeof SEASONS[number]
+  time: string
+}
+
+const rememberedSelections = new Map<string, HeatfluxSelection>()
 
 function buildQuery(activeContext: WorkspaceVersionContext) {
   const params = new URLSearchParams()
@@ -59,14 +69,47 @@ function formatTime(hour: string, minute: string, second: string) {
   return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:${second.padStart(2, "0")}`
 }
 
+function isHeatfluxSeason(value: unknown): value is typeof SEASONS[number] {
+  return typeof value === "string" && SEASONS.includes(value as typeof SEASONS[number])
+}
+
+function workspaceSelectionKey(activeContext: WorkspaceVersionContext) {
+  return activeContext.versionDir || `${activeContext.workspaceId ?? ""}:${activeContext.versionId ?? ""}`
+}
+
+function readRememberedSelection(selectionKey: string): HeatfluxSelection | null {
+  const memorySelection = rememberedSelections.get(selectionKey)
+  if (memorySelection) return memorySelection
+  if (typeof window === "undefined") return null
+
+  const raw = window.localStorage.getItem(`${HEATFLUX_SELECTION_STORAGE_PREFIX}${selectionKey}`)
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as Partial<HeatfluxSelection>
+    if (!isHeatfluxSeason(parsed.season) || typeof parsed.time !== "string") return null
+    const selection = { season: parsed.season, time: parsed.time }
+    rememberedSelections.set(selectionKey, selection)
+    return selection
+  } catch {
+    return null
+  }
+}
+
+function rememberSelection(selectionKey: string, selection: HeatfluxSelection) {
+  rememberedSelections.set(selectionKey, selection)
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(`${HEATFLUX_SELECTION_STORAGE_PREFIX}${selectionKey}`, JSON.stringify(selection))
+}
+
 export function HeatfluxSelector({ activeContext, apiBase }: HeatfluxSelectorProps) {
-  const [season, setSeason] = useState<typeof SEASONS[number]>("春分")
+  const [season, setSeason] = useState<typeof SEASONS[number]>(DEFAULT_SEASON)
   const [expanded, setExpanded] = useState(true)
-  const [time, setTime] = useState("00:00:00")
+  const [time, setTime] = useState(DEFAULT_TIME)
   const [pending, setPending] = useState(false)
-  const [status, setStatus] = useState("选择季节和时刻生成轨道热流输入")
+  const [status, setStatus] = useState("正在加载春分 04:00:00 热流输入")
   const [result, setResult] = useState<HeatfluxResult | null>(null)
   const query = useMemo(() => buildQuery(activeContext), [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId])
+  const selectionKey = useMemo(() => workspaceSelectionKey(activeContext), [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId])
   const tone = statusTone(status)
   const timeParts = splitTime(time)
   const imageVersion = result?.source_version ?? result?.updated_at ?? ""
@@ -77,14 +120,14 @@ export function HeatfluxSelector({ activeContext, apiBase }: HeatfluxSelectorPro
     setTime(formatTime(next.hour, next.minute, next.second))
   }
 
-  const generate = () => {
-    if (!activeContext.versionDir || pending) return
+  const requestHeatflux = useCallback((nextSeason: typeof SEASONS[number], nextTime: string) => {
+    if (!activeContext.versionDir) return
     setPending(true)
     setStatus("正在生成热流输入")
     fetch(`${joinApiPath(apiBase, "/workspace/heatflux/selection")}${query}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ season, time }),
+      body: JSON.stringify({ season: nextSeason, time: nextTime }),
     })
       .then(async response => {
         if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? "生成热流输入失败")
@@ -96,7 +139,22 @@ export function HeatfluxSelector({ activeContext, apiBase }: HeatfluxSelectorPro
       })
       .catch(error => setStatus(error instanceof Error ? error.message : "生成热流输入失败"))
       .finally(() => setPending(false))
-  }
+  }, [activeContext.versionDir, apiBase, query])
+
+  const generate = useCallback(() => {
+    if (selectionKey) rememberSelection(selectionKey, { season, time })
+    requestHeatflux(season, time)
+  }, [requestHeatflux, season, selectionKey, time])
+
+  useEffect(() => {
+    if (!activeContext.versionDir) return
+    const remembered = selectionKey ? readRememberedSelection(selectionKey) : null
+    const initialSelection = remembered ?? { season: DEFAULT_SEASON, time: DEFAULT_TIME }
+    setSeason(initialSelection.season)
+    setTime(initialSelection.time)
+    setStatus(remembered ? "正在恢复上次热流输入" : "正在加载春分 04:00:00 热流输入")
+    requestHeatflux(initialSelection.season, initialSelection.time)
+  }, [activeContext.versionDir, requestHeatflux, selectionKey])
 
   return (
     <section className="catch-config-card heatflux-selector-card">
@@ -142,7 +200,7 @@ export function HeatfluxSelector({ activeContext, apiBase }: HeatfluxSelectorPro
                 />
               </div>
             </label>
-            <button type="button" className="primary" onClick={generate} disabled={!activeContext.versionDir || pending}>
+            <button type="button" className="primary" onClick={() => generate()} disabled={!activeContext.versionDir || pending}>
               {pending ? "生成中" : "生成热流输入"}
             </button>
           </div>
