@@ -42,7 +42,11 @@ remote_gui_start() {
     fi
   fi
   if ! pgrep -u "$(id -un)" -af "(^|/)(comsol|comsollauncher)( |$)" >/dev/null 2>&1; then
-    "${COMSOL_SUDO}" "${COMSOL_LAUNCHER}"
+    if [[ -n "${COMSOL_SUDO}" ]]; then
+      "${COMSOL_SUDO}" "${COMSOL_LAUNCHER}"
+    else
+      "${COMSOL_LAUNCHER}"
+    fi
   fi
 
   echo "Remote GUI tools requested."

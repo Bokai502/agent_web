@@ -67,7 +67,7 @@ ensure_desktop() {
 
   local novnc_ready=0
   for _ in {1..20}; do
-    if ss -ltn "( sport = :${novnc_port} )" 2>/dev/null | grep -q ":${novnc_port}"; then
+    if pgrep -u "$(id -un)" -af "websockify --web .* ${novnc_port} localhost:${vnc_port}|launch.sh --vnc localhost:${vnc_port} --listen ${novnc_port}" >/dev/null 2>&1; then
       novnc_ready=1
       break
     fi
