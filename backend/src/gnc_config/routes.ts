@@ -25,6 +25,10 @@ type SaveBody = WorkspaceQuery & {
   payload?: unknown
 }
 
+type FlowSaveBody = WorkspaceQuery & {
+  payload?: unknown
+}
+
 type GncConfigPayload = {
   sim: Record<string, unknown>
   orbits: Array<Record<string, unknown>>
@@ -44,6 +48,11 @@ async function getInputsDir(workspaceDir: string) {
     return configDir
   }
   return inputsDir
+}
+
+async function getFlowDiagramPath(workspaceDir: string) {
+  const inputsDir = await getInputsDir(workspaceDir)
+  return path.join(inputsDir, "workflow_diagram", "flow.json")
 }
 
 function stripComment(line: string) {
@@ -97,6 +106,44 @@ function rec(value: unknown) {
 
 function arr(value: unknown) {
   return Array.isArray(value) ? value : []
+}
+
+function isSavedFlow(value: unknown) {
+  const candidate = rec(value)
+  const viewport = rec(candidate.viewport)
+  return (
+    candidate.version === 1 &&
+    Array.isArray(candidate.nodes) &&
+    Array.isArray(candidate.edges) &&
+    typeof viewport.x === "number" &&
+    typeof viewport.y === "number" &&
+    typeof viewport.zoom === "number"
+  )
+}
+
+function isFlowDocument(value: unknown) {
+  const candidate = rec(value)
+  return (
+    candidate.version === 1 &&
+    Array.isArray(candidate.nodes) &&
+    candidate.nodes.every(node => {
+      const item = rec(node)
+      return (
+        typeof item.name === "string" &&
+        typeof item.group === "string" &&
+        Array.isArray(item.relatedNodes) &&
+        item.relatedNodes.every(related => {
+          const relatedItem = rec(related)
+          return (
+            typeof relatedItem.name === "string" &&
+            (relatedItem.arrowDirection === "single" || relatedItem.arrowDirection === "double") &&
+            typeof relatedItem.condition === "string" &&
+            (relatedItem.reverseCondition === undefined || typeof relatedItem.reverseCondition === "string")
+          )
+        })
+      )
+    })
+  )
 }
 
 function boolText(value: unknown) {
@@ -735,9 +782,57 @@ async function saveGncConfig(req: { body?: SaveBody }, reply: FastifyReply) {
     }
 }
 
+async function loadGncFlow(req: { query: WorkspaceQuery }, reply: FastifyReply) {
+  try {
+    const workspaceDir = await resolveQueryWorkspaceDir(req.query)
+    const flowPath = await getFlowDiagramPath(workspaceDir)
+    const text = await fs.readFile(flowPath, "utf-8").catch(error => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return ""
+      throw error
+    })
+    reply.header("Cache-Control", "no-cache")
+    return reply.send({
+      flow: text ? JSON.parse(text) : null,
+      flow_path: flowPath,
+      workspace_dir: workspaceDir,
+    })
+  } catch (err) {
+    if (err instanceof SyntaxError) return reply.status(500).send({ error: "GNC flow JSON is invalid" })
+    return reply.status(500).send({ error: getErrorMessage(err, "failed to load GNC flow") })
+  }
+}
+
+async function saveGncFlow(req: { body?: FlowSaveBody }, reply: FastifyReply) {
+  try {
+    if (!req.body || typeof req.body !== "object" || !("payload" in req.body)) {
+      return reply.status(400).send({ error: "payload is required" })
+    }
+    const payload = req.body.payload
+    if (!isSavedFlow(payload) && !isFlowDocument(payload)) {
+      return reply.status(400).send({ error: "Invalid GNC flow payload" })
+    }
+    const workspaceDir = await resolveQueryWorkspaceDir(req.body)
+    const flowPath = await getFlowDiagramPath(workspaceDir)
+    await fs.mkdir(path.dirname(flowPath), { recursive: true })
+    await fs.writeFile(flowPath, `${JSON.stringify(payload, null, 2)}\n`, "utf-8")
+    reply.header("Cache-Control", "no-cache")
+    return reply.send({
+      ok: true,
+      flow_path: flowPath,
+      workspace_dir: workspaceDir,
+    })
+  } catch (err) {
+    return reply.status(500).send({ error: getErrorMessage(err, "failed to save GNC flow") })
+  }
+}
+
 export async function gncConfigRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: WorkspaceQuery }>("/api/gnc-config", loadGncConfig)
   fastify.get<{ Querystring: WorkspaceQuery }>("/api/gnc/gnc-config", loadGncConfig)
   fastify.put<{ Body: SaveBody }>("/api/gnc-config", saveGncConfig)
   fastify.put<{ Body: SaveBody }>("/api/gnc/gnc-config", saveGncConfig)
+  fastify.get<{ Querystring: WorkspaceQuery }>("/api/flow", loadGncFlow)
+  fastify.get<{ Querystring: WorkspaceQuery }>("/api/gnc/flow", loadGncFlow)
+  fastify.put<{ Body: FlowSaveBody }>("/api/flow", saveGncFlow)
+  fastify.put<{ Body: FlowSaveBody }>("/api/gnc/flow", saveGncFlow)
 }

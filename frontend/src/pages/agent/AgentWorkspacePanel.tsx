@@ -1,6 +1,8 @@
 import { useState, type ComponentProps } from 'react'
 import type { TFunction } from 'i18next'
 import { GncConfigEditor } from '../../../gnc_config/GncConfigEditor'
+import GncFlowEditor from '../../../gnc_flow/App'
+import '../../../gnc_flow/index.css'
 import { ExecutionFlow } from '../../components/execution-flow/ExecutionFlow'
 import MagicRings from '../../components/MagicRings'
 import { BomStagePanel } from '../workspace/BomStagePanel'
@@ -116,6 +118,7 @@ export function AgentWorkspacePanel({
   workspaceRefreshNonce = 0,
 }: AgentWorkspacePanelProps) {
   const [thermalConfigTab, setThermalConfigTab] = useState<'catch-table' | 'execution-flow'>('catch-table')
+  const [gncConfigTab, setGncConfigTab] = useState<'files' | 'flow'>('files')
   const simulationLoad = useLoadSimulationGuiData(apiBase, activeContext)
   const panelClassName = [
     'agent-workspace-panel',
@@ -123,6 +126,7 @@ export function AgentWorkspacePanel({
     activeView ? `is-${activeView}-view` : '',
   ].filter(Boolean).join(' ')
   const showThermalConfigTabs = activeView === 'bom' && !showComplianceCheckConfig && !showGncConfig
+  const showGncConfigTabs = activeView === 'bom' && showGncConfig
   const toolTabs: AgentToolView[] = showGncConfig
     ? ['gnc-dashboard', 'gnc']
     : ['cad', 'paraview', 'comsol']
@@ -214,6 +218,24 @@ export function AgentWorkspacePanel({
             </button>
           </div>
         )}
+        {showGncConfigTabs && (
+          <div className="agent-tool-tabs">
+            <button
+              type="button"
+              className={gncConfigTab === 'files' ? 'active' : undefined}
+              onClick={() => setGncConfigTab('files')}
+            >
+              GNC 配置文件
+            </button>
+            <button
+              type="button"
+              className={gncConfigTab === 'flow' ? 'active' : undefined}
+              onClick={() => setGncConfigTab('flow')}
+            >
+              GNC 流程图编辑器
+            </button>
+          </div>
+        )}
         {activeView === 'tools' && (
           <div className="agent-tool-tabs">
             {toolTabs.map(tool => (
@@ -269,7 +291,13 @@ export function AgentWorkspacePanel({
         ) : activeView === 'bom' && showComplianceCheckConfig ? (
           <ComplianceCheckInputConfigEditor activeContext={activeContext} />
         ) : activeView === 'bom' && showGncConfig ? (
-          <GncConfigEditor activeContext={activeContext} />
+          <div className="agent-gnc-config-panel">
+            {gncConfigTab === 'files' ? (
+              <GncConfigEditor activeContext={activeContext} />
+            ) : (
+              <GncFlowEditor activeContext={activeContext} />
+            )}
+          </div>
         ) : activeView === 'bom' ? (
           <div className="agent-thermal-config">
             <div className="agent-thermal-tab-panel">
