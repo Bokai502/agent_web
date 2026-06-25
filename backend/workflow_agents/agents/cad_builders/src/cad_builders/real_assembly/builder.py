@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -36,19 +37,23 @@ class CadRealAssemblyBuilder:
         summary_path = output_dir / "geometry_after_real_cad.hybrid_summary.json"
         step_path = output_dir / "geometry_after_real_cad.step"
         doc_name = request.doc_name or default_doc_name(workspace_dir, "real_cad")
-        normalized_input_path = self.normalized_input_path(output_dir)
         normalized = self.normalized_real_cad_input(spec, spec_path, workspace_dir)
-        write_json(normalized_input_path, normalized)
         self.prepare_output_paths(glb_path, summary_path, step_path)
 
-        host, port = freecad_rpc_settings(request.host, request.port)
-        hybrid_payload = execute_freecad_code(
-            host,
-            port,
-            self.render_hybrid_script(normalized_input_path, step_path, doc_name),
-        )
-        self.remove_step_artifact(step_path)
-        return self.build_result(spec_path, normalized_input_path, glb_path, summary_path, spec, hybrid_payload)
+        with tempfile.TemporaryDirectory(prefix="cad_real_assembly_") as temp_dir:
+            normalized_input_path = Path(temp_dir) / "normalized_component_info_assembly.json"
+            write_json(normalized_input_path, normalized)
+            host, port = freecad_rpc_settings(request.host, request.port)
+            try:
+                hybrid_payload = execute_freecad_code(
+                    host,
+                    port,
+                    self.render_hybrid_script(normalized_input_path, step_path, doc_name),
+                )
+            finally:
+                self.remove_step_artifact(step_path)
+                self.remove_summary_artifact(summary_path)
+        return self.build_result(spec_path, glb_path, spec, hybrid_payload)
 
     def resolve_paths(self, request: CadRealAssemblyBuildRequest) -> tuple[Path, Path, Path, dict[str, Any]]:
         workspace_dir = Path(request.workspace_dir).expanduser().resolve()
@@ -66,9 +71,6 @@ class CadRealAssemblyBuilder:
         spec = load_spec(spec_path)
         return workspace_dir, spec_path, output_dir, spec
 
-    def normalized_input_path(self, output_dir: Path) -> Path:
-        return output_dir / "normalized_component_info_assembly.json"
-
     def prepare_output_paths(self, glb_path: Path, summary_path: Path, step_path: Path) -> None:
         for path in (glb_path, summary_path, step_path):
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -78,6 +80,10 @@ class CadRealAssemblyBuilder:
     def remove_step_artifact(self, step_path: Path) -> None:
         if step_path.exists():
             step_path.unlink()
+
+    def remove_summary_artifact(self, summary_path: Path) -> None:
+        if summary_path.exists():
+            summary_path.unlink()
 
     def normalized_real_cad_input(self, spec: dict[str, Any], spec_path: Path, workspace_dir: Path) -> dict[str, Any]:
         components: dict[str, Any] = {}
@@ -135,22 +141,18 @@ class CadRealAssemblyBuilder:
     def build_result(
         self,
         spec_path: Path,
-        normalized_input_path: Path,
         glb_path: Path,
-        summary_path: Path,
         spec: dict[str, Any],
         hybrid_payload: dict[str, Any],
     ) -> CadRealAssemblyBuildResult:
         return CadRealAssemblyBuildResult(
-            success=bool(hybrid_payload.get("success")) and glb_path.exists() and summary_path.exists(),
+            success=bool(hybrid_payload.get("success")) and glb_path.exists(),
             backend="hybrid-link",
             spec_path=spec_path,
-            normalized_input_path=normalized_input_path,
             document=hybrid_payload.get("document"),
             step_path=None,
             temporary_step_path=None,
             glb_path=glb_path if glb_path.exists() else None,
-            hybrid_summary_path=summary_path if summary_path.exists() else None,
             component_count=len(spec.get("components") or []),
             freecad=hybrid_payload,
         )

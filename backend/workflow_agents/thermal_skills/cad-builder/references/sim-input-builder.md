@@ -54,6 +54,8 @@ CAD-native spec.
 - Include only components where `thermal.include_in_simulation == true`, and
   include walls as non-heat-source metadata.
 - Do not export a GLB in this step.
+- Do not persist `cad_build_spec.simulation_preprocess_report.json`; return
+  preprocessing details in the runner JSON result when they are useful.
 - If FreeCAD RPC is unavailable, report the host/port connection failure.
 
 ## Outputs

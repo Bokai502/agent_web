@@ -41,20 +41,6 @@ Read the relevant reference before generating a runner:
 - Do not invoke a CAD command wrapper. Generate runnable Python scripts under
   `<workspace_dir>/01_cad/runners/` and call the `cad_builders` class API from
   those scripts.
-- The generated runner must add
-  `open_codex_web/backend/workflow_agents/agents/cad_builders/src` to
-  `sys.path` before importing `cad_builders.*`.
-- Print JSON from every generated runner.
-- Do not derive FreeCAD document names from `cad_build_spec.json` in generated
-  runners. Omit `doc_name` unless the user explicitly provides one so the
-  `cad_builders` classes use the normalized default naming pattern:
-  `<thermal-kind>_<user>_<version>_<operation>`.
-- Update progress from the generated runner through
-  `cad_builders.progress.CadProgressUpdater`.
-  Do not edit `<workspace_dir>/logs/progress.json` or workflow node `progress`
-  fields directly.
-- Resolve progress by `progressRole`, not by hard-coded workflow node id.
-- If FreeCAD RPC is unavailable, report the host/port connection failure.
 
 ## Generated Runner Freedom
 
@@ -69,8 +55,9 @@ mutation in the runner. Use the `cad_builders` class APIs for those behaviors.
 
 ## Progress
 
-Use `CadProgressUpdater.update(CadProgressRequest(...))` from the generated
-runner.
+Use `CadProgressUpdater` from the generated runner. Either call
+`CadProgressUpdater().update(CadProgressRequest(...))`, or construct it with
+`workspace_dir` and call `update(role=..., percentage=..., note=..., status=...)`.
 
 Allowed roles are:
 

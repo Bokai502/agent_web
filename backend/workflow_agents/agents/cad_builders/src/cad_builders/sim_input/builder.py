@@ -103,9 +103,7 @@ class CadSimInputBuilder:
         simulation_input_path = output_dir / "simulation_input.json"
         simulation_spec, preprocess_report = preprocess_catch_simulation_spec(spec)
         preprocessed_spec_path = output_dir / "cad_build_spec.simulation_preprocessed.json"
-        preprocess_report_path = output_dir / "cad_build_spec.simulation_preprocess_report.json"
         write_json(preprocessed_spec_path, simulation_spec)
-        write_json(preprocess_report_path, preprocess_report)
         write_json(simulation_input_path, build_simulation_input(simulation_spec, step_filename=step_path.name))
         doc_name = request.doc_name or default_doc_name(workspace_dir, "simulation")
         host, port = freecad_rpc_settings(request.host, request.port)
@@ -114,7 +112,6 @@ class CadSimInputBuilder:
             "success": bool(payload.get("success")) and step_path.exists() and simulation_input_path.exists(),
             "spec_path": str(spec_path),
             "preprocessed_spec_path": str(preprocessed_spec_path),
-            "preprocess_report_path": str(preprocess_report_path),
             "preprocess": preprocess_report,
             "document": payload.get("document"),
             "step_path": str(step_path) if step_path.exists() else None,
@@ -171,14 +168,11 @@ class CadAfterStatePreparer:
         grid_shape = parse_grid_shape(request.grid_shape)
         simulation_input_path = cad_dir / "simulation_input.json"
         preprocessed_spec_path = cad_dir / "cad_build_spec.simulation_preprocessed.json"
-        preprocess_report_path = cad_dir / "cad_build_spec.simulation_preprocess_report.json"
         if preprocessed_spec_path.exists():
             simulation_spec = read_json(preprocessed_spec_path)
-            preprocess_report = read_json(preprocess_report_path) if preprocess_report_path.exists() else {}
         else:
-            simulation_spec, preprocess_report = preprocess_catch_simulation_spec(read_json(spec_path))
+            simulation_spec, _preprocess_report = preprocess_catch_simulation_spec(read_json(spec_path))
             write_json(preprocessed_spec_path, simulation_spec)
-            write_json(preprocess_report_path, preprocess_report)
         layout = spec_to_layout_data(simulation_spec, simulation_only=True, include_walls=True)
         simulation_input = read_json(simulation_input_path)
         geom = build_geom(layout, simulation_input)
@@ -209,7 +203,6 @@ class CadAfterStatePreparer:
                 "geometry_after_layout_topology": str(after_layout_path),
                 "geometry_after_registry": str(registry_path),
                 "preprocessed_spec": str(preprocessed_spec_path),
-                "preprocess_report": str(preprocess_report_path),
                 "coord": str(coord_path),
                 "channels_input": str(channels_path),
             },
