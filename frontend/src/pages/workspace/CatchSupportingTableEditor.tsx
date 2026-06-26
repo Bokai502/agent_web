@@ -4,8 +4,11 @@ import "./CatchSupportingTableEditor.css"
 import { HeatfluxSelector } from "./HeatfluxSelector"
 import type { WorkspaceVersionContext } from "./workspaceVersion"
 
-const COLUMNS = ["产品名称", "重量（Kg）", "包络尺寸（mm）", "稳态功耗（W）", "峰值功耗（W）", "工作温度（℃）", "配套单位"] as const
+const SUBSYSTEM_COLUMN = "分系统"
+const EDITABLE_COLUMNS = ["产品名称", "重量（Kg）", "包络尺寸（mm）", "稳态功耗（W）", "峰值功耗（W）", "工作温度（℃）", "热容量（J/K）", "配套单位"] as const
+const COLUMNS = [SUBSYSTEM_COLUMN, ...EDITABLE_COLUMNS] as const
 const RESULT_COLUMNS = ["热仿真温度（℃）"] as const
+const TABLE_COLUMN_WIDTHS = [76, 214, 88, 144, 104, 104, 132, 112, 116, 94, 70] as const
 const TARGET_MASS_KG = 44
 
 type CatchTableColumn = typeof COLUMNS[number]
@@ -47,8 +50,11 @@ type RowView = {
   index: number
   row: CatchTableRow
   subsystem: string
-  subsystemRow: boolean
 }
+
+type VisibleTableItem =
+  | { changed: boolean; key: string; kind: "subsystem"; subsystem: string }
+  | { kind: "row"; view: RowView }
 
 function buildQuery(activeContext: WorkspaceVersionContext) {
   const params = new URLSearchParams()
@@ -63,11 +69,6 @@ function normalizeRows(rows: CatchTableRow[]) {
   return rows
     .filter(row => !isSummaryRow(row))
     .map((row, index) => ({ ...row, id: row.id ?? `r${row.row ?? index + 1}` }))
-}
-
-function isSubsystemRow(row: CatchTableRow) {
-  const name = String(row["产品名称"] ?? "")
-  return name.endsWith("分系统")
 }
 
 function isSummaryRow(row: CatchTableRow) {
@@ -173,16 +174,18 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
   const rowViews = useMemo<RowView[]>(() => {
     let currentSubsystem = "未分组"
     return rows.map((row, index) => {
-      const subsystemRow = isSubsystemRow(row)
       const baseline = baselineByKey.get(rowKey(row))
-      if (subsystemRow) currentSubsystem = String(row["产品名称"] ?? "未分组")
+      const explicitSubsystem = String(row["分系统"] ?? "").trim()
+      const productName = String(row["产品名称"] ?? "").trim()
+      const legacySubsystemRow = !explicitSubsystem && productName.endsWith("分系统")
+      if (explicitSubsystem) currentSubsystem = explicitSubsystem
+      else if (legacySubsystemRow) currentSubsystem = productName
       return {
         baseline,
         changed: isRowChanged(row, baseline),
         index,
         row,
-        subsystem: currentSubsystem,
-        subsystemRow,
+        subsystem: explicitSubsystem || currentSubsystem,
       }
     })
   }, [baselineByKey, rows])
@@ -194,7 +197,7 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
   }, [rowViews])
 
   const totals = useMemo(() => {
-    const componentRows = rowViews.filter(view => !view.subsystemRow && view.row["产品名称"])
+    const componentRows = rowViews.filter(view => view.row["产品名称"])
     return {
       changed: rowViews.filter(view => view.changed).length,
       count: componentRows.length,
@@ -214,6 +217,25 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
     })
   }, [changedOnly, rowViews, search, subsystemFilter])
 
+  const visibleTableItems = useMemo<VisibleTableItem[]>(() => {
+    const items: VisibleTableItem[] = []
+    let previousSubsystem = ""
+    for (const view of visibleRows) {
+      if (view.subsystem !== previousSubsystem) {
+        const subsystemRows = visibleRows.filter(rowView => rowView.subsystem === view.subsystem)
+        items.push({
+          changed: subsystemRows.some(rowView => rowView.changed),
+          key: `subsystem-${view.subsystem}-${items.length}`,
+          kind: "subsystem",
+          subsystem: view.subsystem,
+        })
+        previousSubsystem = view.subsystem
+      }
+      items.push({ kind: "row", view })
+    }
+    return items
+  }, [visibleRows])
+
   const statusTone = getStatusTone(status)
   const dirty = totals.changed > 0
   const massDelta = totals.mass - TARGET_MASS_KG
@@ -223,23 +245,27 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
   }
 
   const addRowToSubsystem = (subsystem: string) => {
+    const targetSubsystem = subsystem === "全部" ? subsystemOptions.find(option => option !== "全部") ?? "未分组" : subsystem
     const nextRow: CatchTableRow = {
       id: `new-${Date.now()}`,
+      "分系统": targetSubsystem,
       "产品名称": "新器件",
       "重量（Kg）": 0,
       "包络尺寸（mm）": "",
       "稳态功耗（W）": 0,
       "峰值功耗（W）": 0,
       "工作温度（℃）": "",
+      "热容量（J/K）": "",
       "配套单位": "CATCH",
       "热仿真温度状态": "missing",
     }
-    const insertIndex = findInsertIndex(rowViews, subsystem)
+    const insertIndex = findInsertIndex(rowViews, targetSubsystem)
     setRows(previous => [
       ...previous.slice(0, insertIndex),
       nextRow,
       ...previous.slice(insertIndex),
     ])
+    if (subsystemFilter !== "全部" && subsystemFilter !== targetSubsystem) setSubsystemFilter(targetSubsystem)
     if (search) setSearch("")
     if (changedOnly) setChangedOnly(false)
     setStatus("已新增一行")
@@ -253,7 +279,7 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
   const save = () => {
     if (!activeContext.versionDir) return
     setSaving(true)
-    setStatus(dirty ? "正在保存并刷新 00_inputs" : "正在重新生成 00_inputs")
+    setStatus("正在保存并提交")
     fetch(`${joinApiPath(apiBase, "/workspace/catch-supporting-table")}${query}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -269,8 +295,8 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
         setBaselineRows(nextRows)
         const componentCount = data.generation?.component_count
         setStatus(componentCount == null
-          ? "已刷新当前工作区 00_inputs"
-          : `已刷新当前工作区 00_inputs：${componentCount} 个组件`)
+          ? "已保存并提交"
+          : `已保存并提交：${componentCount} 个组件`)
         onSaved?.()
       })
       .catch(error => setStatus(error instanceof Error ? error.message : "保存 CATCH 配套表失败"))
@@ -293,134 +319,163 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
           <strong>整星配套表</strong>
         </div>
         <div className="catch-config-actions">
-          <button type="button" onClick={loadTable} disabled={loading || saving}>重新读取</button>
           <button type="button" className="primary" onClick={save} disabled={loading || saving || rows.length === 0}>
-            {saving ? "刷新中" : dirty ? "保存并刷新" : "重新生成 00_inputs"}
+            {saving ? "提交中" : "保存并提交"}
           </button>
         </div>
       </div>
 
-      <HeatfluxSelector activeContext={activeContext} apiBase={apiBase} />
+      <div className="catch-main-layout">
+        <aside className="catch-left-panel">
+          <HeatfluxSelector activeContext={activeContext} apiBase={apiBase} />
+        </aside>
 
-      <div className="catch-config-summary">
-        <div className="catch-config-stat">
-          <span>器件数量</span>
-          <strong>{totals.count}</strong>
-        </div>
-        <div className={`catch-config-stat ${Math.abs(massDelta) > 0.01 ? "is-warn" : ""}`}>
-          <span>总质量</span>
-          <strong>{formatNumber(totals.mass, 3)} kg</strong>
-        </div>
-        <div className="catch-config-stat">
-          <span>稳态/峰值功耗</span>
-          <strong>{formatNumber(totals.steadyPower)} / {formatNumber(totals.peakPower)} W</strong>
-        </div>
-        <div className="catch-config-stat">
-          <span>未保存变更</span>
-          <strong>{totals.changed}</strong>
-        </div>
-        <div className={`catch-config-status is-${statusTone}`}>{dirty ? `${status} · 有未保存变更` : status}</div>
-      </div>
-
-      <div className="catch-config-workbench">
-        <section className="catch-config-card catch-config-filters">
-          <div className="catch-config-card-head">
-            <div>
-              <strong>筛选</strong>
-              <span>{visibleRows.length}/{rows.length} 行</span>
-            </div>
-          </div>
-          <div className="catch-filter-grid">
-            <label>
-              <span>搜索</span>
-              <input value={search} onChange={event => setSearch(event.target.value)} placeholder="名称、尺寸、单位" />
-            </label>
-            <label>
-              <span>分系统</span>
-              <select value={subsystemFilter} onChange={event => setSubsystemFilter(event.target.value)}>
-                {subsystemOptions.map(option => <option key={option} value={option}>{option}</option>)}
-              </select>
-            </label>
-            <label className="catch-toggle-row">
-              <input type="checkbox" checked={changedOnly} onChange={event => setChangedOnly(event.target.checked)} />
-              <span>只看改动</span>
-            </label>
-          </div>
-        </section>
-
-        <section className="catch-config-card catch-table-card">
+        <section className="catch-config-card catch-table-card catch-primary-card">
           <div className="catch-config-card-head">
             <div>
               <strong>组件清单</strong>
-              <span>质量目标 {TARGET_MASS_KG} kg，偏差 {formatNumber(massDelta, 3)} kg</span>
+              <span>{visibleRows.length}/{rows.length} 行 · 质量目标 {TARGET_MASS_KG} kg，偏差 {formatNumber(massDelta, 3)} kg</span>
             </div>
-            <div className={dirty ? "catch-unsaved-pill is-dirty" : "catch-unsaved-pill"}>{dirty ? "未保存" : "已同步"}</div>
+            <div className="catch-table-actions">
+              <button type="button" onClick={() => {
+                setSearch("")
+                setSubsystemFilter("全部")
+                setChangedOnly(false)
+              }} disabled={saving || (!search && subsystemFilter === "全部" && !changedOnly)}>
+                清除筛选
+              </button>
+              <button type="button" className="catch-row-add" onClick={() => addRowToSubsystem(subsystemFilter)} disabled={saving}>
+                新增
+              </button>
+              <div className={dirty ? "catch-unsaved-pill is-dirty" : "catch-unsaved-pill"}>{dirty ? "未保存" : "已同步"}</div>
+            </div>
           </div>
           <div className="catch-table-scroll">
             <table className="catch-grid-table">
+              <colgroup>
+                {TABLE_COLUMN_WIDTHS.map((width, index) => <col key={index} style={{ width }} />)}
+              </colgroup>
               <thead>
                 <tr>
                   <th>分系统</th>
-                  {COLUMNS.map(column => <th key={column}>{column}</th>)}
+                  {EDITABLE_COLUMNS.map(column => <th key={column}>{column}</th>)}
                   {RESULT_COLUMNS.map(column => <th key={column}>{column}</th>)}
                   <th>操作</th>
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.map(view => {
-                  const rowClassName = [view.subsystemRow ? "is-subsystem" : "", view.changed ? "is-changed" : ""].filter(Boolean).join(" ")
-                  const subsystemLabel = view.subsystemRow ? view.subsystem : view.subsystem.replace(/分系统$/u, "")
+                {visibleTableItems.map(item => {
+                  if (item.kind === "subsystem") {
+                    return (
+                      <tr key={item.key} className={`is-subsystem${item.changed ? " is-changed" : ""}`}>
+                        <td className="catch-subsystem-cell">{item.subsystem}</td>
+                        <td
+                          className="catch-subsystem-spacer-cell"
+                          colSpan={EDITABLE_COLUMNS.length + RESULT_COLUMNS.length}
+                          aria-label={item.subsystem}
+                        />
+                        <td>
+                          <button
+                            type="button"
+                            className="catch-row-add"
+                            onClick={() => addRowToSubsystem(item.subsystem)}
+                            disabled={saving}
+                          >
+                            新增
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  }
+                  const { view } = item
+                  const rowClassName = view.changed ? "is-changed" : ""
+                  const subsystemLabel = view.subsystem.replace(/分系统$/u, "")
                   return (
                     <tr key={`${view.row.id ?? view.index}-${view.index}`} className={rowClassName}>
                       <td className="catch-subsystem-cell">{subsystemLabel}</td>
-                      {view.subsystemRow ? (
-                        <td className="catch-subsystem-spacer-cell" colSpan={COLUMNS.length + RESULT_COLUMNS.length} aria-label={subsystemLabel} />
-                      ) : (
-                        <>
-                          {COLUMNS.map(column => (
-                            <td key={column} className={isCellChanged(view.row, view.baseline, column) ? "is-cell-changed" : undefined}>
-                              <input
-                                value={cellValue(view.row, column)}
-                                onChange={event => updateCell(view.index, column, event.target.value)}
-                                aria-label={`${column}-${view.index + 1}`}
-                              />
-                            </td>
-                          ))}
-                          {RESULT_COLUMNS.map(column => (
-                            <td key={column} className={temperatureCellClass(view.row)}>
-                              <span title={`组件 ${view.row["热仿真温度组件ID"] ?? "-"}，样本 ${view.row["热仿真温度样本数"] ?? 0}`}>
-                                {resultCellValue(view.row, column)}
-                              </span>
-                            </td>
-                          ))}
-                        </>
-                      )}
-                      <td>
-                        {view.subsystemRow ? (
-                        <button
-                          type="button"
-                          className="catch-row-add"
-                          onClick={() => addRowToSubsystem(view.subsystem)}
-                          disabled={saving}
+                      {EDITABLE_COLUMNS.map(column => (
+                        <td
+                          key={column}
+                          className={isCellChanged(view.row, view.baseline, column) ? "is-cell-changed" : undefined}
                         >
-                          新增
-                        </button>
-                        ) : (
-                          <button type="button" className="catch-row-delete" onClick={() => deleteRow(view.index)} disabled={saving}>删除</button>
-                        )}
+                          <input
+                            value={cellValue(view.row, column)}
+                            onChange={event => updateCell(view.index, column, event.target.value)}
+                            aria-label={`${column}-${view.index + 1}`}
+                          />
+                        </td>
+                      ))}
+                      {RESULT_COLUMNS.map(column => (
+                        <td key={column} className={temperatureCellClass(view.row)}>
+                          <span title={`组件 ${view.row["热仿真温度组件ID"] ?? "-"}，样本 ${view.row["热仿真温度样本数"] ?? 0}`}>
+                            {resultCellValue(view.row, column)}
+                          </span>
+                        </td>
+                      ))}
+                      <td>
+                        <button type="button" className="catch-row-delete" onClick={() => deleteRow(view.index)} disabled={saving}>删除</button>
                       </td>
                     </tr>
                   )
                 })}
                 {visibleRows.length === 0 ? (
                   <tr>
-                    <td className="catch-table-empty" colSpan={COLUMNS.length + RESULT_COLUMNS.length + 2}>没有匹配的行</td>
+                    <td className="catch-table-empty" colSpan={EDITABLE_COLUMNS.length + RESULT_COLUMNS.length + 2}>暂无配套表行</td>
                   </tr>
                 ) : null}
               </tbody>
             </table>
           </div>
         </section>
+
+        <aside className="catch-side-panel">
+          <section className="catch-config-card catch-filter-card">
+            <div className="catch-config-card-head">
+              <div>
+                <strong>器件筛选</strong>
+                <span>{visibleRows.length}/{rows.length} 行</span>
+              </div>
+            </div>
+            <div className="catch-filter-grid">
+              <label>
+                <span>搜索</span>
+                <input value={search} onChange={event => setSearch(event.target.value)} placeholder="名称、尺寸、单位" />
+              </label>
+              <label>
+                <span>分系统</span>
+                <select value={subsystemFilter} onChange={event => setSubsystemFilter(event.target.value)}>
+                  {subsystemOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+              <label className="catch-toggle-row">
+                <input type="checkbox" checked={changedOnly} onChange={event => setChangedOnly(event.target.checked)} />
+                <span>只看改动</span>
+              </label>
+            </div>
+          </section>
+
+          <section className="catch-config-card catch-summary-card">
+            <div className="catch-side-summary">
+              <div className="catch-config-stat">
+                <span>器件数量</span>
+                <strong>{totals.count}</strong>
+              </div>
+              <div className={`catch-config-stat ${Math.abs(massDelta) > 0.01 ? "is-warn" : ""}`}>
+                <span>总质量</span>
+                <strong>{formatNumber(totals.mass, 3)} kg</strong>
+              </div>
+              <div className="catch-config-stat">
+                <span>稳态/峰值功耗</span>
+                <strong>{formatNumber(totals.steadyPower)} / {formatNumber(totals.peakPower)} W</strong>
+              </div>
+              <div className="catch-config-stat">
+                <span>未保存变更</span>
+                <strong>{totals.changed}</strong>
+              </div>
+              <div className={`catch-config-status is-${statusTone}`}>{dirty ? `${status} · 有未保存变更` : status}</div>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   )

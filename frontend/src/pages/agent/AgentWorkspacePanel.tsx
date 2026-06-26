@@ -120,10 +120,12 @@ export function AgentWorkspacePanel({
   const [thermalConfigTab, setThermalConfigTab] = useState<'catch-table' | 'execution-flow'>('catch-table')
   const [gncConfigTab, setGncConfigTab] = useState<'files' | 'flow'>('files')
   const simulationLoad = useLoadSimulationGuiData(apiBase, activeContext)
+  const showCatchSupportingTable = activeView === 'bom' && !showComplianceCheckConfig && !showGncConfig && usesCatchSupportingTable(activeContext)
   const panelClassName = [
     'agent-workspace-panel',
     activeView ? 'is-open' : 'is-collapsed',
     activeView ? `is-${activeView}-view` : '',
+    showCatchSupportingTable && thermalConfigTab === 'catch-table' ? 'is-catch-config-view' : '',
   ].filter(Boolean).join(' ')
   const showThermalConfigTabs = activeView === 'bom' && !showComplianceCheckConfig && !showGncConfig
   const showGncConfigTabs = activeView === 'bom' && showGncConfig
@@ -299,7 +301,7 @@ export function AgentWorkspacePanel({
             )}
           </div>
         ) : activeView === 'bom' ? (
-          <div className="agent-thermal-config">
+          <div className={showCatchSupportingTable && thermalConfigTab === 'catch-table' ? 'agent-thermal-config is-catch-config' : 'agent-thermal-config'}>
             <div className="agent-thermal-tab-panel">
               {thermalConfigTab === 'catch-table' ? thermalConfigContent : executionFlowContent}
             </div>
