@@ -29,6 +29,10 @@
   margin-bottom: 14px;
 }
 
+.agent-page.has-workspace-view .agent-workspace-panel.is-catch-config-view {
+  margin: 10px 12px 12px;
+}
+
 .agent-workspace-panel.is-collapsed {
   align-self: center;
   justify-self: center;

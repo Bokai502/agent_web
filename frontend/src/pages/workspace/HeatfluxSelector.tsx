@@ -104,6 +104,7 @@ function rememberSelection(selectionKey: string, selection: HeatfluxSelection) {
 export function HeatfluxSelector({ activeContext, apiBase }: HeatfluxSelectorProps) {
   const [season, setSeason] = useState<typeof SEASONS[number]>(DEFAULT_SEASON)
   const [expanded, setExpanded] = useState(true)
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [time, setTime] = useState(DEFAULT_TIME)
   const [pending, setPending] = useState(false)
   const [status, setStatus] = useState("正在加载春分 04:00:00 热流输入")
@@ -145,6 +146,8 @@ export function HeatfluxSelector({ activeContext, apiBase }: HeatfluxSelectorPro
     if (selectionKey) rememberSelection(selectionKey, { season, time })
     requestHeatflux(season, time)
   }, [requestHeatflux, season, selectionKey, time])
+
+  const closeImagePreview = useCallback(() => setImagePreviewOpen(false), [])
 
   useEffect(() => {
     if (!activeContext.versionDir) return
@@ -207,33 +210,50 @@ export function HeatfluxSelector({ activeContext, apiBase }: HeatfluxSelectorPro
 
           {result ? (
             <div className="heatflux-result-grid">
-              <div className="heatflux-json-panel">
+              <div className="heatflux-face-panel">
                 <div className="heatflux-mini-title">
                   <strong>六面热流</strong>
                   <span>W/m²</span>
                 </div>
-                <pre>{JSON.stringify({
-                  season: result.season,
-                  requested_time: result.requested_time,
-                  orbit_phase_time: result.orbit_phase_time,
-                  matched_time: result.matched_time,
-                  faces: result.faces,
-                }, null, 2)}</pre>
+                <div className="heatflux-face-grid">
+                  {["+X", "-X", "+Y", "-Y", "+Z", "-Z"].map(face => (
+                    <div key={face}>
+                      <span>{face}</span>
+                      <strong>{displayNumber(result.faces?.[face])}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="heatflux-meta-row">
+                  <span>{result.season ?? season}</span>
+                  <span>{result.matched_time ? `匹配 ${result.matched_time}` : result.requested_time ?? time}</span>
+                </div>
               </div>
               <div className="heatflux-image-panel">
                 <div className="heatflux-mini-title">
                   <strong>热流图</strong>
-                  <span>{result.image_relative_path ?? "00_inputs/heatflux/heatflux_curve.png"}</span>
+                  <span>{imageUrl ? "点击放大" : result.image_relative_path ?? "00_inputs/heatflux/heatflux_curve.png"}</span>
                 </div>
-                {imageUrl ? <img src={imageUrl} alt="热流曲线" /> : null}
+                {imageUrl ? (
+                  <button
+                    type="button"
+                    className="heatflux-image-preview-button"
+                    onClick={() => setImagePreviewOpen(true)}
+                  >
+                    <img src={imageUrl} alt="热流曲线" />
+                  </button>
+                ) : null}
               </div>
-              <div className="heatflux-face-strip">
-                {["+X", "-X", "+Y", "-Y", "+Z", "-Z"].map(face => (
-                  <div key={face}>
-                    <span>{face}</span>
-                    <strong>{displayNumber(result.faces?.[face])}</strong>
-                  </div>
-                ))}
+            </div>
+          ) : null}
+
+          {imagePreviewOpen && imageUrl ? (
+            <div className="heatflux-preview-backdrop" role="dialog" aria-modal="true" onClick={closeImagePreview}>
+              <div className="heatflux-preview-dialog" onClick={event => event.stopPropagation()}>
+                <div className="heatflux-preview-head">
+                  <strong>热流图</strong>
+                  <button type="button" onClick={closeImagePreview} aria-label="关闭热流图预览">关闭</button>
+                </div>
+                <img src={imageUrl} alt="热流曲线放大预览" />
               </div>
             </div>
           ) : null}
