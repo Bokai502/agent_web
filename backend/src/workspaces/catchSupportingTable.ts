@@ -33,7 +33,10 @@ type LoadedTableRow = {
   subtype: string
 }
 
-const HEADERS = ["产品名称", "重量（Kg）", "包络尺寸（mm）", "稳态功耗（W）", "峰值功耗（W）", "工作温度（℃）", "配套单位"] as const
+const SUBSYSTEM_HEADER = "分系统"
+const HEAT_CAPACITY_HEADER = "热容量（J/K）"
+const DATA_HEADERS = ["产品名称", "重量（Kg）", "包络尺寸（mm）", "稳态功耗（W）", "峰值功耗（W）", "工作温度（℃）", HEAT_CAPACITY_HEADER, "配套单位"] as const
+const HEADERS = [SUBSYSTEM_HEADER, ...DATA_HEADERS] as const
 const SUMMARY_ROW_NAMES = new Set(["整星质量", "整星"])
 const COMPONENT_FACE_TEMPERATURE_RELATIVE_PATH = path.join("02_sim", "simulation", "component_face_temperature.json")
 
@@ -74,13 +77,20 @@ const KIND_WORDS: Array<[string, string, string]> = [
 const SUBSYSTEM_KIND = new Map<string, [string, string]>([
   ["结构与机构分系统", ["mechanism", "mechanism"]],
   ["机构分系统", ["mechanism", "mechanism"]],
+  ["结构", ["mechanism", "mechanism"]],
   ["姿轨控分系统", ["adcs", "adcs"]],
+  ["姿轨控", ["adcs", "adcs"]],
   ["推进分系统", ["propulsion", "propulsion"]],
   ["电源与总体电路分系统", ["power", "power"]],
   ["电源分系统", ["power", "power"]],
+  ["电源", ["power", "power"]],
   ["综合电子分系统", ["avionics", "avionics"]],
+  ["综合电子", ["avionics", "avionics"]],
   ["测控 / 数传一体机分系统", ["communication", "communication"]],
+  ["测控数传", ["communication", "communication"]],
+  ["导航短报文", ["communication", "communication"]],
   ["载荷分系统", ["payload", "payload"]],
+  ["有效载荷", ["payload", "payload"]],
   ["热控分系统", ["thermal", "thermal"]],
 ])
 
@@ -406,9 +416,25 @@ function getCellByHeader(row: unknown[] | undefined, headers: Map<string, number
   return index == null ? null : row?.[index] ?? null
 }
 
-function isSummaryWorksheetRow(values: unknown[]) {
-  const name = asString(values[0]).trim()
-  const size = asString(values[2]).trim()
+function getTableCell(row: unknown[] | undefined, headers: Map<string, number>, name: string, legacyIndex: number): unknown {
+  return headers.has(name) ? getCellByHeader(row, headers, name) : row?.[legacyIndex] ?? null
+}
+
+function getOptionalCellByHeader(row: unknown[] | undefined, headers: Map<string, number>, name: string): unknown {
+  return headers.has(name) ? getCellByHeader(row, headers, name) : null
+}
+
+function worksheetProductName(row: unknown[] | undefined, headers: Map<string, number>) {
+  return asString(getTableCell(row, headers, "产品名称", 0)).trim()
+}
+
+function worksheetEnvelopeSize(row: unknown[] | undefined, headers: Map<string, number>) {
+  return asString(getTableCell(row, headers, "包络尺寸（mm）", 2)).trim()
+}
+
+function isSummaryWorksheetRow(row: unknown[], headers: Map<string, number>) {
+  const name = worksheetProductName(row, headers)
+  const size = worksheetEnvelopeSize(row, headers)
   return SUMMARY_ROW_NAMES.has(name) || (!name && size === "整星") || (name === "整星质量" && size === "平台")
 }
 
@@ -506,30 +532,50 @@ function formatTemperatureSummary(summary: ComponentTemperatureSummary | null) {
 export async function readCatchSupportingTable(xlsxPath: string, options: { workspaceDir?: string } = {}) {
   const sheetRows = await readWorksheetRows(xlsxPath)
   const temperatureIndex = await readComponentTemperatureIndex(options.workspaceDir)
+  const headers = new Map<string, number>()
+  sheetRows[0]?.forEach((value, index) => {
+    if (value != null && String(value).trim()) headers.set(String(value).trim(), index)
+  })
   const rows: CatchSupportingTableRow[] = []
+  let currentSubsystem = ""
   for (let index = 1; index < sheetRows.length; index += 1) {
-    const values = (sheetRows[index] ?? []).slice(0, HEADERS.length)
-    if (!values.some(value => value !== null && value !== undefined && String(value).trim())) continue
-    if (isSummaryWorksheetRow(values)) continue
+    const worksheetRow = sheetRows[index] ?? []
+    if (!worksheetRow.some(value => value !== null && value !== undefined && String(value).trim())) continue
+    const name = worksheetProductName(worksheetRow, headers)
+    if (SUBSYSTEM_KIND.has(name) && !asString(getCellByHeader(worksheetRow, headers, SUBSYSTEM_HEADER)).trim()) {
+      currentSubsystem = name
+      continue
+    }
+    if (isSummaryWorksheetRow(worksheetRow, headers)) continue
     const rowIndex = index + 1
-    const temperature = findComponentTemperature(values[0], temperatureIndex)
-    const operatingRange = temperatureRange(asString(values[5]).trim())
+    const subsystem = asString(getCellByHeader(worksheetRow, headers, SUBSYSTEM_HEADER)).trim() || currentSubsystem || "未分组"
+    const mass = getTableCell(worksheetRow, headers, "重量（Kg）", 1) as string | number | null
+    const size = getTableCell(worksheetRow, headers, "包络尺寸（mm）", 2) as string | number | null
+    const steadyPower = getTableCell(worksheetRow, headers, "稳态功耗（W）", 3) as string | number | null
+    const peakPower = getTableCell(worksheetRow, headers, "峰值功耗（W）", 4) as string | number | null
+    const operatingTemperature = getTableCell(worksheetRow, headers, "工作温度（℃）", 5) as string | number | null
+    const heatCapacity = getOptionalCellByHeader(worksheetRow, headers, HEAT_CAPACITY_HEADER) as string | number | null
+    const supplier = getTableCell(worksheetRow, headers, "配套单位", 6) as string | number | null
+    const temperature = findComponentTemperature(name, temperatureIndex)
+    const operatingRange = temperatureRange(asString(operatingTemperature).trim())
     rows.push({
       id: `r${rowIndex}`,
       row: rowIndex,
-      "产品名称": values[0] as string | number | null,
-      "重量（Kg）": values[1] as string | number | null,
-      "包络尺寸（mm）": values[2] as string | number | null,
-      "稳态功耗（W）": values[3] as string | number | null,
-      "峰值功耗（W）": values[4] as string | number | null,
-      "工作温度（℃）": values[5] as string | number | null,
-      "配套单位": values[6] as string | number | null,
+      "分系统": subsystem,
+      "产品名称": name,
+      "重量（Kg）": mass,
+      "包络尺寸（mm）": size,
+      "稳态功耗（W）": steadyPower,
+      "峰值功耗（W）": peakPower,
+      "工作温度（℃）": operatingTemperature,
+      "热容量（J/K）": heatCapacity,
+      "配套单位": supplier,
       "热仿真温度（℃）": formatTemperatureSummary(temperature),
       "热仿真温度平均（℃）": temperature?.averageC ?? null,
       "热仿真温度最低（℃）": temperature?.minC ?? null,
       "热仿真温度最高（℃）": temperature?.maxC ?? null,
       "热仿真温度状态": temperatureStatus(temperature?.averageC ?? null, operatingRange),
-      "热仿真温度组件ID": temperature?.componentId ?? componentIdFromName(values[0]),
+      "热仿真温度组件ID": temperature?.componentId ?? componentIdFromName(name),
       "热仿真温度样本数": temperature?.sampleCount ?? null,
     })
   }
@@ -548,9 +594,10 @@ export async function writeCatchSupportingTable(xlsxPath: string, rows: JsonReco
   worksheet.addRow([...HEADERS])
   for (const row of rows) {
     if (isSummaryJsonRow(row)) continue
+    if (SUBSYSTEM_KIND.has(asString(row["产品名称"]).trim()) && !asString(row[SUBSYSTEM_HEADER]).trim()) continue
     worksheet.addRow(HEADERS.map(header => row[header] ?? null))
   }
-  ;[32, 14, 22, 14, 14, 18, 16].forEach((width, index) => {
+  ;[18, 32, 14, 22, 14, 14, 18, 16, 16].forEach((width, index) => {
     worksheet.getColumn(index + 1).width = width
   })
   await workbook.xlsx.writeFile(xlsxPath)
@@ -568,19 +615,21 @@ async function loadTableRows(xlsxPath: string): Promise<LoadedTableRow[]> {
   let subsystem: string | null = null
   for (let index = 1; index < sheetRows.length; index += 1) {
     const row = sheetRows[index] ?? []
-    const name = asString(getCellByHeader(row, headers, "产品名称")).trim()
+    const name = worksheetProductName(row, headers)
     if (!name) continue
-    const mass = num(getCellByHeader(row, headers, "重量（Kg）"))
-    const size = dims(getCellByHeader(row, headers, "包络尺寸（mm）"))
-    const avgPower = power(getCellByHeader(row, headers, "稳态功耗（W）"))
-    const peakPower = power(getCellByHeader(row, headers, "峰值功耗（W）"))
-    if (SUBSYSTEM_KIND.has(name)) {
+    const explicitSubsystem = asString(getCellByHeader(row, headers, SUBSYSTEM_HEADER)).trim()
+    const mass = num(getTableCell(row, headers, "重量（Kg）", 1))
+    const size = dims(getTableCell(row, headers, "包络尺寸（mm）", 2))
+    const avgPower = power(getTableCell(row, headers, "稳态功耗（W）", 3))
+    const peakPower = power(getTableCell(row, headers, "峰值功耗（W）", 4))
+    if (SUBSYSTEM_KIND.has(name) && !explicitSubsystem) {
       subsystem = name
       continue
     }
-    if (isSummaryWorksheetRow(row)) continue
+    if (isSummaryWorksheetRow(row, headers)) continue
     if (mass === null && size === null && avgPower === null && peakPower === null) continue
-    const [category, subtype] = inferKind(name, subsystem)
+    const rowSubsystem = explicitSubsystem || subsystem
+    const [category, subtype] = inferKind(name, rowSubsystem)
     rows.push({
       row: index + 1,
       name,
@@ -588,7 +637,7 @@ async function loadTableRows(xlsxPath: string): Promise<LoadedTableRow[]> {
       dims_mm: size,
       power_W: avgPower ?? 0,
       peak_power_W: peakPower,
-      subsystem,
+      subsystem: rowSubsystem,
       category,
       subtype,
     })
