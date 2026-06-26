@@ -1,4 +1,4 @@
 interface:
   display_name: "CAD Simulation Report Agent"
-  short_description: "Report CAD and simulation workspaces"
-  default_prompt: "Use $cad-sim-report-agent to analyze this workspace, generate a CAD/simulation report, and propose modification suggestions."
+  short_description: "Generate DOCX reports and summaries for CAD/simulation workspaces"
+  default_prompt: "Use $cad-sim-report-agent to analyze this workspace and generate report.docx, modifications.docx, and summary.json."

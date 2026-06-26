@@ -200,7 +200,11 @@ export function AgentRecorderControl({
   const displayError = error || agentSpeechError
   const agentBubbleText = displayError ||
     (agentSpeechState === 'synthesizing' ? '正在生成语音...' : visibleAgentResponse)
-  const userBubbleText = text.trim()
+  const showUserBubbleText = Boolean(agentBubbleText) ||
+    state === 'recording' ||
+    state === 'transcribing' ||
+    state === 'thinking'
+  const userBubbleText = showUserBubbleText ? text.trim() : ''
   const bubbleText = agentBubbleText || userBubbleText || statusHintText
   const bubbleLabel = agentBubbleText
     ? (displayError ? '状态' : 'AI AGENT')

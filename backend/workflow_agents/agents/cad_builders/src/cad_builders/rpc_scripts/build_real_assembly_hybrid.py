@@ -13,7 +13,6 @@ INPUT_PATH = __INPUT_PATH__
 DOC_NAME = __DOC_NAME__
 SAVE_PATH = __SAVE_PATH__
 OUT_GLB = str(Path(SAVE_PATH).with_suffix(".glb"))
-SUMMARY = str(Path(SAVE_PATH).with_suffix(".hybrid_summary.json"))
 NORMALIZED_INPUT = INPUT_PATH
 INCLUDE_ENVELOPE = __INCLUDE_ENVELOPE__
 FREECAD_MODULE_DIR = __FREECAD_MODULE_DIR__
@@ -430,7 +429,6 @@ try:
         "component_glb_summary": component_glb_summary,
         "document_build": document_payload,
     }
-    Path(SUMMARY).write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False))
 except Exception as exc:
     print(json.dumps({"success": False, "error": str(exc)}))

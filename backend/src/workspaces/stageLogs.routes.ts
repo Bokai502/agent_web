@@ -36,33 +36,6 @@ const MAX_ENTRIES = 300
 const DEFAULT_CONVERSATION_SESSION_LIMIT = 4
 const DEFAULT_CONVERSATION_TURN_LIMIT = 40
 const DEFAULT_CONVERSATION_EVENT_LIMIT = 120
-const MARKDOWN_REPORTS = [
-  {
-    detail: "reports/report.md",
-    idSuffix: "report",
-    relativePath: path.join("reports", "report.md"),
-    title: "总结报告",
-  },
-  {
-    detail: "reports/modifications.md",
-    idSuffix: "modifications",
-    relativePath: path.join("reports", "modifications.md"),
-    title: "修改建议",
-  },
-  {
-    detail: "reports/cad_sim_report/report.md",
-    idSuffix: "cad-sim-report",
-    relativePath: path.join("reports", "cad_sim_report", "report.md"),
-    title: "CAD/仿真报告",
-  },
-  {
-    detail: "reports/cad_sim_report/modifications.md",
-    idSuffix: "cad-sim-modifications",
-    relativePath: path.join("reports", "cad_sim_report", "modifications.md"),
-    title: "CAD/仿真修改建议",
-  },
-]
-const MARKDOWN_LINK_OR_IMAGE_RE = /(!?\[[^\]]*\]\()([^)\s]+)(\))/gu
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
@@ -269,51 +242,6 @@ function trimConversationSessions(
     })
 }
 
-function rewriteReportMarkdownLinks(markdown: string, reportPath: string) {
-  const reportDir = path.dirname(reportPath)
-  return markdown.replace(MARKDOWN_LINK_OR_IMAGE_RE, (_match, prefix: string, link: string, suffix: string) => {
-    if (/^(?:[a-z][a-z0-9+.-]*:|#)/iu.test(link)) return `${prefix}${link}${suffix}`
-    const absolutePath = path.resolve(reportDir, link)
-    const ext = path.extname(absolutePath).toLowerCase()
-    if (![".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"].includes(ext)) return `${prefix}${link}${suffix}`
-    return `${prefix}/api/image?path=${encodeURIComponent(absolutePath)}${suffix}`
-  })
-}
-
-async function addMarkdownReportEntry(
-  workspaceDir: string,
-  report: typeof MARKDOWN_REPORTS[number],
-  entries: StageLogEntry[],
-) {
-  const reportPath = path.join(workspaceDir, report.relativePath)
-  const raw = await fs.readFile(reportPath, "utf-8").catch(() => null)
-  if (raw === null) return
-
-  const stat = await fs.stat(reportPath)
-  entries.push({
-    detail: report.detail,
-    fields: {
-      path: path.relative(process.cwd(), reportPath),
-      size_bytes: String(stat.size),
-    },
-    id: `${path.relative(process.cwd(), reportPath)}:${report.idSuffix}`,
-    raw: {
-      format: "markdown",
-      content: rewriteReportMarkdownLinks(raw, reportPath),
-    },
-    source: path.relative(process.cwd(), reportPath),
-    status: "completed",
-    stage_name: report.title,
-    time: stat.mtime.toISOString(),
-  })
-}
-
-async function addMarkdownReportEntries(workspaceDir: string, entries: StageLogEntry[]) {
-  for (const report of MARKDOWN_REPORTS) {
-    await addMarkdownReportEntry(workspaceDir, report, entries)
-  }
-}
-
 export async function stageLogsRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: { limit?: string; versionId?: string; workspaceDir?: string; workspaceId?: string } }>("/api/logs/stages", async (req, reply) => {
     let configuredWorkspaceDir: string
@@ -337,8 +265,6 @@ export async function stageLogsRoutes(fastify: FastifyInstance) {
         // Skip malformed or transient log files.
       }
     }
-    await addMarkdownReportEntries(configuredWorkspaceDir, entries)
-
     const limit = parsePositiveInt(req.query.limit, MAX_ENTRIES, MAX_ENTRIES)
     return reply.send(sortEntries(entries).slice(0, limit))
   })

@@ -17,8 +17,8 @@ Use this file when you need to quickly understand or query the available
   supplemental real assembly builds: `workspace_dir`, optional `spec_path`,
   `output_dir`, `doc_name`, `host`, `port`.
 - `cad_builders.real_assembly.CadRealAssemblyBuilder`: builds
-  `geometry_after_real_cad.glb` and `geometry_after_real_cad.hybrid_summary.json`,
-  using component STEP files when available and box fallback otherwise.
+  `geometry_after_real_cad.glb`, using component STEP files when available and
+  box fallback otherwise.
 - `cad_builders.sim_input.CadSimInputBuildRequest`: request data for simulation
   input work: `workspace_dir`, optional `spec_path`, `output_dir`, `doc_name`,
   `host`, `port`, and `grid_shape`.

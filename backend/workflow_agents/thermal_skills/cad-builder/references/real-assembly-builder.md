@@ -9,15 +9,13 @@ Build the supplemental real assembly model from the CAD-native spec.
   FreeCAD RPC host/port.
 - `CadRealAssemblyBuilder`: resolves paths, validates the CAD build spec,
   normalizes component assembly input, renders the hybrid-link FreeCAD RPC
-  script, executes FreeCAD RPC, copies exported GLB/summary artifacts, and
+  script, executes FreeCAD RPC, copies the exported GLB artifact, and
   constructs the final JSON result.
 
 ## Defaults
 
 - Input: `<workspace_dir>/00_inputs/cad_build_spec.json`
 - Output: `<workspace_dir>/01_cad/geometry_after_real_cad.glb`
-- Hybrid summary: `<workspace_dir>/01_cad/geometry_after_real_cad.hybrid_summary.json`
-- Normalized input: `<workspace_dir>/01_cad/normalized_component_info_assembly.json`
 - Generated runner: `<workspace_dir>/01_cad/runners/run_cad_real_assembly_builder.py`
 
 ## Steps
@@ -27,7 +25,7 @@ Build the supplemental real assembly model from the CAD-native spec.
 2. In the generated runner, call `CadProgressUpdater.update(...)` with role `cad_real`
    when the operation starts or reaches a meaningful stage.
 3. Execute `<workspace_dir>/01_cad/runners/run_cad_real_assembly_builder.py` to build the
-   supplemental real assembly GLB and hybrid summary.
+   supplemental real assembly GLB.
 4. In the generated runner, call `CadProgressUpdater.update(...)` with role `cad_real`
    after successful execution using a completed status.
 
@@ -51,15 +49,13 @@ Build the supplemental real assembly model from the CAD-native spec.
   back to component boxes for missing or unreadable STEP files.
 - This step is supplemental real assembly output; it must not create the
   simulation STEP.
-- Do not create or persist `.hybrid_link` staging directories. Real assembly
-  inputs and outputs should be written directly under `<workspace_dir>/01_cad`;
-  any temporary `geometry_after_real_cad.step` export should be removed after
-  GLB and summary generation.
+- Do not create or persist `.hybrid_link` staging directories,
+  `geometry_after_real_cad.hybrid_summary.json`, or
+  `normalized_component_info_assembly.json`. Any temporary normalized input or
+  `geometry_after_real_cad.step` export should be removed after GLB generation.
 - If FreeCAD RPC is unavailable, report the host/port connection failure.
 
 ## Output
 
 - `<workspace_dir>/01_cad/geometry_after_real_cad.glb`
-- `<workspace_dir>/01_cad/geometry_after_real_cad.hybrid_summary.json`
-- `<workspace_dir>/01_cad/normalized_component_info_assembly.json`
 - `<workspace_dir>/01_cad/runners/run_cad_real_assembly_builder.py`

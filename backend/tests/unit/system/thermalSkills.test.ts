@@ -58,8 +58,6 @@ describe("thermal workflow skills", () => {
       "cad-builder/references/validate.md",
       "workflow-diagram-writer/SKILL.md",
       "workflow-diagram-writer/agents/openai.yaml",
-      "workflow-diagram-writer/assets/thermal_execution_flow_template.json",
-      "workflow-diagram-writer/scripts/write_execution_flow.py",
       "planner/SKILL.md",
       "simulation-skill/SKILL.md",
       "simulation-skill/agents/openai.yaml",

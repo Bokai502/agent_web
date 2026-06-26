@@ -103,10 +103,12 @@ const MANAGED_CHAT_OUTPUT_TOKENS = Number(process.env.CODEX_MANAGED_CHAT_OUTPUT_
 const MANAGED_START_SUMMARY = "当前任务已接收，正在分析。"
 const RESPONSES_API_TEXT_MAX_CHARS = 20_000
 
-function buildManagedAnswerCodexEnv() {
-  return Object.fromEntries(
+function buildManagedAnswerCodexEnv(modelBackend: ResolvedModelBackend) {
+  const env = Object.fromEntries(
     Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
   )
+  env.OCW_MODEL_BACKEND = modelBackend.id
+  return env
 }
 
 type ManagedSessionState = {
@@ -602,7 +604,8 @@ export async function getFallbackArtifacts(workspaceDir: string | null) {
     path.join("01_cad", "geometry_after.glb"),
     path.join("01_cad", "geometry_after.step"),
     path.join("02_sim", "simulation", "status.json"),
-    path.join("reports", "report.md"),
+    path.join("reports", "report.docx"),
+    path.join("reports", "modifications.docx"),
     path.join("reports", "summary.json"),
   ]
   const artifacts = await Promise.all(relativePaths.map(async relativePath => {
@@ -925,7 +928,7 @@ async function createCodexManagedAnswer({
     apiKey: modelBackend.apiKey,
     baseUrl: getCodexBaseUrl(config, modelBackend),
     config: codexConfig,
-    env: buildManagedAnswerCodexEnv(),
+    env: buildManagedAnswerCodexEnv(modelBackend),
   })
   const threadOptions = {
     ...(modelBackend.model ? { model: modelBackend.model } : {}),

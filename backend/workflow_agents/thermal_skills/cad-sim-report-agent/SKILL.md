@@ -1,156 +1,133 @@
 ---
 name: cad-sim-report-agent
-description: "Mandatory CLI-first report workflow for satellite CAD/COMSOL workspaces with 00_inputs, 01_cad, 02_sim, and logs. Use for any request to generate, regenerate, summarize, review, inspect, or finalize CAD/thermal simulation reports, including full workflows that end with 输出报告/report. Do not hand-write thermal_report.md or ad hoc report JSON when this skill can run."
+description: "Mandatory workflow for satellite CAD/COMSOL workspaces with 00_inputs, 01_cad, 02_sim, and logs. Use for requests to generate, regenerate, summarize, inspect, or finalize CAD/thermal simulation reports, including workflows that end with 输出报告/report. Do not hand-write report.docx, modifications.docx, summary.json, or ad hoc report files when this skill can run."
 ---
 
 # CAD Sim Report Agent
 
-Generate a data-backed CAD and thermal simulation report from a workspace root.
-Use the bundled CLI; do not hand-write ad hoc extraction code.
+Generate a data-backed CAD and thermal simulation Word report from a workspace.
+The Python CLI owns deterministic preprocessing and DOCX rendering. The skill
+layer owns LLM narrative analysis by running section subagents in sequence and
+writing one fixed-format `llm_analysis.json`.
 
-Use this skill whenever the user asks for a report, final report, report
-regeneration, report summary, CAD/simulation review, modification suggestions,
-or a full CAD plus thermal simulation workflow that includes report output.
-Other skills may create `00_inputs`, `01_cad`, and `02_sim`; this skill owns the
-reporting step.
+Use this skill when the user asks for a report, final report, report summary,
+CAD/simulation review, modification suggestions, or a CAD plus thermal workflow
+that includes report output. Other skills may create `00_inputs`, `01_cad`, and
+`02_sim`; this skill owns the reporting step.
 
-Expected workspace shape:
+## Contract
 
-```text
-<workspace>/
-  00_inputs/
-  01_cad/
-  02_sim/
-  logs/
-```
+- The workspace must be an absolute path containing `00_inputs`, `01_cad`,
+  `02_sim`, and `logs`.
+- Default output directory is `<workspace>/reports`.
+- Report outputs are `report.docx`, `modifications.docx`, `cad_core.json`,
+  `sim_core.json`, `llm_analysis.json`, and `summary.json`.
+- Do not generate Markdown reports.
+- Do not ask the renderer to generate prose. It reads `llm_analysis.json`.
 
 ## Workflow
 
-1. Resolve the workspace to an absolute path. Do not guess from unrelated repo
-   roots when the user provides a specific workspace.
-2. Run the skill's report CLI from cad-sim-report-agent.
-3. Report the generated artifact paths and the main status/limitations.
-
-## Progress
-
-Do not create or modify `<workspace>/logs/progress_percentages.json`.
-
-## Report CLI
-
-Run commands from this skill directory:
-
-```bash
-cd /home/lbk/.codex/skills/cad-sim-report-agent
-python3 scripts/analyze_workspace.py \
-  --workspace /abs/path/to/FreeCAD_data/v9_data
-```
-
-Equivalent positional form:
-
-```bash
-python3 scripts/analyze_workspace.py /abs/path/to/FreeCAD_data/v9_data
-```
-
-Optional output override:
+1. Resolve the workspace to an absolute path.
+2. Run preprocessing from this skill directory:
 
 ```bash
 python3 scripts/analyze_workspace.py \
-  --workspace /abs/path/to/FreeCAD_data/v9_data \
-  --out-dir /abs/path/to/FreeCAD_data/v9_data/reports
+  --workspace /abs/path/to/workspace \
+  --preprocess-only
 ```
 
-The CLI writes:
+3. Confirm `<workspace>/reports/cad_core.json` and
+   `<workspace>/reports/sim_core.json` exist.
+4. Run section analysis with subagents in strict sequence. Subagents only
+   generate prose for `llm_analysis.json`; they must not write DOCX, renumber
+   captions, change table structure, or alter deterministic preprocessing
+   output. Do not spawn multiple subagents at the same time.
+   - First run the CAD subagent. It reads only `cad_core.json` and writes
+     `model_section` and `validity_section`. Wait for this subagent to finish,
+     parse its JSON, and confirm both sections are non-empty before starting the
+     next subagent.
+   - Then run the Thermal subagent. It reads only `sim_core.json` and writes
+     `thermal_results_section`, `temperature_images_section`, `solver_section`,
+     and `recommendations_section`. Wait for this subagent to finish, parse its
+     JSON, and confirm all four sections are non-empty before starting the next
+     subagent.
+   - Finally run the Conclusion subagent. It reads only the already generated
+     `report_sections` and writes `conclusion_section`. Wait for this subagent
+     to finish, parse its JSON, and confirm `conclusion_section` is non-empty
+     before continuing.
+   If any subagent ID is missing, any wait result is unavailable, any JSON parse
+   fails, or any section is missing, the main agent must generate the missing
+   section text from `cad_core.json`, `sim_core.json`, or already generated
+   `report_sections` before continuing. A chat-only summary is not a substitute
+   for a section.
+5. Run a QA check before rendering. Confirm every reported number, status,
+   component ID, and artifact statement in the planned `llm_analysis.json` is
+   supported by `cad_core.json`, `sim_core.json`, or prior `report_sections`;
+   revise the JSON if unsupported content is found.
+6. Merge the subagent output into `<workspace>/reports/llm_analysis.json` using
+   the JSON contract below. Immediately verify that this file exists, is valid
+   JSON, contains `report_sections`, and contains every required section key as
+   a non-empty array. Do not render, summarize, or finish until this check
+   passes.
+7. Render DOCX from the prebuilt analysis JSON:
 
-- `<out-dir>/report.md`
-- `<out-dir>/modifications.md`
-- `<out-dir>/summary.json`
+```bash
+python3 scripts/analyze_workspace.py \
+  --workspace /abs/path/to/workspace \
+  --llm-analysis-json /abs/path/to/workspace/reports/llm_analysis.json
+```
 
-Default output directory is `<workspace>/reports`. The CLI prints a JSON payload
-with `ok`, `workspace`, `outputs`, and `summary`.
+8. Read the printed JSON payload or `<workspace>/reports/summary.json`. Before
+   the final response, verify that all six required report artifacts exist:
+   `report.docx`, `modifications.docx`, `cad_core.json`, `sim_core.json`,
+   `llm_analysis.json`, and `summary.json`. If any artifact is missing, continue
+   the workflow or report the exact blocking error; do not present a completed
+   report result.
 
-## Mandatory Usage
+## LLM Analysis JSON
 
-- Do not generate `thermal_report.md`, `thermal_report_summary.json`,
-  `report.md`, `summary.json`, or equivalent report files with inline shell,
-  Node, Python snippets, or manual Markdown assembly.
-- Do not satisfy "重新生成报告", "总结报告", "输出报告", "final report", or
-  "thermal/CAD simulation report" by only checking existing report files unless
-  the user explicitly asks for file existence.
-- If upstream artifacts are missing, still run this CLI to produce the best
-  available diagnostic report, or explain which required workspace path is
-  missing before stopping.
-- When this skill is used as the final stage of a larger workflow, run it after
-  CAD/simulation execution and validation gates, rather than embedding report
-  writing in the executor step.
+`llm_analysis.json` must contain every section. Each value is a non-empty array
+of Chinese paragraphs. Keep paragraphs concise and factual; do not invent
+numbers, status values, component IDs, file paths, or image contents.
 
-## Evidence Rules
+```json
+{
+  "schema_version": "cad_sim_report_llm_analysis/1.0",
+  "model_backend": "subagents",
+  "model": "inherited",
+  "concurrency": 1,
+  "report_sections": {
+    "model_section": ["..."],
+    "thermal_results_section": ["..."],
+    "temperature_images_section": ["..."],
+    "validity_section": ["..."],
+    "solver_section": ["..."],
+    "recommendations_section": ["..."],
+    "conclusion_section": ["..."]
+  }
+}
+```
 
-The report is generated from available files under `01_cad`, `02_sim`, and
-`logs`. Key inputs include CAD outputs, `simulation_input.json`, COMSOL status
-and solver artifacts, ParaView/postprocess images and stats, analysis JSON, and
-FreeCAD screenshots.
+## Section Inputs
 
-- Prefer finalized top-level simulation outputs under `02_sim/simulation`.
-  Fall back to `_comsol_work/sim` only for in-progress or failed runs.
-- Do not claim simulation completion unless `run_manifest.json`, `status.json`,
-  or exported artifacts support it.
-- Do not claim thermal visualization is complete unless `native.vtu`,
-  `field_stats.json`, `render_summary.json`, and PNG outputs are present.
-- Do not hide CAD validation hard failures just because COMSOL solved. CAD
-  validation warnings must be reported as residual geometry risk, but they do
-  not make a successful CAD gate fail.
-- Keep report claims factual and tied to workspace evidence.
-- Markdown links in `report.md` must be relative to the report directory, not
-  absolute local paths.
-- State coverage limits explicitly, especially missing artifacts or narrow
-  `field_samples.json` coverage.
-
-## Report Gating
-
-- Before generating a final report, check CAD validation and simulation status.
-- If CAD validation hard failures or simulation failures occurred, generate and
-  describe the output only as a failure report or diagnostic report.
-- If CAD validation has `success == true` with warnings, a final report is
-  allowed, and the warnings must be included in the validation/risk discussion.
-- When CAD validation warnings are present, the final user-facing response
-  should ask whether the user wants to modify CAD/layout inputs to resolve them.
-- Never mark a report as a final or completed engineering result when upstream
-  execution failed.
-
-## Expected Report Content
-
-`report.md` should be a detailed engineering Markdown report with:
-
-- summary, model description, inputs, solver/settings, thermal results,
-  temperature images, CAD/simulation validity checks, modification summary, and
-  conclusion
-- FreeCAD screenshots and ParaView/postprocess images when present
-- tables for CAD artifacts, validation, components, heat sources, selections,
-  solver artifacts, temperature stats, and analysis/root-cause records
-- short analysis notes after major tables explaining what the data proves and
-  what it does not prove
-
-`modifications.md` should contain CAD suggestions, simulation suggestions,
-report coverage suggestions, and validation steps. Suggestions must be derived
-from observed data and name relevant files/components when possible.
-
-## Error Handling
-
-- If the workspace path does not exist, stop and report the path.
-- If optional files are missing, still write the report and mark the fields as
-  missing.
-- If both top-level and `_comsol_work` status files exist, prefer the top-level
-  status.
-- If the report CLI fails after the running progress update, write the terminal
-  failed progress update.
-- If the CLI payload reports `ok: false`, surface the error details.
+- `model_section` and `validity_section` use `cad_core.json`.
+- `thermal_results_section`, `temperature_images_section`, `solver_section`,
+  and `recommendations_section` use `sim_core.json`.
+- `conclusion_section` uses only the generated `report_sections`.
 
 ## Final Response
 
-After running the CLI, report back in this order:
+Never end with a chat-only thermal summary. If `report.docx`,
+`modifications.docx`, or `llm_analysis.json` does not exist, the reporting
+workflow is incomplete.
+
+After rendering, report back in this order:
 
 1. Pipeline/simulation status from `summary.status`.
 2. CAD component and validation counts from `summary.cad`.
 3. Thermal image/temperature coverage from `summary.thermal`.
-4. Important limitations, especially missing artifacts or narrow sample
-   coverage.
+4. LLM analysis mode from `summary.llm`.
+5. Generated paths for `report.docx`, `modifications.docx`, `cad_core.json`,
+   `sim_core.json`, `llm_analysis.json`, and `summary.json`.
+
+Keep the prose summary within 50 words; put paths only in the artifact list.

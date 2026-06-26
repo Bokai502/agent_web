@@ -74,13 +74,6 @@ const REQUIRED_OUTPUTS = [
   "01_cad/geometry_after_power_filtered.step",
   "01_cad/simulation_input.json",
 ]
-const WORKFLOW_DIAGRAM_WRITER = path.resolve(
-  "workflow_agents",
-  "thermal_skills",
-  "workflow-diagram-writer",
-  "scripts",
-  "write_execution_flow.py",
-)
 const OPTIONAL_OUTPUTS = [
   "01_cad/geometry_after.step",
   "01_cad/geometry_after.geom.json",
@@ -226,15 +219,26 @@ function workflowDraft(dataset: DatasetName, modelBackend: ModelBackendName) {
   }
 }
 
+function normalizeWorkflowDraft(draft: ReturnType<typeof workflowDraft>) {
+  const nodeIds = new Set(draft.nodes.map(node => node.id))
+  const connections = draft.connections.filter(connection => (
+    nodeIds.has(connection.from) && nodeIds.has(connection.to) && connection.from !== connection.to
+  ))
+  return {
+    defaultActiveId: nodeIds.has(draft.defaultActiveId) ? draft.defaultActiveId : draft.nodes[0]?.id,
+    nodes: draft.nodes.map(node => ({ ...node, progress: 0 })),
+    connections,
+  }
+}
+
 async function ensureWorkflowDiagram(workspaceDir: string, dataset: DatasetName, modelBackend: ModelBackendName) {
   const flowPath = path.join(workspaceDir, "00_inputs", "workflow_diagram", "executionFlowData.json")
   await fs.mkdir(path.dirname(flowPath), { recursive: true })
-  await fs.writeFile(flowPath, `${JSON.stringify(workflowDraft(dataset, modelBackend), null, 2)}\n`, "utf-8")
-  await execFileAsync("python3", [WORKFLOW_DIAGRAM_WRITER, "--workspace-dir", workspaceDir], {
-    cwd: path.resolve("."),
-    maxBuffer: 10 * 1024 * 1024,
-    timeout: 30_000,
-  })
+  await fs.writeFile(flowPath, `${JSON.stringify(
+    normalizeWorkflowDraft(workflowDraft(dataset, modelBackend)),
+    null,
+    2,
+  )}\n`, "utf-8")
 }
 
 async function getBaseDatasetVersion(config: AppConfig, dataset: DatasetName) {

@@ -1,0 +1,6 @@
+docxtpl
+docxcompose
+openai
+Pillow
+python-docx
+openpyxl
