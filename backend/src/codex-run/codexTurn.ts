@@ -67,10 +67,11 @@ function prependPathList(existing: string | undefined, entries: string[]) {
   return values.join(path.delimiter)
 }
 
-function buildCodexEnv() {
+function buildCodexEnv(modelBackend: ResolvedModelBackend) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
   )
+  env.OCW_MODEL_BACKEND = modelBackend.id
   const bundledCliSrcDirs = getBundledAgentCliSrcDirs()
   if (bundledCliSrcDirs.length > 0) {
     env.PYTHONPATH = prependPathList(env.PYTHONPATH, bundledCliSrcDirs)
@@ -455,7 +456,7 @@ export async function executeCodexTurn(
       apiKey: modelBackend.apiKey,
       baseUrl: getCodexBaseUrl(config, modelBackend),
       config: codexConfig,
-      env: buildCodexEnv(),
+      env: buildCodexEnv(modelBackend),
     })
 
     const threadOptions = {
