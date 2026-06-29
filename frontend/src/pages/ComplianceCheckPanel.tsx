@@ -26,6 +26,19 @@ type CompliancePayload = {
   source_relative_path?: string
 }
 
+type ComplianceMajorIssueItem = {
+  id?: string
+  severity?: string
+  target_tab?: string
+  text?: string
+}
+
+type ComplianceMajorIssuesPayload = {
+  generated_at?: string
+  items?: ComplianceMajorIssueItem[]
+  raw_text?: string
+}
+
 type ComplianceCheckThemeVars = CSSProperties & Record<`--derating-${string}`, string>
 
 type ComplianceCheckPanelProps = {
@@ -107,6 +120,21 @@ const COMPLIANCE_TABS = [
     title: "关键器件",
   },
   {
+    artifact: "flight_history_check",
+    columns: [
+      { key: "index", label: "序号", width: 70 },
+      { key: "component_name", label: "器件名称", width: 140 },
+      { key: "model", label: "型号规格", width: 140 },
+      { key: "manufacturer", label: "生产厂商", width: 120 },
+      { key: "flight_history", label: "飞行经历", width: 130 },
+      { key: "status", label: "关注状态", width: 110 },
+    ],
+    description: "展示应用经历/飞行经历检查结果，未填写或未知项需关注。",
+    emptyText: "暂无飞行经历检查数据",
+    key: "flight-history",
+    title: "飞行经历",
+  },
+  {
     artifact: "catalog_match",
     columns: [
       { key: "index", label: "序号", width: 70 },
@@ -182,6 +210,31 @@ type DashboardRiskRow = {
   module: string
   priority: "高" | "中" | "低"
   status: string
+}
+
+type ComponentCheckTone = "ok" | "bad" | "warn" | "neutral"
+
+type ComponentCheckStatus = {
+  details: string[]
+  issueCount: number
+  label: string
+  rawRows: JsonRow[]
+  tone: ComponentCheckTone
+}
+
+type ComponentCheckRow = {
+  category: string
+  checks: Record<string, ComponentCheckStatus>
+  component: string
+  issueCount: number
+  key: string
+  manufacturer: string
+  model: string
+}
+
+type ComponentCheckSummary = {
+  rows: ComponentCheckRow[]
+  unmatchedDeratingRows: JsonRow[]
 }
 
 type DashboardModuleRow = {
@@ -990,11 +1043,208 @@ function componentManufacturer(row: JsonRow) {
   return asText(row.manufacturer ?? row.normalized_manufacturer ?? row["厂商"] ?? row["生产厂商_生产单位"] ?? row["生产厂商"] ?? row.list_manufacturer) || "-"
 }
 
+function componentCategory(row: JsonRow) {
+  return asText(row.category_name ?? row.category_class ?? row["类别"] ?? row["元器件子类"] ?? row["元器件大类"]) || "-"
+}
+
 function modelSpecKeys(row: JsonRow) {
   return asText(row.model ?? row["型号规格_规格"] ?? row["型号规格"] ?? row.list_model)
     .split(/[;；\n\r]+/u)
     .map(value => value.trim().toLowerCase().replace(/\s+/gu, ""))
     .filter(Boolean)
+}
+
+function normalizedIdentityPart(value: unknown) {
+  return asText(value).trim().toLowerCase().replace(/\s+/gu, "")
+}
+
+function componentIdentity(row: JsonRow) {
+  const model = normalizedIdentityPart(componentModel(row))
+  const manufacturer = normalizedIdentityPart(componentManufacturer(row))
+  const name = normalizedIdentityPart(componentName(row))
+  if (model && model !== "-") return `${model}|${manufacturer && manufacturer !== "-" ? manufacturer : name}`
+  return `${name}|${manufacturer}`
+}
+
+function componentMatchKeys(row: JsonRow) {
+  const model = normalizedIdentityPart(componentModel(row))
+  const manufacturer = normalizedIdentityPart(componentManufacturer(row))
+  const name = normalizedIdentityPart(componentName(row))
+  return previousUnique([
+    model && manufacturer && manufacturer !== "-" ? `model:${model}|manufacturer:${manufacturer}` : "",
+    model ? `model:${model}` : "",
+    name && manufacturer && manufacturer !== "-" ? `name:${name}|manufacturer:${manufacturer}` : "",
+    name ? `name:${name}` : "",
+    componentIdentity(row) ? `identity:${componentIdentity(row)}` : "",
+  ])
+}
+
+function statusFromTone(tone: ComponentCheckTone, okLabel = "通过") {
+  if (tone === "ok") return okLabel
+  if (tone === "bad") return "未通过"
+  if (tone === "warn") return "需确认"
+  return "无数据"
+}
+
+function uniqueDetails(values: string[]) {
+  return previousUnique(values.flatMap(value => value.split(/[；\n]/u)).map(value => value.trim()).filter(Boolean))
+}
+
+function issueStatusFromRows(rows: JsonRow[], getStatus: (row: JsonRow) => string, getDetails: (row: JsonRow) => string[], okLabel = "通过"): ComponentCheckStatus {
+  if (rows.length === 0) {
+    return { details: [], issueCount: 0, label: "无数据", rawRows: [], tone: "neutral" }
+  }
+  const issueRows = rows.filter(row => {
+    const status = getStatus(row)
+    return !status || !isPositiveJudgement(status)
+  })
+  if (issueRows.length === 0) {
+    return { details: [], issueCount: 0, label: okLabel, rawRows: rows, tone: "ok" }
+  }
+  const details = uniqueDetails(issueRows.flatMap(getDetails))
+  return {
+    details: details.length ? details : uniqueDetails(issueRows.map(getStatus)),
+    issueCount: issueRows.length,
+    label: "未通过",
+    rawRows: rows,
+    tone: isNegativeJudgement(details.join("；") || issueRows.map(getStatus).join("；")) ? "bad" : "warn",
+  }
+}
+
+function groupRowsByIdentity(rows: JsonRow[]) {
+  const groups = new Map<string, JsonRow[]>()
+  rows.forEach(row => {
+    componentMatchKeys(row).forEach(key => {
+      const existing = groups.get(key) ?? []
+      existing.push(row)
+      groups.set(key, existing)
+    })
+  })
+  return groups
+}
+
+function getRowsForComponent(groups: Map<string, JsonRow[]>, row: JsonRow) {
+  const seen = new Set<JsonRow>()
+  componentMatchKeys(row).forEach(key => {
+    ;(groups.get(key) ?? []).forEach(item => seen.add(item))
+  })
+  return Array.from(seen)
+}
+
+function inputListSeedRows(complianceRows: Record<string, JsonRow[]>) {
+  const classificationRows = complianceRows.classification ?? []
+  if (classificationRows.length > 0) return classificationRows
+
+  const fallbackRows = [
+    ...(complianceRows.catalog ?? []),
+    ...(complianceRows["quality-level"] ?? []),
+    ...(complianceRows.reliability ?? []),
+    ...(complianceRows["key-units"] ?? []),
+  ]
+  return Array.from(new Map(fallbackRows.map(row => [componentIdentity(row), row])).values())
+}
+
+const COMPONENT_CHECK_COLUMNS = [
+  { key: "classification", label: "器件分类" },
+  { key: "manufacturer", label: "厂商匹配" },
+  { key: "key-units", label: "关键器件" },
+  { key: "flight-history", label: "飞行经历" },
+  { key: "catalog", label: "目录匹配" },
+  { key: "quality-level", label: "质量等级" },
+  { key: "reliability", label: "质量/辐照" },
+  { key: "missing", label: "降额缺项" },
+  { key: "derating", label: "降额检查" },
+] as const
+
+function buildComponentCheckRows(missingRows: JsonRow[], resultRows: JsonRow[], complianceRows: Record<string, JsonRow[]>): ComponentCheckSummary {
+  const baseRows = inputListSeedRows(complianceRows)
+  const hasFlightHistoryCheck = Object.prototype.hasOwnProperty.call(complianceRows, "flight-history")
+  const groups = {
+    catalog: groupRowsByIdentity(complianceRows.catalog ?? []),
+    classification: groupRowsByIdentity(complianceRows.classification ?? []),
+    derating: groupRowsByIdentity(resultRows),
+    flightHistory: groupRowsByIdentity(complianceRows["flight-history"] ?? []),
+    keyUnits: groupRowsByIdentity(complianceRows["key-units"] ?? []),
+    missing: groupRowsByIdentity(missingRows),
+    qualityLevel: groupRowsByIdentity(complianceRows["quality-level"] ?? []),
+    reliability: groupRowsByIdentity(complianceRows.reliability ?? []),
+  }
+  const manufacturerRows = complianceRows.manufacturer ?? []
+  const manufacturerByName = new Map(manufacturerRows.map(row => [normalizedIdentityPart(row["厂商简称"] ?? row.normalized_manufacturer ?? row.manufacturer ?? row["厂商全称"]), row]))
+
+  const matchedDeratingRows = new Set<JsonRow>()
+  const rows = baseRows
+    .filter(row => componentIdentity(row).replace(/\|/gu, ""))
+    .map(row => {
+      const manufacturer = componentManufacturer(row)
+      const classificationRows = getRowsForComponent(groups.classification, row)
+      const manufacturerRow = manufacturerByName.get(normalizedIdentityPart(manufacturer))
+      const manufacturerCheckRows = manufacturerRow ? [manufacturerRow] : []
+      const keyUnitRows = getRowsForComponent(groups.keyUnits, row)
+      const flightHistoryRows = getRowsForComponent(groups.flightHistory, row)
+      const catalogRows = getRowsForComponent(groups.catalog, row)
+      const qualityRows = getRowsForComponent(groups.qualityLevel, row)
+      const reliabilityRows = getRowsForComponent(groups.reliability, row)
+      const missingCheckRows = getRowsForComponent(groups.missing, row)
+      const deratingRows = getRowsForComponent(groups.derating, row)
+      deratingRows.forEach(item => matchedDeratingRows.add(item))
+      const checks: ComponentCheckRow["checks"] = {
+        catalog: issueStatusFromRows(catalogRows, item => asText(item.status ?? item.is_in_catalog ?? item["目录内或外"]), item => [asText(item.reason) || asText(item.status ?? item.is_in_catalog)], "目录内"),
+        classification: classificationRows.length
+          ? { details: [], issueCount: 0, label: "已分类", rawRows: classificationRows, tone: "ok" }
+          : { details: ["未找到器件分类结果"], issueCount: 1, label: "未通过", rawRows: [], tone: "warn" },
+        derating: issueStatusFromRows(deratingRows, statusText, item => [deratingDetailText(item)]),
+        "key-units": keyUnitRows.length
+          ? { details: keyUnitRows.filter(keyUnitFlag).map(() => "关键器件，需重点复核").slice(0, 1), issueCount: 0, label: keyUnitRows.some(keyUnitFlag) ? "关键" : "非关键", rawRows: keyUnitRows, tone: keyUnitRows.some(keyUnitFlag) ? "warn" : "ok" }
+          : { details: [], issueCount: 0, label: "无数据", rawRows: [], tone: "neutral" },
+        "flight-history": flightHistoryRows.length
+          ? issueStatusFromRows(flightHistoryRows, item => asText(item.status) || "通过", item => [asText(item.flight_history ?? item["飞行经历/状态"]) || "飞行经历未填写"])
+          : hasFlightHistoryCheck
+            ? { details: [], issueCount: 0, label: "通过", rawRows: [], tone: "ok" }
+            : { details: [], issueCount: 0, label: "无数据", rawRows: [], tone: "neutral" },
+        manufacturer: issueStatusFromRows(manufacturerCheckRows, item => asText(item.status ?? item["目录内或外"] ?? item["是否满足要求"]), item => [asText(item["国产/进口"]), asText(item["目录内或外"])].filter(Boolean), "目录内"),
+        missing: issueStatusFromRows(missingCheckRows, item => Number(item.missing_count ?? 0) > 0 ? "缺项" : "通过", item => [asText(item.missing_standard_parameters ?? item["missing_standard_parameters"]) || "存在缺少降额项"]),
+        "quality-level": issueStatusFromRows(qualityRows, item => asText(item.status ?? item["是否满足要求"]), item => [asText(item.reason) || `质量等级 ${asText(item["质量等级"]) || "未填写"}，最低要求 ${asText(item["最低要求"]) || "未明确"}`]),
+        reliability: reliabilityRows.length
+          ? (() => {
+              const issueRows = reliabilityRows.filter(item => {
+                const hits = reliabilityHitCounts(item)
+                return hits.quality > 0 || hits.radiation > 0
+              })
+              if (issueRows.length === 0) return { details: [], issueCount: 0, label: "通过", rawRows: reliabilityRows, tone: "ok" as const }
+              return {
+                details: uniqueDetails(issueRows.map(item => {
+                  const hits = reliabilityHitCounts(item)
+                  return [
+                    hits.quality > 0 ? `历史质量问题 ${hits.quality} 条` : "",
+                    hits.radiation > 0 ? `辐照信息 ${hits.radiation} 条` : "",
+                    asText(item.quality_summary ?? item.radiation_summary),
+                  ].filter(Boolean).join("；")
+                })),
+                issueCount: issueRows.length,
+                label: "未通过",
+                rawRows: reliabilityRows,
+                tone: "bad" as const,
+              }
+            })()
+          : { details: [], issueCount: 0, label: "无数据", rawRows: [], tone: "neutral" },
+      }
+      const issueCount = Object.values(checks).reduce((total, check) => total + check.issueCount, 0)
+      return {
+        category: componentCategory(classificationRows[0] ?? row),
+        checks,
+        component: componentName(row),
+        issueCount,
+        key: componentIdentity(row),
+        manufacturer,
+        model: componentModel(row),
+      }
+    })
+    .sort((left, right) => right.issueCount - left.issueCount || left.model.localeCompare(right.model, "zh-CN"))
+  return {
+    rows,
+    unmatchedDeratingRows: resultRows.filter(row => !matchedDeratingRows.has(row)),
+  }
 }
 
 function buildDashboardRiskRows(resultRows: JsonRow[], missingRows: JsonRow[]): DashboardRiskRow[] {
@@ -1256,10 +1506,12 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
   const riskRows = [...buildDashboardRiskRows(resultRows, missingRows), ...complianceRisks].slice(0, 8)
   const moduleCount = modules.length
   const moduleInsights = buildModuleInsights(missingRows, resultRows, complianceRows)
+  const componentCheckSummary = buildComponentCheckRows(missingRows, resultRows, complianceRows)
 
   return {
     catalogIssues: catalogCounts.issue,
     completedModules,
+    componentRows: componentCheckSummary.rows,
     distribution,
     issue: totalIssues,
     issuePercent,
@@ -1272,6 +1524,7 @@ function buildDashboardSummary(missingRows: JsonRow[], resultRows: JsonRow[], co
     recommendations: buildDashboardRecommendations(totalIssues, missingCount, catalogCounts.issue, reliabilityIssues, completedModules, moduleCount, qualityLevelCounts.issue),
     riskRows,
     totalRows,
+    unmatchedDeratingRows: componentCheckSummary.unmatchedDeratingRows,
   }
 }
 
@@ -1297,6 +1550,8 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
   const [complianceRows, setComplianceRows] = useState<Record<string, JsonRow[]>>({})
   const [complianceSources, setComplianceSources] = useState<Record<string, string>>({})
   const [progressData, setProgressData] = useState<WorkspaceProgressResponse | null>(null)
+  const [majorIssues, setMajorIssues] = useState<ComplianceMajorIssueItem[]>([])
+  const [majorIssuesStatus, setMajorIssuesStatus] = useState("AI 正在分析整体主要问题")
   const [missingSourcePath, setMissingSourcePath] = useState("")
   const [resultSourcePath, setResultSourcePath] = useState("")
   const [savingResults, setSavingResults] = useState(false)
@@ -1373,6 +1628,22 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
       })
       .then(setManufacturerFullNames)
       .catch(error => console.error(error))
+
+    setMajorIssuesStatus("AI 正在分析整体主要问题")
+    fetch(buildWorkspaceApiPath("/workspace/compliance/major-issues", query), { cache: "no-store" })
+      .then(async response => {
+        const data = await response.json().catch(() => null) as ComplianceMajorIssuesPayload | { error?: string } | null
+        if (!response.ok) throw new Error(data && "error" in data && data.error ? data.error : "AI 总结生成失败")
+        return data as ComplianceMajorIssuesPayload
+      })
+      .then(payload => {
+        setMajorIssues(Array.isArray(payload.items) ? payload.items : [])
+        setMajorIssuesStatus(payload.generated_at ? `AI 生成于 ${new Date(payload.generated_at).toLocaleString()}` : "AI 已生成")
+      })
+      .catch(error => {
+        setMajorIssues([])
+        setMajorIssuesStatus(error instanceof Error ? error.message : "AI 总结生成失败")
+      })
   }, [query])
 
   useEffect(() => {
@@ -1650,6 +1921,8 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
         <main style={viewerContentStyle}>
           {activeTab === "dashboard" ? (
           <ComplianceCheckReportDashboard
+            majorIssues={majorIssues}
+            majorIssuesStatus={majorIssuesStatus}
             progress={dashboardProgress}
             selectedFilter={dashboardFilter}
             setActiveTab={setActiveTab}
@@ -1738,6 +2011,8 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
 }
 
 function ComplianceCheckReportDashboard({
+  majorIssues,
+  majorIssuesStatus,
   progress,
   selectedFilter,
   setActiveTab,
@@ -1747,6 +2022,8 @@ function ComplianceCheckReportDashboard({
   workspaceDir,
   workspaceId,
 }: {
+  majorIssues: ComplianceMajorIssueItem[]
+  majorIssuesStatus: string
   progress: DashboardProgress
   selectedFilter: string
   setActiveTab: (tab: ActiveTabKey) => void
@@ -1843,6 +2120,10 @@ function ComplianceCheckReportDashboard({
           workspaceId={workspaceId}
         />
       </div>
+
+      <DashboardIssueOverview items={majorIssues} setActiveTab={setActiveTab} status={majorIssuesStatus} />
+
+      <ComponentCheckMatrix rows={summary.componentRows} unmatchedDeratingRows={summary.unmatchedDeratingRows} />
 
       <div style={dashboardAnalyticsGridStyle}>
         <ModuleInsightCard title="AI器件分类" variant="large">
@@ -1990,6 +2271,145 @@ function ComplianceCheckReportDashboard({
   )
 }
 
+function DashboardIssueOverview({
+  items,
+  setActiveTab,
+  status,
+}: {
+  items: ComplianceMajorIssueItem[]
+  setActiveTab: (tab: ActiveTabKey) => void
+  status: string
+}) {
+  return (
+    <div style={dashboardPanelStyle}>
+      <div style={dashboardPanelHeaderStyle}>
+        <strong>整体主要问题</strong>
+        <span style={mutedTextStyle}>{status}</span>
+      </div>
+      <div style={issueOverviewListStyle}>
+        {items.map((item, index) => {
+          const tab = tabFromAiMajorIssue(item.target_tab)
+          const tone = toneFromAiSeverity(item.severity)
+          return (
+          <div key={item.id || `${item.text}-${index}`} style={issueOverviewItemStyle}>
+            <div style={issueOverviewHeaderStyle}>
+              <div style={issueOverviewTitleStyle}>
+                <strong>{`问题 ${index + 1}`}</strong>
+                <span>{item.text}</span>
+              </div>
+              <span style={{ ...issueCountBadgeStyle, color: metricToneColor(tone) }}>AI 分析</span>
+            </div>
+            {tab ? (
+              <button type="button" onClick={() => setActiveTab(tab)} style={issueChipStyle(tone)}>
+                <b>查看相关检查项</b>
+                <span>{tabLabel(tab)}</span>
+              </button>
+            ) : null}
+          </div>
+          )
+        })}
+        {items.length === 0 ? <div style={emptyBlockStyle}>{status || "暂无整体主要问题"}</div> : null}
+      </div>
+    </div>
+  )
+}
+
+function ComponentCheckMatrix({ rows, unmatchedDeratingRows }: { rows: ComponentCheckRow[]; unmatchedDeratingRows: JsonRow[] }) {
+  return (
+    <div style={dashboardPanelStyle}>
+      <div style={dashboardPanelHeaderStyle}>
+        <strong>清单器件检查项总表</strong>
+        <span style={mutedTextStyle}>以元器件清单为准 · 默认隐藏原始信息 · 共 {rows.length} 个器件</span>
+      </div>
+      <div style={componentMatrixWrapStyle}>
+        <table style={componentMatrixTableStyle}>
+          <thead>
+            <tr>
+              {["器件名称", "型号规格", "生产厂商", "类别", "问题数", ...COMPONENT_CHECK_COLUMNS.map(column => column.label), "原始信息"].map(label => (
+                <th key={label} style={dashboardRiskHeaderStyle}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.key}>
+                <td style={componentMatrixCellStyle}>{row.component}</td>
+                <td style={componentMatrixCellStyle}>{row.model}</td>
+                <td style={componentMatrixCellStyle}>{row.manufacturer}</td>
+                <td style={componentMatrixCellStyle}>{row.category}</td>
+                <td style={{ ...componentMatrixCellStyle, color: row.issueCount > 0 ? HUD_RED : HUD_GREEN, fontWeight: 900 }}>{row.issueCount}</td>
+                {COMPONENT_CHECK_COLUMNS.map(column => (
+                  <td key={column.key} style={componentMatrixCellStyle}>
+                    <CheckStatusBadge status={row.checks[column.key]} />
+                  </td>
+                ))}
+                <td style={componentMatrixCellStyle}>
+                  <details>
+                    <summary style={rawDetailsSummaryStyle}>查看</summary>
+                    <pre style={rawDetailsPreStyle}>{JSON.stringify(Object.fromEntries(COMPONENT_CHECK_COLUMNS.map(column => [column.label, row.checks[column.key]?.rawRows ?? []])), null, 2)}</pre>
+                  </details>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={6 + COMPONENT_CHECK_COLUMNS.length} style={emptyCellStyle}>暂无器件检查项数据</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+      <div style={deratingOnlyPanelStyle}>
+        <div style={dashboardPanelHeaderStyle}>
+          <strong>降额表未匹配清单项</strong>
+          <span style={mutedTextStyle}>不计入上方清单总表 · {unmatchedDeratingRows.length} 行</span>
+        </div>
+        <div style={componentMatrixWrapStyle}>
+          <table style={deratingOnlyTableStyle}>
+            <thead>
+              <tr>
+                {["器件名称", "型号规格", "生产厂商", "降额参数", "判定结果", "问题说明"].map(label => (
+                  <th key={label} style={dashboardRiskHeaderStyle}>{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {unmatchedDeratingRows.map((row, index) => (
+                <tr key={`${componentName(row)}-${componentModel(row)}-${index}`}>
+                  <td style={componentMatrixCellStyle}>{componentName(row)}</td>
+                  <td style={componentMatrixCellStyle}>{componentModel(row)}</td>
+                  <td style={componentMatrixCellStyle}>{componentManufacturer(row)}</td>
+                  <td style={componentMatrixCellStyle}>{asText(row["降额参数"]) || "-"}</td>
+                  <td style={{ ...componentMatrixCellStyle, color: statusTone(statusText(row)) === "ok" ? HUD_GREEN : HUD_RED, fontWeight: 900 }}>{statusText(row)}</td>
+                  <td style={componentMatrixCellStyle}>{deratingDetailText(row)}</td>
+                </tr>
+              ))}
+              {unmatchedDeratingRows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={emptyCellStyle}>暂无降额表未匹配清单项</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CheckStatusBadge({ status }: { status?: ComponentCheckStatus }) {
+  const displayStatus = status ?? { details: [], issueCount: 0, label: "无数据", rawRows: [], tone: "neutral" as const }
+  const detail = displayStatus.details.slice(0, 2).join("；")
+  return (
+    <div style={checkStatusWrapStyle}>
+      <span style={checkStatusTextStyle(displayStatus.tone)}>
+        {displayStatus.label || statusFromTone(displayStatus.tone)}
+      </span>
+      {detail ? <span style={checkStatusDetailStyle}>{detail}</span> : null}
+    </div>
+  )
+}
+
 function DashboardSignal({ label, tone, value }: { label: string; tone: DashboardMetric["tone"]; value: string }) {
   return (
     <div style={dashboardSignalStyle}>
@@ -2116,6 +2536,7 @@ function navIcon(key: ActiveTabKey) {
   if (key === "classification") return "◇"
   if (key === "manufacturer") return "↔"
   if (key === "key-units") return "◆"
+  if (key === "flight-history") return "F"
   if (key === "quality-level") return "Q"
   return "◎"
 }
@@ -2159,10 +2580,35 @@ function tabForDashboardModule(module: string): ActiveTabKey {
   if (module.includes("质量等级")) return "quality-level"
   if (module.includes("厂商")) return "manufacturer"
   if (module.includes("关键")) return "key-units"
+  if (module.includes("飞行") || module.includes("应用经历")) return "flight-history"
   if (module.includes("目录")) return "catalog"
   if (module.includes("分类")) return "classification"
   if (module.includes("质量") || module.includes("辐照") || module.includes("辐射")) return "reliability"
   return "compliance-check"
+}
+
+function toneFromAiSeverity(severity?: string): ComponentCheckTone {
+  if (severity === "bad" || severity === "error" || severity === "high") return "bad"
+  if (severity === "neutral" || severity === "info") return "neutral"
+  if (severity === "ok") return "ok"
+  return "warn"
+}
+
+function tabFromAiMajorIssue(value?: string): ActiveTabKey | null {
+  if (value === "compliance-check") return "compliance-check"
+  if (value === "manufacturer") return "manufacturer"
+  if (value === "catalog") return "catalog"
+  if (value === "flight-history") return "flight-history"
+  if (value === "quality-level") return "quality-level"
+  if (value === "reliability") return "reliability"
+  if (value === "classification") return "classification"
+  return null
+}
+
+function tabLabel(tab: ActiveTabKey) {
+  if (tab === "dashboard") return "报告看板"
+  if (tab === "compliance-check") return "降额检查"
+  return COMPLIANCE_TABS.find(item => item.key === tab)?.title ?? "相关检查"
 }
 
 function tableToCsv(
@@ -3306,6 +3752,161 @@ const dashboardPanelStyle = {
   borderRadius: 8,
   minWidth: 0,
   padding: 12,
+} satisfies CSSProperties
+
+const issueOverviewListStyle = {
+  display: "grid",
+  gap: 10,
+} satisfies CSSProperties
+
+const issueOverviewItemStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 8,
+  display: "grid",
+  gap: 9,
+  padding: 10,
+} satisfies CSSProperties
+
+const issueOverviewHeaderStyle = {
+  alignItems: "start",
+  display: "flex",
+  gap: 10,
+  justifyContent: "space-between",
+} satisfies CSSProperties
+
+const issueOverviewTitleStyle = {
+  color: HUD_TEXT,
+  display: "grid",
+  fontSize: 13,
+  gap: 3,
+  lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: "anywhere",
+} satisfies CSSProperties
+
+const issueCountBadgeStyle = {
+  background: "rgba(236, 72, 153, 0.12)",
+  border: "1px solid rgba(236, 72, 153, 0.28)",
+  borderRadius: 999,
+  color: HUD_RED,
+  flex: "0 0 auto",
+  fontSize: 12,
+  fontWeight: 900,
+  lineHeight: 1,
+  padding: "7px 9px",
+} satisfies CSSProperties
+
+function issueChipStyle(tone: ComponentCheckTone): CSSProperties {
+  const color = metricToneColor(tone === "neutral" ? "neutral" : tone)
+  return {
+    background: HUD_TABLE_CELL,
+    border: `1px solid ${color}`,
+    borderRadius: 6,
+    color,
+    cursor: "pointer",
+    display: "grid",
+    fontSize: 12,
+    fontWeight: 750,
+    gap: 4,
+    lineHeight: 1.35,
+    minHeight: 54,
+    padding: "8px 9px",
+    textAlign: "left",
+  }
+}
+
+const emptyBlockStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  color: HUD_DIM,
+  fontSize: 13,
+  fontWeight: 800,
+  padding: 18,
+  textAlign: "center",
+} satisfies CSSProperties
+
+const componentMatrixWrapStyle = {
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  maxHeight: 520,
+  overflow: "auto",
+  scrollbarColor: `${HUD_SCROLLBAR} transparent`,
+} satisfies CSSProperties
+
+const componentMatrixTableStyle = {
+  borderCollapse: "collapse",
+  minWidth: 1720,
+  tableLayout: "fixed",
+  width: "100%",
+} satisfies CSSProperties
+
+const deratingOnlyPanelStyle = {
+  display: "grid",
+  gap: 8,
+  marginTop: 12,
+} satisfies CSSProperties
+
+const deratingOnlyTableStyle = {
+  borderCollapse: "collapse",
+  minWidth: 980,
+  tableLayout: "fixed",
+  width: "100%",
+} satisfies CSSProperties
+
+const componentMatrixCellStyle = {
+  background: HUD_TABLE_CELL,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  color: HUD_TEXT,
+  fontSize: 12,
+  fontWeight: 650,
+  lineHeight: 1.4,
+  overflowWrap: "anywhere",
+  padding: "8px",
+  verticalAlign: "top",
+} satisfies CSSProperties
+
+const checkStatusWrapStyle = {
+  display: "grid",
+  gap: 5,
+} satisfies CSSProperties
+
+function checkStatusTextStyle(tone: ComponentCheckTone): CSSProperties {
+  return {
+    color: metricToneColor(tone === "neutral" ? "neutral" : tone),
+    fontSize: 12,
+    fontWeight: 900,
+    lineHeight: 1.2,
+  }
+}
+
+const checkStatusDetailStyle = {
+  color: HUD_MUTED,
+  fontSize: 11,
+  fontWeight: 700,
+  lineHeight: 1.35,
+} satisfies CSSProperties
+
+const rawDetailsSummaryStyle = {
+  color: HUD_CYAN,
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 850,
+} satisfies CSSProperties
+
+const rawDetailsPreStyle = {
+  background: HUD_TABLE_BG,
+  border: `1px solid ${HUD_LINE_SOFT}`,
+  borderRadius: 6,
+  color: HUD_MUTED,
+  fontSize: 11,
+  lineHeight: 1.45,
+  margin: "8px 0 0",
+  maxHeight: 240,
+  overflow: "auto",
+  padding: 8,
+  whiteSpace: "pre-wrap",
 } satisfies CSSProperties
 
 const dashboardPanelHeaderStyle = {
