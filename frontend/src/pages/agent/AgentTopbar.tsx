@@ -255,7 +255,7 @@ export function AgentTopbar({
                     aria-pressed={modelBackend === 'openai'}
                     onClick={() => onModelBackendChange('openai')}
                   >
-                    OpenAI
+                    外网
                   </button>
                   <button
                     type="button"
@@ -263,7 +263,7 @@ export function AgentTopbar({
                     aria-pressed={modelBackend === 'chatModel'}
                     onClick={() => onModelBackendChange('chatModel')}
                   >
-                    内网模型
+                    Qwen
                   </button>
                 </div>
               </div>
