@@ -1235,21 +1235,11 @@
 }
 
 .agent-docx-preview {
-  min-height: 100%;
-  color: #111827;
+  color-scheme: light;
 }
 
-.agent-docx-preview .agent-docx-document {
-  box-sizing: border-box;
-  max-width: 100%;
-  margin: 0 auto 16px;
-  overflow: hidden;
-  background: #ffffff;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
-}
-
-.agent-docx-preview img {
-  max-width: 100%;
+.agent-page:not(.is-light-theme) .agent-docx-preview section.docx :where(p, span, td, th, div, a) {
+  color: #111827 !important;
 }
 
 .agent-xlsx-preview {
