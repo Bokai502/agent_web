@@ -114,13 +114,7 @@ function DocxPreview({ file }: { file: BinaryWorkspaceFilePreview }) {
     setError('')
 
     void import('docx-preview')
-      .then(({ renderAsync }) => renderAsync(decodeBase64Bytes(file.contentBase64).buffer, container, undefined, {
-        breakPages: true,
-        className: 'agent-docx-document',
-        experimental: true,
-        ignoreFonts: false,
-        inWrapper: false,
-      }))
+      .then(({ renderAsync }) => renderAsync(decodeBase64Bytes(file.contentBase64).buffer, container))
       .catch(err => {
         if (!disposed) setError(err instanceof Error ? err.message : '无法解析 Word 文档')
       })
