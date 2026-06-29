@@ -8,7 +8,7 @@ const SUBSYSTEM_COLUMN = "分系统"
 const EDITABLE_COLUMNS = ["产品名称", "重量（Kg）", "包络尺寸（mm）", "稳态功耗（W）", "峰值功耗（W）", "工作温度（℃）", "热容量（J/K）", "配套单位"] as const
 const COLUMNS = [SUBSYSTEM_COLUMN, ...EDITABLE_COLUMNS] as const
 const RESULT_COLUMNS = ["热仿真温度（℃）"] as const
-const TABLE_COLUMN_WIDTHS = [76, 214, 88, 144, 104, 104, 132, 112, 116, 94, 70] as const
+const TABLE_COLUMN_WIDTHS = [76, 214, 88, 144, 104, 104, 132, 84, 116, 148, 70] as const
 const TARGET_MASS_KG = 44
 
 type CatchTableColumn = typeof COLUMNS[number]

@@ -266,6 +266,7 @@ function norm(value: unknown) {
     .replace(/^CATCH-P\d+\s*/iu, "")
     .replace(/[^0-9a-zA-Z\u4e00-\u9fff]+/gu, "")
     .toLowerCase()
+    .replace(/^catchcatchp\d+/u, "")
 }
 
 function num(value: unknown): number | null {
