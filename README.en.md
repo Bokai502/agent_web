@@ -1,13 +1,13 @@
-# Open Codex Web
+# Agent Web
 
-Open Codex Web is a Codex engineering workspace built with a React frontend and a Fastify backend. Runtime settings are loaded from the root `config.json`, including OpenAI/Codex settings, ports, workspace paths, speech services, and remote tool endpoints.
+Agent Web is an Agent engineering workspace built with a React frontend and a Fastify backend. Runtime settings are loaded from the root `config.json`, including OpenAI/Agent settings, ports, workspace paths, speech services, and remote tool endpoints.
 
 ## Configuration File
 
 The project does not create a real config automatically. Before the first run, copy the example file:
 
 ```bash
-cd /path/to/open_codex_web
+cd /path/to/agent-web
 cp config.example.json config.json
 ```
 
@@ -35,7 +35,7 @@ Common fields:
 | `frontend.port` | Required frontend HTTP development port. |
 | `frontend.httpsPort` | Required frontend HTTPS development port. The startup script uses this by default. |
 | `frontend.strictPort` | Whether Vite must use the configured port. Keeping this `true` avoids port drift. |
-| `workspace.templateDir` | Template/input data root, for example `open_codex_web/data/input_data`. |
+| `workspace.templateDir` | Template/input data root, for example `agent-web/data/input_data`. |
 | `workspace.filesystemGroup` | Filesystem group applied to workspace files where possible. Use a group that the backend user belongs to. |
 | `workspace.usersRoot` | Per-user workspace root, for example `/data/lbk/codex_web/data/users`. Legacy `auth.usersDir` is still supported as a fallback. |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD remote RPC settings. |
@@ -56,20 +56,20 @@ Common fields:
 The recommended startup script checks and installs frontend/backend npm dependencies before starting services:
 
 ```bash
-./start_open_codex_web.sh
+./start_agent_web.sh
 ```
 
 You can also install them manually:
 
 ```bash
-cd /path/to/open_codex_web/backend
+cd /path/to/agent-web/backend
 npm install
 
-cd /path/to/open_codex_web/frontend
+cd /path/to/agent-web/frontend
 npm install
 ```
 
-To run Codex Agent tasks, make sure the `codex` command is available:
+To run Agent tasks, make sure the `codex` command is available:
 
 ```bash
 npm install -g @openai/codex
@@ -81,13 +81,13 @@ codex --version
 The recommended entry point is the root startup script:
 
 ```bash
-cd /path/to/open_codex_web
-./start_open_codex_web.sh
+cd /path/to/agent-web
+./start_agent_web.sh
 ```
 
 The script first runs `scripts/validate_config.mjs --config config.json` against the real config file. It reports placeholder values, invalid field types, missing paths/executables, and external service connectivity problems for the model APIs, FunASR, CosyVoice, database, and related services. After validation passes, it checks npm dependencies, stops old `ocw-backend*` and `ocw-frontend*` tmux sessions, frees the configured ports, starts the remote GUI tools, then starts the backend and frontend separately.
 
-`start_open_codex_web.sh` is a thin entry point. The actual steps live under `scripts/`:
+`start_agent_web.sh` is a thin entry point. The actual steps live under `scripts/`:
 
 | Script | Purpose |
 | --- | --- |
@@ -105,13 +105,13 @@ node scripts/validate_config.mjs --config config.json
 For local debugging, skip external service connectivity checks:
 
 ```bash
-SKIP_CONFIG_SERVICE_CHECKS=1 ./start_open_codex_web.sh
+SKIP_CONFIG_SERVICE_CHECKS=1 ./start_agent_web.sh
 ```
 
 To skip all startup validation:
 
 ```bash
-SKIP_CONFIG_VALIDATE=1 ./start_open_codex_web.sh
+SKIP_CONFIG_VALIDATE=1 ./start_agent_web.sh
 ```
 
 After a successful start, it prints output similar to:
@@ -124,12 +124,12 @@ frontend: https://<frontend.publicHost or frontend.host>:<frontend.httpsPort>  t
 You can also start the services manually:
 
 ```bash
-cd /path/to/open_codex_web/backend
+cd /path/to/agent-web/backend
 BACKEND_PORT="$(node -p "require('../config.json').server.port")" npm run dev
 ```
 
 ```bash
-cd /path/to/open_codex_web/frontend
+cd /path/to/agent-web/frontend
 npm run dev:https -- --host "$(node -p "require('../config.json').frontend.host")" --port "$(node -p "require('../config.json').frontend.httpsPort")" --strictPort
 ```
 
@@ -160,9 +160,9 @@ These scripts still read `tools.cad/paraview/comsol.*`, `workspace.rpcHost`, and
 ## Build Check
 
 ```bash
-cd /path/to/open_codex_web/backend
+cd /path/to/agent-web/backend
 npm run build
 
-cd /path/to/open_codex_web/frontend
+cd /path/to/agent-web/frontend
 npm run build
 ```

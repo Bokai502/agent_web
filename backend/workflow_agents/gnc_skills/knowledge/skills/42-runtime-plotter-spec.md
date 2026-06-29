@@ -29,7 +29,7 @@ Optional telemetry:
 ## Standard Command
 
 ```text
-python open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/scripts/plot_runtime_gnc.py --inout <runtime InOut path>
+python agent-web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/scripts/plot_runtime_gnc.py --inout <runtime InOut path>
 ```
 
 ## Required Behavior

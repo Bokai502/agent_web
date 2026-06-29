@@ -26,7 +26,7 @@ progress file directly.
 Initialize all run-node loops:
 
 ```bash
-python3 open_codex_web/backend/workflow_agents/agents/progress_cli.py \
+python3 agent-web/backend/workflow_agents/agents/progress_cli.py \
   --workspace-dir <workspace_dir> \
   --init
 ```
@@ -34,7 +34,7 @@ python3 open_codex_web/backend/workflow_agents/agents/progress_cli.py \
 Update one run node:
 
 ```bash
-python3 open_codex_web/backend/workflow_agents/agents/progress_cli.py \
+python3 agent-web/backend/workflow_agents/agents/progress_cli.py \
   --workspace-dir <workspace_dir> \
   --role <progress_role> \
   --status running \
@@ -45,7 +45,7 @@ python3 open_codex_web/backend/workflow_agents/agents/progress_cli.py \
 Complete one run node:
 
 ```bash
-python3 open_codex_web/backend/workflow_agents/agents/progress_cli.py \
+python3 agent-web/backend/workflow_agents/agents/progress_cli.py \
   --workspace-dir <workspace_dir> \
   --role <progress_role> \
   --status completed \

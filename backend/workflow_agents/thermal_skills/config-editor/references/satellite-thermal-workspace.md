@@ -7,7 +7,7 @@ what each file contains.
 
 ## Workspace And Version Locator
 
-Open Codex Web passes task context from the frontend/backend into the agent
+Agent Web passes task context from the frontend/backend into the agent
 prompt. The important identifiers are:
 
 - `workspace_id`: frontend/backend workspace identifier, for example

@@ -12,7 +12,7 @@
 当前默认 FSW 根目录是：
 
 - `<workspace>/FSW/ADCS/`
-- `open_codex_web/data/input_data/gnc/00_inputs/FSW/ADCS/` 作为新 case 模板
+- `agent-web/data/input_data/gnc/00_inputs/FSW/ADCS/` 作为新 case 模板
 
 ## 2. 默认安全修改区域
 

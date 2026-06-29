@@ -267,7 +267,7 @@ export default function AgentPage() {
       const result = runningManagedStatus?.managedRunId
         ? await cancelManagedCodex(runningManagedStatus.managedRunId)
         : await summarizeManagedCodex({
-            input: '请总结当前或刚才停止的 Codex 任务已经完成的进度和结果。',
+            input: '请总结当前或刚才停止的 Agent 任务已经完成的进度和结果。',
             modelBackend,
             sessionId,
             threadId,

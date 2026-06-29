@@ -23,7 +23,7 @@ NOTE_FORBIDDEN_SUBSTRINGS = (
     "Error:",
     "<workspace>",
     "demo" + "_server",
-    "open_codex_web/",
+    "agent-web/",
     "codex_web/",
     "/" + "data/",
     "/" + "home/",

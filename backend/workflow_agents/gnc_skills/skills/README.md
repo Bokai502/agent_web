@@ -9,7 +9,7 @@ During GNC design workflows, skills must append externally useful step-level sta
 Skills must also update `<workspace>/AIGNC_Workflow/loop_progress.json` as machine-readable progress using schema `loop_progress/1.0`. Use loop name `<stage_id>` and update at skill start, after each meaningful checklist step, on blockers or failures, and on completion or handoff. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Use the shared updater:
 
 ```bash
-python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py \
+python3 agent-web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py \
   --progress <workspace>/AIGNC_Workflow/loop_progress.json \
   --loop-name <stage_id> \
   --stage <stage_id> \

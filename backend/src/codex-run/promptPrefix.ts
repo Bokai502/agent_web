@@ -65,15 +65,15 @@ function buildPromptPrefix(
     "For versioned work, workspace_dir is the active version workspace selected by the Versioning API.",
     "For GNC/AIGNC work, treat workspace_dir/00_inputs as the mutable input package: Config, FSW, Script, and Output live there. Write AI workflow artifacts under workspace_dir/AIGNC_Workflow, not inside the mutable input package.",
     "When creating a new workspace or version through APIs or artifacts, use group xieteam.",
-    "The Versioning API checkout/branch operation changes the active version in the workspace manifest; it does not rewrite open_codex_web/config.json.",
+    "The Versioning API checkout/branch operation changes the active version in the workspace manifest; it does not rewrite agent-web/config.json.",
     "If a CLI supports --workspace-dir, pass this workspace_dir explicitly; do not rely on config.json defaults for versioned work.",
     "Bundled FreeCAD and simulation CLIs are exposed through PYTHONPATH for this run; prefer `python -m freecad_cli_tools.cli.main` and `python -m sim_cli_tools.cli.main` over globally installed wrappers.",
     "When invoking CLI commands, pass these correlation values through environment variables:",
     `- WORKSPACE_SESSION_ID=${context.sessionId}`,
     `- WORKSPACE_THREAD_ID=${context.threadId ?? ""}`,
     `- WORKSPACE_TURN_ID=${context.turnId}`,
-    "- WORKSPACE_CALLER=open_codex_web",
-    "- WORKSPACE_AGENT_NAME=codex",
+    "- WORKSPACE_CALLER=agent-web",
+    "- WORKSPACE_AGENT_NAME=agent",
     context.workspaceDir
       ? "Before running workspace-scoped commands, verify they target the workspace_dir above."
       : "No workspace is currently configured; ask before running workspace-scoped CLI commands.",

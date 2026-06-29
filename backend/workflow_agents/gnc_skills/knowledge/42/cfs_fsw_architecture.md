@@ -5,7 +5,7 @@
 本项目的 AIGNC 工作流默认使用 workspace-local 的固定飞控框架：
 
 - `FswTag = CFS_FSW`
-- FSW 源码位于 `<workspace>/FSW/ADCS/` 或新模板 `open_codex_web/data/input_data/gnc/00_inputs/FSW/ADCS/`
+- FSW 源码位于 `<workspace>/FSW/ADCS/` 或新模板 `agent-web/data/input_data/gnc/00_inputs/FSW/ADCS/`
 - 原生 42 真值仿真仍由 `codex_web/AIGNC/42/` 和运行目录中的 42 仿真器负责
 
 AI 不需要再在 42 内置 FSW 类型之间选择，例如：

@@ -176,7 +176,7 @@ export function AgentTopbar({
               className="agent-stop-summary-button agent-stop-summary-button--topbar"
               disabled={stopSummaryPending}
               onClick={onStopAndSummarize}
-              title="停止当前 Codex pipeline 并生成语音总结"
+              title="停止当前 Agent pipeline 并生成语音总结"
             >
               <span aria-hidden="true" />
               {stopSummaryPending ? '总结中' : '停止'}

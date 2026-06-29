@@ -258,7 +258,7 @@ export function loadConfig(): AppConfig {
   if (!fs.existsSync(CONFIG_FILE)) {
     die(
       `配置文件不存在: ${CONFIG_FILE}\n` +
-      `请在 open_codex_web/config.json 中配置 openai、chatModel、server、frontend、workspace 等参数后再启动。`
+      `请在 agent-web/config.json 中配置 openai、chatModel、server、frontend、workspace 等参数后再启动。`
     )
   }
 

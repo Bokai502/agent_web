@@ -65,10 +65,10 @@ The main missing pieces were:
 
 These are now added to:
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-42-orchestrator/SKILL.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/skills/aignc-scenario-brainstorm/SKILL.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-capability-auditor/SKILL.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-config-author/SKILL.md`
+- `agent-web/backend/workflow_agents/gnc_skills/skills/aignc-42-orchestrator/SKILL.md`
+- `agent-web/backend/workflow_agents/gnc_skills/skills/aignc-scenario-brainstorm/SKILL.md`
+- `agent-web/backend/workflow_agents/gnc_skills/skills/42-capability-auditor/SKILL.md`
+- `agent-web/backend/workflow_agents/gnc_skills/skills/42-config-author/SKILL.md`
 
 ### Finding 3: The chain can produce normal 42 configuration, not full 42 coverage
 

@@ -10,7 +10,7 @@ sim-run --workspace-dir <workspace_dir>
 <workspace>/01_cad
 ```
 
-In Open Codex Web, workspace/version selection is request-scoped. Use the
+In Agent Web, workspace/version selection is request-scoped. Use the
 `workspace_dir` provided in the execution context and pass it explicitly with
 `--workspace-dir`. Do not rely on the project root `config.json` defaults for
 Web-triggered runs.
@@ -18,14 +18,14 @@ Web-triggered runs.
 Install:
 
 ```bash
-cd /path/to/open_codex_web/backend/workflow_agents/agents/sim_cli_tools
+cd /path/to/agent-web/backend/workflow_agents/agents/sim_cli_tools
 make install-local
 ```
 
 Module entry point, matching the FreeCAD CLI style:
 
 ```bash
-cd /path/to/open_codex_web/backend/workflow_agents/agents/sim_cli_tools
+cd /path/to/agent-web/backend/workflow_agents/agents/sim_cli_tools
 PYTHONPATH=src python -m sim_cli_tools.cli.main --help
 PYTHONPATH=src python -m sim_cli_tools.cli.main --json doctor --workspace-dir <workspace_dir>
 ```
