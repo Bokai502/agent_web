@@ -84,7 +84,7 @@ Produce:
 
 Use the deterministic template:
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-build-run-diagnose/references/run_summary_template.json`
+- `agent-web/backend/workflow_agents/gnc_skills/skills/42-build-run-diagnose/references/run_summary_template.json`
 
 Every `run_summary.json` must keep the template shape. Fill unavailable or unevaluated values with `null`, empty strings, or empty arrays rather than omitting keys.
 

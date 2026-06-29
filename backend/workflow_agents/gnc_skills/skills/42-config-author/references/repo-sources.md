@@ -4,28 +4,28 @@ Use this reference as the entry map for `42-config-author`.
 
 ## Primary spec
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/42-config-author-spec.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/skills/42-config-author-spec.md`
 
 ## Primary 42 knowledge
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
 
 ## Structured indexes
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
 
 
 ## Default template package
 
-Use `open_codex_web/data/input_data/gnc/00_inputs/Config/` as the default complete configuration template package when no closer workspace template is specified. For ordinary satellite scenarios, copy the template support files unchanged and fully author the minimal core files line-by-line:
+Use `agent-web/data/input_data/gnc/00_inputs/Config/` as the default complete configuration template package when no closer workspace template is specified. For ordinary satellite scenarios, copy the template support files unchanged and fully author the minimal core files line-by-line:
 
 - `<workspace>/AIGNC_Workflow/04_config/Inp_Sim.txt`
 - `<workspace>/AIGNC_Workflow/04_config/Orb_*.txt` referenced by `Inp_Sim.txt`
@@ -35,18 +35,18 @@ Every required field in those core files must be set from approved scenario fact
 
 Template support files normally copied unchanged include:
 
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_Cmd.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_AcOutput.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_ScOutput.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_Graphics.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_CommLink.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_FOV.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_IPC.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_Region.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_Shaker.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Inp_TDRS.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Flex_*.txt`
-- `open_codex_web/data/input_data/gnc/00_inputs/Config/Readme.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_Cmd.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_AcOutput.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_ScOutput.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_Graphics.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_CommLink.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_FOV.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_IPC.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_Region.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_Shaker.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Inp_TDRS.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Flex_*.txt`
+- `agent-web/data/input_data/gnc/00_inputs/Config/Readme.txt`
 
 Only modify support files when the scenario explicitly requires command timelines, telemetry output changes, graphics/FOV changes, comm links, IPC, regions/contact, shaker/flex, TDRS, or equivalent ancillary features.
 
@@ -54,12 +54,12 @@ Only modify support files when the scenario explicitly requires command timeline
 
 Load only the needed detailed schemas:
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_sim.schema.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/orb.schema.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/sc.schema.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_cmd.schema.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/output_files.schema.json`
-- relevant sensor and actuator schemas under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_sim.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/orb.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/sc.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_cmd.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/output_files.schema.json`
+- relevant sensor and actuator schemas under `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/`
 
 ## Intended outputs
 

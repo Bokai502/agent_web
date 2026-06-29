@@ -4,7 +4,7 @@ Use this reference as the entry map for `fsw-code-author`.
 
 ## Primary spec
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/fsw-code-author-spec.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/skills/fsw-code-author-spec.md`
 
 ## Upstream architecture package
 
@@ -29,10 +29,10 @@ Use this reference as the entry map for `fsw-code-author`.
 
 ## Primary 42 knowledge
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
 
 ## Default implementation files
 

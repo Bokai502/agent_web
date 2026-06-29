@@ -319,7 +319,7 @@ export function WorkspaceAppleContent({ apiBase, inspectorExtra, modelViewerUrl,
     try {
       const result = await summarizeManagedCodex({
         apiBase,
-        input: "请总结当前或刚才停止的 Codex 任务已经完成的进度和结果。",
+        input: "请总结当前或刚才停止的 Agent 任务已经完成的进度和结果。",
         sessionId: activeSessionId,
         threadId: activeSession?.threadId ?? null,
         workspace: {

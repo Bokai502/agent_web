@@ -90,29 +90,29 @@
 
 ### 主层默认读取
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/inputs.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/orbit_env.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/examples.md`
 
 ### 结构化索引默认读取
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/inputs.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/orbit_env.json`
 
 ### 按需读取 details
 
 仅在要落具体文件时读取：
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_sim.schema.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/orb.schema.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/sc.schema.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_cmd.schema.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/output_files.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_sim.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/orb.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/sc.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/inp_cmd.schema.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/details/inputs/output_files.schema.json`
 - 对应传感器与执行机构 schema
 
 ## 6. 工作流

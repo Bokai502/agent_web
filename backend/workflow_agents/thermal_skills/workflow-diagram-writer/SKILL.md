@@ -107,7 +107,7 @@ Keep each `progressRole` unique.
   shared progress CLI:
 
 ```bash
-python3 <repo_root>/open_codex_web/backend/workflow_agents/agents/progress_cli.py --workspace-dir <workspace_dir> --init
+python3 <repo_root>/agent-web/backend/workflow_agents/agents/progress_cli.py --workspace-dir <workspace_dir> --init
 ```
 
 - Runtime skills must update progress by `progressRole`, not hard-coded node id.

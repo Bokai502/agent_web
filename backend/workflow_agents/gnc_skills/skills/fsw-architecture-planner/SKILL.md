@@ -8,8 +8,8 @@ description: Map extracted fixed CFS_FSW requirements and the user-frozen GNC in
 ## Path Contract
 
 - `<workspace>` means the backend-injected `workspace_dir`; this skill must use `workspace_dir` as the only source for the active working directory.
-- Shared skills live under `open_codex_web/backend/workflow_agents/gnc_skills/skills/`.
-- Shared knowledge lives under `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/`.
+- Shared skills live under `agent-web/backend/workflow_agents/gnc_skills/skills/`.
+- Shared knowledge lives under `agent-web/backend/workflow_agents/gnc_skills/knowledge/`.
 - Shared 42, bridge, and reference resources live under `codex_web/AIGNC/42/`, `codex_web/AIGNC/bridge/`, and `codex_web/AIGNC/ref/`.
 
 
@@ -59,20 +59,20 @@ Optional:
 
 ## Required Local Context
 
-Read `open_codex_web/backend/workflow_agents/gnc_skills/skills/fsw-architecture-planner/references/repo-sources.md` first.
+Read `agent-web/backend/workflow_agents/gnc_skills/skills/fsw-architecture-planner/references/repo-sources.md` first.
 
 Default knowledge scope:
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
 
 Default structured indexes:
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
 
 Read source files only as needed to verify file ownership or existing extension seams:
 
@@ -183,7 +183,7 @@ Use `cross_boundary` when a bus-pointing law depends on a truth-model actuator o
 
 ### 5. Map per-mode sensor and actuator interfaces
 
-Use `<workspace>/AIGNC_Workflow/05_fsw_requirements/sensor_actuator_contract.json`, the per-mode sensor/actuator fields in `mode_table.json`, and `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md` to decide:
+Use `<workspace>/AIGNC_Workflow/05_fsw_requirements/sensor_actuator_contract.json`, the per-mode sensor/actuator fields in `mode_table.json`, and `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md` to decide:
 
 - which existing `AcType` fields are already sufficient
 - which sensor validity gates, preprocessing, estimator/truth-state assumptions, and fallback selections belong in `<workspace>/FSW/ADCS/src/AcSensors.c`
@@ -229,7 +229,7 @@ Produce under `<workspace>/AIGNC_Workflow/06_fsw_architecture/`:
 - `<workspace>/AIGNC_Workflow/06_fsw_architecture/gnc_interface_contract_trace.md`
 
 Append step-level status entries to `<workspace>/AIGNC_Workflow/workflow_log.md` when this skill starts, after requirement-package verification, boundary classification, mode ownership mapping, control ownership mapping, sensor/actuator ownership mapping, blocker recording, extension-boundary recording, artifact writing, and final architecture handoff. Entries must use stage `06_fsw_architecture`, current skill `fsw-architecture-planner`, step id or step name, status, timestamp, concise description, key inputs checked, outputs updated, and next action or handoff target. Do not log private reasoning.
-Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 open_codex_web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `open_codex_web/backend/workflow_agents/gnc_skills/skills/README.md`.
+Structured progress must also be updated in `<workspace>/AIGNC_Workflow/loop_progress.json` at the same checkpoints using `python3 agent-web/backend/workflow_agents/gnc_skills/skills/common/scripts/update_loop_progress.py`. Use loop name `<stage_id>`, matching the numbered stage used for `<workspace>/AIGNC_Workflow/workflow_log.md`, and keep percentage monotonic within the stage run. Keep the current skill name in the `--skill` field instead of embedding it in the loop name. Set `--note` according to the shared frontend-display note contract in `agent-web/backend/workflow_agents/gnc_skills/skills/README.md`.
 
 
 The architecture plan must map every required mode, transition family, fallback, pass criterion, sensor contract, actuator contract, control method, control target, guidance rate, target frame, target attitude, target vector/LOS, command output, and frozen GNC interface-contract commitment to concrete file ownership or explicit extension boundaries. `gnc_interface_contract_trace.md` must state, row by row or section by section, where each frozen contract commitment will be implemented or verified.

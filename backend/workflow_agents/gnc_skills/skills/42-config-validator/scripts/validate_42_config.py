@@ -76,7 +76,7 @@ def find_knowledge_root(script_path: Path) -> Path:
             and (knowledge_root / "skills").is_dir()
         ):
             return knowledge_root
-    raise FileNotFoundError("Could not locate open_codex_web GNC knowledge directory.")
+    raise FileNotFoundError("Could not locate agent-web GNC knowledge directory.")
 
 
 def find_project_root(workspace_dir: Path, script_path: Path) -> Path:
@@ -656,7 +656,7 @@ def resolve_manifest_path(config_dir: Path, workspace_dir: Path, project_root: P
         return config_dir / path
     if path.parts[0] in {"<workspace>", "workspace_dir"}:
         return workspace_dir.joinpath(*path.parts[1:])
-    if path.parts[0] in {"codex_web", "open_codex_web"}:
+    if path.parts[0] in {"codex_web", "agent-web"}:
         return project_root / path
     if path.parts[0] in {"AIGNC_Workflow", "Config", "FSW", "Input", "Output", "Script"}:
         return workspace_dir / path

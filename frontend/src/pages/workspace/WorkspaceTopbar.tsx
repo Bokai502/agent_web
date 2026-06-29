@@ -91,7 +91,7 @@ export function WorkspaceTopbar({
               className="wa-stop-summary-button"
               disabled={stopSummaryPending}
               onClick={onStopAndSummarize}
-              title="停止当前 Codex 进程并生成语音总结"
+              title="停止当前 Agent 进程并生成语音总结"
             >
               <span aria-hidden="true" />
               {stopSummaryPending ? "总结中" : "停止"}

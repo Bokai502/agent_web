@@ -16,8 +16,8 @@ The tool reads an existing workspace with `00_inputs` and `01_cad`, then writes 
 ## Core Rules
 
 - Use `python -m sim_cli_tools.cli.main` as the first-class simulation entry point. The installed `sim-run` wrapper is an alias for the same module. Use `sim-comsol-progress` for COMSOL progress inspection or manual resync. Do not call copied runtime modules directly unless debugging internals.
-- Open Codex Web injects the bundled simulation CLI source directory into `PYTHONPATH` for agent runs. If `ModuleNotFoundError: sim_cli_tools` appears, verify `PYTHONPATH` includes `open_codex_web/backend/workflow_agents/agents/sim_cli_tools/src` before falling back to global installs or copied runtime modules.
-- Resolve the workspace from the Open Codex Web execution context `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`, checkout, and branch do not update `project root config.json`.
+- Agent Web injects the bundled simulation CLI source directory into `PYTHONPATH` for agent runs. If `ModuleNotFoundError: sim_cli_tools` appears, verify `PYTHONPATH` includes `agent-web/backend/workflow_agents/agents/sim_cli_tools/src` before falling back to global installs or copied runtime modules.
+- Resolve the workspace from the Agent Web execution context `workspace_dir`. Workspace/version selection is request-scoped; `/api/run`, checkout, and branch do not update `project root config.json`.
 - Always pass the execution context workspace explicitly with `--workspace-dir <workspace_dir>` for `doctor` and `run`. Do not rely on `config.json`, process `cwd`, or CLI defaults.
 - Before running `run`, inspect the selected workspace by running `--json doctor --workspace-dir <workspace_dir>`. If the reported `workspace_dir` differs from the prompt `workspace_dir`, stop and report the mismatch instead of running simulation into the wrong workspace.
 - Required inputs live under:

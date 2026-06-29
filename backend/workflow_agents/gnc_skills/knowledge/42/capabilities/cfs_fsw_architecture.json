@@ -3,7 +3,7 @@
   "fsw_tag_fixed": "CFS_FSW",
   "case_local_fsw_roots": [
     "<workspace>/FSW/ADCS",
-    "open_codex_web/data/input_data/gnc/00_inputs/FSW/ADCS"
+    "agent-web/data/input_data/gnc/00_inputs/FSW/ADCS"
   ],
   "top_level_entry_chain": [
     "ADCS/src/42fsw.c::FlightSoftWare(struct SCType *S)",

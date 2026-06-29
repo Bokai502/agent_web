@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is a Codex engineering workspace with a React/Vite frontend and a Fastify TypeScript backend. Backend source lives in `backend/src`, grouped by feature areas such as `codex-run`, `workspaces`, `manifests`, `system`, and `server`. Frontend source lives in `frontend/src`, with pages in `frontend/src/pages`, reusable components in `frontend/src/components`, hooks in `frontend/src/hooks`, and app utilities in `frontend/src/app`. Tests are colocated with source as `*.test.ts` or `*.test.tsx`. Workflow skills, agent assets, and domain scripts live under `backend/workflow_agents`; sample data and media live in `docs`.
+This repository is an Agent engineering workspace with a React/Vite frontend and a Fastify TypeScript backend. Backend source lives in `backend/src`, grouped by feature areas such as `codex-run`, `workspaces`, `manifests`, `system`, and `server`. Frontend source lives in `frontend/src`, with pages in `frontend/src/pages`, reusable components in `frontend/src/components`, hooks in `frontend/src/hooks`, and app utilities in `frontend/src/app`. Tests are colocated with source as `*.test.ts` or `*.test.tsx`. Workflow skills, agent assets, and domain scripts live under `backend/workflow_agents`; sample data and media live in `docs`.
 
 ## Build, Test, and Development Commands
 
@@ -13,7 +13,7 @@ cd backend && npm install
 cd ../frontend && npm install
 ```
 
-Run the full local stack with `./start_open_codex_web.sh`; it reads `config.json`, starts backend and frontend tmux sessions, and uses ports from configuration. For manual development, use `cd backend && npm run dev` for the Fastify server and `cd frontend && npm run dev:https` for the Vite app. Build checks are `npm run build` in both `backend` and `frontend`. Frontend quality checks are `cd frontend && npm run lint` and `npm test`.
+Run the full local stack with `./start_agent_web.sh`; it reads `config.json`, starts backend and frontend tmux sessions, and uses ports from configuration. For manual development, use `cd backend && npm run dev` for the Fastify server and `cd frontend && npm run dev:https` for the Vite app. Build checks are `npm run build` in both `backend` and `frontend`. Frontend quality checks are `cd frontend && npm run lint` and `npm test`.
 
 ## Coding Style & Naming Conventions
 

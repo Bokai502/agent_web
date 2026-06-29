@@ -4,11 +4,11 @@ Use this reference as the entry map for `42-runtime-plotter`.
 
 ## Primary spec
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/42-runtime-plotter-spec.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/skills/42-runtime-plotter-spec.md`
 
 ## Bundled script
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/scripts/plot_runtime_gnc.py`
+- `agent-web/backend/workflow_agents/gnc_skills/skills/42-runtime-plotter/scripts/plot_runtime_gnc.py`
 
 ## Expected runtime telemetry
 

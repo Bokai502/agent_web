@@ -169,7 +169,7 @@ export function useManagedAgentRun({
         periodicSummaryInFlight = true
         try {
           const result = await summarizeManagedCodex({
-            input: '请用一句中文简短总结当前 Codex pipeline 的实时进度，适合语音播报，不要 Markdown。',
+            input: '请用一句中文简短总结当前 Agent pipeline 的实时进度，适合语音播报，不要 Markdown。',
             modelBackend,
             sessionId,
             threadId,

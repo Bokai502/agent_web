@@ -73,7 +73,7 @@ Read only the references needed for the current request:
 - Do not edit files.
 - Do not write `<workspace>/logs/progress.json` or node `progress` fields
   directly. Progress is updated by
-  `open_codex_web/backend/workflow_agents/agents/progress_cli.py` after
+  `agent-web/backend/workflow_agents/agents/progress_cli.py` after
   `workflow-diagram-writer` creates `executionFlowData.json`.
 - If required workspace/version context is missing, ask for it instead of
   guessing.

@@ -4,7 +4,7 @@ Use this reference as the entry map for `fsw-architecture-planner`.
 
 ## Primary spec
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/skills/fsw-architecture-planner-spec.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/skills/fsw-architecture-planner-spec.md`
 
 ## Upstream extracted FSW package
 
@@ -22,16 +22,16 @@ The planner must consume the complete-GNC fields produced by `fsw-requirements-e
 
 ## Primary 42 knowledge
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
 
 ## Structured indexes
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
 
 ## Source files for ownership checks
 

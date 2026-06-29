@@ -5,7 +5,7 @@ description: Run the SatLab aerospace component compliance workflow. Use for req
 
 # Compliance
 
-Use the Open Codex Web execution context `workspace_dir` as the active version
+Use the Agent Web execution context `workspace_dir` as the active version
 workspace root. In versioned work this must be the concrete version directory,
 for example `<workspace_manifest_root>/versions/v0001`, not the workspace
 manifest root itself. If the UI/API provides `workspaceId` plus `versionId`,

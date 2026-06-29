@@ -1,13 +1,13 @@
-# Open Codex Web
+# Agent Web
 
-Open Codex Web 是一个由 React 前端和 Fastify 后端组成的 Codex 工程工作台。项目通过根目录下的 `config.json` 读取模型、服务端口、工作区、语音和远程工具配置。
+Agent Web 是一个由 React 前端和 Fastify 后端组成的 Agent 工程工作台。项目通过根目录下的 `config.json` 读取模型、服务端口、工作区、语音和远程工具配置。
 
 ## 配置文件
 
 项目不会自动创建真实配置。第一次启动前，请复制示例配置：
 
 ```bash
-cd /path/to/open_codex_web
+cd /path/to/agent-web
 cp config.example.json config.json
 ```
 
@@ -35,7 +35,7 @@ cp config.example.json config.json
 | `frontend.port` | 前端 HTTP 开发端口，必填。 |
 | `frontend.httpsPort` | 前端 HTTPS 开发端口，必填；启动脚本默认启动 HTTPS 端口。 |
 | `frontend.strictPort` | 是否要求 Vite 只使用配置端口，建议保持 `true`，避免端口漂移。 |
-| `workspace.templateDir` | 示例输入/工作区模板根目录，例如 `open_codex_web/data/input_data`。 |
+| `workspace.templateDir` | 示例输入/工作区模板根目录，例如 `agent-web/data/input_data`。 |
 | `workspace.filesystemGroup` | 创建/写入工作区文件时尝试设置的文件系统组；应配置为运行后端用户所属的组。 |
 | `workspace.usersRoot` | 用户工作区根目录，例如 `/data/lbk/codex_web/data/users`；旧字段 `auth.usersDir` 仍作为兼容 fallback。 |
 | `workspace.rpcHost` / `workspace.rpcPort` | FreeCAD 远程 RPC 配置。 |
@@ -56,20 +56,20 @@ cp config.example.json config.json
 推荐直接使用根目录启动脚本，它会在启动前自动检查并安装前后端 npm 依赖：
 
 ```bash
-./start_open_codex_web.sh
+./start_agent_web.sh
 ```
 
 也可以手动安装：
 
 ```bash
-cd /path/to/open_codex_web/backend
+cd /path/to/agent-web/backend
 npm install
 
-cd /path/to/open_codex_web/frontend
+cd /path/to/agent-web/frontend
 npm install
 ```
 
-如果要运行 Codex Agent，请确保本机可以执行 `codex`：
+如果要运行 Agent 任务，请确保本机可以执行 `codex`：
 
 ```bash
 npm install -g @openai/codex
@@ -81,13 +81,13 @@ codex --version
 推荐使用根目录启动脚本：
 
 ```bash
-cd /path/to/open_codex_web
-./start_open_codex_web.sh
+cd /path/to/agent-web
+./start_agent_web.sh
 ```
 
 脚本会先运行 `scripts/validate_config.mjs --config config.json` 校验真实配置文件，集中提示占位值、字段类型、路径/可执行文件以及模型、FunASR、CosyVoice、数据库等外部服务连接问题。校验通过后，脚本会检查 npm 依赖、关闭旧的 `ocw-backend*` 和 `ocw-frontend*` tmux 会话、释放配置端口、启动远程 GUI 工具，然后分别启动后端和前端。
 
-`start_open_codex_web.sh` 是薄入口，实际步骤拆在 `scripts/` 下：
+`start_agent_web.sh` 是薄入口，实际步骤拆在 `scripts/` 下：
 
 | 脚本 | 作用 |
 | --- | --- |
@@ -105,13 +105,13 @@ node scripts/validate_config.mjs --config config.json
 如果只是本地调试，可以临时跳过外部服务连通性检查：
 
 ```bash
-SKIP_CONFIG_SERVICE_CHECKS=1 ./start_open_codex_web.sh
+SKIP_CONFIG_SERVICE_CHECKS=1 ./start_agent_web.sh
 ```
 
 完整跳过启动前校验：
 
 ```bash
-SKIP_CONFIG_VALIDATE=1 ./start_open_codex_web.sh
+SKIP_CONFIG_VALIDATE=1 ./start_agent_web.sh
 ```
 
 启动成功后，脚本会输出类似：
@@ -124,12 +124,12 @@ frontend: https://<frontend.publicHost 或 frontend.host>:<frontend.httpsPort>  
 也可以手动分别启动：
 
 ```bash
-cd /path/to/open_codex_web/backend
+cd /path/to/agent-web/backend
 BACKEND_PORT="$(node -p "require('../config.json').server.port")" npm run dev
 ```
 
 ```bash
-cd /path/to/open_codex_web/frontend
+cd /path/to/agent-web/frontend
 npm run dev:https -- --host "$(node -p "require('../config.json').frontend.host")" --port "$(node -p "require('../config.json').frontend.httpsPort")" --strictPort
 ```
 
@@ -159,7 +159,7 @@ npm run dev:https -- --host "$(node -p "require('../config.json').frontend.host"
 
 ## Agent CLI 模块
 
-后端启动 Codex Agent 时会把仓库内置的 FreeCAD 和仿真 CLI 源码目录加入该次运行的 `PYTHONPATH`，并授权给 Codex 读取：
+后端启动 Agent 任务时会把仓库内置的 FreeCAD 和仿真 CLI 源码目录加入该次运行的 `PYTHONPATH`，并授权给 Agent 读取：
 
 ```text
 backend/workflow_agents/agents/freecad_cli_tools/src
@@ -178,9 +178,9 @@ python -m sim_cli_tools.cli.main ...
 ## 构建检查
 
 ```bash
-cd /path/to/open_codex_web/backend
+cd /path/to/agent-web/backend
 npm run build
 
-cd /path/to/open_codex_web/frontend
+cd /path/to/agent-web/frontend
 npm run build
 ```

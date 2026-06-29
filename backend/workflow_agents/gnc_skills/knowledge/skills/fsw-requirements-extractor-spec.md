@@ -117,20 +117,20 @@
 
 ### 主层默认读取
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_architecture.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_interfaces.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/cfs_fsw_extension_rules.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/sensors.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/actuators.md`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/limitations.md`
 
 ### 结构化索引默认读取
 
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
-- `open_codex_web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_architecture.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_interfaces.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/cfs_fsw_extension_rules.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/sensors.json`
+- `agent-web/backend/workflow_agents/gnc_skills/knowledge/42/capabilities/actuators.json`
 
 ### 按需读取 details
 
