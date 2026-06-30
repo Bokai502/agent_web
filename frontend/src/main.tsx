@@ -8,7 +8,6 @@ import { installDevPerformanceTimelineGuard } from './utils/performanceTimeline.
 installDevPerformanceTimelineGuard()
 
 const ModelViewerPage = lazy(() => import('./pages/ModelViewerPage.tsx'))
-const EarthPage = lazy(() => import('./pages/EarthPage.tsx'))
 const HomePage = lazy(() => import('./pages/HomePage.tsx'))
 const WorkspaceSessionPage = lazy(() => import('./pages/WorkspaceSessionPage.tsx'))
 const RegionWorkspacePage = lazy(() => import('./pages/RegionWorkspacePage.tsx'))
@@ -30,7 +29,6 @@ function Router() {
   }, [])
 
   const isViewer = pathname === '/viewer'
-  const isEarth = pathname === '/earth'
   const isHome = pathname === '/' || pathname === '/home'
   const isWorkspace = pathname === '/workspace' || pathname.startsWith('/workspace/')
   const isRegionWorkspace = pathname === '/region-workspace' || pathname.startsWith('/region-workspace/')
@@ -42,14 +40,6 @@ function Router() {
     return (
       <Suspense fallback={<div style={{ background: '#1a1a2e', width: '100vw', height: '100vh' }} />}>
         <ModelViewerPage />
-      </Suspense>
-    )
-  }
-
-  if (isEarth) {
-    return (
-      <Suspense fallback={<div style={{ background: '#000', width: '100vw', height: '100vh' }} />}>
-        <EarthPage />
       </Suspense>
     )
   }

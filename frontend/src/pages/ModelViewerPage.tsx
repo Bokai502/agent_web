@@ -33,6 +33,13 @@ const MAX_DEVICE_PIXEL_RATIO = 1.25
 const ANNOTATION_MAX_TRACKS_PER_SIDE = 3
 const ANNOTATION_TRACK_GAP = 10
 
+function getViewportSize(element: HTMLElement) {
+  return {
+    width: Math.max(1, Math.floor(element.clientWidth)),
+    height: Math.max(1, Math.floor(element.clientHeight)),
+  }
+}
+
 type ComponentDetail = {
   componentId: string
   color?: THREE.Color
@@ -869,8 +876,7 @@ export default function ModelViewerPage() {
         return
       }
 
-      const width = mount.clientWidth
-      const height = mount.clientHeight
+      const { width, height } = getViewportSize(mount)
 
       const nextRenderer = new THREE.WebGPURenderer({ antialias: true, alpha: false }) as unknown as WebGPURendererRuntime
       renderer = nextRenderer
@@ -1005,9 +1011,7 @@ export default function ModelViewerPage() {
       }
 
       const syncViewport = () => {
-        const nextWidth = mount.clientWidth
-        const nextHeight = mount.clientHeight
-        if (nextWidth <= 0 || nextHeight <= 0) return
+        const { width: nextWidth, height: nextHeight } = getViewportSize(mount)
 
         camera.aspect = nextWidth / nextHeight
         camera.updateProjectionMatrix()
