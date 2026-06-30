@@ -680,7 +680,13 @@ function compactForSpeech(text: string) {
   if (!normalized) return ""
   const withoutPrefix = normalized.replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/gu, "")
   const firstLine = withoutPrefix.split(/\n/u).find(item => item.trim())?.trim() ?? withoutPrefix
-  return firstLine.replace(/\s+/gu, "")
+  const asciiWordGap = "\u0000"
+  return firstLine
+    .replace(/\s+/gu, " ")
+    .replace(/([A-Za-z0-9])\s+([A-Za-z0-9])/gu, `$1${asciiWordGap}$2`)
+    .replace(/\s+/gu, "")
+    .replaceAll(asciiWordGap, " ")
+    .trim()
 }
 
 function isLikelyTruncatedSummary(text: string) {
