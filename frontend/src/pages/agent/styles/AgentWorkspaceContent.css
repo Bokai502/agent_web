@@ -51,11 +51,13 @@
   overflow: hidden;
 }
 
+.agent-thermal-config.is-flow-config,
 .agent-thermal-config.is-catch-config {
   overflow: hidden;
   padding: 8px;
 }
 
+.agent-thermal-config.is-flow-config .agent-thermal-tab-panel,
 .agent-thermal-config.is-catch-config .agent-thermal-tab-panel {
   width: 100%;
   max-width: none;

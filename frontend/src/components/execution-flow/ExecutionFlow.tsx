@@ -50,6 +50,7 @@ type ExecutionFlowProps = {
   className?: string
   height?: number | string
   relativePath?: string
+  refreshNonce?: number
   showThemeSwitch?: boolean
   theme?: FlowTheme
   versionId?: string
@@ -196,6 +197,7 @@ function ExecutionFlowCanvas({
   className,
   height = "100vh",
   relativePath = DEFAULT_FLOW_RELATIVE_PATH,
+  refreshNonce = 0,
   showThemeSwitch = true,
   theme,
   versionId,
@@ -232,7 +234,7 @@ function ExecutionFlowCanvas({
     return () => {
       cancelled = true
     }
-  }, [apiBase, relativePath, versionId, workspaceDir, workspaceId])
+  }, [apiBase, refreshNonce, relativePath, versionId, workspaceDir, workspaceId])
 
   useEffect(() => {
     setNodes(initialNodes)

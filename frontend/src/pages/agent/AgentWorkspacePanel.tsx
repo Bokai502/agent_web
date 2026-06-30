@@ -118,6 +118,7 @@ export function AgentWorkspacePanel({
   workspaceRefreshNonce = 0,
 }: AgentWorkspacePanelProps) {
   const [thermalConfigTab, setThermalConfigTab] = useState<'catch-table' | 'execution-flow'>('catch-table')
+  const [executionFlowRefreshNonce, setExecutionFlowRefreshNonce] = useState(0)
   const [gncConfigTab, setGncConfigTab] = useState<'files' | 'flow'>('files')
   const simulationLoad = useLoadSimulationGuiData(apiBase, activeContext)
   const showCatchSupportingTable = activeView === 'bom' && !showComplianceCheckConfig && !showGncConfig && usesCatchSupportingTable(activeContext)
@@ -158,6 +159,7 @@ export function AgentWorkspacePanel({
     <ExecutionFlow
       className="execution-flow-embedded"
       height="100%"
+      refreshNonce={executionFlowRefreshNonce}
       showThemeSwitch={false}
       theme={theme}
       versionId={activeContext.versionId ?? undefined}
@@ -165,6 +167,7 @@ export function AgentWorkspacePanel({
       workspaceId={activeContext.workspaceId ?? undefined}
     />
   )
+  const showExecutionFlowActions = showThermalConfigTabs && thermalConfigTab === 'execution-flow'
   const canLoadSimulationData = activeView === 'tools' && (activeTool === 'paraview' || activeTool === 'comsol')
 
   return (
@@ -266,6 +269,21 @@ export function AgentWorkspacePanel({
             {simulationLoad.status && <span>{simulationLoad.status}</span>}
           </div>
         )}
+        {showExecutionFlowActions && (
+          <div className="agent-tool-actions">
+            <button
+              type="button"
+              className="agent-tool-load-button"
+              disabled={!activeContext.versionDir}
+              title="重新读取执行流程 JSON 文件"
+              onClick={() => {
+                setExecutionFlowRefreshNonce(value => value + 1)
+              }}
+            >
+              刷新流程
+            </button>
+          </div>
+        )}
       </div>
       <div className="agent-workspace-body">
         {!activeView ? (
@@ -301,7 +319,7 @@ export function AgentWorkspacePanel({
             )}
           </div>
         ) : activeView === 'bom' ? (
-          <div className={showCatchSupportingTable && thermalConfigTab === 'catch-table' ? 'agent-thermal-config is-catch-config' : 'agent-thermal-config'}>
+          <div className={showCatchSupportingTable ? `agent-thermal-config ${thermalConfigTab === 'catch-table' ? 'is-catch-config' : 'is-flow-config'}` : 'agent-thermal-config'}>
             <div className="agent-thermal-tab-panel">
               {thermalConfigTab === 'catch-table' ? thermalConfigContent : executionFlowContent}
             </div>
