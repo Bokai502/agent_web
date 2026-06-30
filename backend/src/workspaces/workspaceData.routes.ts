@@ -49,6 +49,10 @@ type ComplianceArtifactBody = {
   rows?: unknown
 }
 type ComplianceMajorIssuesQuery = WorkspaceQuery
+type ComplianceComponentSummariesQuery = WorkspaceQuery
+type ComplianceComponentSummariesBody = {
+  rows?: unknown
+}
 type ManufacturerFullNameBody = {
   full_name?: unknown
 }
@@ -1523,6 +1527,64 @@ function complianceRowsFromPayload(payload: unknown) {
   return []
 }
 
+function complianceRowIdentity(row: JsonRecord) {
+  const model = cleanString(row.model) || cleanString(row["型号规格"]) || cleanString(row.list_model)
+  const manufacturer = cleanString(row.manufacturer) || cleanString(row.normalized_manufacturer) || cleanString(row["厂商"]) || cleanString(row["生产厂商"]) || cleanString(row.list_manufacturer)
+  const name = cleanString(row.component_name) || cleanString(row.name) || cleanString(row["元器件名称"]) || cleanString(row["名称"])
+  return [model, manufacturer || name].map(value => value.trim().toLowerCase().replace(/\s+/gu, "")).join("|")
+}
+
+async function readComplianceInputComponents(workspaceDir: string) {
+  const candidates = [
+    path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", "load_inputs.json"),
+    path.join(COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", "load_inputs.json"),
+    path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "stages", "load_inputs.json"),
+    path.join(LEGACY_COMPLIANCE_OUTPUT_RELATIVE_PATH, "steps", "load_inputs.json"),
+  ]
+  for (const relativePath of candidates) {
+    const raw = await fs.readFile(path.join(workspaceDir, relativePath), "utf-8").catch(() => null)
+    if (raw === null) continue
+    const payload = JSON.parse(raw) as unknown
+    const output = isRecord(payload) ? payload.output : payload
+    const components = isRecord(output) && Array.isArray(output.components)
+      ? output.components.filter(isRecord)
+      : complianceRowsFromPayload(output)
+    if (components.length > 0) return components
+  }
+  return []
+}
+
+async function buildFlightHistoryArtifactRows(workspaceDir: string, issueRows: JsonRecord[]) {
+  const components = await readComplianceInputComponents(workspaceDir)
+  if (components.length === 0) return issueRows
+
+  const issueByIdentity = new Map(issueRows.map(row => [complianceRowIdentity(row), row]))
+  const rows: JsonRecord[] = components.map(component => {
+    const issue = issueByIdentity.get(complianceRowIdentity(component))
+    return {
+      index: component.index ?? issue?.index,
+      component_name: cleanString(component.component_name) || cleanString(component.name) || cleanString(issue?.component_name),
+      model: cleanString(component.model) || cleanString(issue?.model),
+      manufacturer: cleanString(component.manufacturer) || cleanString(issue?.manufacturer),
+      "国产/进口": cleanString(issue?.["国产/进口"]),
+      package_type: cleanString(component.package_type) || cleanString(issue?.package_type),
+      quality_level: cleanString(component.quality_level) || cleanString(issue?.quality_level),
+      flight_history: issue
+        ? cleanString(issue.flight_history) || "未填写"
+        : cleanString(component.flight_history) || "未填写",
+      status: issue ? cleanString(issue.status) || "需关注" : "通过",
+    }
+  })
+
+  const seen = new Set(rows.map(complianceRowIdentity))
+  issueRows.forEach(row => {
+    const identity = complianceRowIdentity(row)
+    if (identity && seen.has(identity)) return
+    rows.push(row)
+  })
+  return rows
+}
+
 async function readComplianceArtifact(workspaceDir: string, artifactValue: unknown) {
   const artifact = assertComplianceArtifact(artifactValue)
   const resolvedFile = await resolveComplianceArtifactFile(workspaceDir, artifact)
@@ -1540,10 +1602,11 @@ async function readComplianceArtifact(workspaceDir: string, artifactValue: unkno
   }
   const stat = resolvedFile.stat ?? await fs.stat(resolvedFile.fullPath)
   const payload = JSON.parse(raw) as unknown
+  const rows = complianceRowsFromPayload(payload)
   return {
     artifact,
     exists: true,
-    rows: complianceRowsFromPayload(payload),
+    rows: artifact === "flight_history_check" ? await buildFlightHistoryArtifactRows(workspaceDir, rows) : rows,
     source_path: resolvedFile.fullPath,
     source_relative_path: resolvedFile.relativePath.split(path.sep).join("/"),
     source_version: [resolvedFile.fullPath, stat.mtimeMs, stat.size].join(":"),
@@ -1558,26 +1621,32 @@ async function writeComplianceArtifact(workspaceDir: string, artifactValue: unkn
   }
   const resolvedFile = await resolveComplianceArtifactFile(workspaceDir, artifact)
   const rows = body.rows.filter(isRecord)
-  await assertKnownManufacturerFullNames(databaseConfig, artifact, rows)
+  const rowsToWrite = artifact === "flight_history_check"
+    ? rows.filter(row => {
+        const status = cleanString(row.status) || cleanString(row["关注状态"])
+        return status && !/^(符合|满足|正确|正常|通过|目录内|ok|pass|true|yes)$/iu.test(status)
+      })
+    : rows
+  await assertKnownManufacturerFullNames(databaseConfig, artifact, rowsToWrite)
   const existingRaw = await fs.readFile(resolvedFile.fullPath, "utf-8").catch(() => null)
   const existingPayload = existingRaw ? JSON.parse(existingRaw) as unknown : null
   let nextPayload: unknown
   if (Array.isArray(existingPayload)) {
-    nextPayload = rows
+    nextPayload = rowsToWrite
   } else if (isRecord(existingPayload)) {
     if (Array.isArray(existingPayload.output) || (!Array.isArray(existingPayload.rows) && !Array.isArray(existingPayload.components))) {
-      nextPayload = { ...existingPayload, output: rows }
+      nextPayload = { ...existingPayload, output: rowsToWrite }
     } else if (Array.isArray(existingPayload.rows)) {
-      nextPayload = { ...existingPayload, rows }
+      nextPayload = { ...existingPayload, rows: rowsToWrite }
     } else {
-      nextPayload = { ...existingPayload, components: rows }
+      nextPayload = { ...existingPayload, components: rowsToWrite }
     }
   } else {
-    nextPayload = { stage: artifact, output: rows }
+    nextPayload = { stage: artifact, output: rowsToWrite }
   }
   await fs.mkdir(path.dirname(resolvedFile.fullPath), { recursive: true })
   await fs.writeFile(resolvedFile.fullPath, `${JSON.stringify(nextPayload, null, 2)}\n`, "utf-8")
-  await updateConfirmedResults(workspaceDir, artifact, rows)
+  await updateConfirmedResults(workspaceDir, artifact, rowsToWrite)
   if (artifact === "manufacturer_check") {
     await saveManufacturerAliases(databaseConfig, rows)
   }
@@ -1684,6 +1753,64 @@ function parseAiMajorIssues(text: string) {
       .map((line, index) => ({ id: `ai-${index + 1}`, severity: "warn", target_tab: "", text: line.replace(/^\s*[-*\d.、]+\s*/u, "").trim() }))
       .filter(item => item.text)
       .slice(0, 6)
+  }
+}
+
+function parseAiComponentSummaries(text: string) {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+  const jsonText = trimmed.match(/```json\s*([\s\S]*?)```/iu)?.[1]
+    ?? trimmed.match(/\[[\s\S]*\]/u)?.[0]
+    ?? trimmed
+  try {
+    const parsed = JSON.parse(jsonText) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter(isRecord)
+      .map(item => ({
+        key: cleanString(item.key),
+        summary: cleanString(item.summary),
+      }))
+      .filter(item => item.key && item.summary)
+      .slice(0, 80)
+  } catch {
+    return []
+  }
+}
+
+async function readComplianceComponentSummaries(body: ComplianceComponentSummariesBody, config: AppConfig, logger: Logger, signal: AbortSignal) {
+  const rows = Array.isArray(body.rows) ? body.rows.filter(isRecord).slice(0, 80) : []
+  const facts = rows.map(row => ({
+    component: cleanString(row.component).slice(0, 120),
+    issues: cleanString(row.issues).slice(0, 900),
+    key: cleanString(row.key).slice(0, 160),
+    manufacturer: cleanString(row.manufacturer).slice(0, 120),
+    model: cleanString(row.model).slice(0, 160),
+  })).filter(row => row.key && row.issues)
+  if (facts.length === 0) return { generated_at: new Date().toISOString(), items: [] }
+
+  const prompt = [
+    "你是航天元器件合规性审查助手。请基于每个器件的检查项事实，为每个器件生成一句中文问题总结。",
+    "要求：",
+    "1. 只根据输入事实总结，不要编造问题、数量或结论。",
+    "2. 输出 JSON 数组，不要 Markdown。每项格式为 {\"key\":\"输入中的key\",\"summary\":\"一句话总结该器件所有问题\"}。",
+    "3. summary 应覆盖该器件全部问题，语言简洁，适合放在看板表格中。",
+    "4. 如果同一器件有多个问题，用顿号或分号压缩在一句话内。",
+    "",
+    JSON.stringify(facts, null, 2),
+  ].join("\n")
+  const output = await createResponseText({
+    config,
+    logger,
+    maxOutputTokens: 1800,
+    prompt,
+    purpose: "compliance-component-summaries",
+    signal,
+  })
+  return {
+    generated_at: new Date().toISOString(),
+    items: parseAiComponentSummaries(output),
+    raw_text: output,
   }
 }
 
@@ -2139,6 +2266,16 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config, 
       return reply.send(await readComplianceMajorIssues(workspaceDir, config, logger, controller.signal))
     } catch (err) {
       return replyWithWorkspaceQueryError(reply, err, "failed to generate compliance major issues")
+    }
+  })
+
+  fastify.post<{ Body: ComplianceComponentSummariesBody; Querystring: ComplianceComponentSummariesQuery }>("/api/workspace/compliance/component-summaries", async (req, reply) => {
+    try {
+      const controller = new AbortController()
+      reply.header("Cache-Control", "no-cache")
+      return reply.send(await readComplianceComponentSummaries(req.body ?? {}, config, logger, controller.signal))
+    } catch (err) {
+      return replyWithWorkspaceQueryError(reply, err, "failed to generate compliance component summaries")
     }
   })
 
