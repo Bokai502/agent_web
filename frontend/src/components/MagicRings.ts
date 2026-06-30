@@ -63,6 +63,13 @@ void main() {
 }
 `;
 
+function getViewportSize(element: HTMLElement) {
+  return {
+    width: Math.max(1, Math.floor(element.clientWidth)),
+    height: Math.max(1, Math.floor(element.clientHeight)),
+  };
+}
+
 interface MagicRingsProps {
   color?: string;
   colorTwo?: string;
@@ -178,8 +185,7 @@ export default function MagicRings({
     scene.add(quad);
 
     const resize = () => {
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
+      const { width: w, height: h } = getViewportSize(mount);
       const dpr = Math.min(window.devicePixelRatio, 1.5);
       renderer.setSize(w, h);
       renderer.setPixelRatio(dpr);
@@ -193,8 +199,10 @@ export default function MagicRings({
 
     const onMouseMove = (e: MouseEvent) => {
       const rect = mount.getBoundingClientRect();
-      mouseRef.current[0] = (e.clientX - rect.left) / rect.width - 0.5;
-      mouseRef.current[1] = -((e.clientY - rect.top) / rect.height - 0.5);
+      const width = Math.max(1, rect.width);
+      const height = Math.max(1, rect.height);
+      mouseRef.current[0] = (e.clientX - rect.left) / width - 0.5;
+      mouseRef.current[1] = -((e.clientY - rect.top) / height - 0.5);
     };
     const onMouseEnter = () => { isHoveredRef.current = true; };
     const onMouseLeave = () => {

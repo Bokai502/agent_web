@@ -229,6 +229,14 @@ describe("agent orchestrator managed status helpers", () => {
       status: "completed",
     }), "已完成")
     assert.equal(buildCompletionFallbackSummary({
+      artifacts: [],
+      issues: [],
+      latestMessage: "  已 完 成 ， outputs are ready.  ",
+      manifestRun: null,
+      progress: null,
+      status: "completed",
+    }), "已完成，outputs are ready.")
+    assert.equal(buildCompletionFallbackSummary({
       artifacts: [{ exists: true, kind: "glb", path: "model.glb" }],
       issues: [],
       latestMessage: "",
