@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
+import type { Logger } from "../logger.js"
 import {
   listWorkspaces,
   setWorkspace,
@@ -9,7 +10,7 @@ import { registerWorkspaceDataRoutes } from "./workspaceData.routes.js"
 import { registerWorkspaceUploadRoutes } from "./workspaceUpload.routes.js"
 import { registerComplianceCheckConfigRoutes } from "./complianceCheckConfig.routes.js"
 
-export async function workspaceRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+export async function workspaceRoutes(fastify: FastifyInstance, { config, logger }: { config: AppConfig; logger: Logger }) {
   fastify.get("/api/workspace/workspaces", async (_req, reply) => {
     try {
       reply.header("Cache-Control", "no-cache")
@@ -29,7 +30,7 @@ export async function workspaceRoutes(fastify: FastifyInstance, { config }: { co
     }
   })
 
-  registerWorkspaceDataRoutes(fastify, { config })
+  registerWorkspaceDataRoutes(fastify, { config, logger })
   await registerComplianceCheckConfigRoutes(fastify, { config })
   await registerWorkspaceUploadRoutes(fastify)
   registerModelRoutes(fastify)

@@ -13,7 +13,7 @@ backend/skills.json
 backend/config.json
 frontend/dist/
 frontend/node_modules/
-
+data/users
 .git.broken/
 .claude/settings.local.json
 .config

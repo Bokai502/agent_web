@@ -26,7 +26,7 @@ export async function registerApiRoutes(
   await fastify.register(healthRoutes, { config, logger })
   await fastify.register(remoteToolsRoutes, { config, logger })
   await fastify.register(skillsRoutes)
-  await fastify.register(workspaceRoutes, { config })
+  await fastify.register(workspaceRoutes, { config, logger })
   await fastify.register(gncConfigRoutes)
   await fastify.register(manifestRoutes, { logger })
   await fastify.register(stageLogsRoutes)
